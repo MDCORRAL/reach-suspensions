@@ -52,10 +52,11 @@ strict3 <- function(gmax) {
   "High"
 }
 
-# Alternative settings flag (non-destructive; you can filter later)
+# --- FIXED: vectorized alternative-settings flag ---
 is_alt <- function(school_type) {
-  st <- tolower(school_type %||% "")
-  any(str_detect(st, c("juvenile court", "community day", "alternative")))
+  st <- tolower(ifelse(is.na(school_type), "", school_type))
+  # single regex with ORs; returns a logical vector same length as st
+  str_detect(st, "juvenile court|community day|alternative|continuation")
 }
 
 `%||%` <- function(a,b) if (is.null(a)) b else a
@@ -71,6 +72,7 @@ v3 <- v2 %>%
     level_override = if_else(is_alt(school_type), "Alternative", NA_character_)
   )
 
+# Apply override if present
 arrow::write_parquet(v3, "data-stage/susp_v3.parquet")
 
 # Sanity checks in console
@@ -78,7 +80,7 @@ v3 %>%
   distinct(academic_year, county_code, district_code, school_code, level_strict3) %>%
   count(academic_year, level_strict3) %>%
   arrange(academic_year, level_strict3) %>%
-  print(n = 40)
+  print(n = 60)
 
 v3 %>%
   distinct(academic_year, county_code, district_code, school_code, level_span) %>%
