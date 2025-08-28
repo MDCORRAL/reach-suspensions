@@ -1,0 +1,6 @@
+# large/sensitive data (don’t push)
+*.xlsx
+*.xlsb
+data/
+.Rhistory
+.Rproj.user/
