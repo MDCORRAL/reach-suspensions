@@ -87,3 +87,26 @@ v3 %>%
   count(academic_year, level_span) %>%
   arrange(academic_year, level_span) %>%
   print(n = 60)
+
+
+
+
+# 1) How much is unknown?
+v3 %>%
+  distinct(academic_year, county_code, district_code, school_code, level_span) %>%
+  count(level_span) %>%
+  mutate(pct = scales::percent(n / sum(n)))
+
+# 2) Top raw grade strings that went to Other/Unknown
+v3 %>%
+  distinct(academic_year, county_code, district_code, school_code, grades_served, level_span) %>%
+  filter(level_span == "Other/Unknown") %>%
+  count(grades_served, sort = TRUE) %>%
+  print(n = 50)
+
+# 3) Same, but also look at school_type to see if “Alternative” drives it
+v3 %>%
+  distinct(academic_year, county_code, district_code, school_code, grades_served, school_type, level_span) %>%
+  filter(level_span == "Other/Unknown") %>%
+  count(school_type, sort = TRUE) %>%
+  print(n = 30)

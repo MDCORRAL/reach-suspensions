@@ -87,3 +87,25 @@ v3 %>%
   print(n = 30)
 
 invisible(TRUE)
+
+# --- Some explicit sanity checks you can see in Console ---
+# 1) Quartiles cover all non-missing proportions
+v3 %>%
+  distinct(academic_year, county_code, district_code, school_code,
+           prop_black, black_prop_q_label) %>%
+  summarise(
+    n_nonmissing = sum(!is.na(prop_black)),
+    n_quartiled  = sum(black_prop_q_label %in% c("Q1 (Lowest % Black)","Q2","Q3","Q4 (Highest % Black)")),
+    n_unknown    = sum(black_prop_q_label == "Unknown"),
+    .by = academic_year
+  ) %>% print(n = 30)
+
+# 2) Proportions are well-formed (0–1), and RB never exceeds TA
+v3 %>%
+  distinct(academic_year, county_code, district_code, school_code, enroll_RB, enroll_TA, prop_black) %>%
+  summarise(
+    any_prop_oob = any(prop_black < 0 | prop_black > 1, na.rm = TRUE),
+    any_RB_gt_TA = any(enroll_RB > enroll_TA, na.rm = TRUE),
+    .by = academic_year
+  ) %>% print(n = 30)
+# Both should be FALSE

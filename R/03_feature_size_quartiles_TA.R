@@ -1,6 +1,18 @@
 library(dplyr)
 library(arrow)
+# at top of R/03_feature_size_quartiles_TA.R
+SHOW_SUMMARY <- TRUE  # set FALSE when you don't want console output
 
+# ... script builds v2 ...
+
+if (isTRUE(SHOW_SUMMARY)) {
+  out <- v2 %>%
+    distinct(academic_year, county_code, district_code, school_code, enroll_q_label) %>%
+    count(academic_year, enroll_q_label) %>%
+    arrange(academic_year, enroll_q_label)
+  print(out, n = 30)
+}
+# ------------------------------------------------
 v1 <- arrow::read_parquet("data-stage/susp_v1_noall.parquet")
 
 # TA per school x year (force uniqueness)
@@ -48,3 +60,18 @@ out <- v2 %>%
   arrange(academic_year, enroll_q_label)
 
 print(out, n = 30)
+
+# ---- Sanity checks ----
+# (not exhaustive, just a few things to verify)
+# 1) No duplicate school-year keys in TA
+ta_dups <- ta %>% count(academic_year, county_code, district_code, school_code) %>% filter(n > 1)
+nrow(ta_dups)  # should be 0
+
+# 2) Quartiles are year-specific
+v2 %>% count(academic_year, enroll_q_label) %>% arrange(academic_year, enroll_q_label)
+
+# 3) Unknowns only where TA enroll is NA/0
+v2 %>%
+  filter(enroll_q_label == "Unknown") %>%
+  distinct(ta_enroll) %>% arrange(ta_enroll) # should be NA or 0
+
