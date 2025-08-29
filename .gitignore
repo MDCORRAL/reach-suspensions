@@ -4,3 +4,8 @@
 data/
 .Rhistory
 .Rproj.user/
+.Rhistory
+.RData
+.Rproj.user
+data-raw/
+
