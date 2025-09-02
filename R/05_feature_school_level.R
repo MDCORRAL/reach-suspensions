@@ -1,16 +1,23 @@
-# R/05_feature_school_level.R  (merged: strict3 + final mapping + Alternative override)
+# R/05_feature_school_level.R  — merged: strict3 + final mapping + Alternative override
+
+# Toggle extra console diagnostics (A/B). Set to FALSE for quiet runs.
+SHOW_SANITY <- TRUE
 
 suppressPackageStartupMessages({
   library(here)
   library(arrow)
   library(dplyr)
   library(stringr)
+  library(tibble)
 })
 
 message(">>> Running from project root: ", here::here())
 
 # --- read v3 ---------------------------------------------------------------
-v3 <- arrow::read_parquet(here::here("data-stage", "susp_v3.parquet"))
+v3_in <- arrow::read_parquet(here::here("data-stage", "susp_v3.parquet"))
+
+# cheap input guard
+stopifnot(all(c("grades_served", "school_type") %in% names(v3_in)))
 
 # --- helpers ---------------------------------------------------------------
 grade_token_to_num <- function(token) {
@@ -56,12 +63,12 @@ is_alt <- function(school_type) {
 }
 
 # --- build features ---------------------------------------------------------
-v4 <- v3 %>%
+v4 <- v3_in %>%
   mutate(
     grade_min_num = get_min_grade(grades_served),
     grade_max_num = get_max_grade(grades_served),
-   
-     # strict 3-band label
+    
+    # strict 3-band label
     level_strict3 = vapply(grade_max_num, strict3, character(1)),
     
     # granular final label
@@ -83,14 +90,14 @@ v4 <- v3 %>%
       grade_min_num <= 4 & grade_max_num <= 8 ~ "Elementary",
       grade_min_num >= 0 & grade_max_num <= 5 ~ "Elementary",
       
-      grade_min_num %in% c(6,7) & grade_max_num == 9 ~ "Middle (6-8)",
-      grade_min_num == 6 & grade_max_num == 10 ~ "Middle (6-8)",
+      grade_min_num %in% c(6,7) & grade_max_num == 9  ~ "Middle (6-8)",
+      grade_min_num == 6 & grade_max_num == 10        ~ "Middle (6-8)",
       
       grade_min_num >= 9 ~ "High School",
       grade_min_num == 8 & grade_max_num %in% c(9,10,11,12) ~ "High School",
-      grade_min_num == 7 & grade_max_num %in% c(10,11,12) ~ "High School",
-      grade_min_num == 5 & grade_max_num == 9 ~ "High School",
-      grade_min_num == 6 & grade_max_num %in% c(11,12) ~ "High School",
+      grade_min_num == 7 & grade_max_num %in% c(10,11,12)   ~ "High School",
+      grade_min_num == 5 & grade_max_num == 9               ~ "High School",
+      grade_min_num == 6 & grade_max_num %in% c(11,12)      ~ "High School",
       grade_max_num == 12 & !is.na(grade_min_num) & grade_min_num >= 1 ~ "High School",
       
       grade_min_num == 6 & grade_max_num == 6 ~ "Middle (6-8)",
@@ -100,20 +107,54 @@ v4 <- v3 %>%
       
       TRUE ~ "Other/Unknown"
     ),
-    # Alternative override applies to strict3 (and optionally to final)
-    level_strict3 = if_else(is_alt(school_type), "Alternative", level_strict3)
     
+    # Alternative override applies to strict3 (optionally to final)
+    level_strict3 = if_else(is_alt(school_type), "Alternative", level_strict3)
     # If you also want to force final label to Alternative, uncomment:
     # ,school_level_final = if_else(is_alt(school_type), "Alternative", school_level_final)
   )
+
+# row-count must be stable through feature adds
+stopifnot(nrow(v4) == nrow(v3_in))
 
 # --- write ------------------------------------------------------------------
 arrow::write_parquet(v4, here::here("data-stage", "susp_v4.parquet"))
 message(">>> 05_feature_school_level (merged): wrote susp_v4.parquet")
 
-# quick counts (optional)
-v4 %>%
-  distinct(academic_year, county_code, district_code, school_code, level_strict3) %>%
-  count(academic_year, level_strict3) %>%
-  arrange(academic_year, level_strict3) %>%
-  print(n = 60)
+# ---- optional sanity prints (A/B) ------------------------------------------
+if (isTRUE(SHOW_SANITY)) {
+  # topline counts by strict3
+  v4 %>%
+    distinct(academic_year, county_code, district_code, school_code, level_strict3) %>%
+    count(academic_year, level_strict3) %>%
+    arrange(academic_year, level_strict3) %>%
+    print(n = 60)
+  
+  # counts by span (optional context)
+  v4 %>%
+    distinct(academic_year, county_code, district_code, school_code, level_span = mapply(span_label, grade_min_num, grade_max_num)) %>%
+    count(academic_year, level_span) %>%
+    arrange(academic_year, level_span) %>%
+    print(n = 60)
+  
+  # A) strict3 vs final mapping
+  v4 %>%
+    distinct(academic_year, county_code, district_code, school_code,
+             level_strict3, school_level_final) %>%
+    count(level_strict3, school_level_final) %>%
+    arrange(level_strict3, school_level_final) %>%
+    print(n = 100)
+  
+  # B) unit-test several edge grade strings
+  tibble(grades_served = c("K-8","7-12","PK-12","6","9-12","TK-5")) %>%
+    mutate(
+      gmin = get_min_grade(grades_served),
+      gmax = get_max_grade(grades_served),
+      strict3_lbl = vapply(gmax, strict3, character(1)),
+      span_lbl    = mapply(span_label, gmin, gmax)
+    ) %>%
+    print()
+}
+
+invisible(TRUE)
+# --- end --------------------------------------------------------------------
