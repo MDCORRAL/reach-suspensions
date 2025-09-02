@@ -1,0 +1,143 @@
+---
+title: "REACH Suspensions – Reproducible R Setup"
+author: "mc"
+date: "`r Sys.Date()`"
+output: html_document
+---
+# Start from scratch (clean environment)
+If you want to reset your R session and clear all objects before re-running:
+
+```r
+rm(list = ls())  # remove all objects
+gc()             # trigger garbage collection
+
+# Optionally, restart R session (Session > Restart R in RStudio) 
+
+# First-time setup
+Run these commands once when setting up on a new machine:
+
+```r
+install.packages("renv")   # install renv if not already present
+renv::restore()            # installs exact package versions from renv.lock
+```
+
+#pull latest code from GitHub
+git pull # in bash terminal
+
+#In R
+renv::restore()
+# installs exact package versions from renv.lock
+
+# run the pipeline
+source("R/00_paths.R")
+source("R/01_ingest_v0.R")
+source("R/02_feature_locale_simple.R")
+source("R/02b_drop_charter_all.R")
+source("R/03_feature_size_quartiles_TA.R")
+source("R/04_feature_black_prop_quartiles.R")
+source("R/05_feature_school_levels.R")
+source("R/06_feature_reason_shares.R")
+source("run_pipeline.R")
+
+#commit code changes
+git add R/*.R renv.lock
+git commit -m "Update features / analysis"
+git push # in bash terminal
+
+#when you add or remove packages
+renv::snapshot()    # updates renv.lock
+# then commit & push it
+
+#sanity check
+library(arrow)
+library(dplyr)
+
+v5 <- read_parquet("data-stage/susp_v5.parquet")
+
+v5 %>%
+  select(academic_year, county_name, district_name, school_name,
+         reporting_category, starts_with("prop_susp_")) %>%
+  glimpse()
+# should show 1,000,000 rows
+
+# troubleshooting
+renv::restore() # installs exact package versions from renv.lock
+
+install.packages("pkgname")   # replace with actual package name
+renv::snapshot()              # then commit & push updated lockfile
+
+
+---
+# setup chunk
+source("R/00_paths.R")                  # if present
+source("R/01_ingest_v0.R")              # brings in raw data
+source("R/02_feature_locale_simple.R")  # adds locale variable
+source("R/02b_drop_charter_all.R")      # cleans, creates v2
+source("R/03_feature_size_quartiles_TA.R")
+source("R/04_feature_black_prop_quartiles.R")
+source("R/05_feature_school_levels.R")
+source("R/06_feature_reason_shares.R")
+source("run_pipeline.R")
+# end setup chunk
+
+# Repo Setup
+## Project Layout
+                   # analysis scripts (run in numeric order)
+source("R/01_ingest.R")
+source("R/02_clean.R")
+source("R/02b_drop_charter_all.R"),
+source("R/03_feature_size_quartiles_TA.R")
+source("R/04_feature_black_prop_quartiles.R")
+source("R/05_feature_school_levels.R")
+source("R/06_feature_reason_shares.R")
+data-raw/               # original source files (not committed if large)
+data-stage/             # intermediate parquet (v1…v5*.parquet)
+outputs/                # tables/figures as needed
+
+#Daily Workflow
+#pull latest code
+#bash
+git pull
+#In R
+renv::restore()  # ensure packages are up to date
+# run the pipeline
+source("R/01_ingest.R")
+source("R/02_clean.R")
+source("R/02b_drop_charter_all.R"),
+source("R/03_feature_size_quartiles_TA.R")
+source("R/04_feature_black_prop_quartiles.R")
+source("R/05_feature_school_levels.R")
+source("R/06_feature_reason_shares.R")
+
+#commit code changes
+#bash
+git add R/*.R renv.lock
+git commit -m "Update features / analysis"
+git push
+
+#when you add or remove packages
+#In R
+renv::snapshot()    # updates renv.lock; then commit & push it
+
+#How to pick up where you left off
+#In R
+#close the repo--> open in R --> run
+install.packages("renv")
+renv::restore() # installs the exact package versions from renv.lock
+
+#sanity check
+library(arrow); library(dplyr)
+v5 <- read_parquet("data-stage/susp_v5.parquet")
+
+v5 %>%
+  select(academic_year, county_name, district_name, school_name,
+         reporting_category, starts_with("prop_susp_")) %>%
+  glimpse() # should show 1,000,000 rows
+  
+ #troubleshooting
+#In R
+# if you get an error about a package not being found, run:
+renv::restore()  # installs the exact package versions from renv.lock
+# if you get an error about a package not installing, try:
+install.packages("pkgname")  # replace pkgname with the package name
+renv::snapshot()            # updates renv.lock; then commit & push it
