@@ -40,14 +40,14 @@ rb_ta <- v2 %>%
     names_prefix = "enroll_"
   ) %>%
   mutate(
-    enroll_RB = replace_na(enroll_RB, 0),  # treat missing RB as 0 for prop calc
+    enroll_RB = enroll_RB,  # leave missing as NA, no replacement
     enroll_TA = enroll_TA                  # keep TA as-is; guard below
   )
 
 # --- 2) Proportion Black per school-year ---
 rb_ta <- rb_ta %>%
   mutate(
-    prop_black = if_else(!is.na(enroll_TA) & enroll_TA > 0,
+    prop_black = if_else(!is.na(enroll_TA) & enroll_TA > 0 & !is.na(enroll_RB),
                          enroll_RB / enroll_TA,
                          NA_real_)
   )
@@ -91,10 +91,16 @@ v3 %>%
 
 # (C) Unknowns = cases where TA is NA/0 (i.e., no denominator)
 v3 %>%
-  filter(black_prop_q_label == "Unknown") %>%
-  distinct(enroll_TA) %>%
-  arrange(enroll_TA) %>%
-  print(n = 30)
+  mutate(
+    unknown_reason = case_when(
+      is.na(prop_black) & (is.na(enroll_TA) | enroll_TA <= 0) ~ "TA missing/zero",
+      is.na(prop_black) &  is.na(enroll_RB)                   ~ "RB missing",
+      TRUE                                                    ~ "Not unknown"
+    )
+  ) %>%
+  count(academic_year, unknown_reason) %>%
+  arrange(academic_year, unknown_reason) %>%
+  print(n = 50)
 
 # Extra checks
 v3 %>%

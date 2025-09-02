@@ -1,5 +1,12 @@
 # run_pipeline.R  — REACH suspensions pipeline runner
 # Runs the numbered scripts in order, skipping the archived 05 "levels" file.
+# --- pipeline re-run guard (put this at the top) ---
+if (isTRUE(getOption("pipeline_running"))) {
+  stop("Pipeline is already running in this session. Aborting duplicate call.")
+}
+options(pipeline_running = TRUE)
+on.exit(options(pipeline_running = FALSE), add = TRUE)
+# --- setup: clear environment and load packages ------------------------------
 
 # --- toggle: pick which 03 to run -------------------------------------------
 USE_TA <- TRUE   # TRUE = R/03_feature_size_quartiles_TA.R, FALSE = R/03_feature_size_quartiles.R
