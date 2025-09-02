@@ -1,10 +1,18 @@
-# R/03_feature_size_quartiles.R (fixed)
-library(dplyr)
-library(arrow)
+# R/03_feature_size_quartiles.R
 
-v1 <- arrow::read_parquet("data-stage/susp_v1.parquet")
+# Quiet core libs
+suppressPackageStartupMessages({
+  library(here)     # project-root paths
+  library(arrow)    # parquet I/O
+  library(dplyr)    # data wrangling
+})
 
-# 1) Collapse to SCHOOL × YEAR totals (sum across races)
+message(">>> Running from project root: ", here::here())
+
+# 1) Read race-level table
+v1 <- arrow::read_parquet(here::here("data-stage", "susp_v1.parquet"))
+
+# 2) Collapse to SCHOOL × YEAR totals (sum across races)
 school_year_enroll <- v1 %>%
   group_by(academic_year, county_code, district_code, school_code) %>%
   summarise(
@@ -13,12 +21,12 @@ school_year_enroll <- v1 %>%
     .groups = "drop"
   )
 
-# 2) Assign quartiles *within year* based on enroll_total (only if >0 and reported)
+# 3) Assign quartiles within year
 school_year_enroll <- school_year_enroll %>%
   group_by(academic_year) %>%
   mutate(
     enroll_q4 = if_else(any_enroll_reported & enroll_total > 0,
-                        ntile(enroll_total, 4),
+                        ntile(enroll_total, 4L),
                         NA_integer_),
     enroll_q_label = case_when(
       is.na(enroll_q4) ~ "Unknown",
@@ -30,17 +38,30 @@ school_year_enroll <- school_year_enroll %>%
   ) %>%
   ungroup()
 
-# 3) Attach these school-year quartiles back to every race row
+# 4) Attach quartiles back to every race row
 v2 <- v1 %>%
-  left_join(school_year_enroll,
-            by = c("academic_year","county_code","district_code","school_code"))
+  left_join(
+    school_year_enroll,
+    by = c("academic_year", "county_code", "district_code", "school_code")
+  )
 
-arrow::write_parquet(v2, "data-stage/susp_v2.parquet")
+# 5) Write out
+arrow::write_parquet(v2, here::here("data-stage", "susp_v2.parquet"))
+message(">>> 03_feature_size_quartiles: wrote susp_v2.parquet")
 
-# Count *schools* per quartile per year
-school_year_enroll %>% count(academic_year, enroll_q_label) %>% arrange(academic_year, enroll_q_label)
+# 6) Quick tallies
+print(
+  school_year_enroll %>%
+    count(academic_year, enroll_q_label) %>%
+    arrange(academic_year, enroll_q_label),
+  n = 200
+)
 
-# If you want to count from the race-level table, deduplicate first:
-arrow::read_parquet("data-stage/susp_v2.parquet") %>%
+# If you prefer to verify from the saved table:
+arrow::read_parquet(here::here("data-stage", "susp_v2.parquet")) %>%
   distinct(academic_year, county_code, district_code, school_code, enroll_q_label) %>%
-  count(academic_year, enroll_q_label)
+  count(academic_year, enroll_q_label) %>%
+  arrange(academic_year, enroll_q_label) %>%
+  print(n = 200)
+
+invisible(TRUE)

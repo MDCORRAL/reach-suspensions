@@ -1,15 +1,28 @@
 # R/03_feature_size_quartiles_TA.R
 # Build TA (total enrollment) quartiles per year and attach to all rows.
-library(dplyr)
-library(arrow)
 
-# Turn console summary on/off
+# Quiet core libs
+suppressPackageStartupMessages({
+  library(here)     # project-root paths
+  library(arrow)    # parquet I/O
+  library(dplyr)    # data wrangling
+})
+
+# Toggle console summary
 SHOW_SUMMARY <- TRUE
 
-# Read input
-v1 <- arrow::read_parquet("data-stage/susp_v1_noall.parquet")
+message(">>> Running from project root: ", here::here())
 
-# --- TA per school x year (force uniqueness) -------------------------------
+# --- helpers ----------------------------------------------------------------
+first_non_na <- function(x) {
+  y <- x[!is.na(x)]
+  if (length(y)) y[1] else NA_real_
+}
+
+# --- 1) Read input ----------------------------------------------------------
+v1 <- arrow::read_parquet(here::here("data-stage", "susp_v1_noall.parquet"))
+
+# --- 2) TA per school x year (force uniqueness) -----------------------------
 ta <- v1 %>%
   filter(reporting_category == "TA") %>%
   transmute(
@@ -17,12 +30,11 @@ ta <- v1 %>%
     ta_enroll = cumulative_enrollment
   )
 
-# Collapse duplicates if they exist (keep first non-NA cumulative_enrollment)
 ta_unique <- ta %>%
   group_by(academic_year, county_code, district_code, school_code) %>%
   summarise(
-    n_rows = n(),
-    ta_enroll = first(na.omit(ta_enroll)),
+    n_rows   = n(),
+    ta_enroll = first_non_na(ta_enroll),
     .groups = "drop"
   )
 
@@ -32,7 +44,7 @@ if (nrow(dups) > 0) {
 }
 ta_unique <- ta_unique %>% select(-n_rows)
 
-# --- Quartiles within year, based on TA enrollment -------------------------
+# --- 3) Quartiles within year (based on TA enrollment) ----------------------
 ta_q <- ta_unique %>%
   group_by(academic_year) %>%
   mutate(
@@ -47,7 +59,7 @@ ta_q <- ta_unique %>%
   ) %>%
   ungroup()
 
-# --- Join back to all race rows --------------------------------------------
+# --- 4) Join back to all race rows -----------------------------------------
 v2 <- v1 %>%
   left_join(ta_q, by = c("academic_year","county_code","district_code","school_code"))
 
@@ -58,10 +70,11 @@ stopifnot(
     pull(n) %>% max() == 1
 )
 
-# write out v2
-arrow::write_parquet(v2, "data-stage/susp_v2.parquet")
+# --- 5) Write out ------------------------------------------------------------
+arrow::write_parquet(v2, here::here("data-stage", "susp_v2.parquet"))
+message(">>> 03_feature_size_quartiles_TA: wrote susp_v2.parquet")
 
-# ---- Explicit prints and sanity checks (only after v2 exists) -------------
+# --- 6) Optional summary -----------------------------------------------------
 if (isTRUE(SHOW_SUMMARY)) {
   out <- v2 %>%
     distinct(academic_year, county_code, district_code, school_code, enroll_q_label) %>%
@@ -69,16 +82,12 @@ if (isTRUE(SHOW_SUMMARY)) {
     arrange(academic_year, enroll_q_label)
   print(out, n = 200)
   
-  # Sanity checks
   message("\nSanity checks:")
-  # 1) No duplicate school-year keys in TA
   ta_dups <- ta_unique %>% count(academic_year, county_code, district_code, school_code) %>% filter(n > 1)
   message("TA duplicate school-year rows (should be 0): ", nrow(ta_dups))
   
-  # 2) Quartiles are year-specific (quick view)
   print(v2 %>% count(academic_year, enroll_q_label) %>% arrange(academic_year, enroll_q_label), n = 200)
   
-  # 3) Unknowns only where TA enroll is NA/0
   unk <- v2 %>%
     filter(enroll_q_label == "Unknown") %>%
     distinct(ta_enroll) %>%

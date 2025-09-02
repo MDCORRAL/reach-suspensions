@@ -1,10 +1,19 @@
 # R/02_feature_locale_simple.R
-library(dplyr)
-library(stringr)
-library(arrow)
 
-v0 <- arrow::read_parquet("data-stage/susp_v0.parquet")
+# Quiet core libs
+suppressPackageStartupMessages({
+  library(here)     # project-root paths
+  library(arrow)    # parquet I/O
+  library(dplyr)    # data wrangling
+  library(stringr)  # string helpers
+})
 
+message(">>> Running from project root: ", here::here())
+
+# Load v0 from staged data (root-anchored path)
+v0 <- arrow::read_parquet(here::here("data-stage", "susp_v0.parquet"))
+
+# Add simplified locale
 v1 <- v0 %>%
   mutate(
     locale_simple = case_when(
@@ -16,9 +25,11 @@ v1 <- v0 %>%
     )
   )
 
-# minimal, quiet diagnostics
+# Minimal, quiet diagnostics
 message("locale_simple added. Counts:")
 print(dplyr::count(v1, locale_simple, sort = TRUE), n = 5)
 
-arrow::write_parquet(v1, "data-stage/susp_v1.parquet")
+# Save v1 back to stage (root-anchored path)
+arrow::write_parquet(v1, here::here("data-stage", "susp_v1.parquet"))
+
 invisible(TRUE)
