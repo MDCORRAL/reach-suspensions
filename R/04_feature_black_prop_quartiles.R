@@ -1,6 +1,6 @@
 # R/04_feature_black_prop_quartiles.R
 # Adds proportion-Black (per school-year) and year-specific quartiles.
-
+# v1_noall drops charter=='All'; prop_black is NA when RB is missing or TA≤0.”
 # Quiet core libs
 suppressPackageStartupMessages({
   library(here)     # project-root paths

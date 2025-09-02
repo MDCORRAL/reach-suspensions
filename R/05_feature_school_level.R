@@ -60,8 +60,10 @@ v4 <- v3 %>%
   mutate(
     grade_min_num = get_min_grade(grades_served),
     grade_max_num = get_max_grade(grades_served),
-    # strict 3-band label
+   
+     # strict 3-band label
     level_strict3 = vapply(grade_max_num, strict3, character(1)),
+    
     # granular final label
     school_level_final = case_when(
       !is.na(grade_min_num) & !is.na(grade_max_num) &
@@ -100,6 +102,7 @@ v4 <- v3 %>%
     ),
     # Alternative override applies to strict3 (and optionally to final)
     level_strict3 = if_else(is_alt(school_type), "Alternative", level_strict3)
+    
     # If you also want to force final label to Alternative, uncomment:
     # ,school_level_final = if_else(is_alt(school_type), "Alternative", school_level_final)
   )
