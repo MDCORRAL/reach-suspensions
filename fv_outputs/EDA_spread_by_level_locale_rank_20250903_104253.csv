@@ -1,0 +1,16 @@
+Column,Description
+level_strict3,"School level category (e.g., Elementary, Middle, High)"
+locale_simple,"Geographic locale type (e.g., Urban, Suburban, Rural)"
+years_n,Number of years with valid data for this setting
+races_per_year,Average number of racial groups with sufficient data per year
+avg_spread,Average absolute difference between highest and lowest racial group suspension rates
+avg_ratio,Average ratio of highest to lowest racial group suspension rates
+median_spread,Median absolute difference between highest and lowest rates
+avg_spread_9010,Average difference between 90th and 10th percentile rates
+avg_cv,Average coefficient of variation (relative standard deviation)
+latest_year,Most recent academic year in dataset
+latest_spread,Absolute spread in the most recent year
+latest_ratio,Ratio spread in the most recent year
+first_spread,Absolute spread in the first year
+trend_direction,"Whether inequality is increasing, decreasing, or stable"
+trend_direction_spearman*,Statistical trend test result (if enabled)

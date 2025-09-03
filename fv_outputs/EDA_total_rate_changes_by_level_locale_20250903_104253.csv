@@ -1,0 +1,11 @@
+Column,Description
+level_strict3,School level category
+locale_simple,Geographic locale type
+start_year,First year in time series
+end_year,Last year in time series
+start_rate,Suspension rate in first year
+end_rate,Suspension rate in last year
+abs_change,Absolute change in rate (end - start)
+pct_change,Percent change ((end-start)/start)
+log_change,Log ratio change (log(end/start))
+direction,"Whether rates increased, decreased, or stayed same"
