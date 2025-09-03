@@ -8,6 +8,8 @@ suppressPackageStartupMessages({
   library(readr)
   library(janitor)
   library(stringr)
+  library(writexl)
+  
 })
 
 # -------- Config -------------------------------------------------------------
@@ -46,6 +48,119 @@ cat("\n=== Loading OTH demographic parquet ===\n")
 if (!file.exists(OTH_PARQUET)) stop("Missing file: ", OTH_PARQUET, "\nRun R/01b_ingest_demographics.R first.")
 demo_data <- arrow::read_parquet(OTH_PARQUET) %>% janitor::clean_names()
 demo_data <- pad_keys(demo_data)
+
+# GUARDRAIL + quick print HERE 
+must_have <- c("Sex","Special Education","Socioeconomic",
+               "English Learner","Foster","Migrant","Homeless","Total")
+missing <- setdiff(must_have, unique(demo_data$category_type))
+if (length(missing)) {
+  stop("[15] Missing categories after read: ", paste(missing, collapse = ", "),
+       "\nCheck OTH_PARQUET path or re-run 01b.")
+}
+cat("\n[15] Categories present right after read:\n")
+print(demo_data %>% count(category_type) %>% arrange(desc(n)))
+# <<< END GUARDRAIL >>>
+
+# --- DEBUG: what's actually in 15_merge right now?
+cat("\n[15] Categories present right after read:\n")
+print(demo_data %>% count(category_type) %>% arrange(desc(n)))
+
+cat("\n[15] Example codes per category:\n")
+print(demo_data %>% group_by(category_type) %>% summarise(codes = paste(head(unique(subgroup_code),6), collapse=", ")))
+
+# --- Normalize subgroup labels and enforce category_type ----------------------
+# Put this immediately after: demo_data <- pad_keys(demo_data)
+
+# helper: quick string standardization
+norm <- function(x) {
+  x %>%
+    stringr::str_replace_all("\u2013|\u2014", "-") %>%  # en/em dash -> hyphen
+    stringr::str_squish()
+}
+
+demo_data <- demo_data %>%
+  mutate(
+    subgroup_raw = subgroup,
+    subgroup = norm(subgroup),
+    category_type = norm(category_type)
+  )
+
+# Canonicalize common subgroup variants (extend as needed)
+demo_data <- demo_data %>%
+  mutate(
+    subgroup_std = dplyr::case_when(
+      # Sex/gender
+      stringr::str_to_lower(subgroup) %in% c("female") ~ "Female",
+      stringr::str_to_lower(subgroup) %in% c("male") ~ "Male",
+      stringr::str_detect(stringr::str_to_lower(subgroup), "non[- ]?binary") ~ "Non-Binary",
+      stringr::str_to_lower(subgroup) %in% c("missing gender") ~ "Missing Gender",
+      stringr::str_to_lower(subgroup) %in% c("not reported") ~ "Not Reported",
+      
+      # Special Education
+      stringr::str_to_lower(subgroup) %in% c("students with disabilities","swd") ~ "Students with Disabilities",
+      stringr::str_to_lower(subgroup) %in% c("special education") ~ "Students with Disabilities",
+      
+      # Socioeconomic
+      stringr::str_detect(subgroup, regex("^socioeconomically disadvantaged$", ignore_case=TRUE)) ~ "Socioeconomically Disadvantaged",
+      
+      # English Learner (if present in OTH)
+      stringr::str_to_lower(subgroup) %in% c("english learner","el") ~ "English Learner",
+      stringr::str_to_lower(subgroup) %in% c("english only","eo") ~ "English Only",
+      
+      # Foster / Homeless (if present)
+      stringr::str_to_lower(subgroup) %in% c("foster youth","foster") ~ "Foster Youth",
+      stringr::str_to_lower(subgroup) %in% c("homeless") ~ "Homeless",
+      
+      TRUE ~ subgroup
+    )
+  )
+
+# Map subgroup -> enforced category_type
+demo_data <- demo_data %>%
+  mutate(
+    category_type_enforced = dplyr::case_when(
+      subgroup_std %in% c("Female","Male","Non-Binary","Missing Gender","Not Reported") ~ "Sex",
+      subgroup_std %in% c("Students with Disabilities")                                ~ "Special Education",
+      subgroup_std %in% c("Socioeconomically Disadvantaged")                           ~ "Socioeconomic",
+      subgroup_std %in% c("English Learner","English Only")                            ~ "English Learner",
+      subgroup_std %in% c("Foster Youth")                                              ~ "Foster",
+      subgroup_std %in% c("Homeless")                                                  ~ "Homeless",
+      TRUE ~ category_type  # keep original for everything else (including "Total")
+    )
+  )
+
+# For sex-like subgroups, DROP any row whose category_type != Sex (same logic for others)
+demo_data <- demo_data %>%
+  mutate(
+    keep_row = dplyr::case_when(
+      category_type_enforced == "Sex"             ~ category_type == "Sex",
+      category_type_enforced == "Special Education" ~ category_type == "Special Education",
+      category_type_enforced == "Socioeconomic"     ~ category_type == "Socioeconomic",
+      category_type_enforced == "English Learner"   ~ category_type == "English Learner",
+      category_type_enforced == "Foster"            ~ category_type == "Foster",
+      category_type_enforced == "Homeless"          ~ category_type == "Homeless",
+      TRUE ~ TRUE
+    )
+  ) %>%
+  filter(keep_row) %>%
+  select(-keep_row)
+
+# Replace original fields with standardized ones
+demo_data <- demo_data %>%
+  mutate(
+    subgroup = subgroup_std,
+    category_type = category_type_enforced
+  ) %>%
+  select(-subgroup_std, -category_type_enforced)
+
+# Optional: assert uniqueness before aggregation
+# One row per unit-year-category-subgroup (prevents silent double counting)
+dup_check <- demo_data %>%
+  count(academic_year, district_code, school_code, category_type, subgroup) %>%
+  filter(n > 1)
+if (nrow(dup_check) > 0) {
+  warning("Duplicate unit-year-category-subgroup rows remain after normalization. Inspect `dup_check`.")
+}
 
 # Year ordering (prefer TA in race_data if present; otherwise use OTH)
 year_levels <- race_data %>%
@@ -154,10 +269,13 @@ demo_disparity_rank <- demo_disparities %>%
   arrange(category_type, desc(avg_ratio_vs_all))
 
 # -------- Intersectional summary (pooled-count ratios) -----------------------
-cat("\n=== Intersectional pooled ratios (Sex, SPED, Socioecon) ===\n")
+cat("\n=== Intersectional pooled ratios (Sex, SPED, Socioecon, EL, Foster, Migrant, Homeless) ===\n")
 
 counts <- demo_data %>%
-  filter(category_type %in% c("Sex","Special Education","Socioeconomic")) %>%
+  filter(category_type %in% c(
+    "Sex","Special Education","Socioeconomic",
+    "English Learner","Foster","Migrant","Homeless"
+  )) %>%
   group_by(level_strict3, locale_simple, academic_year, category_type, subgroup_code) %>%
   summarise(
     susp   = sum(total_suspensions, na.rm = TRUE),
@@ -165,50 +283,43 @@ counts <- demo_data %>%
     .groups = "drop"
   )
 
-# Replace the old ratio_from_codes() with this join-based version
-ratio_from_codes <- function(df_counts, category_name, num_code, den_code, out_col) {
-  keys <- c("level_strict3", "locale_simple", "academic_year")
-  
-  num <- df_counts %>%
-    filter(category_type == category_name, subgroup_code == num_code) %>%
-    select(all_of(keys), susp_num = susp, enroll_num = enroll)
-  
-  den <- df_counts %>%
-    filter(category_type == category_name, subgroup_code == den_code) %>%
-    select(all_of(keys), susp_den = susp, enroll_den = enroll)
-  
-  full_join(num, den, by = keys) %>%
-    mutate(
-      !!out_col :=
-        safe_rate(susp_num, enroll_num, MIN_ENROLLMENT_THRESHOLD) /
-        safe_rate(susp_den, enroll_den, MIN_ENROLLMENT_THRESHOLD)
-    ) %>%
-    select(all_of(keys), !!out_col)
-}
+sex_ratios     <- ratio_from_codes(counts, "Sex",              "SM", "SF", "male_female_ratio")
+sped_ratio     <- ratio_from_codes(counts, "Special Education","SE", "SN", "sped_ratio")
+sed_ratio      <- ratio_from_codes(counts, "Socioeconomic",    "SD", "NS", "sed_ratio")
+el_ratio       <- ratio_from_codes(counts, "English Learner",  "EL", "EO", "el_ratio")
+foster_ratio   <- ratio_from_codes(counts, "Foster",           "FY", "NF", "foster_ratio")
+migrant_ratio  <- ratio_from_codes(counts, "Migrant",          "MG", "NM", "migrant_ratio")
+homeless_ratio <- ratio_from_codes(counts, "Homeless",         "HL", "NH", "homeless_ratio")
 
-sex_ratios <- ratio_from_codes(counts, "Sex",              "SM", "SF", "male_female_ratio")
-sped_ratio <- ratio_from_codes(counts, "Special Education","SE", "SN", "sped_ratio")
-sed_ratio  <- ratio_from_codes(counts, "Socioeconomic",    "SD", "NS", "sed_ratio")
+demo_summary_by_setting <- list(
+  sex_ratios, sped_ratio, sed_ratio,
+  el_ratio, foster_ratio, migrant_ratio, homeless_ratio
+) %>%
+  Reduce(function(x, y) left_join(x, y,
+                                  by = c("level_strict3","locale_simple","academic_year")), .)
 
-demo_summary_by_setting <- list(sex_ratios, sped_ratio, sed_ratio) %>%
-  Reduce(function(x, y) dplyr::left_join(x, y,
-                                         by = c("level_strict3","locale_simple","academic_year")), .)
-
-# Optional: extend for EL / Foster / Homeless by uncommenting below:
-# el_ratio     <- ratio_from_codes(counts, "English Learner", "EL", "EO", "el_ratio")
-# foster_ratio <- ratio_from_codes(counts, "Foster",          "FY", "NF", "foster_ratio")
-# homeless_ratio <- ratio_from_codes(counts, "Homeless",      "HL", "NH", "homeless_ratio")
-# demo_summary_by_setting <- list(demo_summary_by_setting, el_ratio, foster_ratio, homeless_ratio) %>%
-#   Reduce(function(x, y) dplyr::left_join(x, y, by = c("level_strict3","locale_simple","academic_year")), .)
 
 # -------- Output -------------------------------------------------------------
 outdir <- here("outputs"); dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 ts <- format(Sys.time(), "%Y%m%d_%H%M%S")
 
-readr::write_csv(demo_disparities,            file.path(outdir, paste0("EDA_demographic_disparities_", ts, ".csv")))
-readr::write_csv(within_category_disparities, file.path(outdir, paste0("EDA_within_demographic_spreads_", ts, ".csv")))
-readr::write_csv(demo_disparity_rank,         file.path(outdir, paste0("EDA_demographic_disparity_rankings_", ts, ".csv")))
-readr::write_csv(demo_summary_by_setting,     file.path(outdir, paste0("EDA_demographic_summary_by_setting_", ts, ".csv")))
+writexl::write_xlsx(demo_disparities,
+                    file.path(outdir, paste0("15_EDA_demographic_disparities_", ts, ".xlsx")))
+writexl::write_xlsx(within_category_disparities,
+                    file.path(outdir, paste0("15_EDA_within_demographic_spreads_", ts, ".xlsx")))
+writexl::write_xlsx(demo_disparity_rank,
+                    file.path(outdir, paste0("15_EDA_demographic_disparity_rankings_", ts, ".xlsx")))
+writexl::write_xlsx(demo_summary_by_setting,
+                    file.path(outdir, paste0("15_EDA_demographic_summary_by_setting_", ts, ".xlsx")))
+writexl::write_xlsx(
+  list(
+    disparities = demo_disparities,
+    spreads     = within_category_disparities,
+    rankings    = demo_disparity_rank,
+    summary     = demo_summary_by_setting
+  ),
+  path = file.path(outdir, paste0("15_EDA_outputs_", ts, ".xlsx"))
+)
 
 # Console summary
 cat("\n========== DEMOGRAPHIC ANALYSIS SUMMARY ==========\n")

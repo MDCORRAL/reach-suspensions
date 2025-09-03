@@ -1,7 +1,0 @@
-Column,Description
-level_strict3,School level category
-locale_simple,Geographic locale type
-race,Racial/ethnic group
-total_records,Total number of records
-complete_records,Records with valid enrollment and suspension data
-completeness_rate,Proportion of complete records

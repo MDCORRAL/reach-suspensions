@@ -16,30 +16,29 @@ suppressPackageStartupMessages({
 DEMO_DATA_PATH <- "/Users/michaelcorral/Library/CloudStorage/GoogleDrive-mdcorral@g.ucla.edu/.shortcut-targets-by-id/1qNAOKIg0UjuT3XWFlk4dkDLN6UPWJVGx/Center for the Transformation of Schools/Research/CA Race Education And Community Healing (REACH)/2. REACH Network (INTERNAL)/15. REACH Baseline Report_Summer 2025/6. R Data Analysis Project Folders/reach-suspensions/data-raw/copy_CDE_suspensions_1718-2324_sc_oth.xlsx"
 
 # Option B: if you ever move the XLSX into your repo:
-# DEMO_DATA_PATH <- here("data-stage", "copy_CDE_suspensions_1718-2324_sc_oth.xlsx")
+# DEMO_DATA_PATH <- here("data-raw", "copy_CDE_suspensions_1718-2324_sc_oth.xlsx")
 
 OUT_PARQUET <- here("data-stage", "oth_long.parquet")
 MIN_ENROLLMENT_THRESHOLD <- 10
 
-# Codes -> human labels (kept for reference; analysis uses subgroup_code)
-DEMO_CODES <- c(
-  SM="Male", SF="Female",
-  SE="Special Education", SN="Not Special Education",
-  EL="English Learner", EO="English Only", IFEP="Initially Fluent English Proficient", RFEP="Reclassified Fluent English Proficient",
-  MG="Migrant", NM="Not Migrant",
-  FY="Foster Youth", NF="Not Foster Youth",
-  HL="Homeless", NH="Not Homeless",
-  SD="Socioeconomically Disadvantaged", NS="Not Socioeconomically Disadvantaged",
-  TA="All Students"
-)
-demo_label <- function(code) dplyr::recode(code, !!!DEMO_CODES, .default = NA_character_)
+# ---- Helpers ----------------------------------------------------------------
 safe_rate <- function(susp, enroll, min_enroll = 0) ifelse(enroll > min_enroll, susp / enroll, NA_real_)
+norm <- function(x) x %>%
+  stringr::str_replace_all("\u2013|\u2014", "-") %>%
+  stringr::str_squish()
+
+# Pick likely column names (tolerant to header variants)
+pick_col <- function(df, candidates, required=TRUE, label=NULL) {
+  nm <- intersect(candidates, names(df))[1]
+  if (is.na(nm) && required) stop("Missing expected column", if(!is.null(label)) paste0(" for ", label), ": ", paste(candidates, collapse=", "))
+  nm
+}
 
 # -------- Read XLSX ----------------------------------------------------------
 if (!file.exists(DEMO_DATA_PATH)) stop("File not found: ", DEMO_DATA_PATH)
 
 sheets <- readxl::excel_sheets(DEMO_DATA_PATH)
-school_sheet <- sheets[grepl("consldt_school", tolower(sheets))]
+school_sheet <- sheets[grepl("consldt_school|school", tolower(sheets))]
 if (!length(school_sheet)) stop("No school-level sheet. Found: ", paste(sheets, collapse=", "))
 school_sheet <- school_sheet[1]
 message("Using sheet: ", school_sheet)
@@ -48,62 +47,215 @@ raw <- readxl::read_excel(
   DEMO_DATA_PATH, sheet = school_sheet, na = c("", "NA", "N/A", "—", "-", "--")
 ) |> janitor::clean_names()
 
-# Resolve likely column names
-pick_col <- function(df, candidates, required=TRUE, label=NULL) {
-  nm <- intersect(candidates, names(df))[1]
-  if (is.na(nm) && required) stop("Missing expected column", if(!is.null(label)) paste0(" for ", label), ": ", paste(candidates, collapse=", "))
-  nm
-}
+# Likely columns
 rc_col   <- pick_col(raw, c("reporting_category","reporting_category_code"), TRUE,  "reporting category")
-rcd_col  <- pick_col(raw, c("reporting_category_description","reporting_category_desc"), FALSE)
+rcd_col  <- pick_col(raw, c("reporting_category_description","reporting_category_desc","reporting_category_descrip"), FALSE)
 ay_col   <- pick_col(raw, c("academic_year","academic_yr"), FALSE)
 year_col <- pick_col(raw, c("year"), FALSE)
 
-# Derive year safely
+# Derive academic_year safely
 yr <- rep(NA_integer_, nrow(raw))
 if (!is.na(year_col)) yr <- suppressWarnings(as.integer(raw[[year_col]]))
-if (all(is.na(yr)) && !is.na(ay_col)) {
-  ay <- as.character(raw[[ay_col]])
-  yr <- ifelse(grepl("^\\d{4}-\\d{2}$", ay), as.integer(substr(ay,1,4)) + 1L, NA_integer_)
-}
+ay <- if (!is.na(ay_col)) as.character(raw[[ay_col]]) else NA_character_
+academic_year <- dplyr::coalesce(
+  if (!all(is.na(ay))) ay else NA_character_,
+  ifelse(!is.na(yr), paste0(yr - 1, "-", substr(yr,3,4)), NA_character_)
+)
 
-# Numeric fields
-num_like <- c("cumulative_enrollment","total_suspensions","unduplicated_count_of_students_suspended_total","suspension_rate_total")
+# Numeric fields present in CDE files
+num_like <- c(
+  "cumulative_enrollment",
+  "total_suspensions",
+  "unduplicated_count_of_students_suspended_total",
+  "suspension_rate_total"
+)
 
-oth_long <- raw |>
+# ---------------- Codebook (authoritative mapping) ---------------------------
+# Includes aliases that often show up under "Other"
+codebook <- tibble::tribble(
+  ~subgroup_code, ~category_type,         ~subgroup,
+  
+  # Total
+  "TA",           "Total",                "All Students",
+  
+  # Sex / Gender (canonical codes)
+  "SF",           "Sex",                  "Female",
+  "SM",           "Sex",                  "Male",
+  "SNB",          "Sex",                  "Non-Binary",
+  # Extra sex values that can show up
+  "SGZ",          "Sex",                  "Missing Gender",
+  "SNR",          "Sex",                  "Not Reported",
+  
+  # Aliases frequently found under "Other" that we need to promote
+  "GF",           "Sex",                  "Female",
+  "GM",           "Sex",                  "Male",
+  "GX",           "Sex",                  "Non-Binary Gender (Beginning 2019–20)",
+  "GZ",           "Sex",                  "Missing Gender",
+  "RD",           "Sex",                  "Not Reported",
+  
+  # Special Education
+  "SE",           "Special Education",    "Students with Disabilities",
+  "SN",           "Special Education",    "Non-Students with Disabilities",
+  
+  # Socioeconomic
+  "SD",           "Socioeconomic",        "Socioeconomically Disadvantaged",
+  "NS",           "Socioeconomic",        "Not Socioeconomically Disadvantaged",
+  # Alias under Other
+  "SS",           "Socioeconomic",        "Socioeconomically Disadvantaged",
+  
+  # Homeless
+  "HL",           "Homeless",             "Homeless",
+  "NH",           "Homeless",             "Not Homeless",
+  # Alias under Other
+  "SH",           "Homeless",             "Homeless",
+  
+  # English Learner
+  "EL",           "English Learner",      "English Learner",
+  "EO",           "English Learner",      "English Only",
+  "IFEP",         "English Learner",      "Initially Fluent English Proficient",
+  "RFEP",         "English Learner",      "Reclassified Fluent English Proficient",
+  
+  # Foster
+  "FY",           "Foster",               "Foster Youth",
+  "NF",           "Foster",               "Not Foster Youth",
+  
+  # Migrant
+  "MG",           "Migrant",              "Migrant",
+  "NM",           "Migrant",              "Non-Migrant"
+)
+
+# -------- Longify + normalize + promote aliases ------------------------------
+# ---- after `raw` is read and clean_names() applied ----
+
+# Likely column names
+rc_col   <- pick_col(raw, c("reporting_category","reporting_category_code"), TRUE,  "reporting category")
+rcd_col  <- pick_col(raw, c("reporting_category_description","reporting_category_desc","reporting_category_descrip"), TRUE, "reporting category description")
+ay_col   <- pick_col(raw, c("academic_year","academic_yr"), FALSE)
+year_col <- pick_col(raw, c("year"), FALSE)
+
+# Derive academic_year
+yr <- if (!is.na(year_col)) suppressWarnings(as.integer(raw[[year_col]])) else NA_integer_
+ay <- if (!is.na(ay_col)) as.character(raw[[ay_col]]) else NA_character_
+academic_year <- dplyr::coalesce(
+  if (!all(is.na(ay))) ay else NA_character_,
+  ifelse(!is.na(yr), paste0(yr - 1, "-", substr(yr,3,4)), NA_character_)
+)
+
+num_like <- c(
+  "cumulative_enrollment",
+  "total_suspensions",
+  "unduplicated_count_of_students_suspended_total",
+  "suspension_rate_total"
+)
+
+raw_norm <- raw |>
   mutate(
     year = yr,
-    academic_year = dplyr::coalesce(
-      if (!is.na(ay_col)) .data[[ay_col]] else NA_character_,
-      ifelse(!is.na(year), paste0(year - 1, "-", substr(year,3,4)), NA_character_)
-    ),
+    academic_year = academic_year,
     across(any_of(c("county_code","district_code","school_code",
                     "county_name","district_name","school_name")), as.character),
     across(any_of(num_like), ~ readr::parse_number(as.character(.x))),
-    subgroup_code  = .data[[rc_col]],
-    subgroup_label = demo_label(subgroup_code),
-    subgroup       = dplyr::coalesce(subgroup_label,
-                                     if (!is.na(rcd_col)) .data[[rcd_col]] else NA_character_,
-                                     subgroup_code),
-    category_type  = dplyr::case_when(
-      subgroup_code %in% c("SM","SF") ~ "Sex",
-      subgroup_code %in% c("SE","SN") ~ "Special Education",
-      subgroup_code %in% c("EL","EO","IFEP","RFEP") ~ "English Learner",
-      subgroup_code %in% c("MG","NM") ~ "Migrant",
-      subgroup_code %in% c("FY","NF") ~ "Foster",
-      subgroup_code %in% c("HL","NH") ~ "Homeless",
-      subgroup_code %in% c("SD","NS") ~ "Socioeconomic",
-      subgroup_code %in% c("TA")      ~ "Total",
-      TRUE ~ "Other"
-    )
-  ) |>
-  rename(
-    unduplicated_suspensions = unduplicated_count_of_students_suspended_total
-  ) |>
+    rc_code = norm(.data[[rc_col]]),
+    rc_desc = norm(.data[[rcd_col]])
+  )
+
+# ---- description-first → canonical (category_type, subgroup, subgroup_code) ----
+# We map by DESCRIPTION first (because your workbook uses repurposed codes like SE/SF/SD),
+# then fall back to code aliases (GF/GM/GX/GZ, SH, SS, etc.).
+
+desc_to_canon <- function(desc) {
+  d <- tolower(desc %||% "")
+  dplyr::case_when(
+    grepl("\\benglish\\s*learner", d)                                ~ "EL",
+    grepl("\\benglish\\s*only", d)                                    ~ "EO",
+    grepl("reclassified\\s*fluent", d)                                ~ "RFEP",
+    grepl("initially\\s*fluent", d)                                   ~ "IFEP",
+    
+    grepl("\\bfoster\\b", d)                                          ~ "FY",
+    grepl("\\bnot\\s*foster", d)                                      ~ "NF",
+    
+    grepl("\\bmigrant\\b", d)                                         ~ "MG",
+    grepl("\\bnon[- ]?migrant|\\bnot\\s*migrant", d)                  ~ "NM",
+    
+    grepl("\\bhomeless\\b", d)                                        ~ "HL",
+    grepl("\\bnot\\s*homeless", d)                                    ~ "NH",
+    
+    grepl("students?\\s*with\\s*disab|special\\s*education", d)       ~ "SE",
+    grepl("\\bnot\\s*(students?\\s*with\\s*disab|special\\s*education)", d) ~ "SN",
+    
+    grepl("socioeconomically\\s*disadv", d)                           ~ "SD",
+    grepl("\\bnot\\s*socioeconomically\\s*disadv", d)                 ~ "NS",
+    
+    grepl("\\bfemale\\b", d)                                          ~ "SF",
+    grepl("\\bmale\\b", d)                                            ~ "SM",
+    grepl("non[- ]?binary", d)                                        ~ "SNB",
+    grepl("missing\\s*gender", d)                                     ~ "SGZ",
+    grepl("^not\\s*reported$", d)                                     ~ "SNR",
+    
+    grepl("^all\\s*students?$", d)                                    ~ "TA",
+    TRUE ~ NA_character_
+  )
+}
+
+# Code aliases → canonical (when descriptions are vague)
+code_alias_to_canon <- function(code) {
+  c <- toupper(code %||% "")
+  dplyr::case_when(
+    # Sex aliases from "Other"
+    c == "GF" ~ "SF",
+    c == "GM" ~ "SM",
+    c == "GX" ~ "SNB",
+    c == "GZ" ~ "SGZ",
+    c == "RD" ~ "SNR",
+    # Socioeconomic alias
+    c == "SS" ~ "SD",
+    # Homeless alias
+    c == "SH" ~ "HL",
+    # Already canonical codes pass through
+    grepl("^(SF|SM|SNB|SGZ|SNR|SE|SN|SD|NS|EL|EO|IFEP|RFEP|FY|NF|MG|NM|HL|NH|TA)$", c) ~ c,
+    TRUE ~ NA_character_
+  )
+}
+
+# Human label for canonical code
+canon_label <- function(code) dplyr::recode(code,
+                                            SF="Female", SM="Male", SNB="Non-Binary", SGZ="Missing Gender", SNR="Not Reported",
+                                            SE="Students with Disabilities", SN="Non-Students with Disabilities",
+                                            SD="Socioeconomically Disadvantaged", NS="Not Socioeconomically Disadvantaged",
+                                            EL="English Learner", EO="English Only", IFEP="Initially Fluent English Proficient", RFEP="Reclassified Fluent English Proficient",
+                                            FY="Foster Youth", NF="Not Foster Youth",
+                                            MG="Migrant", NM="Non-Migrant",
+                                            HL="Homeless", NH="Not Homeless",
+                                            TA="All Students",
+                                            .default = NA_character_
+)
+
+canon_category <- function(code) dplyr::recode(code,
+                                               SF="Sex", SM="Sex", SNB="Sex", SGZ="Sex", SNR="Sex",
+                                               SE="Special Education", SN="Special Education",
+                                               SD="Socioeconomic", NS="Socioeconomic",
+                                               EL="English Learner", EO="English Learner", IFEP="English Learner", RFEP="English Learner",
+                                               FY="Foster", NF="Foster",
+                                               MG="Migrant", NM="Migrant",
+                                               HL="Homeless", NH="Homeless",
+                                               TA="Total",
+                                               .default = "Other"
+)
+
+# Apply mapping
+mapped <- raw_norm |>
   mutate(
-    # Always compute our own fraction-scale rate (0–1)
-    rate = safe_rate(total_suspensions, cumulative_enrollment, MIN_ENROLLMENT_THRESHOLD)
-  ) |>
+    canon_from_desc = desc_to_canon(rc_desc),
+    canon_from_code = code_alias_to_canon(rc_code),
+    subgroup_code   = dplyr::coalesce(canon_from_desc, canon_from_code),   # DESCRIPTION wins
+    category_type   = canon_category(subgroup_code),
+    subgroup        = dplyr::coalesce(canon_label(subgroup_code), rc_desc)
+  )
+
+# Final tidy + collapse any duplicates created by recode
+oth_long <- mapped |>
+  rename(unduplicated_suspensions = unduplicated_count_of_students_suspended_total) |>
+  mutate(rate = safe_rate(total_suspensions, cumulative_enrollment, MIN_ENROLLMENT_THRESHOLD)) |>
   select(
     academic_year, year,
     county_code, district_code, school_code,
@@ -111,8 +263,25 @@ oth_long <- raw |>
     category_type, subgroup, subgroup_code,
     cumulative_enrollment, total_suspensions, unduplicated_suspensions, rate
   ) |>
-  filter(!is.na(academic_year), !is.na(subgroup))
+  filter(!is.na(academic_year), !is.na(subgroup_code)) |>
+  group_by(academic_year, county_code, district_code, school_code,
+           category_type, subgroup, subgroup_code) |>
+  summarise(
+    cumulative_enrollment = sum(cumulative_enrollment, na.rm = TRUE),
+    total_suspensions     = sum(total_suspensions,     na.rm = TRUE),
+    unduplicated_suspensions = sum(unduplicated_suspensions, na.rm = TRUE),
+    rate = safe_rate(total_suspensions, cumulative_enrollment, MIN_ENROLLMENT_THRESHOLD),
+    .groups = "drop"
+  )
 
+
+# -------- Write --------------------------------------------------------------
 dir.create(dirname(OUT_PARQUET), recursive = TRUE, showWarnings = FALSE)
 arrow::write_parquet(oth_long, OUT_PARQUET)
 message("Wrote: ", OUT_PARQUET, " (rows: ", nrow(oth_long), ")")
+
+# -------- Sanity print (quick peek in console) -------------------------------
+cat("\n[01b] Category types loaded:\n")
+print(oth_long |> count(category_type) |> arrange(desc(n)))
+cat("\n[01b] Sample subgroups per category (first 5):\n")
+print(oth_long |> group_by(category_type) |> summarise(subgroups = paste(head(unique(subgroup),5), collapse=", ")))
