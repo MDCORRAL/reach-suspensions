@@ -9,3 +9,10 @@ data/
 .Rproj.user
 data-raw/
 
+# macOS system files
+.DS_Store
+
+# RStudio temporary files
+.Rproj.user
+.Rhistory
+.RData.Renviron
