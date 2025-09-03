@@ -1,38 +1,182 @@
 # analysis/10_eda_hotspots_and_trends.R
-# Exploratory scan for: (1) where disparities are largest, (2) where rates changed the most
-# across levels/locales + reason categories (no graphs, tables only).
+# Exploratory scan for: (1) where disparities are largest, (2) where rates changed the most,
+# with (3) diagnostics for thin buckets and (4) optional reason-specific rate changes.
 
+# --- Libraries ---------------------------------------------------------------
 suppressPackageStartupMessages({
-  library(here); library(arrow); library(dplyr); library(tidyr)
-  library(stringr); library(readr); library(scales)
+  library(dplyr); library(tidyr); library(arrow); library(here); library(readr); library(scales)
 })
 
-v5 <- arrow::read_parquet(here("data-stage","susp_v5.parquet"))
-
-# ---- guards ------------------------------------------------------------------
-need <- c("academic_year","reporting_category","total_suspensions",
-          "cumulative_enrollment","locale_simple","level_strict3")
-miss <- setdiff(need, names(v5))
-if (length(miss)) stop("Missing columns in v5: ", paste(miss, collapse=", "))
-
-years <- v5 %>% filter(reporting_category=="TA") %>%
-  distinct(academic_year) %>% arrange(academic_year) %>% pull()
-if (!length(years)) stop("No TA rows to anchor year order.")
-first_year <- min(years); last_year <- max(years)
-
-# ---- helpers -----------------------------------------------------------------
-race_label <- function(code) dplyr::recode(
-  code,
-  RB="Black/African American", RW="White", RH="Hispanic/Latino", RL="Hispanic/Latino",
-  RI="American Indian/Alaska Native", RA="Asian", RF="Filipino",
-  RP="Pacific Islander", RT="Two or More Races", TA="All Students",
-  .default = NA_character_
+# --- Configuration -----------------------------------------------------------
+RACE_CODES <- c(
+  RB = "Black/African American",
+  RW = "White",
+  RH = "Hispanic/Latino",
+  RL = "Hispanic/Latino",                     # alias
+  RI = "American Indian/Alaska Native",
+  RA = "Asian",
+  RF = "Filipino",
+  RP = "Pacific Islander",
+  RT = "Two or More Races",
+  TA = "All Students"
 )
-allowed_codes <- c("TA","RB","RW","RH","RL","RI","RA","RF","RP","RT")
 
-safe_rate <- function(susp, enroll) ifelse(enroll>0, susp/enroll, NA_real_)
+MIN_ENROLLMENT_THRESHOLD <- 10   # guard against tiny denominators in rate calc
+MIN_RACES_FOR_SPREAD     <- 2    # need at least this many races to compute spread
+DROP_UNKNOWN_LOCALE      <- FALSE
+INCLUDE_REASON_ANALYSIS  <- TRUE  # set FALSE to skip reason tables
 
-# Reason columns already in v5 as proportions of total suspensions
+# --- Helpers -----------------------------------------------------------------
+race_label <- function(code) dplyr::recode(code, !!!RACE_CODES, .default = NA_character_)
+
+safe_rate <- function(suspensions, enrollment, min_enroll = 0) {
+  dplyr::if_else(enrollment > min_enroll, suspensions / enrollment, NA_real_)
+}
+
+safe_ratio <- function(numerator, denominator, min_denom = 0) {
+  dplyr::if_else(!is.na(denominator) & denominator > min_denom, numerator / denominator, NA_real_)
+}
+
+# --- Load & guards -----------------------------------------------------------
+v5_path <- here("data-stage", "susp_v5.parquet")
+if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
+v5 <- read_parquet(v5_path)
+
+required_cols <- c("reporting_category","academic_year","total_suspensions",
+                   "cumulative_enrollment","level_strict3","locale_simple")
+missing_cols <- setdiff(required_cols, names(v5))
+if (length(missing_cols)) stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
+
+# Order academic years (driven by TA)
+year_levels <- v5 %>%
+  filter(reporting_category == "TA") %>%
+  distinct(academic_year) %>% arrange(academic_year) %>% pull()
+if (!length(year_levels)) stop("No TA rows found to anchor academic_year order.")
+
+# Optional: drop Unknown locale up front
+if (isTRUE(DROP_UNKNOWN_LOCALE)) {
+  v5 <- v5 %>% filter(locale_simple != "Unknown")
+}
+
+# --- Base with labels & factors ---------------------------------------------
+base <- v5 %>%
+  mutate(
+    race     = race_label(reporting_category),
+    year_fct = factor(academic_year, levels = year_levels, ordered = TRUE)
+  ) %>%
+  filter(!is.na(race)) %>%
+  mutate(
+    has_valid_enrollment  = cumulative_enrollment > 0,
+    has_valid_suspensions = !is.na(total_suspensions) & total_suspensions >= 0
+  )
+
+# --- TA (All Students) rates by setting-year --------------------------------
+ta_rates <- base %>%
+  filter(race == "All Students") %>%
+  group_by(level_strict3, locale_simple, academic_year, year_fct) %>%
+  summarise(
+    total_susp_TA = sum(total_suspensions, na.rm = TRUE),
+    enroll_TA     = sum(cumulative_enrollment, na.rm = TRUE),
+    rate_TA       = safe_rate(total_susp_TA, enroll_TA, MIN_ENROLLMENT_THRESHOLD),
+    n_schools     = n(),
+    .groups = "drop"
+  )
+
+# --- Race-specific pooled rates & disparities --------------------------------
+race_rates <- base %>%
+  group_by(level_strict3, locale_simple, academic_year, year_fct, race) %>%
+  summarise(
+    susp      = sum(total_suspensions, na.rm = TRUE),
+    enroll    = sum(cumulative_enrollment, na.rm = TRUE),
+    n_schools = n(),
+    .groups   = "drop"
+  ) %>%
+  mutate(
+    rate               = safe_rate(susp, enroll, MIN_ENROLLMENT_THRESHOLD),
+    sufficient_sample  = enroll >= MIN_ENROLLMENT_THRESHOLD
+  ) %>%
+  left_join(ta_rates %>% select(-n_schools),
+            by = c("level_strict3","locale_simple","academic_year","year_fct")) %>%
+  mutate(
+    disparity_ratio = safe_ratio(rate, rate_TA),
+    disparity_diff  = if_else(!is.na(rate) & !is.na(rate_TA), rate - rate_TA, NA_real_)
+  )
+
+# --- Thin-bucket diagnostic (why some spreads end up empty) -------------------
+thin_buckets <- race_rates %>%
+  filter(race != "All Students") %>%
+  group_by(level_strict3, locale_simple, academic_year, year_fct) %>%
+  summarise(
+    n_ok_races = sum(!is.na(rate) & sufficient_sample),
+    any_ta     = any(!is.na(rate_TA)),
+    .groups = "drop"
+  ) %>%
+  filter(n_ok_races < MIN_RACES_FOR_SPREAD)
+
+# --- Spread / inequality within setting-year ---------------------------------
+spread_by_year <- race_rates %>%
+  filter(race != "All Students", !is.na(rate), sufficient_sample) %>%
+  group_by(level_strict3, locale_simple, academic_year, year_fct) %>%
+  filter(n() >= MIN_RACES_FOR_SPREAD) %>%
+  summarise(
+    n_races     = n(),
+    max_rate    = max(rate, na.rm = TRUE),
+    min_rate    = min(rate, na.rm = TRUE),
+    spread_abs  = max_rate - min_rate,
+    spread_ratio= safe_ratio(max_rate, min_rate),
+    # robust alternatives
+    p90_rate    = quantile(rate, 0.9, na.rm = TRUE),
+    p10_rate    = quantile(rate, 0.1, na.rm = TRUE),
+    spread_9010 = p90_rate - p10_rate,
+    cv          = sd(rate, na.rm = TRUE) / mean(rate, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Rank settings by average spread across years
+spread_rank <- spread_by_year %>%
+  group_by(level_strict3, locale_simple) %>%
+  arrange(year_fct, .by_group = TRUE) %>%
+  summarise(
+    years_n         = n(),
+    races_per_year  = mean(n_races, na.rm = TRUE),
+    avg_spread      = mean(spread_abs, na.rm = TRUE),
+    avg_ratio       = mean(spread_ratio, na.rm = TRUE),
+    median_spread   = median(spread_abs, na.rm = TRUE),
+    avg_spread_9010 = mean(spread_9010, na.rm = TRUE),
+    avg_cv          = mean(cv, na.rm = TRUE),
+    latest_year     = as.character(dplyr::last(academic_year)),
+    latest_spread   = dplyr::last(spread_abs),
+    latest_ratio    = dplyr::last(spread_ratio),
+    first_spread    = dplyr::first(spread_abs),
+    trend_direction = case_when(
+      latest_spread > first_spread * 1.10 ~ "increasing",
+      latest_spread < first_spread * 0.90 ~ "decreasing",
+      TRUE ~ "stable"
+    ),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(avg_spread))
+
+# --- Disparity vs All Students by race ---------------------------------------
+disp_vs_all_rank <- race_rates %>%
+  filter(race != "All Students", sufficient_sample) %>%
+  group_by(level_strict3, locale_simple, race) %>%
+  arrange(year_fct, .by_group = TRUE) %>%
+  summarise(
+    years_n             = sum(!is.na(disparity_ratio) & is.finite(disparity_ratio)),
+    avg_ratio_vs_all    = mean(disparity_ratio[is.finite(disparity_ratio)], na.rm = TRUE),
+    median_ratio_vs_all = median(disparity_ratio[is.finite(disparity_ratio)], na.rm = TRUE),
+    latest_ratio_vs_all = dplyr::last(disparity_ratio[!is.na(disparity_ratio)]),
+    avg_diff_vs_all     = mean(disparity_diff[is.finite(disparity_diff)], na.rm = TRUE),
+    latest_diff_vs_all  = dplyr::last(disparity_diff[!is.na(disparity_diff)]),
+    latest_year         = as.character(dplyr::last(academic_year)),
+    avg_enrollment      = mean(enroll, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  tidyr::replace_na(list(years_n = 0)) %>%
+  arrange(desc(avg_ratio_vs_all))
+
+# --- Optional: reason-specific rate changes (per student) ---------------------
 reason_cols <- names(v5)[grepl("^prop_susp_", names(v5))]
 reason_map <- c(
   prop_susp_violent_injury     = "Violent (Injury)",
@@ -43,195 +187,88 @@ reason_map <- c(
   prop_susp_other_reasons      = "Other"
 )
 
-# ---- 1) BASE AGGREGATES: rates by Level × Locale × Race × Year --------------
-base <- v5 %>%
-  filter(reporting_category %in% allowed_codes) %>%
-  mutate(race = race_label(reporting_category)) %>%
-  # keep All Students and named races; drop RD/NA
-  filter(!is.na(race))
-
-# TA denominator & total susp by setting-year (level × locale)
-ta_by_set_year <- base %>%
-  filter(race=="All Students") %>%
-  group_by(level_strict3, locale_simple, academic_year) %>%
-  summarise(
-    total_susp_TA = sum(total_suspensions, na.rm = TRUE),
-    enroll_TA     = sum(cumulative_enrollment, na.rm = TRUE),
-    rate_TA       = safe_rate(total_susp_TA, enroll_TA),
-    .groups="drop"
-  )
-
-# Race-specific pooled rates by setting-year
-race_rates <- base %>%
-  group_by(level_strict3, locale_simple, academic_year, race) %>%
-  summarise(
-    susp   = sum(total_suspensions, na.rm = TRUE),
-    enroll = sum(cumulative_enrollment, na.rm = TRUE),
-    rate   = safe_rate(susp, enroll),
-    .groups="drop"
-  ) %>%
-  left_join(ta_by_set_year, by = c("level_strict3","locale_simple","academic_year")) %>%
-  mutate(disparity_ratio_vs_all = ifelse(!is.na(rate_TA) & rate_TA>0, rate / rate_TA, NA_real_))
-
-# ---- 2) WHERE ARE DISPARITIES LARGEST? ---------------------------------------
-# (a) Within each setting-year, spread across races (max-min, excl. All Students)
-spread_by_year <- race_rates %>%
-  filter(race != "All Students") %>%
-  group_by(level_strict3, locale_simple, academic_year) %>%
-  summarise(
-    max_rate = max(rate, na.rm = TRUE),
-    min_rate = min(rate, na.rm = TRUE),
-    spread_abs = ifelse(is.finite(max_rate-min_rate), max_rate-min_rate, NA_real_),
-    spread_ratio = ifelse(is.finite(max_rate/min_rate) & min_rate>0, max_rate/min_rate, NA_real_),
-    .groups="drop"
-  )
-
-# Rank settings by average spread across years
-spread_rank <- spread_by_year %>%
-  group_by(level_strict3, locale_simple) %>%
-  summarise(
-    years_n     = sum(!is.na(spread_abs)),
-    avg_spread  = mean(spread_abs, na.rm = TRUE),
-    avg_ratio   = mean(spread_ratio, na.rm = TRUE),
-    latest_spread = spread_abs[which.max(academic_year)],  # last chronologically
-    .groups="drop"
-  ) %>%
-  arrange(desc(avg_spread))
-
-# (b) Which race deviates most from All Students (avg disparity ratio)
-disp_vs_all_rank <- race_rates %>%
-  filter(race != "All Students") %>%
-  group_by(level_strict3, locale_simple, race) %>%
-  summarise(
-    years_n = sum(!is.na(disparity_ratio_vs_all)),
-    avg_ratio_vs_all = mean(disparity_ratio_vs_all, na.rm = TRUE),
-    latest_ratio_vs_all = disparity_ratio_vs_all[which.max(academic_year)],
-    .groups="drop"
-  ) %>%
-  arrange(desc(avg_ratio_vs_all))
-
-# ---- 3) WHICH SETTINGS CHANGED MOST OVER TIME? -------------------------------
-# (a) Total suspension rate (All Students) change earliest->latest
-total_changes <- ta_by_set_year %>%
-  group_by(level_strict3, locale_simple) %>%
-  arrange(academic_year, .by_group = TRUE) %>%
-  summarise(
-    start_year = first(academic_year), end_year = last(academic_year),
-    start_rate = first(rate_TA),       end_rate = last(rate_TA),
-    abs_change = end_rate - start_rate,
-    pct_change = ifelse(is.finite(start_rate) & start_rate>0,
-                        (end_rate - start_rate)/start_rate, NA_real_),
-    .groups="drop"
-  ) %>%
-  mutate(
-    direction = case_when(
+reason_changes <- NULL
+if (INCLUDE_REASON_ANALYSIS && length(reason_cols)) {
+  reason_long <- base %>%
+    filter(race != "All Students") %>%
+    select(level_strict3, locale_simple, academic_year, year_fct,
+           total_suspensions, dplyr::all_of(reason_cols)) %>%
+    pivot_longer(dplyr::all_of(reason_cols),
+                 names_to = "reason_key", values_to = "prop") %>%
+    mutate(reason_count = if_else(!is.na(prop) & !is.na(total_suspensions),
+                                  prop * total_suspensions, 0))
+  
+  reason_by_set_year <- reason_long %>%
+    group_by(level_strict3, locale_simple, academic_year, year_fct, reason_key) %>%
+    summarise(total_reason = sum(reason_count, na.rm = TRUE), .groups = "drop") %>%
+    left_join(ta_rates, by = c("level_strict3","locale_simple","academic_year","year_fct")) %>%
+    mutate(
+      reason_rate = safe_rate(total_reason, enroll_TA, MIN_ENROLLMENT_THRESHOLD),
+      reason      = dplyr::recode(reason_key, !!!reason_map)
+    )
+  
+  reason_changes <- reason_by_set_year %>%
+    group_by(level_strict3, locale_simple, reason) %>%
+    arrange(year_fct, .by_group = TRUE) %>%
+    summarise(
+      start_year = dplyr::first(academic_year),
+      end_year   = dplyr::last(academic_year),
+      start_rate = dplyr::first(reason_rate),
+      end_rate   = dplyr::last(reason_rate),
+      abs_change = end_rate - start_rate,
+      pct_change = if_else(is.finite(start_rate) & start_rate > 0,
+                           (end_rate - start_rate)/start_rate, NA_real_),
+      .groups = "drop"
+    ) %>%
+    mutate(direction = case_when(
       is.na(abs_change) ~ NA_character_,
       abs_change > 0 ~ "Increase",
       abs_change < 0 ~ "Decrease",
       TRUE ~ "No change"
-    )
-  ) %>%
-  arrange(desc(abs(abs_change)))
+    )) %>%
+    arrange(desc(abs(abs_change)))
+}
 
-# (b) Reason-specific rates: compute reason counts from shares, then rate by denom=TA enrollment
-# compute reason_count = prop * total_suspensions at row level, sum over races
-reason_long <- base %>%
-  filter(race != "All Students") %>%
-  select(level_strict3, locale_simple, academic_year, total_suspensions, all_of(reason_cols)) %>%
-  pivot_longer(all_of(reason_cols), names_to = "reason_key", values_to = "prop") %>%
-  mutate(reason_count = ifelse(!is.na(prop) & !is.na(total_suspensions),
-                               prop * total_suspensions, 0))
+# --- Outputs ------------------------------------------------------------------
+outdir <- here("outputs")
+dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
 
-reason_by_set_year <- reason_long %>%
-  group_by(level_strict3, locale_simple, academic_year, reason_key) %>%
-  summarise(total_reason = sum(reason_count, na.rm = TRUE), .groups="drop") %>%
-  left_join(ta_by_set_year, by = c("level_strict3","locale_simple","academic_year")) %>%
-  mutate(
-    reason_rate = safe_rate(total_reason, enroll_TA),
-    reason = recode(reason_key, !!!reason_map)
-  )
+# Diagnostics
+write_csv(thin_buckets, file.path(outdir, "EDA_why_empty_buckets_level_locale_year.csv"))
 
-reason_changes <- reason_by_set_year %>%
-  group_by(level_strict3, locale_simple, reason) %>%
-  arrange(academic_year, .by_group = TRUE) %>%
-  summarise(
-    start_year = first(academic_year), end_year = last(academic_year),
-    start_rate = first(reason_rate),   end_rate = last(reason_rate),
-    abs_change = end_rate - start_rate,
-    pct_change = ifelse(is.finite(start_rate) & start_rate>0,
-                        (end_rate - start_rate)/start_rate, NA_real_),
-    .groups="drop"
-  ) %>%
-  mutate(direction = case_when(
-    is.na(abs_change) ~ NA_character_,
-    abs_change > 0 ~ "Increase",
-    abs_change < 0 ~ "Decrease",
-    TRUE ~ "No change"
-  )) %>%
-  arrange(desc(abs(abs_change)))
+# Main outputs
+write_csv(spread_rank,      file.path(outdir, "EDA_spread_by_level_locale_rank.csv"))
+write_csv(disp_vs_all_rank, file.path(outdir, "EDA_disparity_vs_AllStudents_by_race_rank.csv"))
+write_csv(spread_by_year,   file.path(outdir, "EDA_spread_by_year_detail.csv"))
 
-# ---- 4) CONSOLE SNAPSHOTS ----------------------------------------------------
-cat("\n=== A) Settings with largest average racial spread (rate max - min) ===\n")
-print(
-  spread_rank %>%
-    mutate(avg_spread_pct = percent(avg_spread, 0.01),
-           latest_spread_pct = percent(latest_spread, 0.01)) %>%
-    select(level_strict3, locale_simple, years_n, avg_spread_pct, latest_spread_pct) %>%
-    head(15),
-  n = 15
+if (!is.null(reason_changes)) {
+  write_csv(reason_changes, file.path(outdir, "EDA_reason_rate_changes_by_level_locale.csv"))
+}
+
+# --- Console summary ----------------------------------------------------------
+summary_stats <- list(
+  n_settings                 = nrow(spread_rank),
+  n_race_setting_combos      = nrow(disp_vs_all_rank),
+  years_covered              = paste(range(year_levels), collapse = " to "),
+  settings_high_disparity    = sum(spread_rank$avg_ratio > 3, na.rm = TRUE),
+  settings_decreasing_trend  = sum(spread_rank$trend_direction == "decreasing", na.rm = TRUE),
+  wrote_reason_changes_table = !is.null(reason_changes)
 )
 
-cat("\n=== B) Races deviating most from All Students (avg ratio > 1 == higher) ===\n")
-print(
-  disp_vs_all_rank %>%
-    mutate(avg_ratio_vs_all = round(avg_ratio_vs_all, 2),
-           latest_ratio_vs_all = round(latest_ratio_vs_all, 2)) %>%
-    head(20),
-  n = 20
+cat(
+  "\n========== ANALYSIS SUMMARY ==========",
+  "\nRows in spread_rank: ", summary_stats$n_settings,
+  "\nRows in disp_vs_all_rank: ", summary_stats$n_race_setting_combos,
+  "\nYears analyzed: ", summary_stats$years_covered,
+  "\nSettings with high disparity (ratio > 3): ", summary_stats$settings_high_disparity,
+  "\nSettings with decreasing inequality trend: ", summary_stats$settings_decreasing_trend,
+  "\nReason-change table written: ", summary_stats$wrote_reason_changes_table,
+  if (isTRUE(DROP_UNKNOWN_LOCALE)) "\n(Unknown locale dropped)" else "",
+  "\n======================================\n"
 )
 
-cat("\n=== C) Biggest changes in TOTAL suspension rate (All Students) ===\n")
-print(
-  total_changes %>%
-    mutate(
-      start = percent(start_rate, 0.01),
-      end   = percent(end_rate, 0.01),
-      abs   = percent(abs_change, 0.01),
-      pct   = percent(pct_change, 0.1)
-    ) %>%
-    select(level_strict3, locale_simple, start_year, end_year, start, end, abs, pct, direction) %>%
-    head(20),
-  n = 20
-)
-
-cat("\n=== D) Biggest changes in REASON-SPECIFIC rates (per student) ===\n")
-print(
-  reason_changes %>%
-    mutate(
-      start = percent(start_rate, 0.01),
-      end   = percent(end_rate, 0.01),
-      abs   = percent(abs_change, 0.01),
-      pct   = percent(pct_change, 0.1)
-    ) %>%
-    select(level_strict3, locale_simple, reason, start_year, end_year, start, end, abs, pct, direction) %>%
-    head(30),
-  n = 30
-)
-
-cat("\n(i) Note: spreads/ratios aggregate over all reported races (excl. 'All Students').\n",
-    "(ii) Reason rates use TA enrollment as the denominator and reason counts reconstructed from row-level shares.\n",
-    "(iii) Year coverage is ", first_year, "–", last_year, " (skipping missing state years, if any).\n", sep="")
-
-# ---- 5) WRITE CSVs -----------------------------------------------------------
-outdir <- here("outputs"); dir.create(outdir, showWarnings = FALSE)
-
-readr::write_csv(spread_rank,
-                 file.path(outdir, "EDA_spread_by_level_locale_rank.csv"))
-readr::write_csv(disp_vs_all_rank,
-                 file.path(outdir, "EDA_disparity_vs_AllStudents_by_race_rank.csv"))
-readr::write_csv(total_changes,
-                 file.path(outdir, "EDA_total_rate_changes_by_level_locale.csv"))
-readr::write_csv(reason_changes,
-                 file.path(outdir, "EDA_reason_rate_changes_by_level_locale.csv"))
-
-cat("\n✓ CSVs written to ", outdir, "\n", sep = "")
+# Optional interactive peeks
+if (interactive()) {
+  View(spread_rank %>% arrange(desc(avg_spread)) %>% head(20))
+  View(disp_vs_all_rank %>% filter(race == "Black/African American") %>% head(20))
+}
