@@ -2,25 +2,17 @@
 *.xlsx
 *.xlsb
 data/
-.Rhistory
-.Rproj.user/
-.Rhistory
-.RData
-.Rproj.user
 data-raw/
+data-stage/
+*.parquet
+*.duckdb
 
 # macOS system files
 .DS_Store
 
-# RStudio temporary files
-.Rproj.user
-.Rhistory
-.RData.Renviron
-<<<<<<< HEAD
-=======
-
-.Renviron
+# R/RStudio
+.Rproj.user/
 .Rhistory
 .RData
-.Rproj.user/
->>>>>>> b73046a (updates to merge race with other categories)
+.Renviron
+
