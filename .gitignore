@@ -16,3 +16,11 @@ data-raw/
 .Rproj.user
 .Rhistory
 .RData.Renviron
+<<<<<<< HEAD
+=======
+
+.Renviron
+.Rhistory
+.RData
+.Rproj.user/
+>>>>>>> b73046a (updates to merge race with other categories)
