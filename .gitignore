@@ -4,6 +4,8 @@ data-raw/
 data-stage/
 *.parquet
 *.duckdb
+*.xlsx
+*.csv
 
 # macOS system files
 .DS_Store
