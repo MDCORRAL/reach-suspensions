@@ -57,9 +57,6 @@ if (length(missing)) {
   stop("[15] Missing categories after read: ", paste(missing, collapse = ", "),
        "\nCheck OTH_PARQUET path or re-run 01b.")
 }
-cat("\n[15] Categories present right after read:\n")
-print(demo_data %>% count(category_type) %>% arrange(desc(n)))
-# <<< END GUARDRAIL >>>
 
 # --- DEBUG: what's actually in 15_merge right now?
 cat("\n[15] Categories present right after read:\n")
@@ -268,6 +265,30 @@ demo_disparity_rank <- demo_disparities %>%
   ) %>%
   arrange(category_type, desc(avg_ratio_vs_all))
 
+# --- Helper: pooled-rate ratio from code sets (robust to missing sides) -----
+ratio_from_codes <- function(df_counts, category_name, num_codes, den_codes, out_col) {
+  keys <- c("level_strict3", "locale_simple", "academic_year")
+  
+  num <- df_counts %>%
+    dplyr::filter(category_type == category_name, subgroup_code %in% num_codes) %>%
+    dplyr::group_by(dplyr::across(dplyr::all_of(keys))) %>%
+    dplyr::summarise(susp_num = sum(susp, na.rm = TRUE),
+                     enroll_num = sum(enroll, na.rm = TRUE), .groups = "drop")
+  
+  den <- df_counts %>%
+    dplyr::filter(category_type == category_name, subgroup_code %in% den_codes) %>%
+    dplyr::group_by(dplyr::across(dplyr::all_of(keys))) %>%
+    dplyr::summarise(susp_den = sum(susp, na.rm = TRUE),
+                     enroll_den = sum(enroll, na.rm = TRUE), .groups = "drop")
+  
+  dplyr::full_join(num, den, by = keys) %>%
+    dplyr::mutate(
+      !!out_col := safe_rate(susp_num, enroll_num, MIN_ENROLLMENT_THRESHOLD) /
+        safe_rate(susp_den, enroll_den, MIN_ENROLLMENT_THRESHOLD)
+    ) %>%
+    dplyr::select(dplyr::all_of(keys), !!out_col)
+}
+
 # -------- Intersectional summary (pooled-count ratios) -----------------------
 cat("\n=== Intersectional pooled ratios (Sex, SPED, Socioecon, EL, Foster, Migrant, Homeless) ===\n")
 
@@ -286,7 +307,12 @@ counts <- demo_data %>%
 sex_ratios     <- ratio_from_codes(counts, "Sex",              "SM", "SF", "male_female_ratio")
 sped_ratio     <- ratio_from_codes(counts, "Special Education","SE", "SN", "sped_ratio")
 sed_ratio      <- ratio_from_codes(counts, "Socioeconomic",    "SD", "NS", "sed_ratio")
-el_ratio       <- ratio_from_codes(counts, "English Learner",  "EL", "EO", "el_ratio")
+el_ratio <- ratio_from_codes(
+  counts, "English Learner",
+  num_codes = c("EL"),
+  den_codes = c("EO","IFEP","RFEP","TBD"),
+  out_col   = "el_ratio"
+)
 foster_ratio   <- ratio_from_codes(counts, "Foster",           "FY", "NF", "foster_ratio")
 migrant_ratio  <- ratio_from_codes(counts, "Migrant",          "MG", "NM", "migrant_ratio")
 homeless_ratio <- ratio_from_codes(counts, "Homeless",         "HL", "NH", "homeless_ratio")
