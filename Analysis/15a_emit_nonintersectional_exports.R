@@ -1,7 +1,12 @@
-# === [NEW] Non-intersectional exports for tail/pareto ===
+# analysis/15a_emit_nonintersectional_exports.R
+# === Non-intersectional exports for tail/pareto (Pattern B: ".v5" suffix) ===
 suppressPackageStartupMessages({
-  library(arrow); library(dplyr); library(janitor); library(stringr)
-  library(tidyr); library(here)
+  library(arrow)
+  library(dplyr)
+  library(janitor)
+  library(stringr)
+  library(tidyr)
+  library(here)
 })
 
 # -------------------------------------------------------------------
@@ -26,8 +31,52 @@ pad_keys_local <- function(df) {
 }
 maybe_pad <- function(df) if (exists("pad_keys")) pad_keys(df) else pad_keys_local(df)
 
+# select only columns that exist (avoids select() errors)
+select_existing <- function(df, wanted) {
+  keep <- intersect(wanted, names(df))
+  dplyr::select(df, dplyr::all_of(keep))
+}
+
+# canonicalize "setting" from ed_ops_name
+setting_from_ops <- function(ed_ops) dplyr::case_when(
+  ed_ops == "Traditional" ~ "Traditional",
+  !is.na(ed_ops)          ~ "Non-traditional",
+  TRUE                    ~ NA_character_
+)
+
+# Resolve “unduplicated students suspended (total)” aliases to one canonical name
+canonicalize_undup <- function(df) {
+  if ("unduplicated_count_of_students_suspended_total" %in% names(df)) return(df)
+  # common variants you might see in OTH
+  alias_list <- c(
+    "unduplicated_count_students_suspended_total",
+    "unduplicated_students_suspended_total",
+    "unduplicated_count_of_students_suspended",      # missing “_total”
+    "unduplicated_students_suspended",
+    "unduplicated_count_suspended_total",
+    "undup_students_total",
+    "undup_total"
+  )
+  hit <- intersect(alias_list, names(df))
+  if (length(hit) == 0) {
+    # permissive regex fallback
+    rx <- "(?i)unduplicat.*student.*suspend.*(total)?"
+    hit <- names(df)[stringr::str_detect(names(df), rx)]
+  }
+  if (length(hit)) {
+    df <- df %>%
+      mutate(unduplicated_count_of_students_suspended_total = .data[[hit[1]]])
+  } else {
+    df$unduplicated_count_of_students_suspended_total <- NA_real_
+  }
+  # ensure numeric if possible
+  df %>%
+    mutate(unduplicated_count_of_students_suspended_total =
+             suppressWarnings(as.numeric(unduplicated_count_of_students_suspended_total)))
+}
+
 # -------------------------------------------------------------------
-# 1) Pick + READ a race-long source (has reason columns)
+# 1) Read race-long (has reason columns)
 # -------------------------------------------------------------------
 RACE_LONG_CANDIDATES <- c(
   here("data-stage", "susp_v5_long_strict.parquet"),
@@ -39,11 +88,10 @@ if (is.na(RACE_LONG_PATH)) {
 }
 
 race_long <- arrow::read_parquet(RACE_LONG_PATH) %>%
-  janitor::clean_names() %>%
+  clean_names() %>%
   maybe_pad() %>%
   mutate(year = suppressWarnings(as.integer(substr(as.character(academic_year), 1, 4))))
 
-# Reason columns: fill zeros only when can_assume_zero==TRUE and col exists
 present_reason_cols <- intersect(REASON_COLS, names(race_long))
 if ("can_assume_zero" %in% names(race_long) && length(present_reason_cols)) {
   race_long <- race_long %>%
@@ -52,15 +100,17 @@ if ("can_assume_zero" %in% names(race_long) && length(present_reason_cols)) {
 }
 
 # -------------------------------------------------------------------
-# 2) Read OTH/demographic long (for Sex, SPED, SED, EL, Foster, Migrant, Homeless)
+# 2) Read OTH/demographic long (Sex, SPED, SED, EL, Foster, Migrant, Homeless)
 # -------------------------------------------------------------------
 OTH_PARQUET <- here("data-stage", "oth_long.parquet")
 if (!file.exists(OTH_PARQUET)) {
   stop("[15a] Missing file: data-stage/oth_long.parquet. Run analysis/01b_ingest_demographics.R first.")
 }
 demo_data <- arrow::read_parquet(OTH_PARQUET) %>%
-  janitor::clean_names() %>%
-  maybe_pad()
+  clean_names() %>%
+  maybe_pad() %>%
+  mutate(year = suppressWarnings(as.integer(substr(as.character(academic_year), 1, 4)))) %>%
+  canonicalize_undup()
 
 present_reason_cols_oth <- intersect(REASON_COLS, names(demo_data))
 if ("can_assume_zero" %in% names(demo_data) && length(present_reason_cols_oth)) {
@@ -71,127 +121,111 @@ if ("can_assume_zero" %in% names(demo_data) && length(present_reason_cols_oth)) 
 
 # -------------------------------------------------------------------
 # 3) Canonical school/year attributes from v5 (source of truth)
-# -------------------------------------------------------------------
+#     join with suffix ".v5", then coalesce, then drop extras
+# --- v5 keys + robust campus filter (with fallback) ---
 v5_path <- here("data-stage", "susp_v5.parquet")
 stopifnot(file.exists(v5_path))
 
-v5_keys <- arrow::read_parquet(v5_path) %>%
-  janitor::clean_names() %>%
+# 1) Read and keep aggregate_level if present
+v5_keys_raw <- arrow::read_parquet(v5_path) %>%
+  clean_names() %>%
   maybe_pad() %>%
-  dplyr::select(
+  select(
     academic_year, county_code, district_code, school_code,
-    county_name, district_name, school_name,       # <- add names for fallback join
-    ed_ops_name, school_level_final, level_strict3, locale_simple
+    county_name, district_name, school_name,
+    ed_ops_name, school_level_final, level_strict3, locale_simple,
+    any_of("aggregate_level")          # <- keep if present
   ) %>%
-  dplyr::distinct()
+  distinct()
 
-# ---- Apply canonical attrs to race_long with staged join ----
-race_long <- race_long %>% maybe_pad()
+# 2) Fallback: infer aggregate_level == "S" for real campuses if missing/empty
+needs_fallback <- (!"aggregate_level" %in% names(v5_keys_raw)) ||
+  all(is.na(v5_keys_raw$aggregate_level))
 
-# Primary join by codes (year + county + district + school)
-keys_full <- c("academic_year","county_code","district_code","school_code")
-race_joined <- dplyr::left_join(
-  race_long, v5_keys,
-  by = keys_full,
-  relationship = "many-to-one"
-)
-
-# If ed_ops_name is entirely missing (bad), add a placeholder column to avoid mutate() failure
-if (!"ed_ops_name" %in% names(race_joined)) race_joined$ed_ops_name <- NA_character_
-if (!"school_level_final" %in% names(race_joined)) race_joined$school_level_final <- NA_character_
-if (!"level_strict3" %in% names(race_joined)) race_joined$level_strict3 <- NA_character_
-if (!"locale_simple" %in% names(race_joined)) race_joined$locale_simple <- NA_character_
-
-# Fallback join for rows that didn’t match: year + district + school_name
-miss_idx <- is.na(race_joined$ed_ops_name) &
-  !is.na(race_joined$academic_year) &
-  !is.na(race_joined$district_code) &
-  !is.na(race_joined$school_name)
-
-if (any(miss_idx)) {
-  fallback_map <- v5_keys %>%
-    dplyr::select(
-      academic_year, district_code, school_name,
-      ed_ops_name, school_level_final, level_strict3, locale_simple
-    ) %>%
-    dplyr::distinct()
-  
-  filled <- race_joined[miss_idx, ] %>%
-    dplyr::select(-ed_ops_name, -school_level_final, -level_strict3, -locale_simple) %>%
-    dplyr::left_join(
-      fallback_map,
-      by = c("academic_year","district_code","school_name"),
-      relationship = "many-to-one"
+v5_keys <- if (needs_fallback) {
+  v5_keys_raw %>%
+    mutate(
+      aggregate_level = dplyr::case_when(
+        nchar(school_code) == 7 & !school_code %in% c("0000000","0000001") ~ "S",
+        TRUE ~ "X"  # unknown / non-school
+      )
     )
-  
-  race_joined[miss_idx, c("ed_ops_name","school_level_final","level_strict3","locale_simple")] <-
-    filled[, c("ed_ops_name","school_level_final","level_strict3","locale_simple")]
+} else {
+  # normalize case/whitespace just in case
+  v5_keys_raw %>%
+    mutate(aggregate_level = stringr::str_trim(stringr::str_to_upper(aggregate_level)))
 }
+
+# 3) Campus-only filter (excludes district agg 0000000 and NPS 0000001)
+v5_schools_only <- v5_keys %>%
+  filter(
+    stringr::str_to_upper(aggregate_level) == "S",
+    nchar(school_code) == 7,
+    !school_code %in% c("0000000", "0000001")
+  )
+        # -------------------------------------------------------------------
+                    # ---- race_long + v5-------------#
+race_joined <- left_join(
+  race_long, v5_keys,
+  by = c("academic_year","county_code","district_code","school_code"),
+  relationship = "many-to-one",
+  suffix = c("", ".v5")
+)
 
 race_long <- race_joined %>%
-  dplyr::mutate(
-    setting = dplyr::case_when(
-      ed_ops_name == "Traditional" ~ "Traditional",
-      !is.na(ed_ops_name)          ~ "Non-traditional",
-      TRUE                         ~ NA_character_
-    )
-  )
+  mutate(
+    county_name        = coalesce(!!!rlang::syms(intersect(c("county_name","county_name.v5","county_name.x","county_name.y"), names(race_joined)))),
+    district_name      = coalesce(!!!rlang::syms(intersect(c("district_name","district_name.v5","district_name.x","district_name.y"), names(race_joined)))),
+    school_name        = coalesce(!!!rlang::syms(intersect(c("school_name","school_name.v5","school_name.x","school_name.y"), names(race_joined)))),
+    ed_ops_name        = coalesce(!!!rlang::syms(intersect(c("ed_ops_name","ed_ops_name.v5","ed_ops_name.x","ed_ops_name.y"), names(race_joined)))),
+    school_level_final = coalesce(!!!rlang::syms(intersect(c("school_level_final","school_level_final.v5","school_level_final.x","school_level_final.y"), names(race_joined)))),
+    level_strict3      = coalesce(!!!rlang::syms(intersect(c("level_strict3","level_strict3.v5"), names(race_joined)))),
+    locale_simple      = coalesce(!!!rlang::syms(intersect(c("locale_simple","locale_simple.v5","locale_simple.x","locale_simple.y"), names(race_joined)))),
+    setting            = setting_from_ops(ed_ops_name)
+  ) %>%
+  select(-any_of(c(
+    "county_name.v5","district_name.v5","school_name.v5",
+    "ed_ops_name.v5","school_level_final.v5","level_strict3.v5","locale_simple.v5",
+    "county_name.x","district_name.x","school_name.x",
+    "ed_ops_name.x","school_level_final.x","locale_simple.x",
+    "county_name.y","district_name.y","school_name.y",
+    "ed_ops_name.y","school_level_final.y","locale_simple.y"
+  )))
 
-# ---- Apply canonical attrs to OTH with staged join ----
-demo_data <- demo_data %>% maybe_pad()
-
-demo_joined <- dplyr::left_join(
+# ---- demo_data + v5
+demo_joined <- left_join(
   demo_data, v5_keys,
-  by = keys_full,
-  relationship = "many-to-one"
+  by = c("academic_year","county_code","district_code","school_code"),
+  relationship = "many-to-one",
+  suffix = c("", ".v5")
 )
 
-if (!"ed_ops_name" %in% names(demo_joined)) demo_joined$ed_ops_name <- NA_character_
-if (!"school_level_final" %in% names(demo_joined)) demo_joined$school_level_final <- NA_character_
-if (!"level_strict3" %in% names(demo_joined)) demo_joined$level_strict3 <- NA_character_
-if (!"locale_simple" %in% names(demo_joined)) demo_joined$locale_simple <- NA_character_
-
-miss_idx_oth <- is.na(demo_joined$ed_ops_name) &
-  !is.na(demo_joined$academic_year) &
-  !is.na(demo_joined$district_code) &
-  !is.na(demo_joined$school_name)
-
-if (any(miss_idx_oth)) {
-  fallback_map <- v5_keys %>%
-    dplyr::select(
-      academic_year, district_code, school_name,
-      ed_ops_name, school_level_final, level_strict3, locale_simple
-    ) %>%
-    dplyr::distinct()
-  
-  filled <- demo_joined[miss_idx_oth, ] %>%
-    dplyr::select(-ed_ops_name, -school_level_final, -level_strict3, -locale_simple) %>%
-    dplyr::left_join(
-      fallback_map,
-      by = c("academic_year","district_code","school_name"),
-      relationship = "many-to-one"
-    )
-  
-  demo_joined[miss_idx_oth, c("ed_ops_name","school_level_final","level_strict3","locale_simple")] <-
-    filled[, c("ed_ops_name","school_level_final","level_strict3","locale_simple")]
-}
-
 demo_data <- demo_joined %>%
-  dplyr::mutate(
-    setting = dplyr::case_when(
-      ed_ops_name == "Traditional" ~ "Traditional",
-      !is.na(ed_ops_name)          ~ "Non-traditional",
-      TRUE                         ~ NA_character_
-    )
-  )
+  mutate(
+    county_name        = coalesce(!!!rlang::syms(intersect(c("county_name","county_name.v5","county_name.x","county_name.y"), names(demo_joined)))),
+    district_name      = coalesce(!!!rlang::syms(intersect(c("district_name","district_name.v5","district_name.x","district_name.y"), names(demo_joined)))),
+    school_name        = coalesce(!!!rlang::syms(intersect(c("school_name","school_name.v5","school_name.x","school_name.y"), names(demo_joined)))),
+    ed_ops_name        = coalesce(!!!rlang::syms(intersect(c("ed_ops_name","ed_ops_name.v5","ed_ops_name.x","ed_ops_name.y"), names(demo_joined)))),
+    school_level_final = coalesce(!!!rlang::syms(intersect(c("school_level_final","school_level_final.v5","school_level_final.x","school_level_final.y"), names(demo_joined)))),
+    level_strict3      = coalesce(!!!rlang::syms(intersect(c("level_strict3","level_strict3.v5"), names(demo_joined)))),
+    locale_simple      = coalesce(!!!rlang::syms(intersect(c("locale_simple","locale_simple.v5","locale_simple.x","locale_simple.y"), names(demo_joined)))),
+    setting            = setting_from_ops(ed_ops_name)
+  ) %>%
+  select(-any_of(c(
+    "county_name.v5","district_name.v5","school_name.v5",
+    "ed_ops_name.v5","school_level_final.v5","level_strict3.v5","locale_simple.v5",
+    "county_name.x","district_name.x","school_name.x",
+    "ed_ops_name.x","school_level_final.x","locale_simple.x",
+    "county_name.y","district_name.y","school_name.y",
+    "ed_ops_name.y","school_level_final.y","locale_simple.y"
+  )))
 
-# Optional sanity for missing attrs
+# Sanity
 message("[15a] missing attrs in race_long: ",
         sum(is.na(race_long$ed_ops_name) |
               is.na(race_long$school_level_final) |
               is.na(race_long$level_strict3) |
               is.na(race_long$locale_simple)))
-
 message("[15a] missing attrs in OTH: ",
         sum(is.na(demo_data$ed_ops_name) |
               is.na(demo_data$school_level_final) |
@@ -202,50 +236,71 @@ message("[15a] missing attrs in OTH: ",
 # 4) Build outputs
 # -------------------------------------------------------------------
 # TA-only (All Students): one row per school×year
+present_reason_cols <- intersect(REASON_COLS, names(race_long))
+
 all_students <- race_long %>%
   filter(reporting_category == "TA") %>%
-  select(
-    year, academic_year,
-    county_code, district_code, school_code,
-    county_name, district_name, school_name,
-    ed_ops_name, setting, school_level_final,
-    cumulative_enrollment, total_suspensions,
-    unduplicated_count_of_students_suspended_total,
-    all_of(present_reason_cols)
+  inner_join(
+    v5_schools_only %>% select(academic_year, county_code, district_code, school_code),
+    by = c("academic_year","county_code","district_code","school_code")
   ) %>%
-  rename(undup_total = unduplicated_count_of_students_suspended_total)
+  select_existing(c(
+    "year","academic_year",
+    "county_code","district_code","school_code",
+    "county_name","district_name","school_name",
+    "ed_ops_name","setting","school_level_final",
+    "cumulative_enrollment","total_suspensions",
+    "unduplicated_count_of_students_suspended_total",
+    present_reason_cols
+  )) %>%
+  rename(undup_total = unduplicated_count_of_students_suspended_total) %>%
+  distinct() # drop exact duplicates across these fields
 
-# Race non-TA stack
+# Non-intersectional stack (Race/Ethnicity + Other)
+# Race/Ethnicity (campus-only)
 race_non_ta <- race_long %>%
   filter(reporting_category != "TA") %>%
+  inner_join(
+    v5_schools_only %>% select(academic_year, county_code, district_code, school_code),
+    by = c("academic_year","county_code","district_code","school_code")
+  ) %>%
   transmute(
     year, academic_year,
     county_code, district_code, school_code,
     county_name, district_name, school_name,
     ed_ops_name, setting, school_level_final,
     reporting_domain = "Race/Ethnicity",
-    subgroup_label = dplyr::coalesce(reporting_category_description, reporting_category),
+    subgroup_label = coalesce(reporting_category_description, reporting_category),
     cumulative_enrollment, total_suspensions,
     undup_total = unduplicated_count_of_students_suspended_total,
-    !!!dplyr::syms(present_reason_cols)
-  )
+    !!!syms(present_reason_cols)
+  ) %>%
+  distinct()
 
-# OTH side (Sex, SPED, SED, EL, Foster, Migrant, Homeless)
+# OTH (campus-only)
 oth_norm <- demo_data %>%
-  mutate(year = suppressWarnings(as.integer(substr(as.character(academic_year), 1, 4)))) %>%
+  inner_join(
+    v5_schools_only %>% select(academic_year, county_code, district_code, school_code),
+    by = c("academic_year","county_code","district_code","school_code")
+  ) %>%
   transmute(
     year, academic_year,
     county_code, district_code, school_code,
     county_name, district_name, school_name,
     ed_ops_name, setting, school_level_final,
-    reporting_domain = category_type,       # e.g., Sex, Special Education, etc.
-    subgroup_label = dplyr::coalesce(subgroup, subgroup_code),
+    reporting_domain = category_type,
+    subgroup_label = coalesce(subgroup, subgroup_code),
     cumulative_enrollment, total_suspensions,
     undup_total = unduplicated_count_of_students_suspended_total,
-    !!!dplyr::syms(present_reason_cols_oth)
-  )
+    !!!syms(present_reason_cols_oth)
+  ) %>%
+  distinct()
 
-non_intersectional <- dplyr::bind_rows(race_non_ta, oth_norm)
+non_intersectional <- bind_rows(race_non_ta, oth_norm)
+
+#sanity check
+dup_ta <- all_students %>% count(year, school_code, name = "n") %>% filter(n > 1)
+nrow(dup_ta)  # should be 0 if working properly
 
 # -------------------------------------------------------------------
 # 5) Write files
@@ -258,13 +313,59 @@ arrow::write_parquet(non_intersectional, file.path(out_dir, "school_year_subgrou
 message("[15a] Wrote: ", file.path(out_dir, "school_year_allstudents.parquet"))
 message("[15a] Wrote: ", file.path(out_dir, "school_year_subgroups_nonintersectional.parquet"))
 
-# -------------------------------------------------------------------
-# 6) Quick sanity: no duplicate TA rows per school×year
-# -------------------------------------------------------------------
+# ---- updated ----
+present_reason_cols <- intersect(REASON_COLS, names(race_long))
+
+nps_by_district <- race_long %>%
+  filter(reporting_category == "TA", school_code == "0000001") %>%
+  group_by(
+    year, academic_year,
+    county_code, district_code,
+    county_name, district_name
+  ) %>%
+  summarise(
+    cumulative_enrollment = sum(cumulative_enrollment, na.rm = TRUE),
+    total_suspensions     = sum(total_suspensions, na.rm = TRUE),
+    undup_total           = sum(unduplicated_count_of_students_suspended_total, na.rm = TRUE),
+    across(all_of(present_reason_cols), ~ sum(.x, na.rm = TRUE)),
+    .groups = "drop"
+  )
+
+arrow::write_parquet(nps_by_district, file.path(out_dir, "district_year_nps.parquet"))
+message("[15a] Wrote: ", file.path(out_dir, "district_year_nps.parquet"))
+
+# Quick sanity check: no TA dup rows per school×year
 try({
   dup_ta <- all_students %>%
     count(year, school_code, name = "n") %>%
     filter(n > 1)
   if (nrow(dup_ta)) warning("[15a] TA duplicates found; inspect `dup_ta`.")
 })
+
+
 # End of file
+
+#----------------------------##test###-------------------###
+# Check the duplicates
+dup_ta <- all_students %>%
+  count(year, school_code, name = "n") %>%
+  filter(n > 1)
+
+# See how many duplicates and which schools
+nrow(dup_ta)
+head(dup_ta)
+
+# Look at the actual duplicate rows
+example_dup <- all_students %>%
+  filter(school_code %in% head(dup_ta$school_code, 3)) %>%
+  arrange(school_code, year)
+View(example_dup)
+
+#----------------------------------###test 2####
+# any TA dupes left?
+dup_ta <- all_students %>%
+  count(year, school_code, name = "n") %>%
+  filter(n > 1)
+
+nrow(dup_ta)
+head(dup_ta)
