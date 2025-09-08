@@ -78,21 +78,58 @@ stopifnot(file.exists(v5_path))
 v5_keys <- arrow::read_parquet(v5_path) %>%
   janitor::clean_names() %>%
   maybe_pad() %>%
-  select(
+  dplyr::select(
     academic_year, county_code, district_code, school_code,
+    county_name, district_name, school_name,       # <- add names for fallback join
     ed_ops_name, school_level_final, level_strict3, locale_simple
   ) %>%
-  distinct()
+  dplyr::distinct()
 
-# Apply to race_long
-race_long <- race_long %>%
-  maybe_pad() %>%
-  left_join(
-    v5_keys,
-    by = c("academic_year","county_code","district_code","school_code"),
-    relationship = "many-to-one"
-  ) %>%
-  mutate(
+# ---- Apply canonical attrs to race_long with staged join ----
+race_long <- race_long %>% maybe_pad()
+
+# Primary join by codes (year + county + district + school)
+keys_full <- c("academic_year","county_code","district_code","school_code")
+race_joined <- dplyr::left_join(
+  race_long, v5_keys,
+  by = keys_full,
+  relationship = "many-to-one"
+)
+
+# If ed_ops_name is entirely missing (bad), add a placeholder column to avoid mutate() failure
+if (!"ed_ops_name" %in% names(race_joined)) race_joined$ed_ops_name <- NA_character_
+if (!"school_level_final" %in% names(race_joined)) race_joined$school_level_final <- NA_character_
+if (!"level_strict3" %in% names(race_joined)) race_joined$level_strict3 <- NA_character_
+if (!"locale_simple" %in% names(race_joined)) race_joined$locale_simple <- NA_character_
+
+# Fallback join for rows that didn’t match: year + district + school_name
+miss_idx <- is.na(race_joined$ed_ops_name) &
+  !is.na(race_joined$academic_year) &
+  !is.na(race_joined$district_code) &
+  !is.na(race_joined$school_name)
+
+if (any(miss_idx)) {
+  fallback_map <- v5_keys %>%
+    dplyr::select(
+      academic_year, district_code, school_name,
+      ed_ops_name, school_level_final, level_strict3, locale_simple
+    ) %>%
+    dplyr::distinct()
+  
+  filled <- race_joined[miss_idx, ] %>%
+    dplyr::select(-ed_ops_name, -school_level_final, -level_strict3, -locale_simple) %>%
+    dplyr::left_join(
+      fallback_map,
+      by = c("academic_year","district_code","school_name"),
+      relationship = "many-to-one"
+    )
+  
+  race_joined[miss_idx, c("ed_ops_name","school_level_final","level_strict3","locale_simple")] <-
+    filled[, c("ed_ops_name","school_level_final","level_strict3","locale_simple")]
+}
+
+race_long <- race_joined %>%
+  dplyr::mutate(
     setting = dplyr::case_when(
       ed_ops_name == "Traditional" ~ "Traditional",
       !is.na(ed_ops_name)          ~ "Non-traditional",
@@ -100,15 +137,47 @@ race_long <- race_long %>%
     )
   )
 
-# Apply to OTH
-demo_data <- demo_data %>%
-  maybe_pad() %>%
-  left_join(
-    v5_keys,
-    by = c("academic_year","county_code","district_code","school_code"),
-    relationship = "many-to-one"
-  ) %>%
-  mutate(
+# ---- Apply canonical attrs to OTH with staged join ----
+demo_data <- demo_data %>% maybe_pad()
+
+demo_joined <- dplyr::left_join(
+  demo_data, v5_keys,
+  by = keys_full,
+  relationship = "many-to-one"
+)
+
+if (!"ed_ops_name" %in% names(demo_joined)) demo_joined$ed_ops_name <- NA_character_
+if (!"school_level_final" %in% names(demo_joined)) demo_joined$school_level_final <- NA_character_
+if (!"level_strict3" %in% names(demo_joined)) demo_joined$level_strict3 <- NA_character_
+if (!"locale_simple" %in% names(demo_joined)) demo_joined$locale_simple <- NA_character_
+
+miss_idx_oth <- is.na(demo_joined$ed_ops_name) &
+  !is.na(demo_joined$academic_year) &
+  !is.na(demo_joined$district_code) &
+  !is.na(demo_joined$school_name)
+
+if (any(miss_idx_oth)) {
+  fallback_map <- v5_keys %>%
+    dplyr::select(
+      academic_year, district_code, school_name,
+      ed_ops_name, school_level_final, level_strict3, locale_simple
+    ) %>%
+    dplyr::distinct()
+  
+  filled <- demo_joined[miss_idx_oth, ] %>%
+    dplyr::select(-ed_ops_name, -school_level_final, -level_strict3, -locale_simple) %>%
+    dplyr::left_join(
+      fallback_map,
+      by = c("academic_year","district_code","school_name"),
+      relationship = "many-to-one"
+    )
+  
+  demo_joined[miss_idx_oth, c("ed_ops_name","school_level_final","level_strict3","locale_simple")] <-
+    filled[, c("ed_ops_name","school_level_final","level_strict3","locale_simple")]
+}
+
+demo_data <- demo_joined %>%
+  dplyr::mutate(
     setting = dplyr::case_when(
       ed_ops_name == "Traditional" ~ "Traditional",
       !is.na(ed_ops_name)          ~ "Non-traditional",
@@ -117,12 +186,17 @@ demo_data <- demo_data %>%
   )
 
 # Optional sanity for missing attrs
-race_missing <- any(is.na(race_long$ed_ops_name) | is.na(race_long$school_level_final) |
-                      is.na(race_long$level_strict3) | is.na(race_long$locale_simple))
-demo_missing <- any(is.na(demo_data$ed_ops_name) | is.na(demo_data$school_level_final) |
-                      is.na(demo_data$level_strict3) | is.na(demo_data$locale_simple))
-if (race_missing) warning("[15a] Some race_long rows still missing school attributes after join.")
-if (demo_missing) warning("[15a] Some OTH rows still missing school attributes after join.")
+message("[15a] missing attrs in race_long: ",
+        sum(is.na(race_long$ed_ops_name) |
+              is.na(race_long$school_level_final) |
+              is.na(race_long$level_strict3) |
+              is.na(race_long$locale_simple)))
+
+message("[15a] missing attrs in OTH: ",
+        sum(is.na(demo_data$ed_ops_name) |
+              is.na(demo_data$school_level_final) |
+              is.na(demo_data$level_strict3) |
+              is.na(demo_data$locale_simple)))
 
 # -------------------------------------------------------------------
 # 4) Build outputs
