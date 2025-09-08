@@ -167,22 +167,44 @@ if (!length(year_levels)) {
   year_levels <- demo_data %>% distinct(academic_year) %>% arrange(academic_year) %>% pull()
 }
 
-# -------- Bring level/locale onto demo_data ----------------------------------
-race_keys <- race_data %>%
-  select(any_of(c("academic_year","district_code","school_code","level_strict3","locale_simple"))) %>%
-  distinct()
+# -------- Now bring canonical school attributes onto demo_data -------------------
+# Source of truth: race_data (susp_v5.parquet already loaded & padded above)
+canon_keys <- race_data %>%
+  dplyr::select(dplyr::any_of(c(
+    "academic_year","county_code","district_code","school_code",
+    "ed_ops_name","school_level_final","level_strict3","locale_simple"
+  ))) %>%
+  dplyr::distinct()
+
+# Join using whatever keys exist in demo_data (prefer full 4-key match)
+join_keys <- intersect(
+  c("academic_year","county_code","district_code","school_code"),
+  names(demo_data)
+)
 
 demo_data <- demo_data %>%
-  left_join(race_keys,
-            by = c("academic_year","district_code","school_code"),
-            relationship = "many-to-one") %>%
+  dplyr::left_join(
+    canon_keys,
+    by = join_keys,
+    relationship = "many-to-one"
+  ) %>%
+  dplyr::mutate(
+    setting = dplyr::case_when(
+      ed_ops_name == "Traditional" ~ "Traditional",
+      !is.na(ed_ops_name)          ~ "Non-traditional",
+      TRUE                         ~ NA_character_
+    )
+  ) %>%
   {
+    # Keep the district-level fallback ONLY for level/locale (not ed_ops_name/school_level_final)
     missing_idx <- is.na(.$level_strict3) | is.na(.$locale_simple)
     if (any(missing_idx)) {
       fill_df <- .[missing_idx, ] %>%
-        select(-level_strict3, -locale_simple) %>%
-        left_join(
-          race_keys %>% select(academic_year, district_code, level_strict3, locale_simple) %>% distinct(),
+        dplyr::select(-level_strict3, -locale_simple) %>%
+        dplyr::left_join(
+          canon_keys %>%
+            dplyr::select(academic_year, district_code, level_strict3, locale_simple) %>%
+            dplyr::distinct(),
           by = c("academic_year","district_code"),
           relationship = "many-to-one"
         )
@@ -191,10 +213,15 @@ demo_data <- demo_data %>%
     .
   }
 
-demo_data %>% summarise(
-  pct_missing_level  = mean(is.na(level_strict3))*100,
-  pct_missing_locale = mean(is.na(locale_simple))*100
-) %>% print()
+# Quick sanity: attributes should now be present
+demo_data %>%
+  dplyr::summarise(
+    pct_na_ed_ops         = mean(is.na(ed_ops_name)) * 100,
+    pct_na_school_level   = mean(is.na(school_level_final)) * 100,
+    pct_na_level_strict3  = mean(is.na(level_strict3)) * 100,
+    pct_na_locale_simple  = mean(is.na(locale_simple)) * 100
+  ) %>% print()
+# -------- Sanity: demo_data should have susp/enroll counts --------------------
 
 # -------- Demographic rates vs TA (pooled) -----------------------------------
 cat("\n=== Calculating rates and disparities (pooled counts) ===\n")
