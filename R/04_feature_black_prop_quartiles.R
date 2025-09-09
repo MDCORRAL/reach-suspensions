@@ -9,6 +9,8 @@ suppressPackageStartupMessages({
   library(tidyr)    # pivot_wider
 })
 
+source(here::here("R","utils_keys_filters.R"))
+
 message(">>> Running from project root: ", here::here())
 
 # -------- helper: safe first non-NA numeric --------
@@ -19,7 +21,8 @@ first_non_na_num <- function(x) {
 }
 
 # ---- read input ------------------------------------------------------------
-v2 <- arrow::read_parquet(here::here("data-stage", "susp_v2.parquet"))
+v2 <- read_parquet(here("data-stage","susp_v2.parquet")) |>
+  build_keys()         # creates cds_district, cds_school
 
 # Input guard
 stopifnot(all(c("reporting_category","cumulative_enrollment") %in% names(v2)))
@@ -32,24 +35,14 @@ if (!any(v2$reporting_category == "RW", na.rm = TRUE)) {
 # --- 1) Pull RB (Black), RW (White), and TA totals at SCHOOL x YEAR --------
 # NOTE: RB = Black; RW = White; TA = Total Enrollment
 rb_rw_ta <- v2 %>%
-  filter(reporting_category %in% c("RB", "RW", "TA")) %>%
-  select(
-    academic_year, county_code, district_code, school_code,
-    reporting_category, cumulative_enrollment
-  ) %>%
-  group_by(academic_year, county_code, district_code, school_code, reporting_category) %>%
-  summarise(
-    enroll = first_non_na_num(cumulative_enrollment),
-    .groups = "drop"
-  ) %>%
-  pivot_wider(
-    names_from  = reporting_category,  # RB, RW, TA
-    values_from = enroll,
-    names_prefix = "enroll_"           # enroll_RB, enroll_RW, enroll_TA
-  )
+  filter(reporting_category %in% c("RB","RW","TA")) %>%
+  select(academic_year, cds_school, reporting_category, cumulative_enrollment) %>%
+  group_by(academic_year, cds_school, reporting_category) %>%
+  summarise(enroll = first_non_na_num(cumulative_enrollment), .groups="drop") %>%
+  tidyr::pivot_wider(names_from = reporting_category, values_from = enroll, names_prefix = "enroll_")
 
 # --- 2) Proportion Black & White per school-year ---------------------------
-# Option A: leave RB/RW missing as NA; TA must be > 0 to compute proportions
+#leave RB/RW missing as NA; TA must be > 0 to compute proportions
 rb_rw_ta <- rb_rw_ta %>%
   mutate(
     prop_black = if_else(!is.na(enroll_TA) & enroll_TA > 0 & !is.na(enroll_RB),
@@ -84,22 +77,27 @@ rbw_q <- rb_rw_ta %>%
 
 # --- 4) Join back to all race rows and save --------------------------------
 v3 <- v2 %>%
-  left_join(rbw_q,
-            by = c("academic_year","county_code","district_code","school_code"))
+  left_join(rbw_q, by = c("academic_year","cds_school"))
 
 # Row-count must be stable through the join
 stopifnot(nrow(v3) == nrow(v2))
 
+stopifnot(all(c("black_prop_q4","black_prop_q_label","white_prop_q4","white_prop_q_label") %in% names(v3)))
+
+
 arrow::write_parquet(v3, here::here("data-stage", "susp_v3.parquet"))
 message(">>> 04_feature_black_prop_quartiles: wrote susp_v3.parquet (now includes White)")
 
-# --- Quick sanity checks in Console ----------------------------------------
+# --- sanity checks----------------------------------------
 # (A) No duplicate school-year keys in wide table
 stopifnot(
   rb_rw_ta %>%
-    count(academic_year, county_code, district_code, school_code) %>%
-    pull(n) %>% max(na.rm = TRUE) == 1
+    count(academic_year, cds_school) %>%
+    summarise(max_n = max(n, na.rm = TRUE), .groups = "drop") %>%
+    pull(max_n) == 1
 )
+# or the simple base-R equivalent:
+stopifnot(anyDuplicated(rb_rw_ta[c("academic_year","cds_school")]) == 0)
 
 # (B) Quartile counts per year (Black & White)
 v3 %>%
@@ -129,15 +127,9 @@ v3 %>%
 
 # (D) Bounds: proportions in [0,1], RB/RW <= TA
 v3 %>%
-  distinct(academic_year, county_code, district_code, school_code,
-           enroll_RB, enroll_RW, enroll_TA, prop_black, prop_white) %>%
-  summarise(
-    any_black_oob = any(prop_black < 0 | prop_black > 1, na.rm = TRUE),
-    any_white_oob = any(prop_white < 0 | prop_white > 1, na.rm = TRUE),
-    any_RB_gt_TA  = any(enroll_RB > enroll_TA, na.rm = TRUE),
-    any_RW_gt_TA  = any(enroll_RW > enroll_TA, na.rm = TRUE),
-    .by = academic_year
-  ) %>%
+  distinct(academic_year, cds_school, black_prop_q_label, white_prop_q_label) %>%
+  count(academic_year, black_prop_q_label, white_prop_q_label) %>%
+  arrange(academic_year, black_prop_q_label, white_prop_q_label) %>%
   print(n = 60)  # All should be FALSE
 
 invisible(TRUE)
