@@ -12,8 +12,12 @@ suppressPackageStartupMessages({
   library(ggrepel) # For non-overlapping labels
 })
 
+source(here::here("R", "utils_keys_filters.R"))
+
 # --- 2) Load Data -------------------------------------------------------------
-v5 <- arrow::read_parquet(here::here("data-stage", "susp_v5.parquet"))
+v5 <- arrow::read_parquet(here::here("data-stage", "susp_v5.parquet")) %>%
+  build_keys() %>%          # Standardize CDS codes
+  filter_campus_only()      # Exclude special aggregation rows
 
 # --- 3) Filter for Black Students Data ---------------------------------------
 black_students_data <- v5 %>%
@@ -37,16 +41,16 @@ rate_by_black_quartile <- black_students_data %>%
   )
 
 # --- 5) CHART 1A: Black Student Suspension Rate by Black Enrollment Quartile --
-ggplot(rate_by_black_quartile, aes(x = academic_year, y = suspension_rate, group = black_prop_q_label, color = black_prop_q_label)) +
+p1_black_by_black <- ggplot(rate_by_black_quartile, aes(x = academic_year, y = suspension_rate,
+                                                        group = black_prop_q_label, color = black_prop_q_label)) +
   geom_line(linewidth = 1.2) +
   geom_point(size = 2.5) +
-  # Use the full dataset for labels and format them as percentages
   geom_text_repel(aes(label = percent(suspension_rate, accuracy = 0.1)),
                   segment.linetype = "dashed", fontface = "bold", size = 3.5) +
   scale_y_continuous(labels = percent_format(accuracy = 1)) +
   labs(
     title = "Black Student Suspension Rate by School's Black Enrollment Quartile",
-    subtitle = "Rates for Black students are highest in schools with the fewest Black students.",
+    subtitle = "Rates for Black students are highest in schools with the most Black students.",  # see #2
     x = "Academic Year", y = "Suspension Rate", color = "School's % Black Students"
   ) +
   theme_minimal(base_size = 14) +
@@ -75,9 +79,11 @@ labels_reason_black_q <- reason_rate_by_black_quartile %>%
   summarise(total_rate = sum(reason_rate), .groups = "drop")
 
 # --- 7) CHART 1B: Suspension Reason Rates by Black Enrollment Quartile ------
-ggplot(reason_rate_by_black_quartile, aes(x = academic_year, y = reason_rate, group = suspension_reason, fill = suspension_reason)) +
+p2_reasons_by_black <- ggplot(reason_rate_by_black_quartile, aes(x = academic_year, y = reason_rate,
+                                                                 group = suspension_reason, fill = suspension_reason)) +
   geom_area(position = "stack") +
-  geom_text(data = labels_reason_black_q, aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),
+  geom_text(data = labels_reason_black_q,
+            aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),
             vjust = -0.5, fontface = "bold", inherit.aes = FALSE) +
   facet_wrap(~ black_prop_q_label, ncol = 2) +
   scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
@@ -87,8 +93,8 @@ ggplot(reason_rate_by_black_quartile, aes(x = academic_year, y = reason_rate, gr
     x = "Academic Year", y = "Suspension Rate", fill = "Reason for Suspension"
   ) +
   theme_minimal(base_size = 14) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(face = "bold"), legend.position = "bottom")
-
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(face = "bold"),
+        legend.position = "bottom")
 # ==============================================================================
 # PART 2: ANALYSIS BY WHITE STUDENT ENROLLMENT QUARTILES
 # ==============================================================================
@@ -105,10 +111,10 @@ rate_by_white_quartile <- black_students_data %>%
   mutate(suspension_rate = if_else(cumulative_enrollment > 0, (total_suspensions / cumulative_enrollment), 0))
 
 # --- 9) CHART 2A: Black Student Suspension Rate by White Enrollment Quartile --
-ggplot(rate_by_white_quartile, aes(x = academic_year, y = suspension_rate, group = white_prop_q_label, color = white_prop_q_label)) +
+p3_black_by_white <- ggplot(rate_by_white_quartile, aes(x = academic_year, y = suspension_rate,
+                                                        group = white_prop_q_label, color = white_prop_q_label)) +
   geom_line(linewidth = 1.2) +
   geom_point(size = 2.5) +
-  # Use the full dataset for labels and format them as percentages
   geom_text_repel(aes(label = percent(suspension_rate, accuracy = 0.1)),
                   segment.linetype = "dashed", fontface = "bold", size = 3.5) +
   scale_y_continuous(labels = percent_format(accuracy = 1)) +
@@ -143,9 +149,11 @@ labels_reason_white_q <- reason_rate_by_white_quartile %>%
   summarise(total_rate = sum(reason_rate), .groups = "drop")
 
 # --- 11) CHART 2B: Suspension Reason Rates by White Enrollment Quartile ------
-ggplot(reason_rate_by_white_quartile, aes(x = academic_year, y = reason_rate, group = suspension_reason, fill = suspension_reason)) +
+p4_reasons_by_white <- ggplot(reason_rate_by_white_quartile, aes(x = academic_year, y = reason_rate,
+                                                                 group = suspension_reason, fill = suspension_reason)) +
   geom_area(position = "stack") +
-  geom_text(data = labels_reason_white_q, aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),
+  geom_text(data = labels_reason_white_q,
+            aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),
             vjust = -0.5, fontface = "bold", inherit.aes = FALSE) +
   facet_wrap(~ white_prop_q_label, ncol = 2) +
   scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
@@ -155,4 +163,12 @@ ggplot(reason_rate_by_white_quartile, aes(x = academic_year, y = reason_rate, gr
     x = "Academic Year", y = "Suspension Rate", fill = "Reason for Suspension"
   ) +
   theme_minimal(base_size = 14) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(face = "bold"), legend.position = "bottom")
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(face = "bold"),
+        legend.position = "bottom")
+
+# --- (Optional) Save files ----------------------------------------------------
+dir.create(here::here("outputs"), showWarnings = FALSE)
+ggsave(here::here("outputs","08b_black_rate_by_black_quartile.png"),  plot = p1_black_by_black, width = 10, height = 6, dpi = 300)
+ggsave(here::here("outputs","08b_reason_rates_by_black_quartile.png"), plot = p2_reasons_by_black, width = 10, height = 7, dpi = 300)
+ggsave(here::here("outputs","08b_black_rate_by_white_quartile.png"),  plot = p3_black_by_white, width = 10, height = 6, dpi = 300)
+ggsave(here::here("outputs","08b_reason_rates_by_white_quartile.png"), plot = p4_reasons_by_white, width = 10, height = 7, dpi = 300)

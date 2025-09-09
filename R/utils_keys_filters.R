@@ -28,28 +28,30 @@ filter_campus_only <- function(df) {
 
 # roll nonpublic (0000001) to district-level aggregates
 roll_nonpublic_to_district <- function(df, value_cols, year_col = "year") {
-  vcols <- rlang::ensyms(!!!lapply(value_cols, as.name))
-  ysym  <- rlang::ensym(year_col)
+  ysym <- rlang::sym(year_col)
   np <- df %>%
-    filter(school_code == "0000001") %>%
-    group_by(county_code, district_code, !!ysym) %>%
-    summarise(across(!!!vcols, ~ sum(.x, na.rm = TRUE)), .groups = "drop") %>%
-    mutate(aggregate_level = "district", school_code = NA_character_)
-  bind_rows(
-    df %>% filter(school_code != "0000001"),
+    dplyr::filter(school_code == "0000001") %>%
+    dplyr::group_by(county_code, district_code, !!ysym) %>%
+    dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
+                     .groups = "drop") %>%
+    dplyr::mutate(aggregate_level = "district", school_code = NA_character_)
+  dplyr::bind_rows(
+    df %>% dplyr::filter(school_code != "0000001"),
     np
   )
 }
 
 # assert uniqueness for a campus-level frame
-assert_unique_campus <- function(df, extra_keys = character()) {
-  key_syms <- syms(c("cds_school", "year", extra_keys))
+assert_unique_campus <- function(df, year_col = "year", extra_keys = character()) {
+  ysym <- rlang::sym(year_col)
+  key_syms <- rlang::syms(c("cds_school", extra_keys))
   dup <- df %>%
-    count(!!!key_syms, name = "n") %>%
-    filter(n > 1)
+    dplyr::count(!!!key_syms, !!ysym, name = "n") %>%
+    dplyr::filter(n > 1)
   if (nrow(dup) > 0) {
     stop("Duplicate campus-year keys found. Inspect 'dup' in the calling frame.")
   }
   df
 }
+
 # assert uniqueness for a district-level frame 

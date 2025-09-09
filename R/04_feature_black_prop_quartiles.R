@@ -19,10 +19,15 @@ first_non_na_num <- function(x) {
   y <- y[!is.na(y)]
   if (length(y)) y[1] else NA_real_
 }
-
+# --- helper: safe ntile on possibly-all-NA vectors ---------------------------
+safe_ntile <- function(x, n = 4L) {
+  if (all(is.na(x))) return(rep(NA_integer_, length(x)))
+  ntile(x, n)
+}
 # ---- read input ------------------------------------------------------------
-v2 <- read_parquet(here("data-stage","susp_v2.parquet")) |>
-  build_keys()         # creates cds_district, cds_school
+v2 <- read_parquet(here("data-stage","susp_v2.parquet")) %>%
+  build_keys() %>%
+  filter_campus_only()
 
 # Input guard
 stopifnot(all(c("reporting_category","cumulative_enrollment") %in% names(v2)))
@@ -55,8 +60,8 @@ rb_rw_ta <- rb_rw_ta %>%
 rbw_q <- rb_rw_ta %>%
   group_by(academic_year) %>%
   mutate(
-    black_prop_q4 = if_else(!is.na(prop_black), ntile(prop_black, 4L), NA_integer_),
-    white_prop_q4 = if_else(!is.na(prop_white), ntile(prop_white, 4L), NA_integer_),
+    black_prop_q4 = if_else(!is.na(prop_black), safe_ntile(prop_black, 4L), NA_integer_),
+    white_prop_q4 = if_else(!is.na(prop_white), safe_ntile(prop_white, 4L), NA_integer_),
     
     black_prop_q_label = case_when(
       is.na(black_prop_q4) ~ "Unknown",
@@ -76,17 +81,17 @@ rbw_q <- rb_rw_ta %>%
   ungroup()
 
 # --- 4) Join back to all race rows and save --------------------------------
-v3 <- v2 %>%
-  left_join(rbw_q, by = c("academic_year","cds_school"))
-
-# Row-count must be stable through the join
+v3 <- v2 %>% left_join(rbw_q, by = c("academic_year","cds_school"))
 stopifnot(nrow(v3) == nrow(v2))
 
-stopifnot(all(c("black_prop_q4","black_prop_q_label","white_prop_q4","white_prop_q_label") %in% names(v3)))
+# Freeze label order (optional but handy)
+v3$black_prop_q_label <- factor(v3$black_prop_q_label,
+                                levels = c("Q1 (Lowest % Black)","Q2","Q3","Q4 (Highest % Black)","Unknown"))
+v3$white_prop_q_label <- factor(v3$white_prop_q_label,
+                                levels = c("Q1 (Lowest % White)","Q2","Q3","Q4 (Highest % White)","Unknown"))
 
-
-arrow::write_parquet(v3, here::here("data-stage", "susp_v3.parquet"))
-message(">>> 04_feature_black_prop_quartiles: wrote susp_v3.parquet (now includes White)")
+# Quick ping that special codes aren’t present (campus-only should already handle this)
+stopifnot(!any(stringr::str_detect(v3$cds_school, "0000000$|0000001$")))
 
 # --- sanity checks----------------------------------------
 # (A) No duplicate school-year keys in wide table
@@ -101,8 +106,7 @@ stopifnot(anyDuplicated(rb_rw_ta[c("academic_year","cds_school")]) == 0)
 
 # (B) Quartile counts per year (Black & White)
 v3 %>%
-  distinct(academic_year, county_code, district_code, school_code,
-           black_prop_q_label, white_prop_q_label) %>%
+  distinct(academic_year, cds_school, black_prop_q_label, white_prop_q_label) %>%
   count(academic_year, black_prop_q_label, white_prop_q_label) %>%
   arrange(academic_year, black_prop_q_label, white_prop_q_label) %>%
   print(n = 60)
@@ -126,10 +130,15 @@ v3 %>%
   print(n = 60)
 
 # (D) Bounds: proportions in [0,1], RB/RW <= TA
-v3 %>%
-  distinct(academic_year, cds_school, black_prop_q_label, white_prop_q_label) %>%
-  count(academic_year, black_prop_q_label, white_prop_q_label) %>%
-  arrange(academic_year, black_prop_q_label, white_prop_q_label) %>%
-  print(n = 60)  # All should be FALSE
+rb_rw_ta %>%
+  summarise(
+    any_black_oob = any(prop_black < 0 | prop_black > 1, na.rm = TRUE),
+    any_white_oob = any(prop_white < 0 | prop_white > 1, na.rm = TRUE),
+    any_RB_gt_TA  = any(enroll_RB > enroll_TA, na.rm = TRUE),
+    any_RW_gt_TA  = any(enroll_RW > enroll_TA, na.rm = TRUE),
+    .by = academic_year
+  ) %>%
+  print(n = 60) # All should be FALSE
 
 invisible(TRUE)
+# --- write output -----------------------------------------------------------

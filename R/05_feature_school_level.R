@@ -10,14 +10,16 @@ suppressPackageStartupMessages({
   library(stringr)
   library(tibble)
 })
-
+source(here::here("R","utils_keys_filters.R"))
 message(">>> Running from project root: ", here::here())
 
 # --- read v3 ---------------------------------------------------------------
-v3_in <- arrow::read_parquet(here::here("data-stage", "susp_v3.parquet"))
+v3_in <- arrow::read_parquet(here::here("data-stage","susp_v3.parquet")) %>%
+  build_keys() %>%
+  filter_campus_only()
 
-# cheap input guard
-stopifnot(all(c("grades_served", "school_type") %in% names(v3_in)))
+stopifnot(!any(stringr::str_detect(v3_in$cds_school, "0000000$|0000001$")))
+
 
 # --- helpers ---------------------------------------------------------------
 grade_token_to_num <- function(token) {
@@ -112,6 +114,7 @@ v4 <- v3_in %>%
     level_strict3 = if_else(is_alt(school_type), "Alternative", level_strict3)
     # If you also want to force final label to Alternative, uncomment:
     # ,school_level_final = if_else(is_alt(school_type), "Alternative", school_level_final)
+    
   )
 
 # row-count must be stable through feature adds
