@@ -4,8 +4,24 @@ suppressPackageStartupMessages({
   library(ggplot2); library(scales); library(ggrepel); library(stringr)
 })
 
+# project root
+here::here()
+
+# sanity: these should both be TRUE if set up right
+stopifnot(file.exists(here::here("Analysis", "01_trends.R")))
+stopifnot(file.exists(here::here("R", "utils_keys_filters.R")))
+
+# peek at what's in R/ (helper scripts, etc.)
+list.files(here::here("R"))
+
+# load utils; this must exist at <project>/R/utils_keys_filters.R
+
 # ---------- Load ----------
-v5 <- read_parquet(here("data-stage", "susp_v5.parquet"))
+source(here::here("R","utils_keys_filters.R"))
+
+v5 <- read_parquet(here("data-stage","susp_v5.parquet")) %>%
+  build_keys() %>%
+  filter_campus_only()
 
 # quick guards
 need_cols <- c("reporting_category","academic_year","total_suspensions","cumulative_enrollment")
@@ -98,27 +114,36 @@ agg_rb_by_quart <- function(v5, quart_var, quart_title) {
 blk_view   <- agg_rb_by_quart(v5, "black_prop_q_label", "School Black Enrollment Quartile")
 wht_view   <- agg_rb_by_quart(v5, "white_prop_q_label", "School White Enrollment Quartile")
 
+###sanity check#####
+missing_quart <- blk_view$totals %>%
+  tidyr::complete(academic_year = year_levels, quart, fill = list(rate = NA_real_)) %>%
+  group_by(academic_year) %>%
+  summarise(missing = sum(is.na(rate)), .groups = "drop")
+if (any(missing_quart$missing > 0)) {
+  message("Heads up: some year×quartile combos have no data (common if RB enrollment is zero).")
+}
+###################
 # common colors for quartiles
 quart_levels_blk <- c("Q1 (Lowest % Black)","Q2","Q3","Q4 (Highest % Black)")
 quart_levels_wht <- c("Q1 (Lowest % White)","Q2","Q3","Q4 (Highest % White)")
 pal_quart <- setNames(scales::hue_pal()(4), c("Q1 (Lowest % Black)","Q2","Q3","Q4 (Highest % Black)"))
 
 # ---------- Plot helpers ----------
+
 plot_rb_total_rate <- function(df, title, caption = NULL) {
-  # label frame for all points
-  lab_df <- df %>% filter(!is.na(rate))
-  ggplot(df, aes(x = year_fct, y = rate, color = quart, group = quart)) +
+  df2 <- df %>% filter(!is.na(rate))
+  ggplot(df2, aes(x = year_fct, y = rate, color = quart, group = quart)) +
     geom_line(linewidth = 1.1) +
     geom_point(size = 1.9) +
     ggrepel::geom_text_repel(
-      data = lab_df,
-      aes(label = percent(rate, accuracy = 0.1)),
+      data = df2,
+      aes(label = scales::percent(rate, accuracy = 0.1)),
       size = 2.7, show.legend = FALSE,
       max.overlaps = Inf, direction = "y", nudge_x = 0.12,
       box.padding = 0.12, point.padding = 0.12, min.segment.length = 0
     ) +
-    scale_y_continuous(labels = percent_format(accuracy = 0.1), limits = c(0, NA),
-                       expand = expansion(mult = c(0, 0.15))) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 0.1),
+                       limits = c(0, NA), expand = expansion(mult = c(0, 0.15))) +
     scale_x_discrete(expand = expansion(mult = c(0.02, 0.25))) +
     scale_color_manual(values = pal_quart) +
     labs(
@@ -133,18 +158,19 @@ plot_rb_total_rate <- function(df, title, caption = NULL) {
 }
 
 plot_rb_total_counts <- function(df, title) {
-  lab_df <- df %>% filter(!is.na(susp))
-  ggplot(df, aes(x = year_fct, y = susp, color = quart, group = quart)) +
+  df2 <- df %>% filter(!is.na(susp))
+  ggplot(df2, aes(x = year_fct, y = susp, color = quart, group = quart)) +
     geom_line(linewidth = 1.1) +
     geom_point(size = 1.9) +
     ggrepel::geom_text_repel(
-      data = lab_df,
+      data = df2,
       aes(label = scales::comma(susp)),
       size = 2.6, show.legend = FALSE,
       max.overlaps = Inf, direction = "y", nudge_x = 0.12,
       box.padding = 0.12, point.padding = 0.12, min.segment.length = 0
     ) +
-    scale_y_continuous(labels = comma, expand = expansion(mult = c(0, 0.15))) +
+    scale_y_continuous(labels = scales::comma,
+                       expand = expansion(mult = c(0, 0.15))) +
     scale_x_discrete(expand = expansion(mult = c(0.02, 0.25))) +
     scale_color_manual(values = pal_quart) +
     labs(
@@ -158,19 +184,19 @@ plot_rb_total_counts <- function(df, title) {
 }
 
 plot_rb_reason_rates <- function(df, title) {
-  lab_df <- df %>% filter(!is.na(rate))
-  ggplot(df, aes(x = year_fct, y = rate, color = quart, group = quart)) +
+  df2 <- df %>% filter(!is.na(rate))
+  ggplot(df2, aes(x = year_fct, y = rate, color = quart, group = quart)) +
     geom_line(linewidth = 0.95) +
     geom_point(size = 1.6) +
     ggrepel::geom_text_repel(
-      data = lab_df,
-      aes(label = percent(rate, accuracy = 0.01)),
+      data = df2,
+      aes(label = scales::percent(rate, accuracy = 0.01)),
       size = 2.4, show.legend = FALSE,
       max.overlaps = Inf, direction = "y", nudge_x = 0.1,
       box.padding = 0.1, point.padding = 0.1, min.segment.length = 0
     ) +
-    scale_y_continuous(labels = percent_format(accuracy = 0.01), limits = c(0, NA),
-                       expand = expansion(mult = c(0, 0.12))) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 0.01),
+                       limits = c(0, NA), expand = expansion(mult = c(0, 0.12))) +
     scale_x_discrete(expand = expansion(mult = c(0.02, 0.22))) +
     scale_color_manual(values = pal_quart) +
     labs(
@@ -227,10 +253,21 @@ print(p_blk_rate);   print(p_blk_counts);   print(p_blk_reason)
 print(p_wht_rate);   print(p_wht_counts);   print(p_wht_reason)
 
 dir.create(here("outputs"), showWarnings = FALSE)
-ggsave(here("outputs","rb_rate_by_black_quart.png"),   p_blk_rate,   width = 11, height = 6.5, dpi = 300, bg = "white")
-ggsave(here("outputs","rb_counts_by_black_quart.png"), p_blk_counts, width = 11, height = 6.5, dpi = 300, bg = "white")
-ggsave(here("outputs","rb_reason_by_black_quart.png"), p_blk_reason, width = 12, height = 7.5, dpi = 300, bg = "white")
+ggsave(here("outputs","02_rb_rate_by_black_quart.png"),   p_blk_rate,   width = 11, height = 6.5, dpi = 300, bg = "white")
+ggsave(here("outputs","02_rb_counts_by_black_quart.png"), p_blk_counts, width = 11, height = 6.5, dpi = 300, bg = "white")
+ggsave(here("outputs","02_rb_reason_by_black_quart.png"), p_blk_reason, width = 12, height = 7.5, dpi = 300, bg = "white")
 
-ggsave(here("outputs","rb_rate_by_white_quart.png"),   p_wht_rate,   width = 11, height = 6.5, dpi = 300, bg = "white")
-ggsave(here("outputs","rb_counts_by_white_quart.png"), p_wht_counts, width = 11, height = 6.5, dpi = 300, bg = "white")
-ggsave(here("outputs","rb_reason_by_white_quart.png"), p_wht_reason, width = 12, height = 7.5, dpi = 300, bg = "white")
+ggsave(here("outputs","02_rb_rate_by_white_quart.png"),   p_wht_rate,   width = 11, height = 6.5, dpi = 300, bg = "white")
+ggsave(here("outputs","02_rb_counts_by_white_quart.png"), p_wht_counts, width = 11, height = 6.5, dpi = 300, bg = "white")
+ggsave(here("outputs","02_rb_reason_by_white_quart.png"), p_wht_reason, width = 12, height = 7.5, dpi = 300, bg = "white")
+
+
+##sanity check
+missing_quart <- blk_view$totals %>%
+  tidyr::complete(academic_year = year_levels, quart, fill = list(rate = NA_real_)) %>%
+  group_by(academic_year) %>%
+  summarise(missing = sum(is.na(rate)), .groups = "drop")
+if (any(missing_quart$missing > 0)) {
+  message("Heads up: some year×quartile combos have no data (common if RB enrollment is zero).")
+}
+

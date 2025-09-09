@@ -1,4 +1,4 @@
-# analysis/03_black_reason_rates_and_shares_by_quartiles.R
+# analysis/02b_black_reason_rates_and_shares_by_quartiles.R
 suppressPackageStartupMessages({
   library(here); library(arrow); library(dplyr); library(tidyr)
   library(ggplot2); library(scales); library(ggrepel); library(stringr)
@@ -11,10 +11,22 @@ LABEL_SIZE_REASON <- 2.4
 NUDGE_X           <- 0.12
 
 # ------------ load & guards -------------------
-v5 <- read_parquet(here("data-stage", "susp_v5.parquet"))
+suppressPackageStartupMessages({
+  library(here); library(arrow); library(dplyr); library(tidyr)
+  library(ggplot2); library(scales); library(ggrepel); library(stringr)
+})
+
+# use the shared key/filter helpers
+source(here::here("R","utils_keys_filters.R"))
+
+# ------------ load & guards -------------------
+v5 <- read_parquet(here("data-stage","susp_v5.parquet")) %>%
+  build_keys() %>%
+  filter_campus_only()   # drops 0000000/0000001 and non-school rows
 
 need_cols <- c(
-  "reporting_category","academic_year","total_suspensions","cumulative_enrollment",
+  "reporting_category","academic_year",
+  "total_suspensions","cumulative_enrollment",
   "black_prop_q4","black_prop_q_label","white_prop_q4","white_prop_q_label"
 )
 missing <- setdiff(need_cols, names(v5))
@@ -31,20 +43,24 @@ lbl_q <- function(q4, who) dplyr::case_when(
 if (!"black_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(black_prop_q_label = lbl_q(black_prop_q4, "Black"))
 if (!"white_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(white_prop_q_label = lbl_q(white_prop_q4, "White"))
 
-# year order from TA rows
-year_levels <- v5 %>% filter(reporting_category == "TA") %>%
+# year order (from TA rows with positive enrollment)
+year_levels <- v5 %>%
+  filter(reporting_category == "TA", cumulative_enrollment > 0) %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 
-# reason columns & pretty names
+# reason columns (skip reason plots gracefully if none found)
 reason_cols <- names(v5)[grepl("^prop_susp_", names(v5))]
-nice_reason <- function(x) recode(sub("^prop_susp_", "", x),
-                                  "violent_injury"     = "Violent (Injury)",
-                                  "violent_no_injury"  = "Violent (No Injury)",
-                                  "weapons_possession" = "Weapons",
-                                  "illicit_drug"       = "Illicit Drug",
-                                  "defiance_only"      = "Willful Defiance",
-                                  "other_reasons"      = "Other",
-                                  .default = x
+if (length(reason_cols) == 0) {
+  message("No reason proportion columns found; reason plots will be skipped.")
+}
+nice_reason <- function(x) dplyr::recode(sub("^prop_susp_", "", x),
+                                         "violent_injury"     = "Violent (Injury)",
+                                         "violent_no_injury"  = "Violent (No Injury)",
+                                         "weapons_possession" = "Weapons",
+                                         "illicit_drug"       = "Illicit Drug",
+                                         "defiance_only"      = "Willful Defiance",
+                                         "other_reasons"      = "Other",
+                                         .default = x
 )
 
 # ------------ core aggregators for RB ---------
@@ -273,12 +289,12 @@ print(p_blk_rate); print(p_blk_count); print(p_blk_r_rt); print(p_blk_r_sh)
 print(p_wht_rate); print(p_wht_count); print(p_wht_r_rt); print(p_wht_r_sh)
 
 dir.create(here("outputs"), showWarnings = FALSE)
-ggsave(here("outputs","rb_rate_by_black_quart.png"),   p_blk_rate,  width=11, height=6.5, dpi=300, bg="white")
-ggsave(here("outputs","rb_counts_by_black_quart.png"), p_blk_count, width=11, height=6.5, dpi=300, bg="white")
-ggsave(here("outputs","rb_reasonRATE_by_black_quart.png"), p_blk_r_rt, width=12, height=7.5, dpi=300, bg="white")
-ggsave(here("outputs","rb_reasonSHARE_by_black_quart.png"), p_blk_r_sh, width=12, height=7.5, dpi=300, bg="white")
+ggsave(here("outputs","02b_rb_rate_by_black_quart.png"),   p_blk_rate,  width=11, height=6.5, dpi=300, bg="white")
+ggsave(here("outputs","02b_rb_counts_by_black_quart.png"), p_blk_count, width=11, height=6.5, dpi=300, bg="white")
+ggsave(here("outputs","02b_rb_reasonRATE_by_black_quart.png"), p_blk_r_rt, width=12, height=7.5, dpi=300, bg="white")
+ggsave(here("outputs","02b_rb_reasonSHARE_by_black_quart.png"), p_blk_r_sh, width=12, height=7.5, dpi=300, bg="white")
 
-ggsave(here("outputs","rb_rate_by_white_quart.png"),   p_wht_rate,  width=11, height=6.5, dpi=300, bg="white")
-ggsave(here("outputs","rb_counts_by_white_quart.png"), p_wht_count, width=11, height=6.5, dpi=300, bg="white")
-ggsave(here("outputs","rb_reasonRATE_by_white_quart.png"), p_wht_r_rt, width=12, height=7.5, dpi=300, bg="white")
-ggsave(here("outputs","rb_reasonSHARE_by_white_quart.png"), p_wht_r_sh, width=12, height=7.5, dpi=300, bg="white")
+ggsave(here("outputs","02b_rb_rate_by_white_quart.png"),   p_wht_rate,  width=11, height=6.5, dpi=300, bg="white")
+ggsave(here("outputs","02b_rb_counts_by_white_quart.png"), p_wht_count, width=11, height=6.5, dpi=300, bg="white")
+ggsave(here("outputs","02b_rb_reasonRATE_by_white_quart.png"), p_wht_r_rt, width=12, height=7.5, dpi=300, bg="white")
+ggsave(here("outputs","02b_rb_reasonSHARE_by_white_quart.png"), p_wht_r_sh, width=12, height=7.5, dpi=300, bg="white")
