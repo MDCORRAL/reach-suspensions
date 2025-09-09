@@ -163,31 +163,52 @@ if (use_ggrepel) {
 p <- base_plot + facet_wrap(~ subgroup, scales = "free_y")
 ggsave(OUT_IMG, p, width = 12, height = 8, dpi = 300)
 
-# ───────────────────────────── Excel (tidy + wide) ────────────────────────────
-wb <- createWorkbook()
+# ───────────────── Excel (match Script 23 tabs; pooled rates) ─────────────────
+# Ensure n_schools exists for wide_N (derive from analytic if missing)
+if (!"n_schools" %in% names(sum_by)) {
+  n_by <- analytic %>%
+    dplyr::group_by(year, black_q, subgroup) %>%
+    dplyr::summarise(n_schools = dplyr::n_distinct(school_code), .groups = "drop")
+  sum_by <- sum_by %>% dplyr::left_join(n_by, by = c("year","black_q","subgroup"))
+}
 
-# Tidy pooled summary
-addWorksheet(wb, "tidy_pooled_by_year_q_subg")
-writeData(
-  wb, "tidy_pooled_by_year_q_subg",
-  sum_by %>%
-    mutate(
-      pooled_rate = percent(pooled_rate, accuracy = 0.1)
-    ) %>%
-    arrange(subgroup, year, black_q)
-)
+wb <- openxlsx::createWorkbook()
 
-# Wide table: rows = year × black_q, columns = subgroups (pooled rate %)
+# 1) Tidy sheet — SAME NAME as Script 23
+openxlsx::addWorksheet(wb, "tidy_by_year_q_subgroup")
+tidy_out <- sum_by %>%
+  dplyr::mutate(
+    dplyr::across(c(year, black_q, subgroup), as.character),
+    pooled_rate = scales::percent(pooled_rate, accuracy = 0.1),
+    dplyr::across(dplyr::any_of(c("ci_low","ci_high")),
+                  ~ if (is.numeric(.x)) scales::percent(.x, accuracy = 0.1) else .x)
+  ) %>%
+  dplyr::arrange(subgroup, year, black_q)
+openxlsx::writeData(wb, "tidy_by_year_q_subgroup", tidy_out)
+
+# 2) Wide rates — SAME NAME as Script 23 (but using pooled_rate)
+openxlsx::addWorksheet(wb, "wide_rates")
 wide_rates <- sum_by %>%
-  select(year, black_q, subgroup, pooled_rate) %>%
-  mutate(pooled_rate = percent(pooled_rate, accuracy = 0.1)) %>%
-  pivot_wider(names_from = subgroup, values_from = pooled_rate) %>%
-  arrange(year, black_q)
+  dplyr::select(year, black_q, subgroup, pooled_rate) %>%
+  dplyr::mutate(
+    dplyr::across(c(year, black_q), as.character),
+    pooled_rate = scales::percent(pooled_rate, accuracy = 0.1)
+  ) %>%
+  tidyr::pivot_wider(names_from = subgroup, values_from = pooled_rate) %>%
+  dplyr::arrange(year, black_q)
+openxlsx::writeData(wb, "wide_rates", wide_rates)
 
-addWorksheet(wb, "wide_pooled_rates")
-writeData(wb, "wide_pooled_rates", wide_rates)
+# 3) Wide N — SAME NAME as Script 23
+openxlsx::addWorksheet(wb, "wide_N")
+wide_n <- sum_by %>%
+  dplyr::select(year, black_q, subgroup, n_schools) %>%
+  dplyr::mutate(dplyr::across(c(year, black_q), as.character)) %>%
+  tidyr::pivot_wider(names_from = subgroup, values_from = n_schools) %>%
+  dplyr::arrange(year, black_q)
+openxlsx::writeData(wb, "wide_N", wide_n)
 
-saveWorkbook(wb, OUT_XLSX, overwrite = TRUE)
+openxlsx::saveWorkbook(wb, OUT_XLSX, overwrite = TRUE)
+# ──────────────────────────────── Done / Messages ─────────────────────────────
 
 message(
   "Done:\n- Plot: ", OUT_IMG,
