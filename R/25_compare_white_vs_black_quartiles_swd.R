@@ -1,7 +1,9 @@
+##25_compare_white_vs_black_quartiles_swd.R─────────────────────────────
+
 suppressPackageStartupMessages({
   library(dplyr); library(stringr); library(forcats); library(janitor)
   library(arrow); library(here); library(ggplot2); library(openxlsx)
-  library(scales); library(tidyr)
+  library(scales); library(tidyr); library(ggrepel)
 })
 
 # ───────────────────────────── Config / Paths ─────────────────────────────
