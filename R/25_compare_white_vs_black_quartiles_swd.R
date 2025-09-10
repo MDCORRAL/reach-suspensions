@@ -162,6 +162,7 @@ y_lim <- c(0, y_max * 1.1)
 
 # ─────────────────────────── Plot settings ─────────────────────────────────
 quartile_cols <- c("Q1"="#F8766D","Q2"="#7CAE00","Q3"="#00BFC4","Q4"="#C77CFF")
+q4_cols <- c("White Q4"="#0072B2", "Black Q4"="#D55E00")  # Add this line
 
 base_theme <- theme_minimal(base_size = 13) +
   theme(
