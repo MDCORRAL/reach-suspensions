@@ -28,6 +28,7 @@ run("Analysis/15a_emit_nonintersectional_exports.R")   # new companion script we
 # 3) Tail concentration analysis (reads outputs/data-merged/school_year_allstudents.parquet)
 #    name this file however you like; keep it under analysis/
 run("Analysis/16_tail_concentration_analysis.R")
+run("Analysis/17_tail_concentration_by_level.R")
 
 message("\n=== All done @ ", format(Sys.time(), usetz = TRUE), " ===")
 # End of file ----------------------------------------------------------------- 
