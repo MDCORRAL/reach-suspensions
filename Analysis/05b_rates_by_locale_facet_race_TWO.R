@@ -7,6 +7,8 @@ suppressPackageStartupMessages({
   library(stringr); library(ggplot2); library(scales); library(ggrepel)
 })
 
+source(here::here("R", "utils_keys_filters.R"))
+
 # --- 2) Config ----------------------------------------------------------------
 MAX_FACETS_PER_IMAGE  <- 2
 DROP_ALL_STUDENTS     <- TRUE
@@ -37,16 +39,6 @@ if (length(miss)) stop("Missing required columns: ", paste(miss, collapse=", "))
 year_levels <- v5 %>%
   filter(reporting_category == "TA") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
-
-race_label <- function(code) dplyr::recode(
-  code,
-  RB="Black/African American", RW="White",
-  RH="Hispanic/Latino", RL="Hispanic/Latino",
-  RI="American Indian/Alaska Native", RA="Asian",
-  RF="Filipino", RP="Pacific Islander",
-  RT="Two or More Races", TA="All Students",
-  .default = NA_character_
-)
 
 df_all <- v5 %>%
   mutate(race = race_label(reporting_category)) %>%

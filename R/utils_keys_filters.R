@@ -54,4 +54,17 @@ assert_unique_campus <- function(df, year_col = "year", extra_keys = character()
   df
 }
 
-# assert uniqueness for a district-level frame 
+# assert uniqueness for a district-level frame
+# (function intentionally left for future implementation)
+
+# map CRDC race codes to descriptive labels
+race_label <- function(code) dplyr::recode(
+  code,
+  RB = "Black/African American", RW = "White",
+  RH = "Hispanic/Latino", RL = "Hispanic/Latino",
+  RI = "American Indian/Alaska Native", RA = "Asian",
+  RF = "Filipino", RP = "Pacific Islander",
+  RT = "Two or More Races", TA = "All Students",
+  .default = NA_character_
+)
+

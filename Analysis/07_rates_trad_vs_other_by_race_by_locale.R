@@ -7,6 +7,8 @@ suppressPackageStartupMessages({
   library(stringr); library(ggplot2); library(scales); library(ggrepel)
 })
 
+source(here::here("R", "utils_keys_filters.R"))
+
 # --- 2) Config ----------------------------------------------------------------
 INCLUDE_UNKNOWN       <- FALSE  # include "Unknown" locale?
 MAX_FACETS_PER_IMAGE  <- 2      # ≤ 2 race facets per image
@@ -61,20 +63,7 @@ all_other_note <- paste0("All other = Alternative (e.g., ", alt_found_pretty,
                          ") + schools with Other/Unknown grade spans.")
 
 # --- 5) Race labels -----------------------------------------------------------
-race_label <- function(code) dplyr::recode(
-  code,
-  RB = "Black/African American",
-  RW = "White",
-  RH = "Hispanic/Latino",
-  RL = "Hispanic/Latino",
-  RI = "American Indian/Alaska Native",
-  RA = "Asian",
-  RF = "Filipino",
-  RP = "Pacific Islander",
-  RT = "Two or More Races",
-  TA = "All Students",
-  .default = NA_character_
-)
+# handled via shared race_label() helper
 
 # --- 6) Aggregate to pooled rates by year × locale × race × group ------------
 allowed_race_codes <- c("RB","RW","RH","RL","RI","RA","RF","RP","RT","TA")

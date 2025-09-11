@@ -7,6 +7,8 @@ suppressPackageStartupMessages({
   library(stringr); library(ggplot2); library(scales); library(ggrepel)
 })
 
+source(here::here("R", "utils_keys_filters.R"))
+
 # --- 2) Config ----------------------------------------------------------------
 INCLUDE_UNKNOWN <- FALSE   # include "Unknown" locale?
 LABEL_EVERY     <- 1       # label every year (2 = every other year, etc.)
@@ -37,16 +39,6 @@ if (length(miss)) stop("Missing columns: ", paste(miss, collapse=", "))
 year_levels <- v5 %>%
   filter(reporting_category == "TA") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
-
-race_label <- function(code) dplyr::recode(
-  code,
-  RB="Black/African American", RW="White",
-  RH="Hispanic/Latino", RL="Hispanic/Latino",
-  RI="American Indian/Alaska Native", RA="Asian",
-  RF="Filipino", RP="Pacific Islander",
-  RT="Two or More Races", TA="All Students",
-  .default = NA_character_
-)
 
 # All Students
 df_total <- v5 %>%

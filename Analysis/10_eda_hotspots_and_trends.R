@@ -7,20 +7,9 @@ suppressPackageStartupMessages({
   library(dplyr); library(tidyr); library(arrow); library(here); library(readr); library(scales)
 })
 
-# --- Configuration -----------------------------------------------------------
-RACE_CODES <- c(
-  RB = "Black/African American",
-  RW = "White",
-  RH = "Hispanic/Latino",
-  RL = "Hispanic/Latino",                     # alias
-  RI = "American Indian/Alaska Native",
-  RA = "Asian",
-  RF = "Filipino",
-  RP = "Pacific Islander",
-  RT = "Two or More Races",
-  TA = "All Students"
-)
+source(here::here("R", "utils_keys_filters.R"))
 
+# --- Configuration -----------------------------------------------------------
 MIN_ENROLLMENT_THRESHOLD <- 10   # guard against tiny denominators in rate calc
 MIN_RACES_FOR_SPREAD     <- 2    # need at least this many races to compute spread
 DROP_UNKNOWN_LOCALE      <- FALSE
@@ -32,8 +21,6 @@ EPSILON_START_RATE       <- 1e-3   # for pct-change stability
 ENABLE_TREND_TEST        <- FALSE  # set TRUE to add Spearman trend labels
 
 # --- Helpers -----------------------------------------------------------------
-race_label <- function(code) dplyr::recode(code, !!!RACE_CODES, .default = NA_character_)
-
 safe_rate <- function(suspensions, enrollment, min_enroll = 0) {
   dplyr::if_else(enrollment > min_enroll, suspensions / enrollment, NA_real_)
 }
