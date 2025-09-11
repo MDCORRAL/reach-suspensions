@@ -1,18 +1,16 @@
 # large/sensitive data (don’t push)
-data/
+data/ 
 data-raw/
 data-stage/
 *.parquet
 *.duckdb
 *.xlsx
 *.csv
-
+*.png
 # macOS system files
 .DS_Store
-
 # R/RStudio
 .Rproj.user/
 .Rhistory
 .RData
 .Renviron
-
