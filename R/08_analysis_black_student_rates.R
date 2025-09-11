@@ -58,7 +58,12 @@ p1_black_by_black <- ggplot(rate_by_black_quartile, aes(x = academic_year, y = s
 
 # --- 6) Prepare Data for Suspension REASON Rate Plot (by Black Quartile) ----
 reason_rate_by_black_quartile <- black_students_data %>%
-  filter(black_prop_q_label != "Unknown") %>%
+  # Most robust filter
+  filter(
+    reporting_category == "RB", 
+    !is.na(black_prop_q_label), 
+    black_prop_q_label != "Unknown"
+  ) %>%
   group_by(academic_year, black_prop_q_label) %>%
   summarise(
     Defiance = sum(suspension_count_defiance_only, na.rm = TRUE),

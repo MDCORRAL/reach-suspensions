@@ -75,7 +75,7 @@ reason_nice <- function(nm) dplyr::recode(sub("^prop_susp_", "", nm),
 agg_rb_by_quart <- function(v5, quart_var, quart_title) {
   # 1) TOTAL rate & counts (RB only)
   rb_totals <- v5 %>%
-    filter(reporting_category == "RB", !is.na(.data[[quart_var]])) %>%
+    filter(reporting_category == "RB", !is.na(.data[[quart_var]]), .data[[quart_var]] != "Unknown")%>%
     group_by(academic_year, .data[[quart_var]]) %>%
     summarise(
       susp   = sum(total_suspensions, na.rm = TRUE),

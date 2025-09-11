@@ -80,7 +80,7 @@ create_total_rate_plot <- function(data, group_var, colors, title_suffix, legend
   gsym <- rlang::ensym(group_var)
   
   plot_data <- data %>%
-    filter(!is.na(!!gsym)) %>%
+    filter(!is.na(!!gsym), !!gsym != "Unknown") %>%
     group_by(academic_year, !!gsym) %>%
     summarise(
       total_suspensions = sum(total_suspensions, na.rm = TRUE),
