@@ -7,6 +7,8 @@ suppressPackageStartupMessages({
   library(stringr); library(ggplot2); library(scales); library(ggrepel)
 })
 
+source(here::here("R", "utils_keys_filters.R"))
+
 # --- 2) Config ----------------------------------------------------------------
 POINT_ALL         <- 2.2
 POINT_RACE        <- 1.9
@@ -71,7 +73,7 @@ df <- v5 %>%
   )
 
 # Locales to render (1 image per)
-locale_levels <- c("City","Suburban","Town","Rural")
+loc_levels <- setdiff(locale_levels, "Unknown")
 
 # --- 5) Plot helper (Sharpened with Corrected Label Size) ----------------------
 plot_one_locale <- function(loc_name) {
@@ -150,7 +152,7 @@ plot_one_locale <- function(loc_name) {
 # --- 6) Render & save ---------------------------------------------------------
 outdir <- here::here("outputs"); dir.create(outdir, showWarnings = FALSE)
 
-for (loc in locale_levels) {
+for (loc in loc_levels) {
   p <- plot_one_locale(loc)
   if (is.null(p)) { message("Skipping ", loc, " (no data)."); next }
   print(p)

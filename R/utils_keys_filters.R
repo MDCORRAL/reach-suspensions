@@ -5,6 +5,17 @@ suppressPackageStartupMessages({
 
 SPECIAL_SCHOOL_CODES <- c("0000000", "0000001")
 
+# Consistent locale ordering and color palette used across analyses
+locale_levels <- c("City", "Suburban", "Town", "Rural", "Unknown")
+pal_locale <- c(
+  City     = "#0072B2",
+  Suburban = "#009E73",
+  Town     = "#E69F00",
+  Rural    = "#D55E00",
+  Unknown  = "#7F7F7F"
+)
+
+=======
 # mapping from raw reason keys to display labels
 reason_labels <- dplyr::tibble(
   reason = c(

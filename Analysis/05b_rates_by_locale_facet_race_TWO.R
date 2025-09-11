@@ -7,6 +7,8 @@ suppressPackageStartupMessages({
   library(stringr); library(ggplot2); library(scales); library(ggrepel)
 })
 
+source(here::here("R", "utils_keys_filters.R"))
+
 # --- 2) Config ----------------------------------------------------------------
 MAX_FACETS_PER_IMAGE  <- 2
 DROP_ALL_STUDENTS     <- TRUE
@@ -70,14 +72,10 @@ chunk_id <- ceiling(seq_along(race_order) / MAX_FACETS_PER_IMAGE)
 race_chunks <- split(race_order, chunk_id)
 message("Races split into ", length(race_chunks), " image(s).")
 
-# Locale palette
-locale_levels <- c("City","Suburban","Town","Rural","Unknown")
-if (!INCLUDE_UNKNOWN) locale_levels <- setdiff(locale_levels, "Unknown")
-pal_locale <- c(
-  "City"="#0072B2", "Suburban"="#009E73",
-  "Town"="#E69F00", "Rural"="#D55E00",
-  "Unknown"="#7F7F7F"
-)[locale_levels]
+# Locale palette and ordering
+loc_levels <- locale_levels
+if (!INCLUDE_UNKNOWN) loc_levels <- setdiff(loc_levels, "Unknown")
+pal_locale_use <- pal_locale[loc_levels]
 
 # --- 4) Plot function ---------------------------------------------------------
 plot_race_chunk <- function(races, i, n_total) {
@@ -85,7 +83,7 @@ plot_race_chunk <- function(races, i, n_total) {
     filter(race %in% races) %>%
     mutate(
       race = factor(race, levels=races),
-      locale_simple = factor(locale_simple, levels=locale_levels),
+      locale_simple = factor(locale_simple, levels=loc_levels),
       is_label = ((as.integer(year_fct)-1L) %% LABEL_EVERY) == 0
     )
   if (!nrow(dat)) return(NULL)
@@ -102,7 +100,7 @@ plot_race_chunk <- function(races, i, n_total) {
       box.padding = 0.16, point.padding = 0.16,
       min.segment.length = 0, segment.alpha = SEGMENT_ALPHA, segment.size = 0.25
     ) +
-    scale_color_manual(values = pal_locale, name = "School Locale") +
+    scale_color_manual(values = pal_locale_use, name = "School Locale") +
     scale_y_continuous(labels = percent_format(accuracy = 0.1), limits = c(0, NA),
                        expand = expansion(mult = c(0.05, 0.15))) +
     scale_x_discrete(expand = expansion(mult = c(0.05, 0.15))) +
