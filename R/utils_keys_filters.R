@@ -5,6 +5,31 @@ suppressPackageStartupMessages({
 
 SPECIAL_SCHOOL_CODES <- c("0000000", "0000001")
 
+# mapping from raw reason keys to display labels
+reason_labels <- dplyr::tibble(
+  reason = c(
+    "violent_injury",
+    "violent_no_injury",
+    "weapons_possession",
+    "illicit_drug",
+    "defiance_only",
+    "other_reasons"
+  ),
+  reason_lab = c(
+    "Violent (Injury)",
+    "Violent (No Injury)",
+    "Weapons",
+    "Illicit Drug",
+    "Willful Defiance",
+    "Other"
+  )
+)
+
+# helper to append readable reason labels
+add_reason_label <- function(df, reason_col = "reason") {
+  dplyr::left_join(df, reason_labels, by = setNames("reason", reason_col))
+}
+
 # build canonical 14-digit CDS keys
 build_keys <- function(df) {
   df %>%

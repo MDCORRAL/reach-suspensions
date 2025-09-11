@@ -53,15 +53,6 @@ reason_cols <- names(v5)[grepl("^prop_susp_", names(v5))]
 if (length(reason_cols) == 0) {
   message("No reason proportion columns found; reason plots will be skipped.")
 }
-nice_reason <- function(x) dplyr::recode(sub("^prop_susp_", "", x),
-                                         "violent_injury"     = "Violent (Injury)",
-                                         "violent_no_injury"  = "Violent (No Injury)",
-                                         "weapons_possession" = "Weapons",
-                                         "illicit_drug"       = "Illicit Drug",
-                                         "defiance_only"      = "Willful Defiance",
-                                         "other_reasons"      = "Other",
-                                         .default = x
-)
 
 # ------------ core aggregators for RB ---------
 # pooled rates: (sum events) / (sum RB enrollment) within year × quartile
@@ -82,45 +73,51 @@ agg_rb_rates_and_counts <- function(v5, quart_var) {
     )
   
   # reason-specific RB rate
-  reasons_rate <- v5 %>%
-    filter(reporting_category == "RB", !is.na(.data[[quart_var]])) %>%
-    select(academic_year, .data[[quart_var]], cumulative_enrollment, total_suspensions, all_of(reason_cols)) %>%
-    pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
-    mutate(reason_events = prop * total_suspensions) %>%
-    group_by(academic_year, .data[[quart_var]], reason) %>%
-    summarise(
-      susp_reason = sum(reason_events, na.rm = TRUE),
-      enroll      = sum(cumulative_enrollment, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    mutate(
-      rate      = if_else(enroll > 0, susp_reason / enroll, NA_real_),
-      quart     = .data[[quart_var]],
-      reason_lab = nice_reason(reason),
-      year_fct  = factor(academic_year, levels = year_levels)
-    )
+    reasons_rate <- v5 %>%
+      filter(reporting_category == "RB", !is.na(.data[[quart_var]])) %>%
+      select(academic_year, .data[[quart_var]], cumulative_enrollment, total_suspensions, all_of(reason_cols)) %>%
+      pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
+      mutate(
+        reason = sub("^prop_susp_", "", reason),
+        reason_events = prop * total_suspensions
+      ) %>%
+      group_by(academic_year, .data[[quart_var]], reason) %>%
+      summarise(
+        susp_reason = sum(reason_events, na.rm = TRUE),
+        enroll      = sum(cumulative_enrollment, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      add_reason_label() %>%
+      mutate(
+        rate      = if_else(enroll > 0, susp_reason / enroll, NA_real_),
+        quart     = .data[[quart_var]],
+        year_fct  = factor(academic_year, levels = year_levels)
+      )
   
   list(totals = totals, reasons_rate = reasons_rate)
 }
 
 # shares: within year × quartile, fraction of RB suspensions by reason
 agg_rb_reason_shares <- function(v5, quart_var) {
-  rb_reason_share <- v5 %>%
-    filter(reporting_category == "RB", !is.na(.data[[quart_var]])) %>%
-    select(academic_year, .data[[quart_var]], total_suspensions, all_of(reason_cols)) %>%
-    pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
-    mutate(reason_events = prop * total_suspensions) %>%
-    group_by(academic_year, .data[[quart_var]], reason) %>%
-    summarise(total_reason_susp = sum(reason_events, na.rm = TRUE), .groups = "drop") %>%
-    group_by(academic_year, .data[[quart_var]]) %>%
-    mutate(total_rb_susp = sum(total_reason_susp, na.rm = TRUE)) %>%
-    ungroup() %>%
-    mutate(
-      share     = if_else(total_rb_susp > 0, total_reason_susp / total_rb_susp, NA_real_),
-      quart     = .data[[quart_var]],
-      reason_lab = nice_reason(reason),
-      year_fct  = factor(academic_year, levels = year_levels)
-    )
+    rb_reason_share <- v5 %>%
+      filter(reporting_category == "RB", !is.na(.data[[quart_var]])) %>%
+      select(academic_year, .data[[quart_var]], total_suspensions, all_of(reason_cols)) %>%
+      pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
+      mutate(
+        reason = sub("^prop_susp_", "", reason),
+        reason_events = prop * total_suspensions
+      ) %>%
+      group_by(academic_year, .data[[quart_var]], reason) %>%
+      summarise(total_reason_susp = sum(reason_events, na.rm = TRUE), .groups = "drop") %>%
+      group_by(academic_year, .data[[quart_var]]) %>%
+      mutate(total_rb_susp = sum(total_reason_susp, na.rm = TRUE)) %>%
+      ungroup() %>%
+      add_reason_label() %>%
+      mutate(
+        share     = if_else(total_rb_susp > 0, total_reason_susp / total_rb_susp, NA_real_),
+        quart     = .data[[quart_var]],
+        year_fct  = factor(academic_year, levels = year_levels)
+      )
   rb_reason_share
 }
 
