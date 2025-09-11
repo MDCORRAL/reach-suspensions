@@ -62,21 +62,9 @@ rbw_q <- rb_rw_ta %>%
   mutate(
     black_prop_q4 = if_else(!is.na(prop_black), safe_ntile(prop_black, 4L), NA_integer_),
     white_prop_q4 = if_else(!is.na(prop_white), safe_ntile(prop_white, 4L), NA_integer_),
-    
-    black_prop_q_label = case_when(
-      is.na(black_prop_q4) ~ "Unknown",
-      black_prop_q4 == 1L  ~ "Q1 (Lowest % Black)",
-      black_prop_q4 == 2L  ~ "Q2",
-      black_prop_q4 == 3L  ~ "Q3",
-      black_prop_q4 == 4L  ~ "Q4 (Highest % Black)"
-    ),
-    white_prop_q_label = case_when(
-      is.na(white_prop_q4) ~ "Unknown",
-      white_prop_q4 == 1L  ~ "Q1 (Lowest % White)",
-      white_prop_q4 == 2L  ~ "Q2",
-      white_prop_q4 == 3L  ~ "Q3",
-      white_prop_q4 == 4L  ~ "Q4 (Highest % White)"
-    )
+
+    black_prop_q_label = get_quartile_label(black_prop_q4, "Black"),
+    white_prop_q_label = get_quartile_label(white_prop_q4, "White")
   ) %>%
   ungroup()
 
@@ -86,9 +74,9 @@ stopifnot(nrow(v3) == nrow(v2))
 
 # Freeze label order (optional but handy)
 v3$black_prop_q_label <- factor(v3$black_prop_q_label,
-                                levels = c("Q1 (Lowest % Black)","Q2","Q3","Q4 (Highest % Black)","Unknown"))
+                                levels = c(get_quartile_label(1:4, "Black"),"Unknown"))
 v3$white_prop_q_label <- factor(v3$white_prop_q_label,
-                                levels = c("Q1 (Lowest % White)","Q2","Q3","Q4 (Highest % White)","Unknown"))
+                                levels = c(get_quartile_label(1:4, "White"),"Unknown"))
 
 # Quick ping that special codes aren’t present (campus-only should already handle this)
 stopifnot(!any(stringr::str_detect(v3$cds_school, "0000000$|0000001$")))

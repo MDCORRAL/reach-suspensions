@@ -33,24 +33,12 @@ has_white_q <- any(grepl("^white_prop_q", names(v5)))
 if (!has_black_q) stop("Missing black_prop_q4/q_label in v5. Re-run R/04 and downstream.")
 if (!has_white_q) stop("Missing white_prop_q4/q_label in v5. Re-run revised R/04 and downstream.")
 
-# Use labels if present; otherwise build them from q4 integers
-get_q_label <- function(q4, race = c("Black","White")) {
-  race <- match.arg(race)
-  dplyr::case_when(
-    is.na(q4) ~ "Unknown",
-    q4 == 1L ~ paste0("Q1 (Lowest % ", race, ")"),
-    q4 == 2L ~ "Q2",
-    q4 == 3L ~ "Q3",
-    q4 == 4L ~ paste0("Q4 (Highest % ", race, ")")
-  )
-}
-
-# normalize label columns
+# normalize label columns using shared helper
 if (!"black_prop_q_label" %in% names(v5)) {
-  v5 <- v5 %>% mutate(black_prop_q_label = get_q_label(black_prop_q4, "Black"))
+  v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q4, "Black"))
 }
 if (!"white_prop_q_label" %in% names(v5)) {
-  v5 <- v5 %>% mutate(white_prop_q_label = get_q_label(white_prop_q4, "White"))
+  v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q4, "White"))
 }
 
 # Year order from TA rows
@@ -124,9 +112,9 @@ if (any(missing_quart$missing > 0)) {
 }
 ###################
 # common colors for quartiles
-quart_levels_blk <- c("Q1 (Lowest % Black)","Q2","Q3","Q4 (Highest % Black)")
-quart_levels_wht <- c("Q1 (Lowest % White)","Q2","Q3","Q4 (Highest % White)")
-pal_quart <- setNames(scales::hue_pal()(4), c("Q1 (Lowest % Black)","Q2","Q3","Q4 (Highest % Black)"))
+quart_levels_blk <- get_quartile_label(1:4, "Black")
+quart_levels_wht <- get_quartile_label(1:4, "White")
+pal_quart <- setNames(scales::hue_pal()(4), quart_levels_blk)
 
 # ---------- Plot helpers ----------
 
@@ -230,7 +218,7 @@ p_blk_reason <- plot_rb_reason_rates(blk_reasons,
 
 # ---------- WHITE quartiles ----------
 # reuse the same palette but re-level to white labels for clean legends
-pal_quart <- setNames(scales::hue_pal()(4), c("Q1 (Lowest % White)","Q2","Q3","Q4 (Highest % White)"))
+pal_quart <- setNames(scales::hue_pal()(4), quart_levels_wht)
 
 wht_totals <- wht_view$totals %>%
   mutate(quart = factor(quart, levels = quart_levels_wht))

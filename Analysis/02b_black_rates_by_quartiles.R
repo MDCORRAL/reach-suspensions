@@ -32,16 +32,9 @@ need_cols <- c(
 missing <- setdiff(need_cols, names(v5))
 if (length(missing)) stop("Missing in v5: ", paste(missing, collapse=", "))
 
-# ensure readable labels exist
-lbl_q <- function(q4, who) dplyr::case_when(
-  is.na(q4) ~ "Unknown",
-  q4 == 1L ~ paste0("Q1 (Lowest % ", who, ")"),
-  q4 == 2L ~ "Q2",
-  q4 == 3L ~ "Q3",
-  q4 == 4L ~ paste0("Q4 (Highest % ", who, ")")
-)
-if (!"black_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(black_prop_q_label = lbl_q(black_prop_q4, "Black"))
-if (!"white_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(white_prop_q_label = lbl_q(white_prop_q4, "White"))
+# ensure readable labels exist via shared helper
+if (!"black_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q4, "Black"))
+if (!"white_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q4, "White"))
 
 # year order (from TA rows with positive enrollment)
 year_levels <- v5 %>%
@@ -131,8 +124,8 @@ blk_share <- agg_rb_reason_shares(v5, "black_prop_q_label")
 wht_share <- agg_rb_reason_shares(v5, "white_prop_q_label")
 
 # drop Unknown quartile from plots
-keep_blk <- c("Q1 (Lowest % Black)","Q2","Q3","Q4 (Highest % Black)")
-keep_wht <- c("Q1 (Lowest % White)","Q2","Q3","Q4 (Highest % White)")
+keep_blk <- get_quartile_label(1:4, "Black")
+keep_wht <- get_quartile_label(1:4, "White")
 
 blk_totals      <- blk_view$totals       %>% filter(quart %in% keep_blk) %>% mutate(quart = factor(quart, levels = keep_blk))
 blk_reasons_rt  <- blk_view$reasons_rate %>% filter(quart %in% keep_blk) %>% mutate(quart = factor(quart, levels = keep_blk))

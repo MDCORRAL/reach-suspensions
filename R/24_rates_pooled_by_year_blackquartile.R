@@ -4,6 +4,8 @@ suppressPackageStartupMessages({
   library(scales); library(tidyr)
 })
 
+source(here::here("R","utils_keys_filters.R"))
+
 # ──────────────────────────────── Config / Paths ──────────────────────────────
 DATA_STAGE <- here("data-stage")                   # portable path
 V6F_PARQ   <- file.path(DATA_STAGE, "susp_v6_features.parquet")  # keys + flags
@@ -132,7 +134,7 @@ base_plot <- ggplot(sum_by, aes(x = year, y = pooled_rate, group = black_q, colo
   geom_point(size = 2.8) +
   scale_color_manual(values = quartile_cols,
                      breaks = c("Q1","Q2","Q3","Q4"),
-                     labels = c("Q1 (Lowest % Black)","Q2","Q3","Q4 (Highest % Black)")) +
+                     labels = get_quartile_label(1:4, "Black")) +
   scale_y_continuous(labels = percent_format(accuracy = 0.1),
                      expand = expansion(mult = c(0.05, 0.15))) +
   labs(
