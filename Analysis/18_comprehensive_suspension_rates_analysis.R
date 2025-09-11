@@ -7,7 +7,7 @@
 suppressPackageStartupMessages({
   library(dplyr); library(stringr); library(forcats); library(janitor)
   library(arrow); library(here); library(ggplot2); library(openxlsx)
-  library(scales); library(tidyr); library(purrr); library(readr)
+  library(scales); library(tidyr); library(purrr); library(readr); library(ggrepel)
 })
 # Load repository utilities
 source(here("R", "utils_keys_filters.R"))
@@ -112,6 +112,7 @@ v5_complete <- v5 %>%
     undup_suspensions = as.numeric(unduplicated_count_of_students_suspended_total),
     white_q = norm_quartile(white_prop_q_label),
     black_q = norm_quartile(black_prop_q_label),
+    school_level_final = school_level_final,  # ADD THIS LINE
     grade_level = case_when(
       str_detect(str_to_lower(school_level_final), "elementary") ~ "Elementary",
       str_detect(str_to_lower(school_level_final), "middle") ~ "Middle",
@@ -132,7 +133,6 @@ v5_complete <- v5 %>%
     suspension_rate = safe_div(total_suspensions, enrollment),
     undup_rate = safe_div(undup_suspensions, enrollment)
   )
-
 # Step 2: Get traditional status from v6_features
 v6_traditional <- v6_features %>%
   clean_names() %>%
@@ -159,8 +159,15 @@ analytic_data <- v5_complete %>%
     grade_level = factor(grade_level, levels = c("Elementary", "Middle", "High School", "K-12", "Alternative", "Other/Unknown"))
   )
 
-message("Grade level distribution in fixed data:")
-print(table(analytic_data$grade_level, useNA = "always"))
+# NOW add the diagnostic code:
+unknown_schools <- analytic_data %>%
+  filter(grade_level == "Other/Unknown") %>%
+  count(school_level_final, sort = TRUE) %>%
+  head(20)
+
+message("Top school level values classified as Other/Unknown:")
+print(unknown_schools)
+
 # -------------------------------------------------------------------------
 # Analysis Functions
 # -------------------------------------------------------------------------
@@ -185,10 +192,10 @@ calc_summary_stats <- function(data, ...) {
       median_rate_pct = percent(median_rate, accuracy = 0.1)
     )
 }
-
 # -------------------------------------------------------------------------
 # Comprehensive Analysis by All Dimensions
 # -------------------------------------------------------------------------
+major_races <- c("All Students", "Black/African American", "Hispanic/Latino", "White", "Asian")
 
 # 1. Overall rates by race/ethnicity and year
 rates_by_race_year <- calc_summary_stats(analytic_data, year, race_ethnicity)
@@ -208,8 +215,17 @@ rates_by_grade <- calc_summary_stats(analytic_data, year, grade_level, race_ethn
 # 6. Comprehensive cross-tabulation: All dimensions together
 rates_comprehensive <- calc_summary_stats(
   analytic_data, 
-  year, race_ethnicity, black_q, white_q, setting, grade_level
-)
+  year, race_ethnicity, black_q, white_q, setting, grade_level)
+
+#6extra_Quartile disparity summary
+disparity_summary <- rates_by_black_q %>%
+  filter(race_ethnicity %in% major_races) %>%
+  select(year, race_ethnicity, black_q, pooled_rate) %>%
+  pivot_wider(names_from = black_q, values_from = pooled_rate) %>%
+  mutate(
+    Q4_Q1_ratio = Q4/Q1,
+    Q4_Q1_diff = Q4 - Q1
+  )
 
 # 7. Focused comparisons for key demographics
 # Traditional schools only, comparing quartiles for major racial groups
@@ -236,6 +252,11 @@ create_quartile_plot <- function(data, quartile_var, quartile_label, race_filter
                    group = interaction(!!sym(quartile_var), race_ethnicity))) +
     geom_line(linewidth = 1.1) +
     geom_point(size = 2) +
+    # ADD :
+    geom_text_repel(aes(label = percent(pooled_rate, accuracy = 0.1)),
+                    size = 3, box.padding = 0.25, point.padding = 0.2,
+                    max.overlaps = 30, segment.color = "grey70", 
+                    segment.size = 0.3, fontface = "bold") +
     facet_wrap(~ race_ethnicity, scales = "free_y") +
     scale_color_manual(values = reach_quartile_cols, name = quartile_label) +
     scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
@@ -249,7 +270,12 @@ create_quartile_plot <- function(data, quartile_var, quartile_label, race_filter
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1),
       strip.text = element_text(size = 9),
-      legend.position = "bottom"
+      legend.position = "bottom",
+      # ADD THESE LINES:
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "white", color = NA),
+      panel.grid.major = element_line(color = "grey90", linewidth = 0.3),
+      panel.grid.minor = element_blank()
     )
 }
 
@@ -263,6 +289,11 @@ create_setting_plot <- function(data, race_filter = NULL) {
                    color = setting, group = interaction(setting, race_ethnicity))) +
     geom_line(linewidth = 1.1) +
     geom_point(size = 2) +
+    # ADD THIS LINE:
+    geom_text_repel(aes(label = percent(pooled_rate, accuracy = 0.1)),
+                    size = 3, box.padding = 0.25, point.padding = 0.2,
+                    max.overlaps = 30, segment.color = "grey70", 
+                    segment.size = 0.3, fontface = "bold") +
     facet_wrap(~ race_ethnicity, scales = "free_y") +
     scale_color_manual(values = c("Traditional" = "#0072B2", "Non-traditional" = "#D55E00")) +
     scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
@@ -277,10 +308,14 @@ create_setting_plot <- function(data, race_filter = NULL) {
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1),
       strip.text = element_text(size = 9),
-      legend.position = "bottom"
+      legend.position = "bottom",
+      # ADD THESE LINES:
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "white", color = NA),
+      panel.grid.major = element_line(color = "grey90", linewidth = 0.3),
+      panel.grid.minor = element_blank()
     )
 }
-
 # -------------------------------------------------------------------------
 # Generate Visualizations
 # -------------------------------------------------------------------------
@@ -306,7 +341,7 @@ p3_setting <- rates_by_setting %>%
   filter(race_ethnicity %in% major_races) %>%
   create_setting_plot()
 
-# INSERT THE FUNCTION DEFINITION HERE:
+# Grade_level_plots:
 create_grade_level_plot <- function() {
   plot_data <- analytic_data %>%
     filter(
@@ -433,7 +468,7 @@ cat("- black_rates_by_grade_level.png\n")
 cat("- comprehensive_suspension_rates_analysis.xlsx\n\n")
 cat("Dataset summary:\n")
 cat("- Total records:", nrow(analytic_data), "\n")
-cat("- Unique schools:", n_distinct(analytic_data$cds_school), "\n")
+cat("- Unique schools:", n_distinct(analytic_data$school_code), "\n")
 cat("- Years covered:", paste(sort(unique(analytic_data$year)), collapse = ", "), "\n")
 cat("- Race/ethnicity categories:", length(unique(analytic_data$race_ethnicity)), "\n")
 cat("- Black quartile distribution:\n")
