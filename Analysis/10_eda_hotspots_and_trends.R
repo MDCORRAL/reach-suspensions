@@ -221,14 +221,6 @@ disp_vs_all_rank <- race_rates %>%
 
 # --- Optional: reason-specific rate changes (per student) ---------------------
 reason_cols <- names(base)[grepl("^prop_susp_", names(base))]
-reason_map  <- c(
-  prop_susp_violent_injury     = "Violent (Injury)",
-  prop_susp_violent_no_injury  = "Violent (No Injury)",
-  prop_susp_weapons_possession = "Weapons",
-  prop_susp_illicit_drug       = "Illicit Drug",
-  prop_susp_defiance_only      = "Willful Defiance",
-  prop_susp_other_reasons      = "Other"
-)
 
 val_summary <- NULL
 reason_changes <- NULL
@@ -280,15 +272,18 @@ if (INCLUDE_REASON_ANALYSIS && length(reason_cols)) {
       )
     )
   
-  reason_by_set_year <- reason_long %>%
-    dplyr::group_by(level_strict3, locale_simple, academic_year, year_fct, reason_key) %>%
-    dplyr::summarise(total_reason = sum(reason_count, na.rm = TRUE), .groups = "drop") %>%
-    dplyr::left_join(ta_rates,
-                     by = c("level_strict3","locale_simple","academic_year","year_fct")) %>%
-    dplyr::mutate(
-      reason_rate = safe_rate(total_reason, enroll_TA, MIN_ENROLLMENT_THRESHOLD),
-      reason      = dplyr::recode(reason_key, !!!reason_map)
-    )
+    reason_by_set_year <- reason_long %>%
+      dplyr::group_by(level_strict3, locale_simple, academic_year, year_fct, reason_key) %>%
+      dplyr::summarise(total_reason = sum(reason_count, na.rm = TRUE), .groups = "drop") %>%
+      dplyr::left_join(ta_rates,
+                       by = c("level_strict3","locale_simple","academic_year","year_fct")) %>%
+      dplyr::mutate(
+        reason_rate = safe_rate(total_reason, enroll_TA, MIN_ENROLLMENT_THRESHOLD),
+        reason = sub("^prop_susp_", "", reason_key)
+      ) %>%
+      add_reason_label() %>%
+      dplyr::mutate(reason = reason_lab) %>%
+      dplyr::select(-reason_lab)
   
   reason_changes <- reason_by_set_year %>%
     group_by(level_strict3, locale_simple, reason) %>%

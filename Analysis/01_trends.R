@@ -170,20 +170,16 @@ if (has_prop_cols) {
   reason_share_by_year <- v5_race |>
     select(academic_year, total_suspensions, all_of(reason_cols)) |>
     pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") |>
-    mutate(reason_count = prop * total_suspensions) |>
+    mutate(
+      reason = sub("^prop_susp_", "", reason),
+      reason_count = prop * total_suspensions
+    ) |>
     group_by(academic_year, reason) |>
     summarise(total_reason_susp = sum(reason_count, na.rm = TRUE), .groups = "drop") |>
     left_join(ta_susp_by_year, by = "academic_year") |>
+    add_reason_label() |>
     mutate(
       share = if_else(total_susp_all > 0, total_reason_susp / total_susp_all, NA_real_),
-      reason_lab = recode(sub("^prop_susp_", "", reason),
-                          "violent_injury"     = "Violent (Injury)",
-                          "violent_no_injury"  = "Violent (No Injury)",
-                          "weapons_possession" = "Weapons",
-                          "illicit_drug"       = "Illicit Drug",
-                          "defiance_only"      = "Willful Defiance",
-                          "other_reasons"      = "Other",
-                          .default = reason),
       year_fct = factor(academic_year, levels = year_levels)
     )
   
