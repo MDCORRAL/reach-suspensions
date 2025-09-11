@@ -56,7 +56,7 @@ strict3 <- function(gmax) {
   if (is.na(gmax)) return("Other/Unknown")
   if (gmax <= 5) return("Elementary")
   if (gmax <= 8) return("Middle")
-  "High"
+  "High School"
 }
 
 is_alt <- function(school_type) {

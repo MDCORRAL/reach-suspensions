@@ -58,12 +58,12 @@ race_label <- function(code) dplyr::recode(
 )
 
 # --- 4) Derive school group (Traditional vs All other) ------------------------
-# "Traditional" = Elementary/Middle/High (your strict 3-band)
+# "Traditional" = Elementary/Middle/High School (your strict 3-band)
 # "All other"   = Alternative + Other/Unknown (alt/continuation/comm day/juvenile court, atypical/unknown)
 v5 <- v5 %>%
   mutate(
     school_group = dplyr::case_when(
-      level_strict3 %in% c("Elementary","Middle","High") ~ "Traditional",
+      level_strict3 %in% c("Elementary","Middle","High School") ~ "Traditional",
       TRUE                                              ~ "All other"
     )
   )

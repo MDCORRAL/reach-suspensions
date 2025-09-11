@@ -73,8 +73,8 @@ map_grade_level <- function(x) {
   case_when(
     is.na(x) ~ "Unknown",
     str_detect(x_clean, "elementary|elem|primary|k.*5|k.*6") ~ "Elementary",
-    str_detect(x_clean, "middle|junior|intermediate|6.*8|7.*8") ~ "Middle", 
-    str_detect(x_clean, "high|secondary|9.*12|senior") ~ "High",
+    str_detect(x_clean, "middle|junior|intermediate|6.*8|7.*8") ~ "Middle",
+    str_detect(x_clean, "high|secondary|9.*12|senior") ~ "High School",
     str_detect(x_clean, "k.*12|ungraded|mixed|span") ~ "K-12/Mixed",
     str_detect(x_clean, "adult|continuation") ~ "Adult/Alternative",
     !is.na(x_clean) ~ "Other",
@@ -221,7 +221,7 @@ generate_comparison_tables <- function(df, output_dir) {
   # Compare traditional vs non-traditional by grade level
   comparison_by_grade <- df %>%
     filter(!is.na(level), !is.na(setting), 
-           level %in% c("Elementary", "Middle", "High"),
+           level %in% c("Elementary", "Middle", "High School"),
            setting %in% c("Traditional", "Non-traditional")) %>%
     group_by(year_num, level, setting) %>%
     summarise(
