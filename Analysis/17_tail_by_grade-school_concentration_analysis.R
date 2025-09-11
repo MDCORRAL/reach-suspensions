@@ -3,6 +3,7 @@
 # Computes Pareto shares, Lorenz/Gini, rate outliers by grade × setting combinations
 # Designed for REACH Network suspension data analysis
 
+
 suppressPackageStartupMessages({
   library(dplyr); library(stringr); library(forcats); library(janitor)
   library(arrow); library(here); library(ggplot2); library(openxlsx)
@@ -297,10 +298,10 @@ dat <- dat0 %>%
     enrollment  = as.numeric(enrollment),
     total_susp  = as.numeric(total_susp),
     undup_susp  = as.numeric(undup_susp),
-    measure     = if (MEASURE == "undup_susp") undup_susp else total_susp
+    measure     = if (MEASURE == "undup_susp") undup_susp else total_susp,
+    school_name = if ("school_name" %in% names(dat0)) school_name else school_id,
+    level       = level_strict3  # Add this line
   ) %>%
-  # Add school name if available
-  mutate(school_name = if ("school_name" %in% names(dat0)) school_name else school_id) %>%
   # Filter out invalid records
   filter(
     !is.na(year_num), 
@@ -310,50 +311,43 @@ dat <- dat0 %>%
     measure >= 0
   )
 
-# Add enhanced school features
+# Add enhanced school features for traditional vs non-traditional classification
 if (file.exists(V6F_PARQ)) {
-  message("Loading and processing school features...")
+  message("Loading and processing school features for traditional/non-traditional classification...")
   v6_features <- read_parquet(V6F_PARQ) %>% clean_names()
   
   # Check available columns
-  available_cols <- intersect(c("school_code", "year", "is_traditional", "school_type", "school_level_final"), 
-                              names(v6_features))
+  available_cols <- intersect(c("school_code", "year", "is_traditional"), names(v6_features))
   message("Using feature columns: ", paste(available_cols, collapse = ", "))
   
-  v6_features <- v6_features %>%
-    select(all_of(available_cols)) %>%
-    mutate(
-      school_code = as.character(school_code),
-      year_char = as.character(year)
-    )
-  
-  # Join features and apply enhanced mappings
-  dat <- dat %>%
-    left_join(
-      v6_features, 
-      by = c("school_id" = "school_code", "year" = "year_char")
-    ) %>%
-    mutate(
-      # Enhanced setting classification
-      setting = case_when(
-        "is_traditional" %in% names(.) ~ map_setting(school_type, is_traditional),
-        "school_type" %in% names(.) ~ map_setting(school_type),
-        TRUE ~ "Unknown"
-      ),
-      # Enhanced level classification
-      level = case_when(
-        "school_level_final" %in% names(.) ~ map_grade_level(school_level_final),
-        "school_type" %in% names(.) ~ map_grade_level(school_type),
-        TRUE ~ "Unknown"
+  if ("is_traditional" %in% available_cols) {
+    v6_features <- v6_features %>%
+      select(all_of(available_cols)) %>%
+      mutate(
+        school_code = as.character(school_code),
+        year_char = as.character(year)
       )
-    )
+    
+    # Join features and apply simple setting classification
+    dat <- dat %>%
+      left_join(
+        v6_features, 
+        by = c("school_id" = "school_code", "year" = "year_char")
+      ) %>%
+      mutate(
+        setting = case_when(
+          !is.na(is_traditional) & is_traditional == TRUE ~ "Traditional",
+          !is.na(is_traditional) & is_traditional == FALSE ~ "Non-traditional",
+          TRUE ~ "Unknown"
+        )
+      )
+  } else {
+    message("is_traditional column not found in features. Setting all to Unknown.")
+    dat <- dat %>% mutate(setting = "Unknown")
+  }
 } else {
-  message("School features file not found. Using default classifications.")
-  dat <- dat %>%
-    mutate(
-      setting = "Unknown",
-      level = "Unknown"
-    )
+  message("School features file not found. Setting traditional/non-traditional to Unknown.")
+  dat <- dat %>% mutate(setting = "Unknown")
 }
 
 message("Final dataset: ", nrow(dat), " school-year records")
