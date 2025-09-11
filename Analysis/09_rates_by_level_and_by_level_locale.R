@@ -8,6 +8,8 @@ suppressPackageStartupMessages({
   library(stringr); library(ggplot2); library(scales); library(ggrepel)
 })
 
+source(here::here("R", "utils_keys_filters.R"))
+
 # --- 2) Config ----------------------------------------------------------------
 INCLUDE_UNKNOWN_LOCALE <- FALSE   # set TRUE to also render "Unknown" locale images
 
@@ -101,8 +103,8 @@ pal_race  <- setNames(scales::hue_pal()(length(all_races)), all_races)
 if ("All Students" %in% names(pal_race)) pal_race["All Students"] <- "#000000"
 
 # Locales to render
-locale_levels <- c("City","Suburban","Town","Rural","Unknown")
-if (!INCLUDE_UNKNOWN_LOCALE) locale_levels <- setdiff(locale_levels, "Unknown")
+loc_levels <- locale_levels
+if (!INCLUDE_UNKNOWN_LOCALE) loc_levels <- setdiff(loc_levels, "Unknown")
 
 # --- 6) Plot helpers ----------------------------------------------------------
 plot_one_level <- function(level_name) {
@@ -248,7 +250,7 @@ for (lev in LEVELS) {
 
 # Set B: one image per (LEVEL × LOCALE)
 for (lev in LEVELS) {
-  for (loc in locale_levels) {
+  for (loc in loc_levels) {
     p <- plot_one_level_locale(lev, loc)
     if (is.null(p)) { message("Skipping ", lev, " × ", loc, " (no data)."); next }
     print(p)
