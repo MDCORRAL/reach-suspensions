@@ -43,7 +43,7 @@ if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
 v5 <- read_parquet(v5_path)
 
 required_cols <- c("reporting_category","academic_year","total_suspensions",
-                   "cumulative_enrollment","level_strict3","locale_simple")
+                   "cumulative_enrollment","school_level","locale_simple")
 missing_cols <- setdiff(required_cols, names(v5))
 if (length(missing_cols)) stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
 
@@ -81,7 +81,7 @@ ts_date <- format(Sys.Date(), "%Y%m%d")
 # --- TA (All Students) rates by setting-year --------------------------------
 ta_rates <- base %>%
   filter(race == "All Students") %>%
-  group_by(level_strict3, locale_simple, academic_year, year_fct) %>%
+  group_by(school_level, locale_simple, academic_year, year_fct) %>%
   summarise(
     total_susp_TA = sum(total_suspensions, na.rm = TRUE),
     enroll_TA     = sum(cumulative_enrollment, na.rm = TRUE),
@@ -92,7 +92,7 @@ ta_rates <- base %>%
 
 # --- Race-specific pooled rates & disparities --------------------------------
 race_rates <- base %>%
-  group_by(level_strict3, locale_simple, academic_year, year_fct, race) %>%
+  group_by(school_level, locale_simple, academic_year, year_fct, race) %>%
   summarise(
     susp      = sum(total_suspensions, na.rm = TRUE),
     enroll    = sum(cumulative_enrollment, na.rm = TRUE),
@@ -104,7 +104,7 @@ race_rates <- base %>%
     sufficient_sample  = enroll >= MIN_ENROLLMENT_THRESHOLD
   ) %>%
   left_join(ta_rates %>% select(-n_schools),
-            by = c("level_strict3","locale_simple","academic_year","year_fct")) %>%
+            by = c("school_level","locale_simple","academic_year","year_fct")) %>%
   mutate(
     disparity_ratio = safe_ratio(rate, rate_TA),
     disparity_diff  = if_else(!is.na(rate) & !is.na(rate_TA), rate - rate_TA, NA_real_)
@@ -113,7 +113,7 @@ race_rates <- base %>%
 # --- Thin-bucket diagnostic (why some spreads end up empty) -------------------
 thin_buckets <- race_rates %>%
   dplyr::filter(race != "All Students") %>%
-  dplyr::group_by(level_strict3, locale_simple, academic_year, year_fct) %>%
+  dplyr::group_by(school_level, locale_simple, academic_year, year_fct) %>%
   dplyr::summarise(
     n_races_total         = dplyr::n(),
     n_ok_races            = sum(!is.na(rate) & sufficient_sample),
@@ -136,7 +136,7 @@ thin_buckets <- race_rates %>%
 # --- Spread / inequality within setting-year ---------------------------------
 spread_by_year <- race_rates %>%
   filter(race != "All Students", !is.na(rate), sufficient_sample) %>%
-  group_by(level_strict3, locale_simple, academic_year, year_fct) %>%
+  group_by(school_level, locale_simple, academic_year, year_fct) %>%
   filter(n() >= MIN_RACES_FOR_SPREAD) %>%
   summarise(
     n_races      = n(),
@@ -157,13 +157,13 @@ trend_by_setting <- NULL
 if (isTRUE(ENABLE_TREND_TEST)) {
   trend_by_setting <- spread_by_year %>%
     arrange(year_fct) %>%
-    group_by(level_strict3, locale_simple) %>%
+    group_by(school_level, locale_simple) %>%
     summarise(trend_direction_spearman = trend_dir_spearman(spread_abs), .groups = "drop")
 }
 
 # Rank settings by average spread across years
 spread_rank <- spread_by_year %>%
-  group_by(level_strict3, locale_simple) %>%
+  group_by(school_level, locale_simple) %>%
   arrange(year_fct, .by_group = TRUE) %>%
   summarise(
     years_n         = n(),
@@ -184,13 +184,13 @@ spread_rank <- spread_by_year %>%
     ),
     .groups = "drop"
   ) %>%
-  { if (!is.null(trend_by_setting)) left_join(., trend_by_setting, by = c("level_strict3","locale_simple")) else . } %>%
+  { if (!is.null(trend_by_setting)) left_join(., trend_by_setting, by = c("school_level","locale_simple")) else . } %>%
   arrange(desc(avg_spread))
 
 # --- Disparity vs All Students by race ---------------------------------------
 disp_vs_all_rank <- race_rates %>%
   filter(race != "All Students", sufficient_sample) %>%
-  group_by(level_strict3, locale_simple, race) %>%
+  group_by(school_level, locale_simple, race) %>%
   arrange(year_fct, .by_group = TRUE) %>%
   summarise(
     years_n             = sum(!is.na(disparity_ratio) & is.finite(disparity_ratio)),
@@ -216,7 +216,7 @@ if (INCLUDE_REASON_ANALYSIS && length(reason_cols)) {
   # First create reason_wide
   reason_wide <- base %>%
     dplyr::filter(race != "All Students") %>%
-    dplyr::select(level_strict3, locale_simple, academic_year, year_fct,
+    dplyr::select(school_level, locale_simple, academic_year, year_fct,
                   total_suspensions, dplyr::all_of(reason_cols))
   
   # Then validate if enabled
@@ -236,7 +236,7 @@ if (INCLUDE_REASON_ANALYSIS && length(reason_cols)) {
         sd_prop_sum   = sd(prop_sum, na.rm = TRUE),
         min_prop_sum  = min(prop_sum, na.rm = TRUE),
         max_prop_sum  = max(prop_sum, na.rm = TRUE),
-        .by = c(level_strict3, locale_simple, academic_year)
+        .by = c(school_level, locale_simple, academic_year)
       ) %>%
       dplyr::mutate(
         issue_flag = dplyr::case_when(
@@ -260,10 +260,10 @@ if (INCLUDE_REASON_ANALYSIS && length(reason_cols)) {
     )
   
     reason_by_set_year <- reason_long %>%
-      dplyr::group_by(level_strict3, locale_simple, academic_year, year_fct, reason_key) %>%
+      dplyr::group_by(school_level, locale_simple, academic_year, year_fct, reason_key) %>%
       dplyr::summarise(total_reason = sum(reason_count, na.rm = TRUE), .groups = "drop") %>%
       dplyr::left_join(ta_rates,
-                       by = c("level_strict3","locale_simple","academic_year","year_fct")) %>%
+                       by = c("school_level","locale_simple","academic_year","year_fct")) %>%
       dplyr::mutate(
         reason_rate = safe_rate(total_reason, enroll_TA, MIN_ENROLLMENT_THRESHOLD),
         reason = sub("^prop_susp_", "", reason_key)
@@ -273,7 +273,7 @@ if (INCLUDE_REASON_ANALYSIS && length(reason_cols)) {
       dplyr::select(-reason_lab)
   
   reason_changes <- reason_by_set_year %>%
-    group_by(level_strict3, locale_simple, reason) %>%
+    group_by(school_level, locale_simple, reason) %>%
     arrange(year_fct, .by_group = TRUE) %>%
     summarise(
       start_year = as.character(dplyr::first(academic_year)),
@@ -299,7 +299,7 @@ if (INCLUDE_REASON_ANALYSIS && length(reason_cols)) {
 
 # --- TOTAL rate changes (stable %) -------------------------------------------
 total_changes <- ta_rates %>%
-  dplyr::group_by(level_strict3, locale_simple) %>%
+  dplyr::group_by(school_level, locale_simple) %>%
   dplyr::arrange(year_fct, .by_group = TRUE) %>%
   dplyr::summarise(
     start_year = as.character(dplyr::first(academic_year)),
@@ -326,7 +326,7 @@ total_changes <- ta_rates %>%
 
 # --- Data completeness snapshot ----------------------------------------------
 data_completeness <- base %>%
-  dplyr::group_by(level_strict3, locale_simple, race) %>%
+  dplyr::group_by(school_level, locale_simple, race) %>%
   dplyr::summarise(
     total_records     = dplyr::n(),
     complete_records  = sum(has_valid_enrollment & has_valid_suspensions, na.rm = TRUE),
@@ -389,7 +389,7 @@ if (interactive()) {
     disp_vs_all_rank %>% 
       filter(race == "Black/African American") %>% 
       arrange(desc(avg_ratio_vs_all)) %>% 
-      select(level_strict3, locale_simple, avg_ratio_vs_all, latest_ratio_vs_all) %>%
+      select(school_level, locale_simple, avg_ratio_vs_all, latest_ratio_vs_all) %>%
       head(5),
     n = 5
   )
@@ -400,7 +400,7 @@ if (interactive()) {
     spread_rank %>%
       mutate(spread_change = abs(latest_spread - first_spread)) %>%
       arrange(desc(spread_change)) %>%
-      select(level_strict3, locale_simple, first_spread, latest_spread, trend_direction) %>%
+      select(school_level, locale_simple, first_spread, latest_spread, trend_direction) %>%
       head(5),
     n = 5
   )

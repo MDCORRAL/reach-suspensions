@@ -112,15 +112,8 @@ v5_complete <- v5 %>%
     undup_suspensions = as.numeric(unduplicated_count_of_students_suspended_total),
     white_q = norm_quartile(white_prop_q_label),
     black_q = norm_quartile(black_prop_q_label),
-    school_level_final = school_level_final,  # ADD THIS LINE
-    grade_level = case_when(
-      str_detect(str_to_lower(school_level_final), "elementary") ~ "Elementary",
-      str_detect(str_to_lower(school_level_final), "middle") ~ "Middle",
-      str_detect(str_to_lower(school_level_final), "high school") ~ "High School",
-      str_detect(str_to_lower(school_level_final), "k-12") ~ "K-12",
-      str_detect(str_to_lower(school_level_final), "alternative") ~ "Alternative",
-      TRUE ~ "Other/Unknown"
-    )
+    school_level = school_level,
+    grade_level = school_level
   ) %>%
   filter(
     !is.na(race_ethnicity),
@@ -156,13 +149,13 @@ analytic_data <- v5_complete %>%
     black_q = order_quartile(black_q),
     white_q = order_quartile(white_q),
     setting = factor(setting, levels = c("Traditional", "Non-traditional")),
-    grade_level = factor(grade_level, levels = c("Elementary", "Middle", "High School", "K-12", "Alternative", "Other/Unknown"))
+    grade_level = factor(grade_level, levels = c("Elementary", "Middle", "High", "K-12", "Alternative", "Other/Unknown"))
   )
 
 # NOW add the diagnostic code:
 unknown_schools <- analytic_data %>%
   filter(grade_level == "Other/Unknown") %>%
-  count(school_level_final, sort = TRUE) %>%
+  count(school_level, sort = TRUE) %>%
   head(20)
 
 message("Top school level values classified as Other/Unknown:")
@@ -347,7 +340,7 @@ create_grade_level_plot <- function() {
     filter(
       race_ethnicity == "Black/African American",
       setting == "Traditional",
-      grade_level %in% c("Elementary", "Middle", "High School", "K-12")
+      grade_level %in% c("Elementary", "Middle", "High", "K-12")
     ) %>%
     calc_summary_stats(year, grade_level, black_q)
   

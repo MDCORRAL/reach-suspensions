@@ -133,7 +133,7 @@ v5_keys_raw <- arrow::read_parquet(v5_path) %>%
   select(
     academic_year, county_code, district_code, school_code,
     county_name, district_name, school_name,
-    ed_ops_name, school_level_final, level_strict3, locale_simple,
+    ed_ops_name, school_level, locale_simple,
     any_of("aggregate_level")          # <- keep if present
   ) %>%
   distinct()
@@ -174,22 +174,21 @@ race_joined <- left_join(
 
 race_long <- race_joined %>%
   mutate(
-    county_name        = coalesce(!!!rlang::syms(intersect(c("county_name","county_name.v5","county_name.x","county_name.y"), names(race_joined)))),
-    district_name      = coalesce(!!!rlang::syms(intersect(c("district_name","district_name.v5","district_name.x","district_name.y"), names(race_joined)))),
-    school_name        = coalesce(!!!rlang::syms(intersect(c("school_name","school_name.v5","school_name.x","school_name.y"), names(race_joined)))),
-    ed_ops_name        = coalesce(!!!rlang::syms(intersect(c("ed_ops_name","ed_ops_name.v5","ed_ops_name.x","ed_ops_name.y"), names(race_joined)))),
-    school_level_final = coalesce(!!!rlang::syms(intersect(c("school_level_final","school_level_final.v5","school_level_final.x","school_level_final.y"), names(race_joined)))),
-    level_strict3      = coalesce(!!!rlang::syms(intersect(c("level_strict3","level_strict3.v5"), names(race_joined)))),
-    locale_simple      = coalesce(!!!rlang::syms(intersect(c("locale_simple","locale_simple.v5","locale_simple.x","locale_simple.y"), names(race_joined)))),
-    setting            = setting_from_ops(ed_ops_name)
+    county_name   = coalesce(!!!rlang::syms(intersect(c("county_name","county_name.v5","county_name.x","county_name.y"), names(race_joined)))),
+    district_name = coalesce(!!!rlang::syms(intersect(c("district_name","district_name.v5","district_name.x","district_name.y"), names(race_joined)))),
+    school_name   = coalesce(!!!rlang::syms(intersect(c("school_name","school_name.v5","school_name.x","school_name.y"), names(race_joined)))),
+    ed_ops_name   = coalesce(!!!rlang::syms(intersect(c("ed_ops_name","ed_ops_name.v5","ed_ops_name.x","ed_ops_name.y"), names(race_joined)))),
+    school_level  = coalesce(!!!rlang::syms(intersect(c("school_level","school_level.v5","school_level.x","school_level.y"), names(race_joined)))),
+    locale_simple = coalesce(!!!rlang::syms(intersect(c("locale_simple","locale_simple.v5","locale_simple.x","locale_simple.y"), names(race_joined)))),
+    setting       = setting_from_ops(ed_ops_name)
   ) %>%
   select(-any_of(c(
     "county_name.v5","district_name.v5","school_name.v5",
-    "ed_ops_name.v5","school_level_final.v5","level_strict3.v5","locale_simple.v5",
+    "ed_ops_name.v5","school_level.v5","locale_simple.v5",
     "county_name.x","district_name.x","school_name.x",
-    "ed_ops_name.x","school_level_final.x","locale_simple.x",
+    "ed_ops_name.x","school_level.x","locale_simple.x",
     "county_name.y","district_name.y","school_name.y",
-    "ed_ops_name.y","school_level_final.y","locale_simple.y"
+    "ed_ops_name.y","school_level.y","locale_simple.y"
   )))
 
 # ---- demo_data + v5
@@ -202,34 +201,31 @@ demo_joined <- left_join(
 
 demo_data <- demo_joined %>%
   mutate(
-    county_name        = coalesce(!!!rlang::syms(intersect(c("county_name","county_name.v5","county_name.x","county_name.y"), names(demo_joined)))),
-    district_name      = coalesce(!!!rlang::syms(intersect(c("district_name","district_name.v5","district_name.x","district_name.y"), names(demo_joined)))),
-    school_name        = coalesce(!!!rlang::syms(intersect(c("school_name","school_name.v5","school_name.x","school_name.y"), names(demo_joined)))),
-    ed_ops_name        = coalesce(!!!rlang::syms(intersect(c("ed_ops_name","ed_ops_name.v5","ed_ops_name.x","ed_ops_name.y"), names(demo_joined)))),
-    school_level_final = coalesce(!!!rlang::syms(intersect(c("school_level_final","school_level_final.v5","school_level_final.x","school_level_final.y"), names(demo_joined)))),
-    level_strict3      = coalesce(!!!rlang::syms(intersect(c("level_strict3","level_strict3.v5"), names(demo_joined)))),
-    locale_simple      = coalesce(!!!rlang::syms(intersect(c("locale_simple","locale_simple.v5","locale_simple.x","locale_simple.y"), names(demo_joined)))),
-    setting            = setting_from_ops(ed_ops_name)
+    county_name   = coalesce(!!!rlang::syms(intersect(c("county_name","county_name.v5","county_name.x","county_name.y"), names(demo_joined)))),
+    district_name = coalesce(!!!rlang::syms(intersect(c("district_name","district_name.v5","district_name.x","district_name.y"), names(demo_joined)))),
+    school_name   = coalesce(!!!rlang::syms(intersect(c("school_name","school_name.v5","school_name.x","school_name.y"), names(demo_joined)))),
+    ed_ops_name   = coalesce(!!!rlang::syms(intersect(c("ed_ops_name","ed_ops_name.v5","ed_ops_name.x","ed_ops_name.y"), names(demo_joined)))),
+    school_level  = coalesce(!!!rlang::syms(intersect(c("school_level","school_level.v5","school_level.x","school_level.y"), names(demo_joined)))),
+    locale_simple = coalesce(!!!rlang::syms(intersect(c("locale_simple","locale_simple.v5","locale_simple.x","locale_simple.y"), names(demo_joined)))),
+    setting       = setting_from_ops(ed_ops_name)
   ) %>%
   select(-any_of(c(
     "county_name.v5","district_name.v5","school_name.v5",
-    "ed_ops_name.v5","school_level_final.v5","level_strict3.v5","locale_simple.v5",
+    "ed_ops_name.v5","school_level.v5","locale_simple.v5",
     "county_name.x","district_name.x","school_name.x",
-    "ed_ops_name.x","school_level_final.x","locale_simple.x",
+    "ed_ops_name.x","school_level.x","locale_simple.x",
     "county_name.y","district_name.y","school_name.y",
-    "ed_ops_name.y","school_level_final.y","locale_simple.y"
+    "ed_ops_name.y","school_level.y","locale_simple.y"
   )))
 
 # Sanity
 message("[15a] missing attrs in race_long: ",
         sum(is.na(race_long$ed_ops_name) |
-              is.na(race_long$school_level_final) |
-              is.na(race_long$level_strict3) |
+              is.na(race_long$school_level) |
               is.na(race_long$locale_simple)))
 message("[15a] missing attrs in OTH: ",
         sum(is.na(demo_data$ed_ops_name) |
-              is.na(demo_data$school_level_final) |
-              is.na(demo_data$level_strict3) |
+              is.na(demo_data$school_level) |
               is.na(demo_data$locale_simple)))
 
 # -------------------------------------------------------------------
@@ -248,7 +244,7 @@ all_students <- race_long %>%
     "year","academic_year",
     "county_code","district_code","school_code",
     "county_name","district_name","school_name",
-    "ed_ops_name","setting","school_level_final",
+    "ed_ops_name","setting","school_level",
     "cumulative_enrollment","total_suspensions",
     "unduplicated_count_of_students_suspended_total",
     present_reason_cols
@@ -268,7 +264,7 @@ race_non_ta <- race_long %>%
     year, academic_year,
     county_code, district_code, school_code,
     county_name, district_name, school_name,
-    ed_ops_name, setting, school_level_final,
+    ed_ops_name, setting, school_level,
     reporting_domain = "Race/Ethnicity",
     subgroup_label = coalesce(reporting_category_description, reporting_category),
     cumulative_enrollment, total_suspensions,
@@ -287,7 +283,7 @@ oth_norm <- demo_data %>%
     year, academic_year,
     county_code, district_code, school_code,
     county_name, district_name, school_name,
-    ed_ops_name, setting, school_level_final,
+    ed_ops_name, setting, school_level,
     reporting_domain = category_type,
     subgroup_label = coalesce(subgroup, subgroup_code),
     cumulative_enrollment, total_suspensions,
