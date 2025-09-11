@@ -14,3 +14,7 @@ data-stage/
 .Rhistory
 .RData
 .Renviron
+
+# Generated figures
+outputs/
+fv_outputs/
