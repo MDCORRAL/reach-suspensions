@@ -54,4 +54,14 @@ assert_unique_campus <- function(df, year_col = "year", extra_keys = character()
   df
 }
 
-# assert uniqueness for a district-level frame 
+# construct standardized quartile labels like "Q1 (Lowest % Black)"
+get_quartile_label <- function(q4, race = c("Black", "White")) {
+  race <- match.arg(race)
+  dplyr::case_when(
+    is.na(q4) ~ "Unknown",
+    q4 == 1L ~ paste0("Q1 (Lowest % ", race, ")"),
+    q4 == 2L ~ "Q2",
+    q4 == 3L ~ "Q3",
+    q4 == 4L ~ paste0("Q4 (Highest % ", race, ")")
+  )
+}

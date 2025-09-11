@@ -13,13 +13,13 @@ source(here::here("R","utils_keys_filters.R"))
 theme_set(theme_minimal(base_size = 12))
 
 # Palettes (keep your originals)
-black_quartile_colors <- c(
-  "Q1 (Lowest % Black)" = "#FEE5D9", "Q2" = "#FCAE91",
-  "Q3" = "#FB6A4A", "Q4 (Highest % Black)" = "#CB181D"
+black_quartile_colors <- setNames(
+  c("#FEE5D9", "#FCAE91", "#FB6A4A", "#CB181D"),
+  get_quartile_label(1:4, "Black")
 )
-white_quartile_colors <- c(
-  "Q1 (Lowest % White)" = "#EFF3FF", "Q2" = "#BDD7E7",
-  "Q3" = "#6BAED6", "Q4 (Highest % White)" = "#08519C"
+white_quartile_colors <- setNames(
+  c("#EFF3FF", "#BDD7E7", "#6BAED6", "#08519C"),
+  get_quartile_label(1:4, "White")
 )
 
 # --- 2) Load + guards ---------------------------------------------------------
@@ -34,16 +34,9 @@ need_cols <- c("reporting_category","academic_year",
 missing <- setdiff(need_cols, names(v5))
 if (length(missing)) stop("Missing in v5: ", paste(missing, collapse=", "))
 
-# make sure readable quartile labels exist
-lbl_q <- function(q4, who) dplyr::case_when(
-  is.na(q4) ~ "Unknown",
-  q4 == 1L ~ paste0("Q1 (Lowest % ", who, ")"),
-  q4 == 2L ~ "Q2",
-  q4 == 3L ~ "Q3",
-  q4 == 4L ~ paste0("Q4 (Highest % ", who, ")")
-)
-if (!"black_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(black_prop_q_label = lbl_q(black_prop_q4, "Black"))
-if (!"white_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(white_prop_q_label = lbl_q(white_prop_q4, "White"))
+# make sure readable quartile labels exist using shared helper
+if (!"black_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q4, "Black"))
+if (!"white_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q4, "White"))
 
 # order x-axis by TA years that actually have enrollment
 year_levels <- v5 %>%
