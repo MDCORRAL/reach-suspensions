@@ -91,7 +91,7 @@ if ("All Students" %in% names(pal_race)) pal_race["All Students"] <- "#000000"
 
 # Locales to render
 loc_levels <- locale_levels
-if (!INCLUDE_UNKNOWN_LOCALE) loc_levels <- setdiff(loc_levels, "Unknown")
+if (!INCLUDE_UNKNOWN_LOCALE) loc_levels <- head(loc_levels, -1)
 
 # --- 6) Plot helpers ----------------------------------------------------------
 plot_one_level <- function(level_name) {

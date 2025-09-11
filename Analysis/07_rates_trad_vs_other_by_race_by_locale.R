@@ -89,7 +89,7 @@ if (!nrow(df_all)) stop("No data available after filtering.")
 
 # Locales to render
 loc_levels <- locale_levels
-if (!INCLUDE_UNKNOWN) loc_levels <- setdiff(loc_levels, "Unknown")
+if (!INCLUDE_UNKNOWN) loc_levels <- head(loc_levels, -1)
 
 # --- 7) Plot function: one locale, race-faceted (≤2 panels) -------------------
 plot_locale_chunk <- function(dat_locale, races, loc_name, i, n_total) {
