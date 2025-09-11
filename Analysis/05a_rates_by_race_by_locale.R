@@ -40,16 +40,6 @@ year_levels <- v5 %>%
   filter(reporting_category == "TA") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 
-race_label <- function(code) dplyr::recode(
-  code,
-  RB="Black/African American", RW="White",
-  RH="Hispanic/Latino", RL="Hispanic/Latino",
-  RI="American Indian/Alaska Native", RA="Asian",
-  RF="Filipino", RP="Pacific Islander",
-  RT="Two or More Races", TA="All Students",
-  .default = NA_character_
-)
-
 # All Students
 df_total <- v5 %>%
   filter(reporting_category=="TA") %>%

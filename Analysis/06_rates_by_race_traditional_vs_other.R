@@ -7,6 +7,8 @@ suppressPackageStartupMessages({
   library(stringr); library(ggplot2); library(scales); library(ggrepel)
 })
 
+source(here::here("R", "utils_keys_filters.R"))
+
 # --- 2) Config ----------------------------------------------------------------
 LABEL_EVERY           <- 1       # 1 = label every year; 2 = every other year
 LABEL_SIZE            <- 2.6
@@ -46,16 +48,7 @@ year_levels <- v5 %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 if (!length(year_levels)) stop("No TA rows to establish year order.")
 
-# Race label map (RD omitted; RL -> RH)
-race_label <- function(code) dplyr::recode(
-  code,
-  RB="Black/African American", RW="White",
-  RH="Hispanic/Latino", RL="Hispanic/Latino",
-  RI="American Indian/Alaska Native", RA="Asian",
-  RF="Filipino", RP="Pacific Islander",
-  RT="Two or More Races", TA="All Students",
-  .default = NA_character_
-)
+# Race label map (RD omitted; RL -> RH) handled by race_label() helper
 
 # --- 4) Derive school group (Traditional vs All other) ------------------------
 # "Traditional" = Elementary/Middle/High School (your strict 3-band)

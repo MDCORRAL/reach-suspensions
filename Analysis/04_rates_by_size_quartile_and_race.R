@@ -4,6 +4,7 @@ suppressPackageStartupMessages({
   library(stringr); library(ggplot2); library(scales); library(ggrepel); library(readr)
 })
 
+source(here::here("R", "utils_keys_filters.R"))
 # ======= knobs =======
 LABEL_EVERY   <- 1    # label every 1 year (all points). Try 2 for every other year.
 LABEL_SIZE_Q  <- 2  # label size in View A (facet by race)
@@ -33,21 +34,7 @@ q_keep <- c("Q1 (Smallest)","Q4 (Largest)")
 pal_quart <- c("Q1 (Smallest)"="#0072B2", "Q4 (Largest)"="#D55E00")
 shape_quart <- c("Q1 (Smallest)"=16, "Q4 (Largest)"=17)  # circle vs triangle
 
-# Race code map (RD excluded)
-race_label <- function(code) dplyr::recode(
-  code,
-  RB = "Black/African American",
-  RW = "White",
-  RH = "Hispanic/Latino",
-  RL = "Hispanic/Latino",  # alias if it appears
-  RI = "American Indian/Alaska Native",
-  RA = "Asian",
-  RF = "Filipino",
-  RP = "Pacific Islander",
-  RT = "Two or More Races",
-  TA = "All Students",
-  .default = NA_character_
-)
+# Race code map (RD excluded) provided by race_label() helper
 
 # ======= aggregate: pooled rates by year × quartile × race =======
 # Total (All Students) from TA

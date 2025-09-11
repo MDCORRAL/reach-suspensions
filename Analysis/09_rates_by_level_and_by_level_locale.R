@@ -45,20 +45,7 @@ if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 LEVELS <- c("Elementary","Middle","High School")
 
 # --- 4) Race labels & allowed codes ------------------------------------------
-race_label <- function(code) dplyr::recode(
-  code,
-  RB="Black/African American",
-  RW="White",
-  RH="Hispanic/Latino",
-  RL="Hispanic/Latino",              # alias
-  RI="American Indian/Alaska Native",
-  RA="Asian",
-  RF="Filipino",
-  RP="Pacific Islander",
-  RT="Two or More Races",
-  TA="All Students",
-  .default = NA_character_
-)
+# provided via race_label() helper
 allowed_codes <- c("TA","RB","RW","RH","RL","RI","RA","RF","RP","RT")
 
 # --- 5) Prep data -------------------------------------------------------------
