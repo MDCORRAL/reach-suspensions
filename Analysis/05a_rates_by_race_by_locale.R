@@ -63,8 +63,12 @@ df_all <- bind_rows(df_total, df_race) %>%
          label_txt=percent(rate, accuracy=0.1))
 
 # Locale sets (two images)
-LOCALES_A <- c("City","Suburban")
-LOCALES_B <- if (INCLUDE_UNKNOWN) c("Rural","Town","Unknown") else c("Rural","Town")
+LOCALES_A <- locale_levels[locale_levels %in% c("City","Suburban")]
+LOCALES_B <- if (INCLUDE_UNKNOWN) {
+  locale_levels[locale_levels %in% c("Rural","Town","Unknown")]
+} else {
+  locale_levels[locale_levels %in% c("Rural","Town")]
+}
 
 # Race palette (All Students = black)
 race_levels <- df_all %>% distinct(race) %>% arrange(race) %>% pull(race)

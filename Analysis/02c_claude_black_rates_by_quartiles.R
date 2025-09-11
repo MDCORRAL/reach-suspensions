@@ -13,13 +13,13 @@ source(here::here("R","utils_keys_filters.R"))
 theme_set(theme_minimal(base_size = 12))
 
 # Palettes (keep your originals)
-black_quartile_colors <- c(
-  "Q1 (Lowest % Black)" = "#FEE5D9", "Q2" = "#FCAE91",
-  "Q3" = "#FB6A4A", "Q4 (Highest % Black)" = "#CB181D"
+black_quartile_colors <- setNames(
+  c("#FEE5D9", "#FCAE91", "#FB6A4A", "#CB181D"),
+  get_quartile_label(1:4, "Black")
 )
-white_quartile_colors <- c(
-  "Q1 (Lowest % White)" = "#EFF3FF", "Q2" = "#BDD7E7",
-  "Q3" = "#6BAED6", "Q4 (Highest % White)" = "#08519C"
+white_quartile_colors <- setNames(
+  c("#EFF3FF", "#BDD7E7", "#6BAED6", "#08519C"),
+  get_quartile_label(1:4, "White")
 )
 
 # --- 2) Load + guards ---------------------------------------------------------
@@ -34,16 +34,9 @@ need_cols <- c("reporting_category","academic_year",
 missing <- setdiff(need_cols, names(v5))
 if (length(missing)) stop("Missing in v5: ", paste(missing, collapse=", "))
 
-# make sure readable quartile labels exist
-lbl_q <- function(q4, who) dplyr::case_when(
-  is.na(q4) ~ "Unknown",
-  q4 == 1L ~ paste0("Q1 (Lowest % ", who, ")"),
-  q4 == 2L ~ "Q2",
-  q4 == 3L ~ "Q3",
-  q4 == 4L ~ paste0("Q4 (Highest % ", who, ")")
-)
-if (!"black_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(black_prop_q_label = lbl_q(black_prop_q4, "Black"))
-if (!"white_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(white_prop_q_label = lbl_q(white_prop_q4, "White"))
+# make sure readable quartile labels exist using shared helper
+if (!"black_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q4, "Black"))
+if (!"white_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q4, "White"))
 
 # order x-axis by TA years that actually have enrollment
 year_levels <- v5 %>%
@@ -63,17 +56,7 @@ has_count_cols <- all(c(
   "suspension_count_other_reasons"
 ) %in% names(v5))
 
-prop_cols <- grep("^prop_susp_", names(v5), value = TRUE)
-
-nice_reason <- function(x) recode(x,
-                                  "Defiance"                = "Defiance",
-                                  "Violent Injury"          = "Violent (Injury)",
-                                  "Violent No Injury"       = "Violent (No Injury)",
-                                  "Weapons"                 = "Weapons",
-                                  "Drugs"                   = "Illicit Drug",
-                                  "Other"                   = "Other",
-                                  .default = x
-)
+  prop_cols <- grep("^prop_susp_", names(v5), value = TRUE)
 
 # --- 3) Total Rate Plot helper -----------------------------------------------
 create_total_rate_plot <- function(data, group_var, colors, title_suffix, legend_title) {
@@ -137,33 +120,44 @@ create_category_rate_plot <- function(data, group_var, colors, title_suffix, leg
         cols = c(Defiance, `Violent Injury`, `Violent No Injury`, Weapons, Drugs, Other),
         names_to = "category", values_to = "suspension_count"
       ) %>%
-      mutate(reason_rate = if_else(total_enrollment > 0, suspension_count / total_enrollment, NA_real_),
-             reason_lab = nice_reason(category),
-             year_fct = factor(academic_year, levels = year_levels))
+      mutate(
+        reason = dplyr::case_match(
+          category,
+          "Defiance" ~ "defiance_only",
+          "Violent Injury" ~ "violent_injury",
+          "Violent No Injury" ~ "violent_no_injury",
+          "Weapons" ~ "weapons_possession",
+          "Drugs" ~ "illicit_drug",
+          "Other" ~ "other_reasons",
+          .default = category
+        )
+      ) %>%
+      add_reason_label() %>%
+      mutate(
+        reason_rate = if_else(total_enrollment > 0, suspension_count / total_enrollment, NA_real_),
+        year_fct = factor(academic_year, levels = year_levels)
+      )
   } else if (length(prop_cols) > 0) {
     # Derive counts from proportions × total_suspensions
     plot_data <- data %>%
       filter(!is.na(!!gsym)) %>%
       select(academic_year, !!gsym, total_suspensions, cumulative_enrollment, all_of(prop_cols)) %>%
       pivot_longer(all_of(prop_cols), names_to = "prop_name", values_to = "prop") %>%
-      mutate(reason = recode(sub("^prop_susp_", "", prop_name),
-                             "defiance_only"        = "Defiance",
-                             "violent_injury"       = "Violent Injury",
-                             "violent_no_injury"    = "Violent No Injury",
-                             "weapons_possession"   = "Weapons",
-                             "illicit_drug"         = "Drugs",
-                             "other_reasons"        = "Other",
-                             .default = prop_name),
-             reason_count = prop * total_suspensions) %>%
+      mutate(
+        reason = sub("^prop_susp_", "", prop_name),
+        reason_count = prop * total_suspensions
+      ) %>%
       group_by(academic_year, !!gsym, reason) %>%
       summarise(
         suspension_count = sum(reason_count, na.rm = TRUE),
         total_enrollment = sum(cumulative_enrollment, na.rm = TRUE),
         .groups = "drop"
       ) %>%
-      mutate(reason_rate = if_else(total_enrollment > 0, suspension_count / total_enrollment, NA_real_),
-             reason_lab  = nice_reason(reason),
-             year_fct    = factor(academic_year, levels = year_levels))
+      add_reason_label() %>%
+      mutate(
+        reason_rate = if_else(total_enrollment > 0, suspension_count / total_enrollment, NA_real_),
+        year_fct    = factor(academic_year, levels = year_levels)
+      )
   } else {
     stop("No reason data available: neither *_count nor prop_susp_* columns exist in v5.")
   }

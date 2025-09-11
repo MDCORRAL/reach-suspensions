@@ -47,7 +47,7 @@ if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 v5 <- v5 %>%
   mutate(
     school_group = dplyr::case_when(
-      level_strict3 %in% c("Elementary","Middle","High") ~ "Traditional",
+      level_strict3 %in% c("Elementary","Middle","High School") ~ "Traditional",
       TRUE                                               ~ "All other"
     )
   )
@@ -88,8 +88,8 @@ if (KEEP_CORE_RACES_ONLY) df_all <- df_all %>% filter(race %in% CORE_RACES)
 if (!nrow(df_all)) stop("No data available after filtering.")
 
 # Locales to render
-locale_levels <- c("City","Suburban","Town","Rural","Unknown")
-if (!INCLUDE_UNKNOWN) locale_levels <- setdiff(locale_levels, "Unknown")
+loc_levels <- locale_levels
+if (!INCLUDE_UNKNOWN) loc_levels <- setdiff(loc_levels, "Unknown")
 
 # --- 7) Plot function: one locale, race-faceted (≤2 panels) -------------------
 plot_locale_chunk <- function(dat_locale, races, loc_name, i, n_total) {
@@ -139,7 +139,7 @@ plot_locale_chunk <- function(dat_locale, races, loc_name, i, n_total) {
 # --- 8) Render & save: loop over locales; chunk races per locale --------------
 outdir <- here::here("outputs"); dir.create(outdir, showWarnings = FALSE)
 
-for (loc in locale_levels) {
+for (loc in loc_levels) {
   dat_loc <- df_all %>% filter(locale_simple == loc)
   if (!nrow(dat_loc)) { message("Skipping ", loc, " (no data)."); next }
   

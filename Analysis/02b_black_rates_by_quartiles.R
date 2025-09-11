@@ -32,16 +32,9 @@ need_cols <- c(
 missing <- setdiff(need_cols, names(v5))
 if (length(missing)) stop("Missing in v5: ", paste(missing, collapse=", "))
 
-# ensure readable labels exist
-lbl_q <- function(q4, who) dplyr::case_when(
-  is.na(q4) ~ "Unknown",
-  q4 == 1L ~ paste0("Q1 (Lowest % ", who, ")"),
-  q4 == 2L ~ "Q2",
-  q4 == 3L ~ "Q3",
-  q4 == 4L ~ paste0("Q4 (Highest % ", who, ")")
-)
-if (!"black_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(black_prop_q_label = lbl_q(black_prop_q4, "Black"))
-if (!"white_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(white_prop_q_label = lbl_q(white_prop_q4, "White"))
+# ensure readable labels exist via shared helper
+if (!"black_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q4, "Black"))
+if (!"white_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q4, "White"))
 
 # year order (from TA rows with positive enrollment)
 year_levels <- v5 %>%
@@ -53,15 +46,6 @@ reason_cols <- names(v5)[grepl("^prop_susp_", names(v5))]
 if (length(reason_cols) == 0) {
   message("No reason proportion columns found; reason plots will be skipped.")
 }
-nice_reason <- function(x) dplyr::recode(sub("^prop_susp_", "", x),
-                                         "violent_injury"     = "Violent (Injury)",
-                                         "violent_no_injury"  = "Violent (No Injury)",
-                                         "weapons_possession" = "Weapons",
-                                         "illicit_drug"       = "Illicit Drug",
-                                         "defiance_only"      = "Willful Defiance",
-                                         "other_reasons"      = "Other",
-                                         .default = x
-)
 
 # ------------ core aggregators for RB ---------
 # pooled rates: (sum events) / (sum RB enrollment) within year × quartile
@@ -82,45 +66,51 @@ agg_rb_rates_and_counts <- function(v5, quart_var) {
     )
   
   # reason-specific RB rate
-  reasons_rate <- v5 %>%
-    filter(reporting_category == "RB", !is.na(.data[[quart_var]])) %>%
-    select(academic_year, .data[[quart_var]], cumulative_enrollment, total_suspensions, all_of(reason_cols)) %>%
-    pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
-    mutate(reason_events = prop * total_suspensions) %>%
-    group_by(academic_year, .data[[quart_var]], reason) %>%
-    summarise(
-      susp_reason = sum(reason_events, na.rm = TRUE),
-      enroll      = sum(cumulative_enrollment, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    mutate(
-      rate      = if_else(enroll > 0, susp_reason / enroll, NA_real_),
-      quart     = .data[[quart_var]],
-      reason_lab = nice_reason(reason),
-      year_fct  = factor(academic_year, levels = year_levels)
-    )
+    reasons_rate <- v5 %>%
+      filter(reporting_category == "RB", !is.na(.data[[quart_var]])) %>%
+      select(academic_year, .data[[quart_var]], cumulative_enrollment, total_suspensions, all_of(reason_cols)) %>%
+      pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
+      mutate(
+        reason = sub("^prop_susp_", "", reason),
+        reason_events = prop * total_suspensions
+      ) %>%
+      group_by(academic_year, .data[[quart_var]], reason) %>%
+      summarise(
+        susp_reason = sum(reason_events, na.rm = TRUE),
+        enroll      = sum(cumulative_enrollment, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      add_reason_label() %>%
+      mutate(
+        rate      = if_else(enroll > 0, susp_reason / enroll, NA_real_),
+        quart     = .data[[quart_var]],
+        year_fct  = factor(academic_year, levels = year_levels)
+      )
   
   list(totals = totals, reasons_rate = reasons_rate)
 }
 
 # shares: within year × quartile, fraction of RB suspensions by reason
 agg_rb_reason_shares <- function(v5, quart_var) {
-  rb_reason_share <- v5 %>%
-    filter(reporting_category == "RB", !is.na(.data[[quart_var]])) %>%
-    select(academic_year, .data[[quart_var]], total_suspensions, all_of(reason_cols)) %>%
-    pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
-    mutate(reason_events = prop * total_suspensions) %>%
-    group_by(academic_year, .data[[quart_var]], reason) %>%
-    summarise(total_reason_susp = sum(reason_events, na.rm = TRUE), .groups = "drop") %>%
-    group_by(academic_year, .data[[quart_var]]) %>%
-    mutate(total_rb_susp = sum(total_reason_susp, na.rm = TRUE)) %>%
-    ungroup() %>%
-    mutate(
-      share     = if_else(total_rb_susp > 0, total_reason_susp / total_rb_susp, NA_real_),
-      quart     = .data[[quart_var]],
-      reason_lab = nice_reason(reason),
-      year_fct  = factor(academic_year, levels = year_levels)
-    )
+    rb_reason_share <- v5 %>%
+      filter(reporting_category == "RB", !is.na(.data[[quart_var]])) %>%
+      select(academic_year, .data[[quart_var]], total_suspensions, all_of(reason_cols)) %>%
+      pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
+      mutate(
+        reason = sub("^prop_susp_", "", reason),
+        reason_events = prop * total_suspensions
+      ) %>%
+      group_by(academic_year, .data[[quart_var]], reason) %>%
+      summarise(total_reason_susp = sum(reason_events, na.rm = TRUE), .groups = "drop") %>%
+      group_by(academic_year, .data[[quart_var]]) %>%
+      mutate(total_rb_susp = sum(total_reason_susp, na.rm = TRUE)) %>%
+      ungroup() %>%
+      add_reason_label() %>%
+      mutate(
+        share     = if_else(total_rb_susp > 0, total_reason_susp / total_rb_susp, NA_real_),
+        quart     = .data[[quart_var]],
+        year_fct  = factor(academic_year, levels = year_levels)
+      )
   rb_reason_share
 }
 
@@ -131,8 +121,8 @@ blk_share <- agg_rb_reason_shares(v5, "black_prop_q_label")
 wht_share <- agg_rb_reason_shares(v5, "white_prop_q_label")
 
 # drop Unknown quartile from plots
-keep_blk <- c("Q1 (Lowest % Black)","Q2","Q3","Q4 (Highest % Black)")
-keep_wht <- c("Q1 (Lowest % White)","Q2","Q3","Q4 (Highest % White)")
+keep_blk <- get_quartile_label(1:4, "Black")
+keep_wht <- get_quartile_label(1:4, "White")
 
 blk_totals      <- blk_view$totals       %>% filter(quart %in% keep_blk) %>% mutate(quart = factor(quart, levels = keep_blk))
 blk_reasons_rt  <- blk_view$reasons_rate %>% filter(quart %in% keep_blk) %>% mutate(quart = factor(quart, levels = keep_blk))

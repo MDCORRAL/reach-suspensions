@@ -5,6 +5,42 @@ suppressPackageStartupMessages({
 
 SPECIAL_SCHOOL_CODES <- c("0000000", "0000001")
 
+# Consistent locale ordering and color palette used across analyses
+locale_levels <- c("City", "Suburban", "Town", "Rural", "Unknown")
+pal_locale <- c(
+  City     = "#0072B2",
+  Suburban = "#009E73",
+  Town     = "#E69F00",
+  Rural    = "#D55E00",
+  Unknown  = "#7F7F7F"
+)
+
+=======
+# mapping from raw reason keys to display labels
+reason_labels <- dplyr::tibble(
+  reason = c(
+    "violent_injury",
+    "violent_no_injury",
+    "weapons_possession",
+    "illicit_drug",
+    "defiance_only",
+    "other_reasons"
+  ),
+  reason_lab = c(
+    "Violent (Injury)",
+    "Violent (No Injury)",
+    "Weapons",
+    "Illicit Drug",
+    "Willful Defiance",
+    "Other"
+  )
+)
+
+# helper to append readable reason labels
+add_reason_label <- function(df, reason_col = "reason") {
+  dplyr::left_join(df, reason_labels, by = setNames("reason", reason_col))
+}
+
 # build canonical 14-digit CDS keys
 build_keys <- function(df) {
   df %>%
@@ -68,3 +104,15 @@ race_label <- function(code) dplyr::recode(
   .default = NA_character_
 )
 
+=======
+# construct standardized quartile labels like "Q1 (Lowest % Black)"
+get_quartile_label <- function(q4, race = c("Black", "White")) {
+  race <- match.arg(race)
+  dplyr::case_when(
+    is.na(q4) ~ "Unknown",
+    q4 == 1L ~ paste0("Q1 (Lowest % ", race, ")"),
+    q4 == 2L ~ "Q2",
+    q4 == 3L ~ "Q3",
+    q4 == 4L ~ paste0("Q4 (Highest % ", race, ")")
+  )
+}

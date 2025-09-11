@@ -6,6 +6,8 @@ suppressPackageStartupMessages({
   library(scales); library(tidyr); library(ggrepel)
 })
 
+source(here::here("R","utils_keys_filters.R"))
+
 # ───────────────────────────── Config / Paths ─────────────────────────────
 DATA_STAGE <- here("data-stage")
 V6F_PARQ   <- file.path(DATA_STAGE, "susp_v6_features.parquet")  # keys + is_traditional (+ black_q in v6)
@@ -186,12 +188,12 @@ plot_white <- ggplot(
       color = white_q, linetype = series, group = interaction(white_q, series))) +
   geom_line(linewidth = 1.0) +
   geom_point(shape = 21, size = 2.6, stroke = 0.8, fill = "white") +
-  geom_text_repel(aes(label = label_txt),
-                  size = 3, box.padding = 0.25, point.padding = 0.2,
-                  max.overlaps = 30, segment.color = "grey70", segment.size = 0.3) +
-  scale_color_manual(values = quartile_cols,
-                     breaks = c("Q1","Q2","Q3","Q4"),
-                     labels = c("Q1 (Lowest % White)","Q2","Q3","Q4 (Highest % White)")) +
+    geom_text_repel(aes(label = label_txt),
+                    size = 3, box.padding = 0.25, point.padding = 0.2,
+                    max.overlaps = 30, segment.color = "grey70", segment.size = 0.3) +
+    scale_color_manual(values = quartile_cols,
+                       breaks = c("Q1","Q2","Q3","Q4"),
+                       labels = get_quartile_label(1:4, "White")) +
   scale_linetype_manual(values = c("Total (All Students)"="solid",
                                    "Students with Disabilities"="dashed")) +
   scale_y_continuous(labels = percent_format(0.1), limits = y_lim,
@@ -211,12 +213,12 @@ plot_black <- ggplot(
       color = black_q, linetype = series, group = interaction(black_q, series))) +
   geom_line(linewidth = 1.0) +
   geom_point(shape = 21, size = 2.6, stroke = 0.8, fill = "white") +
-  geom_text_repel(aes(label = label_txt),
-                  size = 3, box.padding = 0.25, point.padding = 0.2,
-                  max.overlaps = 30, segment.color = "grey70", segment.size = 0.3) +
-  scale_color_manual(values = quartile_cols,
-                     breaks = c("Q1","Q2","Q3","Q4"),
-                     labels = c("Q1 (Lowest % Black)","Q2","Q3","Q4 (Highest % Black)")) +
+    geom_text_repel(aes(label = label_txt),
+                    size = 3, box.padding = 0.25, point.padding = 0.2,
+                    max.overlaps = 30, segment.color = "grey70", segment.size = 0.3) +
+    scale_color_manual(values = quartile_cols,
+                       breaks = c("Q1","Q2","Q3","Q4"),
+                       labels = get_quartile_label(1:4, "Black")) +
   scale_linetype_manual(values = c("Total (All Students)"="solid",
                                    "Students with Disabilities"="dashed")) +
   scale_y_continuous(labels = percent_format(0.1), limits = y_lim,
