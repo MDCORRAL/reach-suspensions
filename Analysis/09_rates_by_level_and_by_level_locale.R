@@ -1,5 +1,5 @@
 # analysis/02c_rates_by_level_and_by_level_locale.R
-# One graph per school level (Elementary/Middle/High), and one per (level × locale),
+# One graph per school level (Elementary/Middle/High School), and one per (level × locale),
 # showing all years and all race/ethnicity lines with readable labels.
 
 # --- 1) Setup -----------------------------------------------------------------
@@ -42,7 +42,7 @@ year_levels <- v5 %>%
 if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 
 # Levels to include
-LEVELS <- c("Elementary","Middle","High")
+LEVELS <- c("Elementary","Middle","High School")
 
 # --- 4) Race labels & allowed codes ------------------------------------------
 race_label <- function(code) dplyr::recode(

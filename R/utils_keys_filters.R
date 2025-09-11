@@ -15,6 +15,32 @@ pal_locale <- c(
   Unknown  = "#7F7F7F"
 )
 
+=======
+# mapping from raw reason keys to display labels
+reason_labels <- dplyr::tibble(
+  reason = c(
+    "violent_injury",
+    "violent_no_injury",
+    "weapons_possession",
+    "illicit_drug",
+    "defiance_only",
+    "other_reasons"
+  ),
+  reason_lab = c(
+    "Violent (Injury)",
+    "Violent (No Injury)",
+    "Weapons",
+    "Illicit Drug",
+    "Willful Defiance",
+    "Other"
+  )
+)
+
+# helper to append readable reason labels
+add_reason_label <- function(df, reason_col = "reason") {
+  dplyr::left_join(df, reason_labels, by = setNames("reason", reason_col))
+}
+
 # build canonical 14-digit CDS keys
 build_keys <- function(df) {
   df %>%
@@ -64,4 +90,14 @@ assert_unique_campus <- function(df, year_col = "year", extra_keys = character()
   df
 }
 
-# assert uniqueness for a district-level frame 
+# construct standardized quartile labels like "Q1 (Lowest % Black)"
+get_quartile_label <- function(q4, race = c("Black", "White")) {
+  race <- match.arg(race)
+  dplyr::case_when(
+    is.na(q4) ~ "Unknown",
+    q4 == 1L ~ paste0("Q1 (Lowest % ", race, ")"),
+    q4 == 2L ~ "Q2",
+    q4 == 3L ~ "Q3",
+    q4 == 4L ~ paste0("Q4 (Highest % ", race, ")")
+  )
+}
