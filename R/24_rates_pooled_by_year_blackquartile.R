@@ -182,8 +182,7 @@ tidy_out <- sum_by %>%
     pooled_rate = scales::percent(pooled_rate, accuracy = 0.1),
     dplyr::across(dplyr::any_of(c("ci_low","ci_high")),
                   ~ if (is.numeric(.x)) scales::percent(.x, accuracy = 0.1) else .x)
-  ) %>%
-  dplyr::arrange(subgroup, year, black_q)
+  ) %>% dplyr::arrange(subgroup, year, black_q)
 openxlsx::writeData(wb, "tidy_by_year_q_subgroup", tidy_out)
 
 # 2) Wide rates — SAME NAME as Script 23 (but using pooled_rate)
