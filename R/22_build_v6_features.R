@@ -1,4 +1,4 @@
-# R/22_build_v6_and_analyze_sped_by_black_quartile.R
+# R/22_build_v6_features.R
 # Build v6 features and analyze SPED suspension rate by Black enrollment quartile.
 
 suppressPackageStartupMessages({
