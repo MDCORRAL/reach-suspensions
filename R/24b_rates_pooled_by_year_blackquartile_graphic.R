@@ -11,8 +11,8 @@ library(ggrepel)
 sum_2 <- sum_by %>%
   dplyr::filter(subgroup %in% c("Total", "Students with Disabilities")) %>%
   dplyr::mutate(
-    year    = fct_inorder(year),
-    black_q = fct_relevel(black_q, "Q1","Q2","Q3","Q4"),
+    year        = fct_inorder(year),
+    black_prop_q = fct_relevel(black_prop_q, "Q1","Q2","Q3","Q4"),
     series  = dplyr::recode(subgroup,
                             "Total" = "Total (All Students)",
                             "Students with Disabilities" = "Students with Disabilities")
@@ -36,7 +36,7 @@ darken <- function(col, f=0.3) grDevices::rgb(
 )
 
 # map to 8-color palette by (quartile, series)
-keys <- with(sum_2, interaction(black_q, series, drop=TRUE, lex.order = TRUE))
+keys <- with(sum_2, interaction(black_prop_q, series, drop=TRUE, lex.order = TRUE))
 levels_keys <- levels(keys)
 
 pal <- setNames(
@@ -61,8 +61,8 @@ library(ggrepel)
 
 p <- ggplot(sum_2,
             aes(x = year, y = pooled_rate,
-                group = interaction(black_q, series, drop=TRUE, lex.order = TRUE),
-                color = interaction(black_q, series, drop=TRUE, lex.order = TRUE))) +
+                group = interaction(black_prop_q, series, drop=TRUE, lex.order = TRUE),
+                color = interaction(black_prop_q, series, drop=TRUE, lex.order = TRUE))) +
   geom_line(linewidth = 1.0) +
   geom_point(shape = 21, size = 2.8, stroke = 0.9, fill = "white") +
   # repel version of labels
