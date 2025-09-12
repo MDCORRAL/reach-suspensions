@@ -31,17 +31,22 @@ v6 <- read_parquet(here("data-stage", "susp_v6_long.parquet")) %>%
 
 need_cols <- c(
   "category_type", "subgroup", "academic_year", "school_group",
-  "total_suspensions", "cumulative_enrollment"
+  "school_level", "total_suspensions", "cumulative_enrollment"
 )
 stopifnot(all(need_cols %in% names(v6)))
 
-# duplicate rows with school_group = "All" for overall statewide summaries
-v6_all <- bind_rows(v6, v6 %>% mutate(school_group = "All"))
+# duplicate rows with school_group and/or school_level = "All" for
+# overall statewide summaries and breakdowns
+v6_all <- bind_rows(
+  v6,
+  v6 %>% mutate(school_group = "All"),
+  v6 %>% mutate(school_level = "All"),
+  v6 %>% mutate(school_group = "All", school_level = "All")
+)
 
 # ---- Statewide totals --------------------------------------------------------
-statewide <- v6 %>%
-  group_by(subgroup, academic_year) %>%
-
+statewide_all <- v6_all %>%
+  group_by(academic_year, subgroup, school_group, school_level) %>%
   summarise(
     total_suspensions = sum(total_suspensions, na.rm = TRUE),
     total_enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
@@ -49,7 +54,20 @@ statewide <- v6 %>%
     .groups = "drop"
   )
 
+# overall statewide totals only (both group and level = "All")
+statewide <- statewide_all %>%
+  filter(school_group == "All", school_level == "All")
+
 write_parquet(statewide, here("data-stage", "statewide_totals.parquet"))
+
+# breakdowns by school_group and school_level
+statewide_breakdowns <- statewide_all %>%
+  filter(!(school_group == "All" & school_level == "All"))
+
+write_parquet(
+  statewide_breakdowns,
+  here("data-stage", "statewide_totals_breakdowns.parquet")
+)
 
 # ---- Quartile helpers --------------------------------------------------------
 ##codex/create-statewide-data-frame-analysis-ke1b6u
