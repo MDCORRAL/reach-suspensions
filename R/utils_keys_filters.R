@@ -5,6 +5,30 @@ suppressPackageStartupMessages({
 
 SPECIAL_SCHOOL_CODES <- c("0000000", "0000001")
 
+# ---- School level classification ---------------------------------------------
+#' Canonical grade-span labels and helpers for school-level classification.
+#'
+#' `LEVEL_LABELS` enumerates the accepted school level categories.
+#' `span_label()` maps numeric grade bounds to those labels.
+#' `is_alt()` returns TRUE when a `school_type` string denotes an alternative program.
+#' Source this file to access these helpers in downstream scripts.
+LEVEL_LABELS <- c("Elementary", "Middle", "High", "Other", "Alternative")
+
+span_label <- function(gmin, gmax) {
+  if (is.na(gmin) || is.na(gmax)) return("Other")
+  if (gmin <= 0 && gmax >= 12) return("Other")
+  if (gmax <= 5) return("Elementary")
+  if (gmin >= 6 && gmax <= 8) return("Middle")
+  if (gmax >= 9) return("High")
+  if (gmin <= 0 && gmax <= 8) return("Elementary")
+  "Other"
+}
+
+is_alt <- function(school_type) {
+  st <- tolower(ifelse(is.na(school_type), "", school_type))
+  str_detect(st, "juvenile court|community day|alternative|continuation")
+}
+
 # ---- Locale reference ---------------------------------------------------------
 #' Canonical locale levels and color palette.
 #'
