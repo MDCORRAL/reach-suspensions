@@ -133,5 +133,8 @@ rb_rw_ta %>%
   ) %>%
   print(n = 60) # All should be FALSE
 
-invisible(TRUE)
 # --- write output -----------------------------------------------------------
+arrow::write_parquet(v3, here::here("data-stage", "susp_v3.parquet"))
+message(">>> 04_feature_black_prop_quartiles: wrote susp_v3.parquet")
+
+invisible(TRUE)
