@@ -41,14 +41,16 @@ extract_min_max_grade <- function(gs) {
 get_min_grade <- function(x) vapply(x, function(s) extract_min_max_grade(s)[1], numeric(1))
 get_max_grade <- function(x) vapply(x, function(s) extract_min_max_grade(s)[2], numeric(1))
 
+LEVEL_LABELS <- c("Elementary", "Middle", "High", "Other", "Alternative")
+
 span_label <- function(gmin, gmax) {
-  if (is.na(gmin) || is.na(gmax)) return("Other/Unknown")
-  if (gmin <= 0 && gmax >= 12) return("K-12")
+  if (is.na(gmin) || is.na(gmax)) return("Other")
+  if (gmin <= 0 && gmax >= 12) return("Other")
   if (gmax <= 5) return("Elementary")
   if (gmin >= 6 && gmax <= 8) return("Middle")
   if (gmax >= 9) return("High")
   if (gmin <= 0 && gmax <= 8) return("Elementary")
-  "Other/Unknown"
+  "Other"
 }
 
 is_alt <- function(school_type) {
@@ -61,12 +63,14 @@ v4 <- v3_in %>%
   mutate(
     grade_min_num = get_min_grade(grades_served),
     grade_max_num = get_max_grade(grades_served),
-    
+
     # unified school level label
-    school_level = mapply(span_label, grade_min_num, grade_max_num),
+    school_level = factor(mapply(span_label, grade_min_num, grade_max_num),
+                          levels = LEVEL_LABELS),
 
     # Alternative override
-    school_level = if_else(is_alt(school_type), "Alternative", school_level),
+    school_level = if_else(is_alt(school_type), "Alternative", as.character(school_level)),
+    school_level = factor(school_level, levels = LEVEL_LABELS),
 
     # legacy aliases
     level_strict3 = school_level,

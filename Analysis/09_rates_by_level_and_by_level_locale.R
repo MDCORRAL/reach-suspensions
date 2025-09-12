@@ -47,6 +47,7 @@ year_levels <- v5 %>%
 if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 
 # Levels to include
+# canonical grade levels
 LEVELS <- c("Elementary","Middle","High")
 
 # --- 4) Race labels & allowed codes ------------------------------------------
