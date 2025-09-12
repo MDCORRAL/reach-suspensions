@@ -13,6 +13,7 @@ suppressPackageStartupMessages({
 
 # Use your existing path config (provides `raw_path`)
 source("R/00_paths.R")
+source("R/ingest_helpers.R")
 
 message(">>> Running from project root: ", here::here())
 message(">>> Using raw Excel: ", raw_path)
@@ -24,6 +25,11 @@ raw0 <- readxl::read_excel(raw_path)
 
 raw <- raw0 %>%
   janitor::clean_names()
+
+year_info <- derive_year(raw)
+yr <- year_info$year
+academic_year <- year_info$academic_year
+num_cols <- numeric_cols(raw)
 
 # -------------------------
 # 2) Column dictionary
@@ -43,11 +49,6 @@ dict <- tibble::tibble(
 # -------------------------
 # 3) Numeric-like columns + suppression flags (pre-conversion)
 # -------------------------
-num_cols <- names(raw)[grepl(
-  "^cumulative_enrollment$|^total_suspensions$|^unduplicated_count_of_students_suspended|^suspension_",
-  names(raw)
-)]
-
 sup_flags <- dplyr::transmute(
   raw,
   dplyr::across(dplyr::all_of(num_cols), ~ .x == "*", .names = "sup_{.col}")
@@ -58,6 +59,8 @@ sup_flags <- dplyr::transmute(
 # -------------------------
 v0 <- raw %>%
   mutate(
+    year = yr,
+    academic_year = academic_year,
     charter_yn      = stringr::str_trim(charter_yn),
     charter_is_all  = charter_yn == "All",
     charter_yn_std  = dplyr::if_else(charter_yn %in% c("Yes","No"), charter_yn, NA_character_),
