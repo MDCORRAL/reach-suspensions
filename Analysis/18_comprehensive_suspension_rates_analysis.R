@@ -63,7 +63,7 @@ canon_race_label <- function(x) {
     x_clean %in% c("rt", "two or more", "multiple", "two or more races", "multirace") ~ "Two or More Races",
     x_clean %in% c("rw", "white") ~ "White",
     str_detect(x_clean, "disabilit|special.{0,5}ed") ~ "Students with Disabilities",
-    str_detect(x_clean, "english.{0,5}learn|ell") ~ "English Learners",
+    str_detect(x_clean, "english.{0,5}learn|ell") ~ "English Learner",
     str_detect(x_clean, "gender|male|female") ~ "By Gender",
     TRUE ~ NA_character_
   )
@@ -88,7 +88,7 @@ reach_race_cols <- c(
   "Two or More Races" = "#e377c2",
   "White" = "#7f7f7f",
   "Students with Disabilities" = "#bcbd22",
-  "English Learners" = "#17becf"
+  "English Learner" = "#17becf"
 )
 
 # -------------------------------------------------------------------------
