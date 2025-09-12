@@ -38,18 +38,18 @@ trend_dir_spearman <- function(v) {
 }
 
 # --- Load & guards -----------------------------------------------------------
-v5_path <- here("data-stage", "susp_v5.parquet")
+v5_path <- here("data-stage", "susp_v6_long.parquet")
 if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
 v5 <- read_parquet(v5_path)
 
-required_cols <- c("reporting_category","academic_year","total_suspensions",
+required_cols <- c("subgroup","academic_year","total_suspensions",
                    "cumulative_enrollment","school_level","locale_simple")
 missing_cols <- setdiff(required_cols, names(v5))
 if (length(missing_cols)) stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
 
 # Order academic years (driven by TA)
 year_levels <- v5 %>%
-  filter(reporting_category == "TA") %>%
+  filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull()
 if (!length(year_levels)) stop("No TA rows found to anchor academic_year order.")
 
@@ -61,7 +61,7 @@ if (isTRUE(DROP_UNKNOWN_LOCALE)) {
 # --- Base with labels & factors ---------------------------------------------
 base <- v5 %>%
   mutate(
-    race     = race_label(reporting_category),
+    race     = canon_race_label(subgroup),
     year_fct = factor(academic_year, levels = year_levels, ordered = TRUE)
   ) %>%
   filter(!is.na(race)) %>%

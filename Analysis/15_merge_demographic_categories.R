@@ -2,7 +2,7 @@
 # Merge additional demographic categories with race data for intersectional EDA
 # analysis/15_merge_demographic_categories.R
 # Purpose: Merge additional demographic categories with race data for intersectional EDA
-# Inputs:  - data-stage/susp_v5.parquet (race/ethnicity suspension data)
+# Inputs:  - data-stage/susp_v6_long.parquet (race/ethnicity suspension data)
 #          - data-stage/oth_long.parquet (other demographic categories)
 # Outputs: - 15_demographic_*.xlsx (disparity analysis)
 #          - 15_demographic_flags.csv (merge-ready summary)
@@ -24,7 +24,7 @@ suppressPackageStartupMessages({
 source(here("R", "utils_keys_filters.R"))
 
 # -------- Config -------------------------------------------------------------
-RACE_DATA_PATH <- here("data-stage", "susp_v5.parquet")
+RACE_DATA_PATH <- here("data-stage", "susp_v6_long.parquet")
 OTH_PARQUET    <- here("data-stage", "oth_long.parquet")
 MIN_ENROLLMENT_THRESHOLD <- 10
 
@@ -182,7 +182,7 @@ cat("Capped", sum(demo_data$rate_flag, na.rm = TRUE), "impossible suspension cou
 # -------- Create canonical school attributes --------------------------------
 # Year ordering (prefer TA in race_data if present)
 year_levels <- race_data %>%
-  filter(if ("reporting_category" %in% names(.)) reporting_category == "TA" else TRUE) %>%
+  filter(if ("subgroup" %in% names(.)) category_type == "Race/Ethnicity", subgroup == "All Students" else TRUE) %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull()
 
 if (!length(year_levels)) {

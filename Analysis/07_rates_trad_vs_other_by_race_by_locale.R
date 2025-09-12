@@ -29,17 +29,17 @@ set.seed(42)
 
 # --- 3) Load & guards ---------------------------------------------------------
 message("Loading data…")
-v5_path <- here::here("data-stage","susp_v5.parquet")
+v5_path <- here::here("data-stage","susp_v6_long.parquet")
 if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
 v5 <- arrow::read_parquet(v5_path)
 
-need <- c("reporting_category","academic_year","locale_simple","school_level",
+need <- c("subgroup","academic_year","locale_simple","school_level",
           "school_type","total_suspensions","cumulative_enrollment")
 miss <- setdiff(need, names(v5))
 if (length(miss)) stop("Missing required columns: ", paste(miss, collapse=", "))
 
 year_levels <- v5 %>%
-  dplyr::filter(reporting_category == "TA") %>%
+  dplyr::filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   dplyr::distinct(academic_year) %>% dplyr::arrange(academic_year) %>% dplyr::pull(academic_year)
 if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 
@@ -63,14 +63,14 @@ all_other_note <- paste0("All other = Alternative (e.g., ", alt_found_pretty,
                          ") + schools with Other/Unknown grade spans.")
 
 # --- 5) Race labels -----------------------------------------------------------
-# handled via shared race_label() helper
+# handled via shared canon_race_label() helper
 
 # --- 6) Aggregate to pooled rates by year × locale × race × group ------------
-allowed_race_codes <- c("RB","RW","RH","RL","RI","RA","RF","RP","RT","TA")
+allowed_races <- c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Pacific Islander","Two or More Races","All Students")
 
 df_all <- v5 %>%
-  mutate(race = race_label(reporting_category)) %>%
-  filter(!is.na(race), reporting_category %in% allowed_race_codes) %>%
+  mutate(race = canon_race_label(subgroup)) %>%
+  filter(!is.na(race), canon_race_label(subgroup) %in% allowed_races) %>%
   group_by(academic_year, locale_simple, school_group, race) %>%
   summarise(
     susp   = sum(total_suspensions, na.rm = TRUE),

@@ -18,7 +18,7 @@ message(">>> Running from project root: ", here::here())
 
 # Data paths
 DATA_STAGE <- here("data-stage")
-V5_PARQ <- file.path(DATA_STAGE, "susp_v5.parquet")
+V5_PARQ <- file.path(DATA_STAGE, "susp_v6_long.parquet")
 V6F_PARQ <- file.path(DATA_STAGE, "susp_v6_features.parquet")
 
 # Output setup
@@ -106,7 +106,7 @@ v5_complete <- v5 %>%
   transmute(
     school_code = school_code,
     year = as.character(academic_year),
-    race_ethnicity = canon_race_label(reporting_category),
+    race_ethnicity = canon_race_label(subgroup),
     enrollment = as.numeric(cumulative_enrollment),
     total_suspensions = as.numeric(total_suspensions),
     undup_suspensions = as.numeric(unduplicated_count_of_students_suspended_total),

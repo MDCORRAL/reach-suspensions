@@ -33,22 +33,22 @@ set.seed(42)
 
 # --- 3) Load & guards ---------------------------------------------------------
 message("Loading v5…")
-v5_path <- here::here("data-stage","susp_v5.parquet")
+v5_path <- here::here("data-stage","susp_v6_long.parquet")
 if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
 v5 <- arrow::read_parquet(v5_path)
 
-need <- c("reporting_category","academic_year","school_level",
+need <- c("subgroup","academic_year","school_level",
           "school_type","total_suspensions","cumulative_enrollment")
 miss <- setdiff(need, names(v5))
 if (length(miss)) stop("Missing columns in v5: ", paste(miss, collapse=", "))
 
 # academic year order
 year_levels <- v5 %>%
-  filter(reporting_category == "TA") %>%
+  filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 if (!length(year_levels)) stop("No TA rows to establish year order.")
 
-# Race label map (RD omitted; RL -> RH) handled by race_label() helper
+# Race label map (RD omitted; RL -> RH) handled by canon_race_label() helper
 
 # --- 4) Derive school group (Traditional vs All other) ------------------------
 # "Traditional" = Elementary/Middle/High (your strict 3-band)
@@ -79,7 +79,7 @@ all_other_note <- paste0(
 # --- 5) Build pooled rates by year × school_group × race ----------------------
 # All Students baseline
 df_total <- v5 %>%
-  filter(reporting_category == "TA") %>%
+  filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   group_by(academic_year, school_group) %>%
   summarise(
     susp   = sum(total_suspensions, na.rm = TRUE),
@@ -90,10 +90,10 @@ df_total <- v5 %>%
          race = "All Students")
 
 # Race-specific
-allowed_race_codes <- c("RB","RW","RH","RL","RI","RA","RF","RP","RT")
+allowed_races <- c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Pacific Islander","Two or More Races")
 df_race <- v5 %>%
-  filter(reporting_category %in% allowed_race_codes) %>%
-  mutate(race = race_label(reporting_category)) %>%
+  filter(canon_race_label(subgroup) %in% allowed_races) %>%
+  mutate(race = canon_race_label(subgroup)) %>%
   filter(!is.na(race)) %>%
   group_by(academic_year, school_group, race) %>%
   summarise(

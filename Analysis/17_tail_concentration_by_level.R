@@ -89,7 +89,7 @@ pareto_shares <- function(df, top_ps = TOP_PCT) {
 raw <- read_parquet(INPUT_PATH) %>% clean_names()
 
 susp <- raw %>%
-  filter(str_to_lower(reporting_category) %in% c("total", "all students", "ta")) %>%
+  filter(str_to_lower(subgroup) %in% c("total", "all students", "ta")) %>%
   transmute(
     school_id   = school_code,
     year        = academic_year,
