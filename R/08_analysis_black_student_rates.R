@@ -103,6 +103,7 @@ p2_reasons_by_black <- ggplot(reason_rate_by_black_quartile, aes(x = academic_ye
             aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),
             vjust = -0.5, fontface = "bold", inherit.aes = FALSE) +
   facet_wrap(~ black_prop_q_label, ncol = 2) +
+  scale_fill_manual(values = pal_reason, breaks = names(pal_reason)) +
   scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
   labs(
     title = "Composition of Black Student Suspensions by School's Black Enrollment",
@@ -183,6 +184,7 @@ p4_reasons_by_white <- ggplot(reason_rate_by_white_quartile, aes(x = academic_ye
             aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),
             vjust = -0.5, fontface = "bold", inherit.aes = FALSE) +
   facet_wrap(~ white_prop_q_label, ncol = 2) +
+  scale_fill_manual(values = pal_reason, breaks = names(pal_reason)) +
   scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
   labs(
     title = "Composition of Black Student Suspensions by School's White Enrollment",
