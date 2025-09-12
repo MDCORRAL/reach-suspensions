@@ -78,8 +78,19 @@ canonicalize_undup <- function(df) {
 # -------------------------------------------------------------------
 # 1) Read race-long (has reason columns)
 # -------------------------------------------------------------------
+###### codex/update-references-and-pipeline-documentation
 RACE_LONG_PATH <- here("data-stage", "susp_v6_long.parquet")
 stopifnot(file.exists(RACE_LONG_PATH))
+####
+RACE_LONG_CANDIDATES <- c(
+  here("data-stage", "susp_v6_long_strict.parquet"),
+  here("data-stage", "susp_v6_long.parquet")
+)
+RACE_LONG_PATH <- RACE_LONG_CANDIDATES[which(file.exists(RACE_LONG_CANDIDATES))][1]
+if (is.na(RACE_LONG_PATH)) {
+  stop("[15a] Needed long race file missing. Expected one of:\n  - data-stage/susp_v6_long_strict.parquet\n  - data-stage/susp_v6_long.parquet")
+}
+#######
 
 race_long <- arrow::read_parquet(RACE_LONG_PATH) %>%
   clean_names() %>%
