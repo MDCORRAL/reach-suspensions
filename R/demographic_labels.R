@@ -6,7 +6,7 @@
 demographic_codebook <- tibble::tribble(
   ~subgroup_code, ~category_type,         ~subgroup,
   # Total
-  "TA",           "Total",                "All Students",
+  "TA",           "Total",                "Total",
   # Sex / Gender (canonical codes)
   "SF",           "Sex",                  "Female",
   "SM",           "Sex",                  "Male",
@@ -50,26 +50,26 @@ demographic_codebook <- tibble::tribble(
 desc_to_canon <- function(desc) {
   d <- tolower(desc %||% "")
   dplyr::case_when(
-    grepl("\\benglish\\s*learner", d)                                ~ "EL",
-    grepl("\\benglish\\s*only", d)                                    ~ "EO",
-    grepl("reclassified\\s*fluent", d)                                ~ "RFEP",
-    grepl("initially\\s*fluent", d)                                   ~ "IFEP",
-    grepl("\\bfoster\\b", d)                                          ~ "FY",
-    grepl("\\bnot\\s*foster", d)                                      ~ "NF",
-    grepl("\\bmigrant\\b", d)                                         ~ "MG",
-    grepl("\\bnon[- ]?migrant|\\bnot\\s*migrant", d)                  ~ "NM",
-    grepl("\\bhomeless\\b", d)                                        ~ "HL",
-    grepl("\\bnot\\s*homeless", d)                                    ~ "NH",
-    grepl("students?\\s*with\\s*disab|special\\s*education", d)       ~ "SE",
-    grepl("\\bnot\\s*(students?\\s*with\\s*disab|special\\s*education)", d) ~ "SN",
-    grepl("socioeconomically\\s*disadv", d)                           ~ "SD",
-    grepl("\\bnot\\s*socioeconomically\\s*disadv", d)                 ~ "NS",
-    grepl("\\bfemale\\b", d)                                          ~ "SF",
-    grepl("\\bmale\\b", d)                                            ~ "SM",
-    grepl("non[- ]?binary", d)                                        ~ "SNB",
-    grepl("missing\\s*gender", d)                                     ~ "SGZ",
-    grepl("^not\\s*reported$", d)                                     ~ "SNR",
-    grepl("^all\\s*students?$", d)                                    ~ "TA",
+    grepl("\\bnot\\s*foster|\\bnf\\b", d)                                     ~ "NF",
+    grepl("\\bfoster|\\bfy\\b", d)                                             ~ "FY",
+    grepl("\\bnon[- ]?migrant|\\bnot\\s*migrant|\\bnm\\b", d)               ~ "NM",
+    grepl("\\bmigrant|\\bmg\\b", d)                                            ~ "MG",
+    grepl("\\bnot\\s*homeless|\\bnh\\b", d)                                  ~ "NH",
+    grepl("\\bhomeless|\\bhl\\b", d)                                          ~ "HL",
+    grepl("\\bnot\\s*(students?\\s*with\\s*disab|special\\s*education)|\\bsn\\b", d) ~ "SN",
+    grepl("students?\\s*with\\s*disab|special\\s*education|\\bswd\\b", d)  ~ "SE",
+    grepl("\\bnot\\s*socioeconomically\\s*disadv|\\bns\\b", d)            ~ "NS",
+    grepl("socioeconomically\\s*disadv|\\bsed\\b|low\\s*income|economically\\s*disadv", d) ~ "SD",
+    grepl("reclassified\\s*fluent", d)                                           ~ "RFEP",
+    grepl("initially\\s*fluent", d)                                              ~ "IFEP",
+    grepl("\\benglish\\s*only|\\beo\\b", d)                                  ~ "EO",
+    grepl("\\benglish\\s*learner|\\bell\\b", d)                              ~ "EL",
+    grepl("\\bfemale\\b|\\bsf\\b", d)                                       ~ "SF",
+    grepl("\\bmale\\b|\\bsm\\b", d)                                         ~ "SM",
+    grepl("non[- ]?binary|\\bsnb\\b", d)                                       ~ "SNB",
+    grepl("missing\\s*gender|\\bsgz\\b", d)                                   ~ "SGZ",
+    grepl("^not\\s*reported$|\\bsnr\\b", d)                                   ~ "SNR",
+    grepl("\\btotal\\b|\\ball\\b|^all\\s*students?$", d)                    ~ "TA",
     TRUE ~ NA_character_
   )
 }
@@ -100,7 +100,7 @@ canon_label <- function(code) dplyr::recode(code,
   FY="Foster Youth", NF="Not Foster Youth",
   MG="Migrant", NM="Non-Migrant",
   HL="Homeless", NH="Not Homeless",
-  TA="All Students",
+  TA="Total",
   .default = NA_character_
 )
 
@@ -128,4 +128,7 @@ canonicalize_demo <- function(df, desc_col = "subgroup", code_col = "subgroup_co
   df$category_type <- canon_category(canon)
   df
 }
+
+# Convenience wrapper returning canonical labels from free-form descriptors.
+canon_demo_label <- function(x) canon_label(desc_to_canon(x))
 

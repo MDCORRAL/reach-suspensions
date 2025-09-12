@@ -5,7 +5,7 @@ suppressPackageStartupMessages({
 })
 
 source(here::here("R","utils_keys_filters.R"))
-source(here::here("R","utils_demographic_labels.R"))
+source(here::here("R","demographic_labels.R"))
 
 # ──────────────────────────────── Config / Paths ──────────────────────────────
 DATA_STAGE <- here("data-stage")                   # portable path
