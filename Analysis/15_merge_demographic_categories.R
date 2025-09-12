@@ -25,6 +25,7 @@ try(here::i_am("Analysis/15_merge_demographic_categories.R"), silent = TRUE)
 
 # Load repository utilities
 source(here("R", "utils_keys_filters.R"))
+source(here("R", "demographic_labels.R"))
 
 # -------- Config -------------------------------------------------------------
 RACE_DATA_PATH <- here("data-stage", "susp_v6_long.parquet")
@@ -83,75 +84,8 @@ demo_data <- demo_data %>%
     subgroup_raw = subgroup,
     subgroup = norm(subgroup),
     category_type = norm(category_type)
-  )
-
-# Canonicalize common subgroup variants
-demo_data <- demo_data %>%
-  mutate(
-    subgroup_std = dplyr::case_when(
-      # Sex/gender
-      stringr::str_to_lower(subgroup) %in% c("female") ~ "Female",
-      stringr::str_to_lower(subgroup) %in% c("male") ~ "Male",
-      stringr::str_detect(stringr::str_to_lower(subgroup), "non[- ]?binary") ~ "Non-Binary",
-      stringr::str_to_lower(subgroup) %in% c("missing gender") ~ "Missing Gender",
-      stringr::str_to_lower(subgroup) %in% c("not reported") ~ "Not Reported",
-      
-      # Students with Disabilities (SWD)
-      stringr::str_to_lower(subgroup) %in% c("students with disabilities","swd") ~ "Students with Disabilities",
-      stringr::str_to_lower(subgroup) %in% c("special education") ~ "Students with Disabilities",
-      
-      # Socioeconomic
-      stringr::str_detect(subgroup, regex("^socioeconomically disadvantaged$", ignore_case=TRUE)) ~ "Socioeconomically Disadvantaged",
-      
-      # English Learner
-      stringr::str_to_lower(subgroup) %in% c("english learner","el") ~ "English Learner",
-      stringr::str_to_lower(subgroup) %in% c("english only","eo") ~ "English Only",
-      
-      # Foster / Homeless
-      stringr::str_to_lower(subgroup) %in% c("foster youth","foster") ~ "Foster Youth",
-      stringr::str_to_lower(subgroup) %in% c("homeless") ~ "Homeless",
-      
-      TRUE ~ subgroup
-    )
-  )
-
-# Map subgroup -> enforced category_type
-demo_data <- demo_data %>%
-  mutate(
-    category_type_enforced = dplyr::case_when(
-      subgroup_std %in% c("Female","Male","Non-Binary","Missing Gender","Not Reported") ~ "Sex",
-      subgroup_std %in% c("Students with Disabilities") ~ "Special Education",
-      subgroup_std %in% c("Socioeconomically Disadvantaged") ~ "Socioeconomic",
-      subgroup_std %in% c("English Learner","English Only") ~ "English Learner",
-      subgroup_std %in% c("Foster Youth") ~ "Foster",
-      subgroup_std %in% c("Homeless") ~ "Homeless",
-      TRUE ~ category_type
-    )
-  )
-
-# Filter for consistency (sex subgroups only in Sex category, etc.)
-demo_data <- demo_data %>%
-  mutate(
-    keep_row = dplyr::case_when(
-      category_type_enforced == "Sex" ~ category_type == "Sex",
-      category_type_enforced == "Special Education" ~ category_type == "Special Education",
-      category_type_enforced == "Socioeconomic" ~ category_type == "Socioeconomic",
-      category_type_enforced == "English Learner" ~ category_type == "English Learner",
-      category_type_enforced == "Foster" ~ category_type == "Foster",
-      category_type_enforced == "Homeless" ~ category_type == "Homeless",
-      TRUE ~ TRUE
-    )
   ) %>%
-  filter(keep_row) %>%
-  select(-keep_row)
-
-# Replace original fields with standardized ones
-demo_data <- demo_data %>%
-  mutate(
-    subgroup = subgroup_std,
-    category_type = category_type_enforced
-  ) %>%
-  select(-subgroup_std, -category_type_enforced)
+  canonicalize_demo(desc_col = "subgroup", code_col = "subgroup_code")
 
 # -------- Data quality validation -------------------------------------------
 # Check for duplicates
