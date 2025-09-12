@@ -115,17 +115,28 @@ plot_by_locale_set <- function(locales, title_suffix) {
 # --- 5) Render & save ---------------------------------------------------------
 outdir <- here::here("outputs"); dir.create(outdir, showWarnings = FALSE)
 
-p_city_suburb <- plot_by_locale_set(LOCALES_A, "City + Suburban")
-p_rural_town  <- plot_by_locale_set(LOCALES_B, paste(LOCALES_B, collapse=" + "))
+# Plot and save for each locale set using dynamic labels and filenames
+p_loc_set_a <- plot_by_locale_set(LOCALES_A, paste(LOCALES_A, collapse = " + "))
+p_loc_set_b <- plot_by_locale_set(LOCALES_B, paste(LOCALES_B, collapse = " + "))
 
-if (!is.null(p_city_suburb)) {
-  print(p_city_suburb)
-  ggsave(file.path(outdir, "A_rates_by_race_city_suburban.png"),
-         p_city_suburb, width=IMG_WIDTH, height=IMG_HEIGHT, dpi=IMG_DPI, bg="white")
+if (!is.null(p_loc_set_a)) {
+  print(p_loc_set_a)
+  fname_a <- paste0(
+    "A_rates_by_race_",
+    stringr::str_replace_all(tolower(paste(LOCALES_A, collapse = "_")), " ", "_"),
+    ".png"
+  )
+  ggsave(file.path(outdir, fname_a), p_loc_set_a,
+         width = IMG_WIDTH, height = IMG_HEIGHT, dpi = IMG_DPI, bg = "white")
 }
-if (!is.null(p_rural_town)) {
-  print(p_rural_town)
-  ggsave(file.path(outdir, "A_rates_by_race_rural_town.png"),
-         p_rural_town, width=IMG_WIDTH, height=IMG_HEIGHT, dpi=IMG_DPI, bg="white")
+if (!is.null(p_loc_set_b)) {
+  print(p_loc_set_b)
+  fname_b <- paste0(
+    "A_rates_by_race_",
+    stringr::str_replace_all(tolower(paste(LOCALES_B, collapse = "_")), " ", "_"),
+    ".png"
+  )
+  ggsave(file.path(outdir, fname_b), p_loc_set_b,
+         width = IMG_WIDTH, height = IMG_HEIGHT, dpi = IMG_DPI, bg = "white")
 }
 message("✓ Saved images to: ", outdir)

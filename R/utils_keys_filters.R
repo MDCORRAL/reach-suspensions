@@ -5,10 +5,14 @@ suppressPackageStartupMessages({
 
 SPECIAL_SCHOOL_CODES <- c("0000000", "0000001")
 
-# Canonical set of locale levels used across the project. To add or modify
-# locales, update this vector here rather than creating ad-hoc strings in
-# individual scripts.  The order of `locale_levels` drives plotting and factor
-# levels elsewhere, and `pal_locale` provides a consistent color mapping.
+# ---- Locale reference ---------------------------------------------------------
+#' Canonical locale levels and color palette.
+#'
+#' `locale_levels` enumerates the only accepted locale strings, in plotting
+#' order. `pal_locale` maps those levels to a consistent color palette.
+#' To add or modify locales, edit these objects here rather than creating
+#' ad-hoc strings or palettes elsewhere. All scripts should source this file
+#' to access `locale_levels` and `pal_locale`.
 locale_levels <- c("City", "Suburban", "Town", "Rural", "Unknown")
 pal_locale <- c(
   City     = "#0072B2",
