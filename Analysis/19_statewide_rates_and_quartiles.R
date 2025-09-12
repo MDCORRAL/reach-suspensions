@@ -22,24 +22,29 @@ v6 <- read_parquet(here("data-stage", "susp_v6_long.parquet")) %>%
 ##odex/create-statewide-data-frame-analysis-ke1b6u
   filter_campus_only() %>%
   mutate(
-    school_group = if_else(
-      school_level %in% c("Elementary", "Middle", "High"),
-      "Traditional",
-      "Non-traditional"
+    school_group = school_level,
+    school_type = case_when(
+      school_level %in% c("Adult", "Alternative", "Community Day", "Juvenile Court", "Other") ~ "Non-traditional",
+      TRUE ~ "Traditional"
     )
   )
 
 need_cols <- c(
   "category_type", "subgroup", "academic_year", "school_group",
-  "school_level", "total_suspensions", "cumulative_enrollment"
+  "school_level", "school_type", "total_suspensions", "cumulative_enrollment"
 )
 stopifnot(all(need_cols %in% names(v6)))
 
-#codex/delete-or-modify-v6_all-creation
+v6_all <- bind_rows(
+  v6,
+  v6 %>% mutate(school_group = "All"),
+  v6 %>% mutate(school_type = "All"),
+  v6 %>% mutate(school_group = "All", school_type = "All")
+)
 
 # ---- Statewide totals --------------------------------------------------------
 statewide_all <- v6_all %>%
-  group_by(academic_year, subgroup, school_group, school_level) %>%
+  group_by(academic_year, subgroup, school_group, school_type) %>%
   summarise(
     total_suspensions = sum(total_suspensions, na.rm = TRUE),
     total_enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
@@ -47,15 +52,15 @@ statewide_all <- v6_all %>%
     .groups = "drop"
   )
 
-# overall statewide totals only (both group and level = "All")
+# overall statewide totals only (both group and type = "All")
 statewide <- statewide_all %>%
-  filter(school_group == "All", school_level == "All")
+  filter(school_group == "All", school_type == "All")
 
 write_parquet(statewide, here("data-stage", "statewide_totals.parquet"))
 
-# breakdowns by school_group and school_level
+# breakdowns by school_group and school_type
 statewide_breakdowns <- statewide_all %>%
-  filter(!(school_group == "All" & school_level == "All"))
+  filter(!(school_group == "All" & school_type == "All"))
 
 write_parquet(
   statewide_breakdowns,
@@ -76,11 +81,16 @@ v6_enroll_q <- v6 %>%
   left_join(school_enroll %>% select(cds_school, academic_year, enrollment_q),
     by = c("cds_school", "academic_year"))
 
-v6_enroll_q_all <- bind_rows(v6_enroll_q, v6_enroll_q %>% mutate(school_group = "All"))
+v6_enroll_q_all <- bind_rows(
+  v6_enroll_q,
+  v6_enroll_q %>% mutate(school_group = "All"),
+  v6_enroll_q %>% mutate(school_type = "All"),
+  v6_enroll_q %>% mutate(school_group = "All", school_type = "All")
+)
 
 by_enrollment <- v6_enroll_q_all %>%
   filter(!is.na(enrollment_q)) %>%
-  group_by(category_type, subgroup, academic_year, enrollment_q, school_group) %>%
+  group_by(category_type, subgroup, academic_year, enrollment_q, school_group, school_type) %>%
 
   summarise(
     suspensions = sum(total_suspensions, na.rm = TRUE),
