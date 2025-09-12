@@ -12,11 +12,12 @@ suppressPackageStartupMessages({
 })
 
 # -------- Config -------------------------------------------------------------
-# Option A: absolute path (works today)
-DEMO_DATA_PATH <- "/Users/michaelcorral/Library/CloudStorage/GoogleDrive-mdcorral@g.ucla.edu/.shortcut-targets-by-id/1qNAOKIg0UjuT3XWFlk4dkDLN6UPWJVGx/Center for the Transformation of Schools/Research/CA Race Education And Community Healing (REACH)/2. REACH Network (INTERNAL)/15. REACH Baseline Report_Summer 2025/6. R Data Analysis Project Folders/reach-suspensions/data-raw/copy_CDE_suspensions_1718-2324_sc_oth.xlsx"
-
-# Option B: if you ever move the XLSX into your repo:
-# DEMO_DATA_PATH <- here("data-raw", "copy_CDE_suspensions_1718-2324_sc_oth.xlsx")
+# Path to the raw demographics XLSX. Use an environment variable override
+# if available, otherwise fall back to the copy stored under data-raw/.
+DEMO_DATA_PATH <- Sys.getenv("OTH_RAW_PATH")
+if (DEMO_DATA_PATH == "") {
+  DEMO_DATA_PATH <- here("data-raw", "copy_CDE_suspensions_1718-2324_sc_oth.xlsx")
+}
 
 OUT_PARQUET <- here("data-stage", "oth_long.parquet")
 MIN_ENROLLMENT_THRESHOLD <- 10
