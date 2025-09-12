@@ -123,6 +123,7 @@ canon_race_label <- function(x) {
       "multiple"
     ) ~ "Two or More Races",
     x_clean %in% c("rw", "white") ~ "White",
+    stringr::str_detect(x_clean, "gender|male|female") ~ "Sex",
     TRUE ~ NA_character_
   )
 }
