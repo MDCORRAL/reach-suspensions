@@ -35,7 +35,7 @@ stopifnot(file.exists(V6F_PARQ), file.exists(V6L_PARQ))
 v6_features <- read_parquet(V6F_PARQ) %>% clean_names() %>%
   transmute(
     school_code   = as.character(school_code),
-    year          = as.character(year),
+    academic_year = as.character(academic_year),
     is_traditional = !is.na(is_traditional) & is_traditional,
     black_prop_q  = as.integer(black_prop_q)
   )
@@ -44,7 +44,7 @@ v6_features <- read_parquet(V6F_PARQ) %>% clean_names() %>%
 v6_long <- read_parquet(V6L_PARQ) %>% clean_names() %>%
   transmute(
     school_code     = as.character(school_code),
-    year            = as.character(year),
+    academic_year   = as.character(academic_year),
     subgroup        = str_to_lower(subgroup),
     den             = as.numeric(den),
     black_prop_q_v5 = as.integer(black_prop_q)
@@ -52,25 +52,25 @@ v6_long <- read_parquet(V6L_PARQ) %>% clean_names() %>%
 
 total_enr <- v6_long %>%
   filter(subgroup %in% c("total","all students","ta")) %>%
-  select(school_code, year, total_den = den)
+  select(school_code, academic_year, total_den = den)
 
 white_enr <- v6_long %>%
   filter(str_detect(subgroup, "white")) %>%
-  select(school_code, year, white_den = den)
+  select(school_code, academic_year, white_den = den)
 #### main
 
 white_q <- total_enr %>%
-  inner_join(white_enr, by = c("school_code","year")) %>%
+  inner_join(white_enr, by = c("school_code","academic_year")) %>%
   mutate(share = safe_div(white_den, total_den)) %>%
   filter(!is.na(share)) %>%
-  group_by(year) %>%
+  group_by(academic_year) %>%
   mutate(white_prop_q = ntile(share, 4L)) %>%
   ungroup() %>%
-  select(school_code, year, white_prop_q)
+  select(school_code, academic_year, white_prop_q)
 
 # Merge quartiles onto v6_features
 keys <- v6_features %>%
-  left_join(white_q, by = c("school_code","year")) %>%
+  left_join(white_q, by = c("school_code","academic_year")) %>%
   mutate(
     black_prop_q = ifelse(!is.na(black_prop_q), black_prop_q, black_prop_q_v5),
     black_prop_q_label = factor(paste0("Q", black_prop_q),
@@ -78,7 +78,7 @@ keys <- v6_features %>%
     white_prop_q_label = factor(paste0("Q", white_prop_q),
                                 levels = paste0("Q",1:4))
   ) %>%
-  select(school_code, year, is_traditional,
+  select(school_code, academic_year, is_traditional,
          black_prop_q, black_prop_q_label,
          white_prop_q, white_prop_q_label)
 
@@ -90,19 +90,19 @@ keys <- keys %>% mutate(school_code = stringr::str_pad(school_code, padw, "left"
 stopifnot(file.exists(V6L_PARQ))
 long_counts_all <- read_parquet(V6L_PARQ) %>% clean_names() %>%
   transmute(
-    school_code = str_pad(as.character(school_code), padw, "left", "0"),
-    year        = as.character(year),
-    subgroup    = dplyr::coalesce(canon_demo_label(subgroup),
-                                  canon_race_label(subgroup)),
-    num         = as.numeric(num),
-    den         = as.numeric(den)
+    school_code   = str_pad(as.character(school_code), padw, "left", "0"),
+    academic_year = as.character(academic_year),
+    subgroup      = dplyr::coalesce(canon_demo_label(subgroup),
+                                    canon_race_label(subgroup)),
+    num           = as.numeric(num),
+    den           = as.numeric(den)
   ) %>% filter(!is.na(subgroup))
 
 # Keep only Total & Students with Disabilities (SWD); join keys; filter Traditional
 
 analytic <- long_counts_all %>%
   filter(subgroup %in% c("Total","Students with Disabilities")) %>%
-  inner_join(keys, by = c("school_code","year")) %>%
+  inner_join(keys, by = c("school_code","academic_year")) %>%
   filter(is_traditional, !is.na(white_prop_q), !is.na(black_prop_q),
          !is.na(num), !is.na(den))
 
@@ -110,7 +110,7 @@ stopifnot(nrow(analytic) > 0)
 
 # ───────────── Summaries (POOLED) by year × quartile × series ─────────────
 sum_white <- analytic %>%
-  group_by(year, white_prop_q_label, subgroup) %>%
+  group_by(academic_year, white_prop_q_label, subgroup) %>%
   summarise(
     n_schools    = n(),
     total_susp   = sum(num, na.rm = TRUE),
@@ -119,13 +119,13 @@ sum_white <- analytic %>%
     .groups = "drop"
   ) %>%
   mutate(
-    year = fct_inorder(year),
+    academic_year      = fct_inorder(academic_year),
     white_prop_q_label = fct_relevel(white_prop_q_label,
                                      "Q1","Q2","Q3","Q4")
   )
 
 sum_black <- analytic %>%
-  group_by(year, black_prop_q_label, subgroup) %>%
+  group_by(academic_year, black_prop_q_label, subgroup) %>%
   summarise(
     n_schools    = n(),
     total_susp   = sum(num, na.rm = TRUE),
@@ -134,7 +134,7 @@ sum_black <- analytic %>%
     .groups = "drop"
   ) %>%
   mutate(
-    year = fct_inorder(year),
+    academic_year      = fct_inorder(academic_year),
     black_prop_q_label = fct_relevel(black_prop_q_label,
                                      "Q1","Q2","Q3","Q4")
   )
@@ -149,10 +149,10 @@ sum_q4_black <- sum_black %>%
 
 ### main
 sum_q4_compare <- bind_rows(
-  sum_q4_white %>% select(year, subgroup, pooled_rate, group),
-  sum_q4_black %>% select(year, subgroup, pooled_rate, group)
+  sum_q4_white %>% select(academic_year, subgroup, pooled_rate, group),
+  sum_q4_black %>% select(academic_year, subgroup, pooled_rate, group)
 ) %>%
-  arrange(group, year, subgroup)
+  arrange(group, academic_year, subgroup)
 
 # Find the maximum pooled rate across both sets
 y_max <- max(c(sum_white$pooled_rate, sum_black$pooled_rate), na.rm = TRUE)
@@ -181,8 +181,8 @@ plot_white <- ggplot(
   sum_white %>% mutate(series = recode(subgroup,
                                        "Total"="Total (All Students)",
                                        "Students with Disabilities"="Students with Disabilities"),
-                       label_txt = percent(pooled_rate, 0.1)),
-  aes(x = year, y = pooled_rate,
+                      label_txt = percent(pooled_rate, 0.1)),
+  aes(x = academic_year, y = pooled_rate,
       color = white_prop_q_label, linetype = series,
       group = interaction(white_prop_q_label, series))) +
   geom_line(linewidth = 1.0) +
@@ -207,8 +207,8 @@ plot_black <- ggplot(
   sum_black %>% mutate(series = recode(subgroup,
                                        "Total"="Total (All Students)",
                                        "Students with Disabilities"="Students with Disabilities"),
-                       label_txt = percent(pooled_rate, 0.1)),
-  aes(x = year, y = pooled_rate,
+                      label_txt = percent(pooled_rate, 0.1)),
+  aes(x = academic_year, y = pooled_rate,
       color = black_prop_q_label, linetype = series,
       group = interaction(black_prop_q_label, series))) +
   geom_line(linewidth = 1.0) +
@@ -234,7 +234,7 @@ plot_q4 <- ggplot(
                                             "Total"="Total (All Students)",
                                             "Students with Disabilities"="Students with Disabilities"),
                             label_txt = percent(pooled_rate, 0.1)),
-  aes(x = year, y = pooled_rate,
+  aes(x = academic_year, y = pooled_rate,
       color = group, linetype = series,
       group = interaction(group, series))) +
   geom_line(linewidth = 1.0) +
@@ -270,7 +270,7 @@ addWorksheet(wb, "white_quartiles_tidy")
 writeData(
   wb, "white_quartiles_tidy",
   sum_white %>% mutate(pooled_rate = percent(pooled_rate, 0.1)) %>%
-    arrange(white_prop_q_label, year, subgroup)
+    arrange(white_prop_q_label, academic_year, subgroup)
 )
 
 # White quartiles — wide (rows = year × quartile; cols = Total, Students with Disabilities)
@@ -279,9 +279,9 @@ writeData(
   wb, "white_quartiles_wide",
   sum_white %>%
     mutate(pooled_rate = percent(pooled_rate, 0.1)) %>%
-    select(year, white_prop_q_label, subgroup, pooled_rate) %>%
+    select(academic_year, white_prop_q_label, subgroup, pooled_rate) %>%
     pivot_wider(names_from = subgroup, values_from = pooled_rate) %>%
-    arrange(year, white_prop_q_label)
+    arrange(academic_year, white_prop_q_label)
 )
 
 # Black quartiles — tidy
@@ -289,7 +289,7 @@ addWorksheet(wb, "black_quartiles_tidy")
 writeData(
   wb, "black_quartiles_tidy",
   sum_black %>% mutate(pooled_rate = percent(pooled_rate, 0.1)) %>%
-  arrange(black_prop_q_label, year, subgroup)
+  arrange(black_prop_q_label, academic_year, subgroup)
 )
 
 # Black quartiles — wide
@@ -298,9 +298,9 @@ writeData(
   wb, "black_quartiles_wide",
   sum_black %>%
     mutate(pooled_rate = percent(pooled_rate, 0.1)) %>%
-    select(year, black_prop_q_label, subgroup, pooled_rate) %>%
+    select(academic_year, black_prop_q_label, subgroup, pooled_rate) %>%
     pivot_wider(names_from = subgroup, values_from = pooled_rate) %>%
-    arrange(year, black_prop_q_label)
+    arrange(academic_year, black_prop_q_label)
 )
 
 # Q4 vs Q4 comparison
@@ -309,7 +309,7 @@ writeData(
   wb, "Q4_white_vs_black",
   sum_q4_compare %>%
     mutate(pooled_rate = percent(pooled_rate, 0.1)) %>%
-    arrange(group, year, subgroup)
+    arrange(group, academic_year, subgroup)
 )
 
 saveWorkbook(wb, OUT_XLSX, overwrite = TRUE)

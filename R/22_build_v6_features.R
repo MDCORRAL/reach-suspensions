@@ -24,15 +24,6 @@ if (file.exists(here("R","00_paths.R")))           source(here("R","00_paths.R")
 safe_div <- function(n, d) ifelse(is.na(d) | d <= 0, NA_real_, n / d)
 safe_max <- function(x) if (length(x) == 0 || all(is.na(x))) NA_real_ else max(x, na.rm = TRUE)
 
-find_col <- function(df, patterns) {
-  nm <- names(df)
-  for (rx in patterns) {
-    hit <- grep(rx, nm, ignore.case = TRUE, value = TRUE)
-    if (length(hit)) return(hit[1])
-  }
-  NA_character_
-}
-
 rng_ok <- function(x) all(is.na(x) | (x >= 0 & x <= 1))
 
 keep_topline <- function(df, cat_pat, code_pat = NULL, subgroup_pat = NULL) {
@@ -44,7 +35,7 @@ keep_topline <- function(df, cat_pat, code_pat = NULL, subgroup_pat = NULL) {
   }
   # pick a single record per school-year (prefer the largest denominator)
   out %>%
-    group_by(school_code, year) %>%
+    group_by(school_code, academic_year) %>%
     slice_max(order_by = den, n = 1, with_ties = FALSE) %>%
     ungroup()
 }
@@ -59,21 +50,15 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   message(">>> Rebuilding v6_features from v5 + oth ...")
   stopifnot(file.exists(V5_PARQ), file.exists(OTH_PARQ))
   
-  v5  <- read_parquet(V5_PARQ)  |> clean_names()
-  oth <- read_parquet(OTH_PARQ) |> clean_names()
-  
-  # Standardize keys
-  v5_school  <- find_col(v5,  c("^school_code$", "^cds_code$", "^school_id$"))
-  v5_year    <- find_col(v5,  c("^academic_year$", "^year$", "school_?year$", "^ay$"))
-  oth_school <- find_col(oth, c("^school_code$", "^cds_code$", "^school_id$"))
-  oth_year   <- find_col(oth, c("^academic_year$", "^year$", "school_?year$", "^ay$"))
-  stopifnot(!is.na(v5_school), !is.na(v5_year), !is.na(oth_school), !is.na(oth_year))
-  
-  v5  <- v5  |> mutate(school_code = as.character(.data[[v5_school]]),
-                       year        = as.character(.data[[v5_year]]))
-  oth <- oth |> mutate(school_code = as.character(.data[[oth_school]]),
-                       year        = as.character(.data[[oth_year]]))
-  
+  v5  <- read_parquet(V5_PARQ)  |> clean_names() |> mutate(
+    school_code   = as.character(school_code),
+    academic_year = as.character(academic_year)
+  )
+  oth <- read_parquet(OTH_PARQ) |> clean_names() |> mutate(
+    school_code   = as.character(school_code),
+    academic_year = as.character(academic_year)
+  )
+
   # Keep leading zeros
   target_w <- suppressWarnings(max(nchar(c(v5$school_code, oth$school_code)), na.rm = TRUE))
   v5  <- v5  |> mutate(school_code = str_pad(school_code, target_w, pad = "0"))
@@ -88,17 +73,17 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   if (exists("filter_campus_only") && "aggregate_level" %in% names(oth)) oth <- oth |> filter_campus_only()
   
   # Roster
-  roster <- v5 |> distinct(school_code, year)
+  roster <- v5 |> distinct(school_code, academic_year)
   
   # v5: one row per school-year (All Students)
   v5_core <- if ("reporting_category" %in% names(v5)) {
     v5 %>%
       mutate(subgroup = dplyr::coalesce(subgroup, canon_race_label(reporting_category))) %>%
       filter(subgroup == "All Students") %>%
-      distinct(school_code, year, .keep_all = TRUE)
+      distinct(school_code, academic_year, .keep_all = TRUE)
   } else {
     v5 %>%
-      group_by(school_code, year) %>%
+      group_by(school_code, academic_year) %>%
       summarise(across(everything(), ~dplyr::first(na.omit(.))), .groups = "drop")
   }
   # Quartile label cleanup
@@ -115,7 +100,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
                                   ordered = TRUE)
     ) %>%
     transmute(
-      school_code, year,
+      school_code, academic_year,
       black_share = prop_black,
       black_prop_q,
       black_prop_q_label,
@@ -123,27 +108,17 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
     )
   
   # OTH → long metrics (category, subgroup)
-  cat_col   <- find_col(oth, c("^category_type$", "reporting_category_description", "^reporting_category$"))
-  subg_col  <- find_col(oth, c("^subgroup$","subgroup_name","reporting_subgroup"))
-  code_col  <- find_col(oth, c("^subgroup_code$","subgroupid","subgroup_code_id"))
-  num_undup <- find_col(oth, c("unduplicated.*suspend", "suspend.*unduplicated"))
-  num_total <- find_col(oth, c("^total.*susp", "susp.*total", "suspensions_total$"))
-  den_enr   <- find_col(oth, c("special.*education.*enroll", "^sped_?enr$",
-                               "^subgroup_?enrollment$", "cumulative_?enroll", "^enrollment$"))
-  
-  use_num <- if (!is.na(num_undup)) num_undup else num_total
-  has_num <- !is.na(use_num); has_den <- !is.na(den_enr)
-  
   oth_long <- oth %>%
-    mutate(
-      category = if (!is.na(cat_col)) .data[[cat_col]] else NA_character_,
-      subgroup = if (!is.na(subg_col)) .data[[subg_col]] else NA_character_,
-      s_code   = if (!is.na(code_col)) .data[[code_col]] else NA_character_,
-      num      = if (has_num) .data[[use_num]] else NA_real_,
-      den      = if (has_den) .data[[den_enr]] else NA_real_,
-      rate     = if (has_num && has_den) safe_div(num, den) else NA_real_
-    ) %>%
-    select(school_code, year, category, subgroup, s_code, num, den, rate)
+    transmute(
+      school_code,
+      academic_year,
+      category = category_type,
+      subgroup,
+      s_code = subgroup_code,
+      num = unduplicated_suspensions,
+      den = cumulative_enrollment,
+      rate
+    )
   
   # SPED: Students with Disabilities (current)
   sped_top  <- keep_topline(
@@ -154,7 +129,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   ) %>% drop_impossible()
   
   sped_wide <- sped_top %>%
-    group_by(school_code, year) %>%
+    group_by(school_code, academic_year) %>%
     summarise(
       sped_num  = sum(num, na.rm = TRUE),
       sped_den  = safe_max(den),
@@ -171,7 +146,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   ) %>% drop_impossible()
   
   ell_wide <- ell_top %>%
-    group_by(school_code, year) %>%
+    group_by(school_code, academic_year) %>%
     summarise(
       ell_num  = sum(num, na.rm = TRUE),
       ell_den  = safe_max(den),
@@ -188,7 +163,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   ) %>% drop_impossible()
 
   migrant_wide <- migrant_top %>%
-    group_by(school_code, year) %>%
+    group_by(school_code, academic_year) %>%
     summarise(
       migrant_num  = sum(num, na.rm = TRUE),
       migrant_den  = safe_max(den),
@@ -205,7 +180,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   ) %>% drop_impossible()
 
   foster_wide <- foster_top %>%
-    group_by(school_code, year) %>%
+    group_by(school_code, academic_year) %>%
     summarise(
       foster_num  = sum(num, na.rm = TRUE),
       foster_den  = safe_max(den),
@@ -222,7 +197,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   ) %>% drop_impossible()
 
   homeless_wide <- homeless_top %>%
-    group_by(school_code, year) %>%
+    group_by(school_code, academic_year) %>%
     summarise(
       homeless_num  = sum(num, na.rm = TRUE),
       homeless_den  = safe_max(den),
@@ -239,7 +214,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   ) %>% drop_impossible()
 
   sed_wide <- sed_top %>%
-    group_by(school_code, year) %>%
+    group_by(school_code, academic_year) %>%
     summarise(
       sed_num  = sum(num, na.rm = TRUE),
       sed_den  = safe_max(den),
@@ -264,25 +239,25 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
       )
     ) %>%
     filter(!is.na(sg)) %>%
-    group_by(school_code, year, sg) %>%
+    group_by(school_code, academic_year, sg) %>%
     summarise(num = sum(num, na.rm = TRUE),
               den = safe_max(den), .groups = "drop") %>%
     mutate(rate = safe_div(num, den)) %>%
-    select(school_code, year, sg, rate) %>%
+    select(school_code, academic_year, sg, rate) %>%
     pivot_wider(names_from = sg, values_from = rate, names_glue = "sex_{sg}_rate")
   
   # --- End of Corrected Block 2 ---
   
   # Assemble (one row per school-year)
   v6_features <- roster %>%
-    left_join(v5_feats,   by = c("school_code","year")) %>%
-    left_join(sped_wide,  by = c("school_code","year")) %>%
-    left_join(ell_wide,   by = c("school_code","year")) %>%
-    left_join(migrant_wide,  by = c("school_code","year")) %>%
-    left_join(foster_wide,   by = c("school_code","year")) %>%
-    left_join(homeless_wide, by = c("school_code","year")) %>%
-    left_join(sed_wide,      by = c("school_code","year")) %>%
-    left_join(sex_rates,     by = c("school_code","year"))
+    left_join(v5_feats,   by = c("school_code","academic_year")) %>%
+    left_join(sped_wide,  by = c("school_code","academic_year")) %>%
+    left_join(ell_wide,   by = c("school_code","academic_year")) %>%
+    left_join(migrant_wide,  by = c("school_code","academic_year")) %>%
+    left_join(foster_wide,   by = c("school_code","academic_year")) %>%
+    left_join(homeless_wide, by = c("school_code","academic_year")) %>%
+    left_join(sed_wide,      by = c("school_code","academic_year")) %>%
+    left_join(sex_rates,     by = c("school_code","academic_year"))
   
   # Traditional flag (robust: no NAs)
   # --- Start of Corrected Block 1 ---
@@ -306,12 +281,12 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   # --- End of Corrected Block 1 ---
   
   # Dedup guard
-  dup_check <- v6_features %>% count(school_code, year) %>% filter(n > 1)
+  dup_check <- v6_features %>% count(school_code, academic_year) %>% filter(n > 1)
   if (nrow(dup_check) > 0) {
     message("Deduplicating duplicate school-year rows...")
-    v6_features <- v6_features %>% group_by(school_code, year) %>% slice_head(n = 1) %>% ungroup()
+    v6_features <- v6_features %>% group_by(school_code, academic_year) %>% slice_head(n = 1) %>% ungroup()
   }
-  stopifnot(dplyr::n_distinct(v6_features[c("school_code","year")]) == nrow(v6_features))
+  stopifnot(dplyr::n_distinct(v6_features[c("school_code","academic_year")]) == nrow(v6_features))
   
   # Range checks
   for (cc in c("sped_rate","ell_rate","migrant_rate","foster_rate","homeless_rate","sed_rate","sex_male_rate","sex_female_rate","sex_non_binary_rate")) {
@@ -331,7 +306,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
 }
 
 # -------------------- (B) ANALYZE: SPED rate by Black quartile ----------------
-  need <- c("black_prop_q_label","black_prop_q","black_share","is_traditional","sped_num","sped_den","sped_rate","school_code","year","school_type")
+  need <- c("black_prop_q_label","black_prop_q","black_share","is_traditional","sped_num","sped_den","sped_rate","school_code","academic_year","school_type")
 miss <- setdiff(need, names(v6_features))
 if (length(miss)) stop("Missing required columns in v6_features: ", paste(miss, collapse = ", "))
 
@@ -459,7 +434,7 @@ ggsave(here("outputs","21_swd_rate_by_black_quartile_weighted.png"),
 excluded_schools <- v6_features %>%
   filter(is_traditional %in% TRUE) %>%
   mutate(
-    included = school_code %in% v6_clean$school_code & year %in% v6_clean$year,
+    included = school_code %in% v6_clean$school_code & academic_year %in% v6_clean$academic_year,
     quartile_status = case_when(
       is.na(black_prop_q_label) ~ "Unknown quartile",
       is.na(sped_rate) ~ "Missing SPED rate",
@@ -490,7 +465,7 @@ addWorksheet(wb, "school_level")
 writeData(wb, "school_level",
           v6_clean %>%
             transmute(
-              school_code, year,
+              school_code, academic_year,
               black_share        = percent(black_share, accuracy = 0.1),
               black_prop_q_label = as.character(black_prop_q_label),
               sped_rate          = percent(sped_rate, accuracy = 0.1),
