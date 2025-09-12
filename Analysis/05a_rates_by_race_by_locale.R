@@ -1,4 +1,4 @@
-# analysis/05a_rates_by_race_by_locale.R
+# Analysis/05a_rates_by_race_by_locale.R
 # Suspension rates by race, faceted by locale (two images max).
 
 # --- 1) Setup -----------------------------------------------------------------
