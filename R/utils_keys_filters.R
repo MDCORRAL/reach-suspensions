@@ -171,8 +171,7 @@ ALLOWED_RACES <- c(
   "Asian",
   "Filipino",
   "Native Hawaiian/Pacific Islander",
-  "Two or More Races",
-  # "Not Reported" intentionally excluded; treat missing race separately
+  "Two or More Races" # "Not Reported" intentionally excluded; treat missing race separately
 )
 
 # Backward-compatible alias used by legacy scripts
