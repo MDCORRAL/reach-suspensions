@@ -37,7 +37,7 @@ canon_label <- function(x) {
     stringr::str_detect(xl, "foster|\\bfy\\b")                           ~ "Foster Youth",
     stringr::str_detect(xl, "migrant|\\bmg\\b")                          ~ "Migrant",
     stringr::str_detect(xl, "homeless|\\bhl\\b")                         ~ "Homeless",
-    stringr::str_detect(xl, "students? with disabilities|special\\s*education|\\bswd\\b|\\bsped\\b")
+    stringr::str_detect(xl, "students? with disabilities|special\\s*education|\\bswd\\b")
     ~ "Students with Disabilities",
     stringr::str_detect(xl, "all students|\\b(total|all)\\b")              ~ "Total",
     TRUE ~ NA_character_

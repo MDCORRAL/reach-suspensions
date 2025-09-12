@@ -116,7 +116,9 @@ long_counts_all <- read_parquet(V6L_PARQ) %>% clean_names() %>%
     den         = as.numeric(den)
   ) %>% filter(!is.na(subgroup))
 
+##codex/rename-variables-for-canonical-term
 # Keep only Total & Students with Disabilities (SWD); join keys; filter Traditional
+
 analytic <- long_counts_all %>%
   filter(subgroup %in% c("Total","Students with Disabilities")) %>%
   inner_join(keys, by = c("school_code","year")) %>%
@@ -159,8 +161,6 @@ sum_q4_white <- sum_white %>% filter(white_q == "Q4") %>% mutate(group = "White 
 sum_q4_black <- sum_black %>% filter(black_q == "Q4") %>% mutate(group = "Black Q4")
 ###
 # Focused Q4 vs Q4 (highest quartile) comparison by year (Total vs SWD)
-sum_q4_white <- sum_white %>% filter(white_prop_q == "Q4") %>% mutate(group = "White Q4")
-sum_q4_black <- sum_black %>% filter(black_prop_q == "Q4") %>% mutate(group = "Black Q4")
 ### main
 sum_q4_compare <- bind_rows(
   sum_q4_white %>% select(year, subgroup, pooled_rate, group),

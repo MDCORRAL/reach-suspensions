@@ -1,5 +1,6 @@
 # 21_black_quartiles_swd_from_v5.R
 # Canonical subgroup term: Students with Disabilities (SWD)
+###main
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -34,6 +35,8 @@ stopifnot("sped_den" %in% names(v6_features))
 stopifnot(all(c("is_traditional","black_prop_q") %in% names(v6_features)))
 ####main
 
+###codex/rename-variables-for-canonical-term
+#
 # Rename to canonical SWD terminology
 v6_features <- v6_features %>%
   rename(
@@ -42,6 +45,7 @@ v6_features <- v6_features %>%
   )
 
 stopifnot(all(c("is_traditional","black_q","swd_rate","swd_den") %in% names(v6_features)))
+###main
 
 # Check for data completeness
 message("SWD rate coverage: ",
@@ -70,9 +74,9 @@ v6_clean <- v6_features %>%
 ###
   filter(is_traditional,
          !is.na(black_prop_q),
-         !is.na(sped_rate),
-         !is.na(sped_den),
-         sped_den > 0) %>%
+         !is.na(swd_rate),
+         !is.na(swd_den),
+         swd_den > 0) %>%
   mutate(black_prop_q_label = fct_relevel(factor(paste0("Q", black_prop_q)), "Q1","Q2","Q3","Q4"))
 ####main
 
@@ -195,10 +199,13 @@ print(yearly_check)
 # Save outputs
 dir.create(here("outputs"), showWarnings = FALSE)
 
-ggsave(here("outputs","21_swd_rate_by_black_quartile_unweighted.png"),
+##codex/rename-variables-for-canonical-term
+ggsave(here("outputs","21_swd_rate_by_black_quartile_unweighted.png"), 
        p_unweighted, width = 8, height = 5.2, dpi = 300)
 
-ggsave(here("outputs","21_swd_rate_by_black_quartile_weighted.png"),
+ggsave(here("outputs","21_swd_rate_by_black_quartile_weighted.png"), 
+       
+###main
        p_weighted, width = 8, height = 5.2, dpi = 300)
 
 # Excel output with both analyses
@@ -235,11 +242,8 @@ writeData(
       black_quartile = as.character(black_q),
       swd_rate     = percent(swd_rate, accuracy = 0.1),
       swd_enrollment = swd_den,
-###
-      black_quartile = as.character(black_prop_q_label),
-      sped_rate     = percent(sped_rate, accuracy = 0.1),
-      sped_enrollment = sped_den,
 ####main
+
       school_type
     )
 )
@@ -258,11 +262,11 @@ excluded_schools <- v6_features %>%
       str_detect(black_q, "Unknown") ~ "Unknown quartile",
       is.na(swd_rate) ~ "Missing SWD rate",
       is.na(swd_den) | swd_den == 0 ~ "No SWD enrollment",
-###
-      is.na(black_prop_q) ~ "Unknown quartile",
-      is.na(sped_rate) ~ "Missing SPED rate",
-      is.na(sped_den) | sped_den == 0 ~ "No SPED enrollment",
-###main
+
+##codex/rename-variables-for-canonical-term
+      is.na(swd_rate) ~ "Missing SWD rate",
+      is.na(swd_den) | swd_den == 0 ~ "No SWD enrollment",
+
       TRUE ~ "Included"
     )
   )
