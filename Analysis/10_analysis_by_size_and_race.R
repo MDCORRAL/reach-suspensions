@@ -25,7 +25,9 @@ message("Preparing data for analysis...")
 rates_by_size_race <- v5 %>%
   filter(enroll_q_label != "Unknown", !is.na(enroll_q_label)) %>%
   mutate(student_group = canon_race_label(coalesce(subgroup, reporting_category))) %>%
+##codex/add-canonical-label-for-rd-in-filters
   filter(student_group %in% setdiff(ALLOWED_RACES, "All Students")) %>%
+
   group_by(academic_year, enroll_q_label, student_group) %>%
   summarise(
     total_suspensions = sum(total_suspensions, na.rm = TRUE),
@@ -35,6 +37,10 @@ rates_by_size_race <- v5 %>%
   mutate(
     suspension_rate = if_else(cumulative_enrollment > 0, (total_suspensions / cumulative_enrollment) * 100, 0)
   )
+
+##codex/add-canonical-label-for-rd-in-filters
+
+## main
 
 # --- 4) Create and Save Individual Plots --------------------------------------
 
