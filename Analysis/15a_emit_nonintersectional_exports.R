@@ -9,6 +9,8 @@ suppressPackageStartupMessages({
   library(here)
 })
 
+try(here::i_am("Analysis/15a_emit_nonintersectional_exports.R"), silent = TRUE)
+
 # -------------------------------------------------------------------
 # Config + helpers
 # -------------------------------------------------------------------

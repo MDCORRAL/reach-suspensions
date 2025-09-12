@@ -6,6 +6,16 @@ suppressPackageStartupMessages({
 
 try(here::i_am("Analysis/02_black_rates_by_quartiles.R"), silent = TRUE)
 
+
+# sanity: these should both be TRUE if set up right
+stopifnot(file.exists(here::here("Analysis", "01_trends.R")))
+stopifnot(file.exists(here::here("R", "utils_keys_filters.R")))
+
+# peek at what's in R/ (helper scripts, etc.)
+list.files(here::here("R"))
+
+# load utils; this must exist at <project>/R/utils_keys_filters.R
+
 # ---------- Load ----------
 source(here::here("R","utils_keys_filters.R"))
 
