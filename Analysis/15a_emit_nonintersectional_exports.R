@@ -11,27 +11,13 @@ suppressPackageStartupMessages({
 
 try(here::i_am("Analysis/15a_emit_nonintersectional_exports.R"), silent = TRUE)
 
+# Load repository utilities
+source(here("R", "utils_keys_filters.R"))
+
 # -------------------------------------------------------------------
 # Config + helpers
 # -------------------------------------------------------------------
 REASON_COLS <- c("r_vi","r_vn","r_wp","r_id","r_def","r_oth")
-
-# Safe key padding if pad_keys() isn’t in scope
-norm_code <- function(x, width) {
-  x_chr <- as.character(x)
-  x_num <- stringr::str_replace_all(x_chr, "\\D", "")
-  stringr::str_pad(x_num, width = width, side = "left", pad = "0")
-}
-pad_keys_local <- function(df) {
-  df %>%
-    mutate(
-      academic_year = as.character(academic_year),
-      across(any_of("county_code"),   ~ norm_code(.x, 2)),
-      across(any_of("district_code"), ~ norm_code(.x, 5)),
-      across(any_of("school_code"),   ~ norm_code(.x, 7))
-    )
-}
-maybe_pad <- function(df) if (exists("pad_keys")) pad_keys(df) else pad_keys_local(df)
 
 # select only columns that exist (avoids select() errors)
 select_existing <- function(df, wanted) {
@@ -95,7 +81,7 @@ if (is.na(RACE_LONG_PATH)) {
 
 race_long <- arrow::read_parquet(RACE_LONG_PATH) %>%
   clean_names() %>%
-  maybe_pad() %>%
+  build_keys() %>%
   mutate(year = suppressWarnings(as.integer(substr(as.character(academic_year), 1, 4))))
 
 present_reason_cols <- intersect(REASON_COLS, names(race_long))
@@ -114,7 +100,7 @@ if (!file.exists(OTH_PARQUET)) {
 }
 demo_data <- arrow::read_parquet(OTH_PARQUET) %>%
   clean_names() %>%
-  maybe_pad() %>%
+  build_keys() %>%
   mutate(year = suppressWarnings(as.integer(substr(as.character(academic_year), 1, 4)))) %>%
   canonicalize_undup()
 
@@ -135,7 +121,7 @@ stopifnot(file.exists(v6_path))
 # 1) Read and keep aggregate_level if present
 v6_keys_raw <- arrow::read_parquet(v6_path) %>%
   clean_names() %>%
-  maybe_pad() %>%
+  build_keys() %>%
   select(
     academic_year, county_code, district_code, school_code,
     county_name, district_name, school_name,
