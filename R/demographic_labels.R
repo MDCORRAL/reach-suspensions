@@ -6,7 +6,7 @@
 demographic_codebook <- tibble::tribble(
   ~subgroup_code, ~category_type,         ~subgroup,
   # Total
-  "TA",           "Total",                "Total",
+  "TA",           "Total",                "All Students",
   # Sex / Gender (canonical codes)
   "SF",           "Sex",                  "Female",
   "SM",           "Sex",                  "Male",
@@ -63,7 +63,7 @@ desc_to_canon <- function(desc) {
     grepl("reclassified\\s*fluent", d)                                           ~ "RFEP",
     grepl("initially\\s*fluent", d)                                              ~ "IFEP",
     grepl("\\benglish\\s*only|\\beo\\b", d)                                  ~ "EO",
-    grepl("\\benglish\\s*learner|\\bell\\b", d)                              ~ "EL",
+    grepl("\\benglish\\s*learner|\\bel(l)?\\b", d)                            ~ "EL",
     grepl("\\bfemale\\b|\\bsf\\b", d)                                       ~ "SF",
     grepl("\\bmale\\b|\\bsm\\b", d)                                         ~ "SM",
     grepl("non[- ]?binary|\\bsnb\\b", d)                                       ~ "SNB",
@@ -100,7 +100,7 @@ canon_label <- function(code) dplyr::recode(code,
   FY="Foster Youth", NF="Not Foster Youth",
   MG="Migrant", NM="Non-Migrant",
   HL="Homeless", NH="Not Homeless",
-  TA="Total",
+  TA="All Students",
   .default = NA_character_
 )
 
