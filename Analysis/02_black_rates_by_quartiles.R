@@ -4,6 +4,8 @@ suppressPackageStartupMessages({
   library(ggplot2); library(scales); library(ggrepel); library(stringr)
 })
 
+try(here::i_am("Analysis/02_black_rates_by_quartiles.R"), silent = TRUE)
+
 # project root
 here::here()
 

@@ -11,6 +11,8 @@ suppressPackageStartupMessages({
   library(ineq)    # for Lorenz and Gini calculations
 })
 
+try(here::i_am("Analysis/17_tail_by_grade-school_concentration_analysis.R"), silent = TRUE)
+
 ## -------------------------------------------------------------------------
 ## Configuration
 ## -------------------------------------------------------------------------

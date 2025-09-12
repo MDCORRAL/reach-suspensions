@@ -4,6 +4,8 @@ suppressPackageStartupMessages({
   library(ggplot2); library(scales); library(ggrepel); library(stringr)
 })
 
+try(here::i_am("Analysis/02b_black_rates_by_quartiles.R"), silent = TRUE)
+
 # ------------ knobs you can tweak -------------
 LABEL_SIZE_RATE   <- 2.7
 LABEL_SIZE_COUNT  <- 2.6

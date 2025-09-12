@@ -9,6 +9,9 @@ suppressPackageStartupMessages({
   library(arrow); library(here); library(ggplot2); library(openxlsx)
   library(scales); library(tidyr); library(purrr); library(readr); library(ggrepel)
 })
+
+try(here::i_am("Analysis/18_comprehensive_suspension_rates_analysis.R"), silent = TRUE)
+
 # Load repository utilities
 source(here("R", "utils_keys_filters.R"))
 message(">>> Running from project root: ", here::here())

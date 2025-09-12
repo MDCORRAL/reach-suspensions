@@ -7,6 +7,8 @@ suppressPackageStartupMessages({
   library(dplyr); library(tidyr); library(arrow); library(here); library(readr); library(scales)
 })
 
+try(here::i_am("Analysis/10_eda_hotspots_and_trends.R"), silent = TRUE)
+
 source(here::here("R", "utils_keys_filters.R"))
 
 # --- Configuration -----------------------------------------------------------

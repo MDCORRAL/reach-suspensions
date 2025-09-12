@@ -21,6 +21,8 @@ suppressPackageStartupMessages({
   library(purrr)
 })
 
+try(here::i_am("Analysis/15_merge_demographic_categories.R"), silent = TRUE)
+
 # Load repository utilities
 source(here("R", "utils_keys_filters.R"))
 

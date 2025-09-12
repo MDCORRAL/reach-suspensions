@@ -20,6 +20,8 @@ suppressPackageStartupMessages({
   library(ineq)    # for Lorenz and Gini calculations
 })
 
+try(here::i_am("Analysis/16_tail_concentration_analysis.R"), silent = TRUE)
+
 ## -------------------------------------------------------------------------
 ## Configuration
 ## -------------------------------------------------------------------------

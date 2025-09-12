@@ -7,6 +7,8 @@ suppressPackageStartupMessages({
   library(tidyr); library(scales); library(patchwork); library(ggrepel)
 })
 
+try(here::i_am("Analysis/02c_claude_black_rates_by_quartiles.R"), silent = TRUE)
+
 # keys + campus filter (handles 0000000/0000001)
 source(here::here("R","utils_keys_filters.R"))
 
