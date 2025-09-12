@@ -160,8 +160,19 @@ canon_race_label <- function(x) {
 }
 #codex/remove-obsolete-race_label-function
 
-# Canonical race labels referenced across analysis scripts
-# "Not Reported" is mapped but intentionally omitted from this set
+#' Canonical race labels referenced across analysis scripts.
+#'
+#' Use `ALLOWED_RACES` when filtering or subsetting by race instead of
+#' hard-coding vectors in individual scripts. Combine with helpers like
+#' `intersect()` or `setdiff()` to derive custom subsets, e.g.:
+#'
+#' ```r
+#' core_races <- intersect(ALLOWED_RACES,
+#'                         c("Black/African American", "White"))
+#' ```
+#'
+#' "Not Reported" is mapped by `canon_race_label()` but intentionally omitted
+#' from this set to encourage explicit handling of missing race data.
 ALLOWED_RACES <- c(
   "All Students",
   "Black/African American",

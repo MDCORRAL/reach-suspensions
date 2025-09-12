@@ -23,7 +23,10 @@ IMG_HEIGHT            <- 6.0
 IMG_DPI               <- 300
 DROP_ALL_STUDENTS     <- TRUE   # drop TA when faceting by race
 KEEP_CORE_RACES_ONLY  <- FALSE  # set TRUE to reduce clutter
-CORE_RACES <- c("Black/African American","Hispanic/Latino","White","Asian")
+CORE_RACES <- intersect(
+  c("Black/African American", "Hispanic/Latino", "White", "Asian"),
+  ALLOWED_RACES
+)
 
 set.seed(42)
 

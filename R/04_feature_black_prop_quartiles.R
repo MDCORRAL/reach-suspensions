@@ -40,7 +40,9 @@ if (!any(v2$subgroup == "White", na.rm = TRUE)) {
 
 # --- 1) Pull Black, White, and Total enrollment at SCHOOL x YEAR --------
 rb_rw_ta <- v2 %>%
-  filter(subgroup %in% c("Black/African American", "White", "All Students")) %>%
+  filter(subgroup %in%
+           intersect(c("Black/African American", "White", "All Students"),
+                     ALLOWED_RACES)) %>%
   select(academic_year, cds_school, subgroup, cumulative_enrollment) %>%
   mutate(subgroup = dplyr::recode(subgroup,
                                   "Black/African American" = "Black",
