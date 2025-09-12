@@ -46,7 +46,7 @@ LEVELS <- c("Elementary","Middle","High")
 
 # --- 4) Race labels & allowed codes ------------------------------------------
 # provided via canon_race_label() helper
-allowed_codes <- c("All Students","Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Pacific Islander","Two or More Races")
+allowed_codes <- c("All Students","Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Native Hawaiian/Pacific Islander","Two or More Races")
 
 # --- 5) Prep data -------------------------------------------------------------
 # Base long with race and year factor

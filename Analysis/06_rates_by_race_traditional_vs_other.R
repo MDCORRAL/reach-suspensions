@@ -90,7 +90,7 @@ df_total <- v5 %>%
          race = "All Students")
 
 # Race-specific
-allowed_races <- c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Pacific Islander","Two or More Races")
+allowed_races <- c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Native Hawaiian/Pacific Islander","Two or More Races")
 df_race <- v5 %>%
   filter(canon_race_label(subgroup) %in% allowed_races) %>%
   mutate(race = canon_race_label(subgroup)) %>%

@@ -53,7 +53,7 @@ year_levels <- v5 |>
   pull(academic_year)
 
 # ============ Race codes / labels ============
-allowed_codes <- c("Black/African American","White","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Pacific Islander","Two or More Races","Hispanic/Latino")  # RL folds into RH
+allowed_codes <- c("Black/African American","White","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Native Hawaiian/Pacific Islander","Two or More Races","Hispanic/Latino")  # RL folds into RH
 
 # ============ Plot 1: Suspension RATES (All vs Race) ============
 # Statewide rate = sum(suspensions) / sum(enrollment) from campus-only rows
