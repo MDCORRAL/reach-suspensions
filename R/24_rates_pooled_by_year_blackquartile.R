@@ -10,7 +10,6 @@ source(here::here("R","utils_keys_filters.R"))
 DATA_STAGE <- here("data-stage")                   # portable path
 V6F_PARQ   <- file.path(DATA_STAGE, "susp_v6_features.parquet")  # keys + flags
 V6L_PARQ   <- file.path(DATA_STAGE, "susp_v6_long.parquet")      # tidy metrics (num, den, rate)
-V5_PARQ    <- file.path(DATA_STAGE, "susp_v5.parquet")           # fallback raw source
 
 dir.create(here("outputs"), showWarnings = FALSE)
 OUT_IMG  <- here("outputs", "rates_pooled_by_year_blackquartile_subgroup.png")
@@ -57,45 +56,16 @@ padw <- max(nchar(v6_features$school_code), na.rm = TRUE)
 v6_features <- v6_features %>% mutate(school_code = stringr::str_pad(school_code, padw, "left", "0"))
 
 # ─────────────── Preferred source for subgroup NUM/DEN (v6_long) ─────────────
-get_long_with_counts <- function() {
-  if (file.exists(V6L_PARQ)) {
-    # v6_long is expected to already have num/den
-    read_parquet(V6L_PARQ) %>% clean_names() %>%
-      transmute(
-        school_code = stringr::str_pad(as.character(school_code), padw, "left", "0"),
-        year        = as.character(year),
-        subgroup    = canon_label(subgroup),
-        num         = as.numeric(num),
-        den         = as.numeric(den)
-      ) %>%
-      filter(!is.na(subgroup))
-  } else {
-    # Fallback: derive counts from v5
-    stopifnot(file.exists(V5_PARQ))
-    v5 <- read_parquet(V5_PARQ) %>% clean_names()
-    
-    subg_desc <- if ("reporting_category_description" %in% names(v5))
-      "reporting_category_description" else "reporting_category"
-    num_col   <- if ("unduplicated_count_of_students_suspended_total" %in% names(v5))
-      "unduplicated_count_of_students_suspended_total" else "total_suspensions"
-    den_col   <- "cumulative_enrollment"
-    if ("aggregate_level" %in% names(v5)) {
-      v5 <- v5 %>% filter(stringr::str_to_lower(aggregate_level) %in% c("school","sch"))
-    }
-    
-    v5 %>%
-      transmute(
-        school_code = stringr::str_pad(as.character(school_code), padw, "left", "0"),
-        year        = as.character(academic_year),
-        subgroup    = canon_label(.data[[subg_desc]]),
-        num         = as.numeric(.data[[num_col]]),
-        den         = as.numeric(.data[[den_col]])
-      ) %>%
-      filter(!is.na(subgroup))
-  }
-}
-
-long_counts <- get_long_with_counts()
+stopifnot(file.exists(V6L_PARQ))
+long_counts <- read_parquet(V6L_PARQ) %>% clean_names() %>%
+  transmute(
+    school_code = stringr::str_pad(as.character(school_code), padw, "left", "0"),
+    year        = as.character(year),
+    subgroup    = canon_label(subgroup),
+    num         = as.numeric(num),
+    den         = as.numeric(den)
+  ) %>%
+  filter(!is.na(subgroup))
 
 # ───────────────────────── Join keys + filter to traditional ──────────────────
 analytic <- long_counts %>%
