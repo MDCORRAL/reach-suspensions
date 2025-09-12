@@ -23,7 +23,7 @@ v6 <- arrow::read_parquet(here::here("data-stage", "susp_v6_long.parquet")) %>%
 black_students_data <- v6 %>%
   filter(
     category_type == "Race/Ethnicity",
-    subgroup == "Black/African American"
+    canon_race_label(subgroup) == "Black/African American"
   )
 
 # ==============================================================================
