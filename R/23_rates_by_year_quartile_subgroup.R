@@ -1,4 +1,5 @@
-##23_rates_by_year_quartile_subgroup 
+##23_rates_by_year_quartile_subgroup
+# Canonical subgroup term: Students with Disabilities (SWD)
 
 suppressPackageStartupMessages({
   library(dplyr); library(stringr); library(forcats); library(janitor)

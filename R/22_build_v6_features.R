@@ -440,8 +440,8 @@ if (nrow(plot_df_weighted)) {
   scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
   labs(
     x = "Quartile of Black Student Enrollment (Q1 = lowest share)",
-    y = "Special Education Suspension Rate",
-    title = "SPED Suspension Rate by Black Enrollment Quartile (Enrollment-Weighted)",
+    y = "Students with Disabilities Suspension Rate",
+    title = "SWD Suspension Rate by Black Enrollment Quartile (Enrollment-Weighted)",
     caption = paste0("Traditional schools only; pooled rate with Wilson 95% CI.\n",
                      "Sample sizes: ", sizes_w)
   ) +
@@ -450,9 +450,9 @@ if (nrow(plot_df_weighted)) {
 # -------------------- (C) OUTPUTS ---------------------------------------------
 dir.create(here("outputs"), showWarnings = FALSE)
 
-ggsave(here("outputs","21_sped_rate_by_black_quartile_unweighted.png"),
+ggsave(here("outputs","21_swd_rate_by_black_quartile_unweighted.png"),
        p_unweighted, width = 8, height = 5.2, dpi = 300)
-ggsave(here("outputs","21_sped_rate_by_black_quartile_weighted.png"),
+ggsave(here("outputs","21_swd_rate_by_black_quartile_weighted.png"),
        p_weighted, width = 8, height = 5.2, dpi = 300)
 
 # Exclusions breakdown (why rows dropped)
