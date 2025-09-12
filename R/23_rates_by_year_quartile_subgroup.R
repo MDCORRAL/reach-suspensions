@@ -52,7 +52,7 @@ long_src <- read_parquet(V6L_PARQ) %>% clean_names() %>%
                                   canon_race_label(subgroup)),
     rate        = as.numeric(rate)
   ) %>%
-  filter(!is.na(subgroup))
+  filter(!is.na(subgroup), subgroup != "Sex")
 
 # --- Join keys + filter to traditional ---------------------------------------
 analytic <- long_src %>%

@@ -46,7 +46,7 @@ long_counts <- read_parquet(V6L_PARQ) %>% clean_names() %>%
     num         = as.numeric(num),
     den         = as.numeric(den)
   ) %>%
-  filter(!is.na(subgroup))
+  filter(!is.na(subgroup), subgroup != "Sex")
 
 # ───────────────────────── Join keys + filter to traditional ──────────────────
 analytic <- long_counts %>%
