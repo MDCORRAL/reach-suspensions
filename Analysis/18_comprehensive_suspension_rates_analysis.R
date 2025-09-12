@@ -171,7 +171,10 @@ calc_summary_stats <- function(data, ...) {
 # -------------------------------------------------------------------------
 # Comprehensive Analysis by All Dimensions
 # -------------------------------------------------------------------------
-major_races <- c("All Students", "Black/African American", "Hispanic/Latino", "White", "Asian")
+major_races <- intersect(
+  c("All Students", "Black/African American", "Hispanic/Latino", "White", "Asian"),
+  ALLOWED_RACES
+)
 
 # 1. Overall rates by race/ethnicity and year
 rates_by_race_year <- calc_summary_stats(analytic_data, year, race_ethnicity)
@@ -205,7 +208,7 @@ disparity_summary <- rates_by_black_q %>%
 
 # 7. Focused comparisons for key demographics
 # Traditional schools only, comparing quartiles for major racial groups
-key_races <- c("All Students", "Black/African American", "Hispanic/Latino", "White", "Asian")
+key_races <- major_races
 
 rates_traditional_focus <- analytic_data %>%
   filter(
@@ -300,7 +303,10 @@ create_setting_plot <- function(data, race_filter = NULL) {
 # -------------------------------------------------------------------------
 
 # Focus on major racial/ethnic groups for clarity
-major_races <- c("All Students", "Black/African American", "Hispanic/Latino", "White", "Asian")
+major_races <- intersect(
+  c("All Students", "Black/African American", "Hispanic/Latino", "White", "Asian"),
+  ALLOWED_RACES
+)
 
 # Plot 1: Rates by Black quartile
 p1_black_q <- rates_by_black_q %>%

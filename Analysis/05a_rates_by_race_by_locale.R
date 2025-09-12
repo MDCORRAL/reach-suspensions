@@ -51,7 +51,9 @@ df_total <- v6 %>%
 # Race-specific
 ##codex/edit-race-filter-for-hispanic/latino
 df_race <- v5 %>%
-  filter(subgroup %in% ALLOWED_RACES[ALLOWED_RACES != "All Students"]) %>%
+###codex/import-and-use-allowed_races-constant
+  filter(subgroup %in% setdiff(ALLOWED_RACES, "All Students")) %>%
+
   mutate(race=canon_race_label(subgroup)) %>%
   filter(!is.na(race)) %>%
   group_by(academic_year, locale_simple, race) %>%
