@@ -21,7 +21,10 @@ v6 <- arrow::read_parquet(here::here("data-stage", "susp_v6_long.parquet")) %>%
 
 # --- 3) Filter for Black Students Data ---------------------------------------
 black_students_data <- v6 %>%
-  filter(reporting_category == "RB")
+  filter(
+    category_type == "Race/Ethnicity",
+    subgroup == "Black/African American"
+  )
 
 # ==============================================================================
 # PART 1: ANALYSIS BY BLACK STUDENT ENROLLMENT QUARTILES
@@ -60,7 +63,6 @@ p1_black_by_black <- ggplot(rate_by_black_quartile, aes(x = academic_year, y = s
 reason_rate_by_black_quartile <- black_students_data %>%
   # Most robust filter
   filter(
-    reporting_category == "RB",
     !is.na(black_prop_q_label),
     black_prop_q_label != "Unknown"
   ) %>%

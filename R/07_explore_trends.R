@@ -35,7 +35,10 @@ order_quartile <- function(x) {
 
 # --- 3) Filter for Black Students Data ---------------------------------------
 black_students_data <- v6 %>%
-  filter(reporting_category == "RB") %>%
+  filter(
+    category_type == "Race/Ethnicity",
+    subgroup == "Black/African American"
+  ) %>%
   mutate(
     academic_year     = order_year(academic_year),
     black_prop_q_label= order_quartile(black_prop_q_label),
