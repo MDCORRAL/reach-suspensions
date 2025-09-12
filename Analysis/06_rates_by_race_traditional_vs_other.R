@@ -37,7 +37,7 @@ v5_path <- here::here("data-stage","susp_v5.parquet")
 if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
 v5 <- arrow::read_parquet(v5_path)
 
-need <- c("reporting_category","academic_year","level_strict3",
+need <- c("reporting_category","academic_year","school_level",
           "school_type","total_suspensions","cumulative_enrollment")
 miss <- setdiff(need, names(v5))
 if (length(miss)) stop("Missing columns in v5: ", paste(miss, collapse=", "))
@@ -51,19 +51,19 @@ if (!length(year_levels)) stop("No TA rows to establish year order.")
 # Race label map (RD omitted; RL -> RH) handled by race_label() helper
 
 # --- 4) Derive school group (Traditional vs All other) ------------------------
-# "Traditional" = Elementary/Middle/High School (your strict 3-band)
+# "Traditional" = Elementary/Middle/High (your strict 3-band)
 # "All other"   = Alternative + Other/Unknown (alt/continuation/comm day/juvenile court, atypical/unknown)
 v5 <- v5 %>%
   mutate(
     school_group = dplyr::case_when(
-      level_strict3 %in% c("Elementary","Middle","High School") ~ "Traditional",
-      TRUE                                              ~ "All other"
+      school_level %in% c("Elementary","Middle","High") ~ "Traditional",
+      TRUE                                                   ~ "All other"
     )
   )
 
 # Plain-English description for captions/subtitles
 alt_examples <- v5 %>%
-  filter(level_strict3 == "Alternative") %>%
+  filter(school_level == "Alternative") %>%
   distinct(school_type) %>% pull() %>%
   tolower() %>% unique()
 

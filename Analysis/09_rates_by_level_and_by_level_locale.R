@@ -1,5 +1,5 @@
 # analysis/02c_rates_by_level_and_by_level_locale.R
-# One graph per school level (Elementary/Middle/High School), and one per (level × locale),
+# One graph per school level (Elementary/Middle/High), and one per (level × locale),
 # showing all years and all race/ethnicity lines with readable labels.
 
 # --- 1) Setup -----------------------------------------------------------------
@@ -30,7 +30,7 @@ v5_path <- here::here("data-stage","susp_v5.parquet")
 if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
 v5 <- arrow::read_parquet(v5_path)
 
-need <- c("reporting_category","academic_year","locale_simple","level_strict3",
+need <- c("reporting_category","academic_year","locale_simple","school_level",
           "total_suspensions","cumulative_enrollment")
 miss <- setdiff(need, names(v5))
 if (length(miss)) stop("Missing columns: ", paste(miss, collapse=", "))
@@ -42,7 +42,7 @@ year_levels <- v5 %>%
 if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 
 # Levels to include
-LEVELS <- c("Elementary","Middle","High School")
+LEVELS <- c("Elementary","Middle","High")
 
 # --- 4) Race labels & allowed codes ------------------------------------------
 # provided via race_label() helper
@@ -51,7 +51,7 @@ allowed_codes <- c("TA","RB","RW","RH","RL","RI","RA","RF","RP","RT")
 # --- 5) Prep data -------------------------------------------------------------
 # Base long with race and year factor
 base <- v5 %>%
-  filter(level_strict3 %in% LEVELS,
+  filter(school_level %in% LEVELS,
          reporting_category %in% allowed_codes) %>%
   mutate(
     race = race_label(reporting_category),
@@ -60,7 +60,7 @@ base <- v5 %>%
 
 # A) Aggregated across locales -> by LEVEL × RACE × YEAR
 df_level <- base %>%
-  group_by(level_strict3, race, academic_year, year_fct) %>%
+  group_by(school_level, race, academic_year, year_fct) %>%
   summarise(
     susp   = sum(total_suspensions, na.rm = TRUE),
     enroll = sum(cumulative_enrollment, na.rm = TRUE),
@@ -73,7 +73,7 @@ df_level <- base %>%
 
 # B) Split by locale -> by LEVEL × LOCALE × RACE × YEAR
 df_level_loc <- base %>%
-  group_by(level_strict3, locale_simple, race, academic_year, year_fct) %>%
+  group_by(school_level, locale_simple, race, academic_year, year_fct) %>%
   summarise(
     susp   = sum(total_suspensions, na.rm = TRUE),
     enroll = sum(cumulative_enrollment, na.rm = TRUE),
@@ -95,7 +95,7 @@ if (!INCLUDE_UNKNOWN_LOCALE) loc_levels <- setdiff(loc_levels, "Unknown")
 
 # --- 6) Plot helpers ----------------------------------------------------------
 plot_one_level <- function(level_name) {
-  dat <- df_level %>% filter(level_strict3 == level_name)
+  dat <- df_level %>% filter(school_level == level_name)
   if (!nrow(dat)) return(NULL)
   
   # End-of-series labels (race names on final year)
@@ -161,7 +161,7 @@ plot_one_level <- function(level_name) {
 }
 
 plot_one_level_locale <- function(level_name, loc_name) {
-  dat <- df_level_loc %>% filter(level_strict3 == level_name, locale_simple == loc_name)
+  dat <- df_level_loc %>% filter(school_level == level_name, locale_simple == loc_name)
   if (!nrow(dat)) return(NULL)
   
   end_labels <- dat %>%

@@ -33,7 +33,7 @@ v5_path <- here::here("data-stage","susp_v5.parquet")
 if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
 v5 <- arrow::read_parquet(v5_path)
 
-need <- c("reporting_category","academic_year","locale_simple","level_strict3",
+need <- c("reporting_category","academic_year","locale_simple","school_level",
           "school_type","total_suspensions","cumulative_enrollment")
 miss <- setdiff(need, names(v5))
 if (length(miss)) stop("Missing required columns: ", paste(miss, collapse=", "))
@@ -47,14 +47,14 @@ if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 v5 <- v5 %>%
   mutate(
     school_group = dplyr::case_when(
-      level_strict3 %in% c("Elementary","Middle","High School") ~ "Traditional",
-      TRUE                                               ~ "All other"
+      school_level %in% c("Elementary","Middle","High") ~ "Traditional",
+      TRUE                                                  ~ "All other"
     )
   )
 
 # Build a short hint of what “All other” includes
 alt_examples <- v5 %>%
-  filter(level_strict3 == "Alternative") %>%
+  filter(school_level == "Alternative") %>%
   distinct(school_type) %>% pull() %>% tolower()
 alt_hint <- c("continuation","community day","juvenile court","alternative")
 alt_found <- alt_hint[alt_hint %in% unique(unlist(str_split(alt_examples, "\\W+")))]
