@@ -28,7 +28,7 @@ if (!("sped_rate" %in% names(v6_features))) {
   stop("sped_rate column not found in v6_features")
 }
 stopifnot("sped_den" %in% names(v6_features))
-stopifnot(all(c("is_traditional","black_q") %in% names(v6_features)))
+stopifnot(all(c("is_traditional","black_prop_q") %in% names(v6_features)))
 
 
 # Check for data completeness
@@ -38,22 +38,16 @@ message("SPED rate coverage: ",
 
 # Validate quartile distribution
 message("Original quartile distribution:")
-print(table(v6_features$black_q[v6_features$is_traditional], useNA = "always"))
+print(table(v6_features$black_prop_q[v6_features$is_traditional], useNA = "always"))
 
 # Clean and filter data
 v6_clean <- v6_features %>%
-  mutate(
-    black_q = as.character(black_q),
-    black_q = str_replace(black_q, "^QQ", "Q"),
-    black_q = str_replace(black_q, "\\s*\\(.*\\)$", ""),
-    black_q = ifelse(str_detect(black_q, "Unknown|NA"), NA_character_, black_q)
-  ) %>%
-  filter(is_traditional, 
-         str_detect(black_q, "^Q[1-4]$"),  # Only valid quartiles
+  filter(is_traditional,
+         !is.na(black_prop_q),
          !is.na(sped_rate),
          !is.na(sped_den),
-         sped_den > 0) %>%  # Exclude schools with no SPED students
-  mutate(black_q = fct_relevel(factor(black_q), "Q1","Q2","Q3","Q4"))
+         sped_den > 0) %>%
+  mutate(black_prop_q_label = fct_relevel(factor(paste0("Q", black_prop_q)), "Q1","Q2","Q3","Q4"))
 
 # Report sample size
 total_traditional <- sum(v6_features$is_traditional, na.rm = TRUE)
@@ -63,7 +57,7 @@ message("Analysis sample: ", final_sample, " of ", total_traditional,
 
 # Check enrollment distribution within quartiles
 enrollment_summary <- v6_clean %>%
-  group_by(black_q) %>%
+  group_by(black_prop_q_label) %>%
   summarise(
     min_sped_den = min(sped_den, na.rm = TRUE),
     q25_sped_den = quantile(sped_den, 0.25, na.rm = TRUE),
@@ -79,7 +73,7 @@ print(enrollment_summary)
 # Create both weighted and unweighted analyses
 # --- Weighted: pooled binomial with Wilson CI
 plot_df_weighted <- v6_clean %>%
-  group_by(black_q) %>%
+  group_by(black_prop_q_label) %>%
   summarise(
     n_schools = n(),
     events    = sum(sped_rate * sped_den, na.rm = TRUE),
@@ -101,7 +95,7 @@ plot_df_weighted <- v6_clean %>%
 # Create unweighted plot with proper confidence intervals
 # --- Unweighted: t-based CI on mean of school rates
 plot_df_unweighted <- v6_clean %>%
-  group_by(black_q) %>%
+  group_by(black_prop_q_label) %>%
   summarise(
     n_schools = n(),
     mean_rate = mean(sped_rate, na.rm = TRUE),
@@ -118,7 +112,7 @@ plot_df_unweighted <- v6_clean %>%
 # Print comparison of weighted vs unweighted rates
 message("Weighted vs Unweighted Rate Comparison:")
 comparison <- plot_df_weighted %>%
-  select(black_q, weighted_rate, unweighted_rate) %>%
+  select(black_prop_q_label, weighted_rate, unweighted_rate) %>%
   mutate(
     difference = weighted_rate - unweighted_rate,
     pct_difference = 100 * difference / unweighted_rate
@@ -126,7 +120,7 @@ comparison <- plot_df_weighted %>%
 print(comparison)
 
 # Create plot using unweighted means (specify which approach you're using)
-p_unweighted <- ggplot(plot_df_unweighted, aes(x = black_q, y = mean_rate)) +
+p_unweighted <- ggplot(plot_df_unweighted, aes(x = black_prop_q_label, y = mean_rate)) +
   geom_point(size = 3) +
   geom_errorbar(aes(ymin = ci_low, ymax = ci_high), width = 0.15) +
   scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
@@ -143,7 +137,7 @@ p_unweighted <- ggplot(plot_df_unweighted, aes(x = black_q, y = mean_rate)) +
   theme_minimal(base_size = 12)
 
 # Create weighted plot for comparison
-p_weighted <- ggplot(plot_df_weighted, aes(x = black_q, y = weighted_rate)) +
+p_weighted <- ggplot(plot_df_weighted, aes(x = black_prop_q_label, y = weighted_rate)) +
   geom_point(size = 3) +
   geom_errorbar(aes(ymin = ci_low, ymax = ci_high), width = 0.15) +  # ADD THIS LINE
   scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
@@ -161,7 +155,7 @@ p_weighted <- ggplot(plot_df_weighted, aes(x = black_q, y = weighted_rate)) +
 
 # Add after your main analysis to verify temporal stability
 yearly_check <- v6_clean %>%
-  group_by(year, black_q) %>%
+  group_by(year, black_prop_q_label) %>%
   summarise(
     n_schools = n(),
     mean_rate = mean(sped_rate, na.rm = TRUE),
@@ -210,7 +204,7 @@ writeData(
       school_code,
       year,
       black_share   = percent(black_share, accuracy = 0.1),
-      black_quartile = as.character(black_q),
+      black_quartile = as.character(black_prop_q_label),
       sped_rate     = percent(sped_rate, accuracy = 0.1),
       sped_enrollment = sped_den,
       school_type
@@ -227,8 +221,8 @@ excluded_schools <- v6_features %>%
   mutate(
     included = school_code %in% v6_clean$school_code,
     quartile_status = case_when(
-      str_detect(black_q, "Unknown") ~ "Unknown quartile",
-      is.na(sped_rate) ~ "Missing SPED rate", 
+      is.na(black_prop_q) ~ "Unknown quartile",
+      is.na(sped_rate) ~ "Missing SPED rate",
       is.na(sped_den) | sped_den == 0 ~ "No SPED enrollment",
       TRUE ~ "Included"
     )

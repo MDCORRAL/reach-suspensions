@@ -60,11 +60,11 @@ rb_rw_ta <- rb_rw_ta %>%
 rbw_q <- rb_rw_ta %>%
   group_by(academic_year) %>%
   mutate(
-    black_prop_q4 = if_else(!is.na(prop_black), safe_ntile(prop_black, 4L), NA_integer_),
-    white_prop_q4 = if_else(!is.na(prop_white), safe_ntile(prop_white, 4L), NA_integer_),
+    black_prop_q = if_else(!is.na(prop_black), safe_ntile(prop_black, 4L), NA_integer_),
+    white_prop_q = if_else(!is.na(prop_white), safe_ntile(prop_white, 4L), NA_integer_),
 
-    black_prop_q_label = get_quartile_label(black_prop_q4, "Black"),
-    white_prop_q_label = get_quartile_label(white_prop_q4, "White")
+    black_prop_q_label = get_quartile_label(black_prop_q, "Black"),
+    white_prop_q_label = get_quartile_label(white_prop_q, "White")
   ) %>%
   ungroup()
 

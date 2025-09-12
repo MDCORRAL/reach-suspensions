@@ -30,15 +30,15 @@ stopifnot(all(need_cols %in% names(v5)))
 # quartile columns from file 04 (black & white prop quartiles)
 has_black_q <- any(grepl("^black_prop_q", names(v5)))
 has_white_q <- any(grepl("^white_prop_q", names(v5)))
-if (!has_black_q) stop("Missing black_prop_q4/q_label in v5. Re-run R/04 and downstream.")
-if (!has_white_q) stop("Missing white_prop_q4/q_label in v5. Re-run revised R/04 and downstream.")
+if (!has_black_q) stop("Missing black_prop_q/q_label in v5. Re-run R/04 and downstream.")
+if (!has_white_q) stop("Missing white_prop_q/q_label in v5. Re-run revised R/04 and downstream.")
 
 # normalize label columns using shared helper
 if (!"black_prop_q_label" %in% names(v5)) {
-  v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q4, "Black"))
+  v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q, "Black"))
 }
 if (!"white_prop_q_label" %in% names(v5)) {
-  v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q4, "White"))
+  v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q, "White"))
 }
 
 # Year order from TA rows

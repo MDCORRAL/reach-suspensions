@@ -103,17 +103,21 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   # Quartile label cleanup
   v5_feats <- v5_core %>%
     mutate(
-      black_label = case_when(
-        !is.na(black_prop_q_label) ~ str_replace(as.character(black_prop_q_label), "\\s*\\(.*\\)$", ""), # "Q1 (..)" -> "Q1"
-        !is.na(black_prop_q4)      ~ paste0("Q", as.integer(black_prop_q4)),
+      black_prop_q = as.integer(black_prop_q),
+      black_prop_q_label = case_when(
+        !is.na(black_prop_q_label) ~ str_replace(as.character(black_prop_q_label), "\\s*\\(.*\\)$", ""),
+        !is.na(black_prop_q)      ~ paste0("Q", black_prop_q),
         TRUE ~ "Unknown"
       ),
-      black_q = factor(black_label, levels = c("Q1","Q2","Q3","Q4","Unknown"), ordered = TRUE)
+      black_prop_q_label = factor(black_prop_q_label,
+                                  levels = c("Q1","Q2","Q3","Q4","Unknown"),
+                                  ordered = TRUE)
     ) %>%
     transmute(
       school_code, year,
       black_share = prop_black,
-      black_q,
+      black_prop_q,
+      black_prop_q_label,
       school_type
     )
   
@@ -254,7 +258,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
 }
 
 # -------------------- (B) ANALYZE: SPED rate by Black quartile ----------------
-need <- c("black_q","black_share","is_traditional","sped_num","sped_den","sped_rate","school_code","year","school_type")
+  need <- c("black_prop_q_label","black_prop_q","black_share","is_traditional","sped_num","sped_den","sped_rate","school_code","year","school_type")
 miss <- setdiff(need, names(v6_features))
 if (length(miss)) stop("Missing required columns in v6_features: ", paste(miss, collapse = ", "))
 
@@ -262,22 +266,19 @@ trad <- v6_features$is_traditional %in% TRUE
 
 message("Rows traditional: ", sum(trad, na.rm = TRUE), " / ", nrow(v6_features))
 
-message("Quartile distribution (raw labels, traditional):")
-print(table(v6_features$black_q[trad], useNA = "always"))
+  message("Quartile distribution (raw labels, traditional):")
+  print(table(v6_features$black_prop_q_label[trad], useNA = "always"))
 
-# Clean labels → Q1..Q4 only for primary analysis
-v6_clean <- v6_features %>%
-  mutate(
-    black_q = as.character(black_q),
-    black_q = str_replace(black_q, "\\s*\\(.*\\)$", ""),  # drop parentheticals
-    black_q = ifelse(str_detect(black_q, "Unknown|NA"), NA_character_, black_q)
-  ) %>%
-  filter(
-    is_traditional %in% TRUE,
-    str_detect(black_q, "^Q[1-4]$"),
-    !is.na(sped_rate), !is.na(sped_den), sped_den > 0
-  ) %>%
-  mutate(black_q = factor(black_q, levels = paste0("Q",1:4), ordered = TRUE))
+  # Clean labels → Q1..Q4 only for primary analysis
+  v6_clean <- v6_features %>%
+    filter(
+      is_traditional %in% TRUE,
+      !is.na(black_prop_q),
+      !is.na(sped_rate), !is.na(sped_den), sped_den > 0
+    ) %>%
+    mutate(black_prop_q_label = factor(black_prop_q_label,
+                                       levels = paste0("Q",1:4),
+                                       ordered = TRUE))
 
 # Sample size + enrollment distribution
 total_trad <- sum(trad, na.rm = TRUE)
@@ -285,8 +286,8 @@ final_n    <- nrow(v6_clean)
 message("Analysis sample: ", final_n, " of ", total_trad, " traditional rows (",
         ifelse(total_trad > 0, round(100*final_n/total_trad, 1), NA), "%)")
 
-enrollment_summary <- v6_clean %>%
-  group_by(black_q) %>%
+  enrollment_summary <- v6_clean %>%
+    group_by(black_prop_q_label) %>%
   summarise(
     min_sped_den    = min(sped_den, na.rm = TRUE),
     q25_sped_den    = quantile(sped_den, 0.25, na.rm = TRUE),
@@ -297,8 +298,8 @@ enrollment_summary <- v6_clean %>%
   )
 
 # Weighted (pooled) with Wilson CI
-plot_df_weighted <- v6_clean %>%
-  group_by(black_q) %>%
+  plot_df_weighted <- v6_clean %>%
+    group_by(black_prop_q_label) %>%
   summarise(
     n_schools = n(),
     events    = sum(sped_num, na.rm = TRUE),
@@ -317,8 +318,8 @@ plot_df_weighted <- v6_clean %>%
   )
 
 # Unweighted (mean-of-schools) with t-based CI
-plot_df_unweighted <- v6_clean %>%
-  group_by(black_q) %>%
+  plot_df_unweighted <- v6_clean %>%
+    group_by(black_prop_q_label) %>%
   summarise(
     n_schools  = n(),
     mean_rate  = mean(sped_rate, na.rm = TRUE),
@@ -334,20 +335,20 @@ plot_df_unweighted <- v6_clean %>%
 # Comparison message
 if (nrow(plot_df_weighted)) {
   message("Weighted vs Unweighted (rate, pp diff):")
-  print(plot_df_weighted %>%
-          select(black_q, weighted_rate, unweighted_rate) %>%
+    print(plot_df_weighted %>%
+            select(black_prop_q_label, weighted_rate, unweighted_rate) %>%
           mutate(diff = weighted_rate - unweighted_rate,
                  pct_diff = 100*diff/pmax(unweighted_rate, .Machine$double.eps)))
 }
 
 # Robust captions
-sizes_unw <- if (nrow(plot_df_unweighted)) plot_df_unweighted %>%
-  mutate(kv = paste0(as.character(black_q), "=", n_schools)) %>% pull(kv) %>% paste(collapse = ", ") else "No data"
-sizes_w   <- if (nrow(plot_df_weighted)) plot_df_weighted %>%
-  mutate(kv = paste0(as.character(black_q), "=", n_schools)) %>% pull(kv) %>% paste(collapse = ", ") else "No data"
+  sizes_unw <- if (nrow(plot_df_unweighted)) plot_df_unweighted %>%
+    mutate(kv = paste0(as.character(black_prop_q_label), "=", n_schools)) %>% pull(kv) %>% paste(collapse = ", ") else "No data"
+  sizes_w   <- if (nrow(plot_df_weighted)) plot_df_weighted %>%
+    mutate(kv = paste0(as.character(black_prop_q_label), "=", n_schools)) %>% pull(kv) %>% paste(collapse = ", ") else "No data"
 
 # Plots
-p_unweighted <- ggplot(plot_df_unweighted, aes(x = black_q, y = mean_rate)) +
+  p_unweighted <- ggplot(plot_df_unweighted, aes(x = black_prop_q_label, y = mean_rate)) +
   geom_point(size = 3) +
   geom_errorbar(aes(ymin = ci_low, ymax = ci_high), width = 0.15) +
   scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
@@ -360,7 +361,7 @@ p_unweighted <- ggplot(plot_df_unweighted, aes(x = black_q, y = mean_rate)) +
   ) +
   theme_minimal(base_size = 12)
 
-p_weighted <- ggplot(plot_df_weighted, aes(x = black_q, y = weighted_rate)) +
+  p_weighted <- ggplot(plot_df_weighted, aes(x = black_prop_q_label, y = weighted_rate)) +
   geom_point(size = 3) +
   geom_errorbar(aes(ymin = ci_low, ymax = ci_high), width = 0.15) +
   scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
@@ -385,10 +386,9 @@ ggsave(here("outputs","21_sped_rate_by_black_quartile_weighted.png"),
 excluded_schools <- v6_features %>%
   filter(is_traditional %in% TRUE) %>%
   mutate(
-    black_q_clean = str_replace(as.character(black_q), "\\s*\\(.*\\)$", ""),
     included = school_code %in% v6_clean$school_code & year %in% v6_clean$year,
     quartile_status = case_when(
-      is.na(black_q_clean) | str_detect(black_q_clean, "Unknown") ~ "Unknown quartile",
+      is.na(black_prop_q_label) ~ "Unknown quartile",
       is.na(sped_rate) ~ "Missing SPED rate",
       is.na(sped_den) | sped_den == 0 ~ "No SPED enrollment",
       TRUE ~ "Included"
@@ -419,7 +419,7 @@ writeData(wb, "school_level",
             transmute(
               school_code, year,
               black_share    = percent(black_share, accuracy = 0.1),
-              black_quartile = as.character(black_q),
+              black_quartile = as.character(black_prop_q_label),
               sped_rate      = percent(sped_rate, accuracy = 0.1),
               sped_enrollment = sped_den,
               school_type
@@ -433,7 +433,7 @@ writeData(wb, "enrollment_distribution", enrollment_summary)
 addWorksheet(wb, "exclusions")
 writeData(wb, "exclusions",
           excluded_schools %>% 
-            count(quartile_status) %>% 
+            count(quartile_status) %>%
             arrange(desc(n)))
 
 # --- Raw quartile distribution (before filtering) ---
@@ -441,7 +441,7 @@ addWorksheet(wb, "quartile_distribution")
 writeData(wb, "quartile_distribution",
           v6_features %>%
             filter(is_traditional) %>%
-            count(black_q, name = "n"))
+            count(black_prop_q_label, name = "n"))
 
 # --- Optionally: Save key plots as images and embed links ---
 # Export plots as PNG

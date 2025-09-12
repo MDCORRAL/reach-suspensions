@@ -40,13 +40,13 @@ ta_unique <- v1 %>%
 ta_q <- ta_unique %>%
   group_by(academic_year) %>%
   mutate(
-    enroll_q4 = if_else(!is.na(ta_enroll) & ta_enroll > 0, ntile(ta_enroll, 4L), NA_integer_),
+    enroll_q = if_else(!is.na(ta_enroll) & ta_enroll > 0, ntile(ta_enroll, 4L), NA_integer_),
     enroll_q_label = case_when(
-      is.na(enroll_q4) ~ "Unknown",
-      enroll_q4 == 1L ~ "Q1 (Smallest)",
-      enroll_q4 == 2L ~ "Q2",
-      enroll_q4 == 3L ~ "Q3",
-      enroll_q4 == 4L ~ "Q4 (Largest)"
+      is.na(enroll_q) ~ "Unknown",
+      enroll_q == 1L ~ "Q1 (Smallest)",
+      enroll_q == 2L ~ "Q2",
+      enroll_q == 3L ~ "Q3",
+      enroll_q == 4L ~ "Q4 (Largest)"
     )
   ) %>% 
   ungroup()

@@ -27,14 +27,14 @@ v5 <- read_parquet(here("data-stage","susp_v5.parquet")) %>%
 need_cols <- c(
   "reporting_category","academic_year",
   "total_suspensions","cumulative_enrollment",
-  "black_prop_q4","black_prop_q_label","white_prop_q4","white_prop_q_label"
+  "black_prop_q","black_prop_q_label","white_prop_q","white_prop_q_label"
 )
 missing <- setdiff(need_cols, names(v5))
 if (length(missing)) stop("Missing in v5: ", paste(missing, collapse=", "))
 
 # ensure readable labels exist via shared helper
-if (!"black_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q4, "Black"))
-if (!"white_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q4, "White"))
+if (!"black_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q, "Black"))
+if (!"white_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q, "White"))
 
 # year order (from TA rows with positive enrollment)
 year_levels <- v5 %>%
