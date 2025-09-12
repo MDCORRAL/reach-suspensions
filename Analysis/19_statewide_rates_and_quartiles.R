@@ -35,9 +35,6 @@ need_cols <- c(
 )
 stopifnot(all(need_cols %in% names(v6)))
 
-# duplicate rows with school_group = "All" for overall statewide summaries
-v6_all <- bind_rows(v6, v6 %>% mutate(school_group = "All"))
-
 # ---- Statewide totals --------------------------------------------------------
 statewide <- v6 %>%
   group_by(subgroup, academic_year) %>%
