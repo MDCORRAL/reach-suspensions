@@ -15,9 +15,6 @@ cat("Loading utils from -> ", utils_path, "\n")
 stopifnot(file.exists(utils_path))
 source(utils_path)
 
-# 0) Keys & filters
-source(here::here("R","utils_keys_filters.R"))
-
 # ----- knobs you can tweak -----
 LABEL_SIZE_TOTAL   <- 3.0
 LABEL_SIZE_RACE    <- 2.6
