@@ -90,10 +90,11 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   # Roster
   roster <- v5 |> distinct(school_code, year)
   
-  # v5: one row per school-year (Total/All Students)
+  # v5: one row per school-year (All Students)
   v5_core <- if ("reporting_category" %in% names(v5)) {
     v5 %>%
-      filter(reporting_category %in% c("Total", "All Students", "TA")) %>%
+      mutate(subgroup = dplyr::coalesce(subgroup, canon_race_label(reporting_category))) %>%
+      filter(subgroup == "All Students") %>%
       distinct(school_code, year, .keep_all = TRUE)
   } else {
     v5 %>%

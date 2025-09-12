@@ -1,5 +1,5 @@
 # R/03_feature_size_quartiles_TA.R
-# Build TA (total enrollment) quartiles per year and attach to all rows.
+# Build total enrollment (All Students) quartiles per year and attach to all rows.
 
 suppressPackageStartupMessages({
   library(here)
@@ -19,28 +19,29 @@ first_non_na <- function(x) {
 
 # --- 1) Read + normalize keys ------------------------------------------------
 v1 <- arrow::read_parquet(here::here("data-stage", "susp_v1_noall.parquet")) %>%
-  build_keys()
+  build_keys() %>%
+  mutate(subgroup = canon_race_label(reporting_category))
 
-# --- 2) TA per campus x year (campus-only; force uniqueness) -----------------
-ta_unique <- v1 %>%
+# --- 2) Total enrollment per campus x year (campus-only; force uniqueness) ---
+all_unique <- v1 %>%
   filter_campus_only() %>%
-  filter(reporting_category == "TA") %>%
+  filter(subgroup == "All Students") %>%
   transmute(
     academic_year,
     cds_school,
-    ta_enroll = cumulative_enrollment
+    all_enroll = cumulative_enrollment
   ) %>%
   group_by(academic_year, cds_school) %>%
   summarise(
-    ta_enroll = first_non_na(ta_enroll),
+    all_enroll = first_non_na(all_enroll),
     .groups = "drop"
   )
 
-# --- 3) Quartiles within year (based on positive TA) -------------------------
-ta_q <- ta_unique %>%
+# --- 3) Quartiles within year (based on positive total enrollment) -----------
+all_q <- all_unique %>%
   group_by(academic_year) %>%
   mutate(
-    enroll_q4 = if_else(!is.na(ta_enroll) & ta_enroll > 0, ntile(ta_enroll, 4L), NA_integer_),
+    enroll_q4 = if_else(!is.na(all_enroll) & all_enroll > 0, ntile(all_enroll, 4L), NA_integer_),
     enroll_q_label = case_when(
       is.na(enroll_q4) ~ "Unknown",
       enroll_q4 == 1L ~ "Q1 (Smallest)",
@@ -48,16 +49,16 @@ ta_q <- ta_unique %>%
       enroll_q4 == 3L ~ "Q3",
       enroll_q4 == 4L ~ "Q4 (Largest)"
     )
-  ) %>% 
+  ) %>%
   ungroup()
 
 # --- 4) Join back to all rows (by campus-year) -------------------------------
 v2 <- v1 %>%
-  left_join(ta_q, by = c("academic_year","cds_school"))
+  left_join(all_q, by = c("academic_year","cds_school"))
 
-# quick validation: ensure one TA per campus-year
+# quick validation: ensure one total-enrollment row per campus-year
 stopifnot(
-  ta_unique %>%
+  all_unique %>%
     count(academic_year, cds_school) %>%
     pull(n) %>% max() == 1
 )
@@ -76,10 +77,10 @@ if (isTRUE(SHOW_SUMMARY)) {
   print(out, n = 200)
   
   message("\nSanity checks:")
-  ta_dups <- ta_unique %>%
+  all_dups <- all_unique %>%
     count(academic_year, cds_school) %>%
     filter(n > 1)
-  message("TA duplicate campus-year rows (should be 0): ", nrow(ta_dups))
+  message("Total enrollment duplicate campus-year rows (should be 0): ", nrow(all_dups))
   
   print(
     v2 %>%
@@ -91,9 +92,9 @@ if (isTRUE(SHOW_SUMMARY)) {
   
   unk <- v2 %>%
     filter(enroll_q_label == "Unknown") %>%
-    distinct(ta_enroll) %>%
-    arrange(ta_enroll)
-  message("Distinct ta_enroll values for 'Unknown' quartile (should be NA or 0):")
+    distinct(all_enroll) %>%
+    arrange(all_enroll)
+  message("Distinct all_enroll values for 'Unknown' quartile (should be NA or 0):")
   print(unk, n = 50)
 }
 
