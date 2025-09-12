@@ -49,8 +49,9 @@ df_total <- v6 %>%
   mutate(rate=if_else(enroll>0, susp/enroll, NA_real_), race="All Students")
 
 # Race-specific
-df_race <- v6 %>%
-  filter(subgroup %in% c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Native Hawaiian/Pacific Islander","Two or More Races")) %>%
+##codex/edit-race-filter-for-hispanic/latino
+df_race <- v5 %>%
+  filter(subgroup %in% ALLOWED_RACES[ALLOWED_RACES != "All Students"]) %>%
   mutate(race=canon_race_label(subgroup)) %>%
   filter(!is.na(race)) %>%
   group_by(academic_year, locale_simple, race) %>%
