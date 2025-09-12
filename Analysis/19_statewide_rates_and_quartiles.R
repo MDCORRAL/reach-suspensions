@@ -41,6 +41,12 @@ v6_all <- bind_rows(v6, v6 %>% mutate(school_group = "All"))
 # ---- Statewide totals --------------------------------------------------------
 statewide <- v6 %>%
   group_by(subgroup, academic_year) %>%
+  # Rates are pooled: suspensions and enrollment are summed across schools
+  # before computing the statewide rate. This contrasts with scripts that
+  # compute school-level rates and then take an unweighted average (e.g.,
+  # R/23_rates_by_year_quartile_subgroup.R), which would give small and large
+  # schools the same influence. The pooled approach weights each student
+  # equally.
 
   summarise(
     total_suspensions = sum(total_suspensions, na.rm = TRUE),
