@@ -18,7 +18,7 @@ pal_locale <- c(
   Unknown  = "#7F7F7F"
 )
 
-=======
+##
 # mapping from raw reason keys to display labels
 reason_labels <- dplyr::tibble(
   reason = c(
@@ -95,7 +95,18 @@ assert_unique_campus <- function(df, year_col = "year", extra_keys = character()
 
 # assert uniqueness for a district-level frame
 # (function intentionally left for future implementation)
-
+##codex/update-pacific-islander-label-throughout-repo
+# map CRDC race codes to descriptive labels
+race_label <- function(code) dplyr::recode(
+  code,
+  RB = "Black/African American", RW = "White",
+  RH = "Hispanic/Latino", RL = "Hispanic/Latino",
+  RI = "American Indian/Alaska Native", RA = "Asian",
+  RF = "Filipino", RP = "Native Hawaiian/Pacific Islander",
+  RT = "Two or More Races", TA = "All Students",
+  .default = NA_character_
+)
+#############
 # Map various race/ethnicity inputs to canonical labels. Accepts either
 # legacy reporting-category codes (e.g., "RB") or descriptive subgroup
 # names (e.g., "Black").
@@ -130,8 +141,8 @@ canon_race_label <- function(x) {
 
 # Backward-compatible alias used by legacy scripts
 race_label <- canon_race_label
-
-=======
+##main
+###############
 # construct standardized quartile labels like "Q1 (Lowest % Black)"
 get_quartile_label <- function(q4, race = c("Black", "White")) {
   race <- match.arg(race)

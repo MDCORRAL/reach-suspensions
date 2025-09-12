@@ -32,6 +32,18 @@ rates_by_size_race <- v5 %>%
   ) %>%
   mutate(
     student_group = case_when(
+##codex/update-pacific-islander-label-throughout-repo
+      reporting_category == "RB" ~ "Black",
+      reporting_category == "RI" ~ "American Indian",
+      reporting_category == "RA" ~ "Asian",
+      reporting_category == "RF" ~ "Filipino",
+      reporting_category == "RH" ~ "Hispanic",
+      reporting_category == "RP" ~ "Native Hawaiian/Pacific Islander",
+      reporting_category == "RW" ~ "White",
+      reporting_category == "RT" ~ "Two or More Races",
+      reporting_category == "RD" ~ "Not Reported",
+      TRUE ~ reporting_category
+##
       subgroup == "Black/African American" ~ "Black",
       subgroup == "American Indian/Alaska Native" ~ "American Indian",
       subgroup == "Asian" ~ "Asian",
@@ -42,6 +54,7 @@ rates_by_size_race <- v5 %>%
       subgroup == "Two or More Races" ~ "Two or More Races",
       subgroup == "RD" ~ "Not Reported",
       TRUE ~ subgroup
+##main
     )
   )
 
