@@ -1,4 +1,4 @@
-# R/08_analysis_black_student_rates.R
+# R/07_explore_trends.R
 # Analysis of Black student suspension rates with data labels for every year.
 
 # --- 1) Setup -----------------------------------------------------------------
