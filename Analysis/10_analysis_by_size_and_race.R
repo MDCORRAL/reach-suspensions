@@ -32,7 +32,6 @@ rates_by_size_race <- v5 %>%
   ) %>%
   mutate(
     student_group = case_when(
-##codex/update-pacific-islander-label-throughout-repo
       reporting_category == "RB" ~ "Black",
       reporting_category == "RI" ~ "American Indian",
       reporting_category == "RA" ~ "Asian",
