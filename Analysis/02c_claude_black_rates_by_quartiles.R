@@ -153,7 +153,7 @@ create_category_rate_plot <- function(data, group_var, colors, title_suffix, leg
         total_enrollment = sum(cumulative_enrollment, na.rm = TRUE),
         .groups = "drop"
       ) %>%
-      add_reason_label() %>%
+      add_reason_label("reason") %>%
       mutate(
         reason_rate = if_else(total_enrollment > 0, suspension_count / total_enrollment, NA_real_),
         year_fct    = factor(academic_year, levels = year_levels)
