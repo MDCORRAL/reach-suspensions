@@ -41,11 +41,8 @@ all_unique <- v1 %>%
 all_q <- all_unique %>%
   group_by(academic_year) %>%
   mutate(
-### codex/refactor-quartile-naming-convention
-    enroll_q = if_else(!is.na(ta_enroll) & ta_enroll > 0, ntile(ta_enroll, 4L), NA_integer_),
-####
-    enroll_q4 = if_else(!is.na(all_enroll) & all_enroll > 0, ntile(all_enroll, 4L), NA_integer_),
-#### main
+    enroll_q = if_else(!is.na(all_enroll) & all_enroll > 0,
+                       ntile(all_enroll, 4L), NA_integer_),
     enroll_q_label = case_when(
       is.na(enroll_q) ~ "Unknown",
       enroll_q == 1L ~ "Q1 (Smallest)",

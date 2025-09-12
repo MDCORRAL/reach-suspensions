@@ -491,10 +491,10 @@ writeData(wb, "school_level",
           v6_clean %>%
             transmute(
               school_code, year,
-              black_share    = percent(black_share, accuracy = 0.1),
-              black_quartile = as.character(black_prop_q_label),
-              sped_rate      = percent(sped_rate, accuracy = 0.1),
-              sped_enrollment = sped_den,
+              black_share        = percent(black_share, accuracy = 0.1),
+              black_prop_q_label = as.character(black_prop_q_label),
+              sped_rate          = percent(sped_rate, accuracy = 0.1),
+              sped_enrollment    = sped_den,
               school_type
             ))
 
