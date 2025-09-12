@@ -21,10 +21,13 @@ v5 <- arrow::read_parquet(here::here("data-stage", "susp_v6_long.parquet"))
 # --- 3) Prepare Data for Plotting ---------------------------------------------
 message("Preparing data for analysis...")
 
+# Build rates by race and enrollment quartile, excluding "Not Reported"
 rates_by_size_race <- v5 %>%
   filter(enroll_q_label != "Unknown", !is.na(enroll_q_label)) %>%
   mutate(student_group = canon_race_label(coalesce(subgroup, reporting_category))) %>%
-  filter(student_group %in% ALLOWED_RACES, student_group != "All Students") %>%
+##codex/add-canonical-label-for-rd-in-filters
+  filter(student_group %in% setdiff(ALLOWED_RACES, "All Students")) %>%
+
   group_by(academic_year, enroll_q_label, student_group) %>%
   summarise(
     total_suspensions = sum(total_suspensions, na.rm = TRUE),
@@ -35,22 +38,21 @@ rates_by_size_race <- v5 %>%
     suspension_rate = if_else(cumulative_enrollment > 0, (total_suspensions / cumulative_enrollment) * 100, 0)
   )
 
+##codex/add-canonical-label-for-rd-in-filters
+
 ## main
 
 # --- 4) Create and Save Individual Plots --------------------------------------
 
-# Get the list of unique quartiles to loop through
 enrollment_quartiles <- unique(rates_by_size_race$enroll_q_label)
 
 for (quartile in enrollment_quartiles) {
-  
+
   message(paste("Generating plot for:", quartile))
-  
-  # Filter data for the current quartile
+
   plot_data <- rates_by_size_race %>%
     filter(enroll_q_label == quartile)
-  
-  # Create the plot
+
   p <- ggplot(plot_data, aes(x = academic_year, y = suspension_rate, group = student_group, color = student_group)) +
     geom_line(linewidth = 1.2) +
     geom_point(size = 2.5) +
@@ -59,7 +61,7 @@ for (quartile in enrollment_quartiles) {
       color = "black",
       size = 3.5,
       fontface = "bold",
-      segment.color = 'grey50',
+      segment.color = "grey50",
       box.padding = 0.5,
       max.overlaps = Inf
     ) +
@@ -77,15 +79,13 @@ for (quartile in enrollment_quartiles) {
       plot.title = element_text(face = "bold", size = 18),
       axis.text.x = element_text(angle = 45, hjust = 1)
     )
-  
-  # Create a clean filename
+
   file_name <- paste0("suspension_rates_by_race_", tolower(gsub("[^A-Za-z0-9]", "_", quartile)), ".png")
-  
-  # Save the plot
+
   ggsave(here::here("outputs", file_name),
          plot = p,
          width = 12, height = 8, dpi = 300)
-  
 }
 
 message("\n✓ Analysis complete! Check the 'outputs' folder for the four new plot files.")
+

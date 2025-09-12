@@ -17,7 +17,9 @@ renv::snapshot()
 renv::restore()
 ```
 
-### Race label handling
+##codex/add-canonical-label-for-rd-in-filters
+### Canonical race labels
 
-Race/ethnicity values are standardized with `canon_race_label()`. The CRDC code `RD` and text variants such as "Not Reported" map to a canonical "Not Reported" label. This category is excluded from visualizations by default and is filtered out in analysis scripts.
+`R/utils_keys_filters.R` defines `canon_race_label()` and `ALLOWED_RACES` used across analyses. The function now maps CRDC code `RD` and strings such as "Not Reported" to the canonical label "Not Reported." This group is recognized for completeness but excluded from plots to avoid conflating missing data with student populations.
+
 
