@@ -78,7 +78,6 @@ canonicalize_undup <- function(df) {
 # -------------------------------------------------------------------
 # 1) Read race-long (has reason columns)
 # -------------------------------------------------------------------
-###### codex/update-references-and-pipeline-documentation
 RACE_LONG_PATH <- here("data-stage", "susp_v6_long.parquet")
 stopifnot(file.exists(RACE_LONG_PATH))
 ####

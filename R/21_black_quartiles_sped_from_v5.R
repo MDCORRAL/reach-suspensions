@@ -30,12 +30,10 @@ if (!("sped_rate" %in% names(v6_features))) {
   stop("sped_rate column not found in v6_features")
 }
 stopifnot("sped_den" %in% names(v6_features))
-###codex/rename-variables-for-canonical-terms
 ###
 stopifnot(all(c("is_traditional","black_prop_q") %in% names(v6_features)))
 ####main
 
-###codex/rename-variables-for-canonical-term
 #
 # Rename to canonical SWD terminology
 v6_features <- v6_features %>%
@@ -58,7 +56,6 @@ print(table(v6_features$black_prop_q[v6_features$is_traditional], useNA = "alway
 
 # Clean and filter data
 v6_clean <- v6_features %>%
-###codex/rename-variables-for-canonical-terms
   mutate(
     black_q = as.character(black_q),
     black_q = str_replace(black_q, "^QQ", "Q"),
@@ -199,7 +196,6 @@ print(yearly_check)
 # Save outputs
 dir.create(here("outputs"), showWarnings = FALSE)
 
-##codex/rename-variables-for-canonical-term
 ggsave(here("outputs","21_swd_rate_by_black_quartile_unweighted.png"), 
        p_unweighted, width = 8, height = 5.2, dpi = 300)
 
@@ -238,7 +234,6 @@ writeData(
       school_code,
       year,
       black_share   = percent(black_share, accuracy = 0.1),
-###codex/rename-variables-for-canonical-terms
       black_quartile = as.character(black_q),
       swd_rate     = percent(swd_rate, accuracy = 0.1),
       swd_enrollment = swd_den,
@@ -258,12 +253,10 @@ excluded_schools <- v6_features %>%
   mutate(
     included = school_code %in% v6_clean$school_code,
     quartile_status = case_when(
-###codex/rename-variables-for-canonical-terms
       str_detect(black_q, "Unknown") ~ "Unknown quartile",
       is.na(swd_rate) ~ "Missing SWD rate",
       is.na(swd_den) | swd_den == 0 ~ "No SWD enrollment",
 
-##codex/rename-variables-for-canonical-term
       is.na(swd_rate) ~ "Missing SWD rate",
       is.na(swd_den) | swd_den == 0 ~ "No SWD enrollment",
 

@@ -105,7 +105,6 @@ long_counts_all <- read_parquet(V6L_PARQ) %>% clean_names() %>%
     den         = as.numeric(den)
   ) %>% filter(!is.na(subgroup))
 
-##codex/rename-variables-for-canonical-term
 # Keep only Total & Students with Disabilities (SWD); join keys; filter Traditional
 
 analytic <- long_counts_all %>%
@@ -148,7 +147,6 @@ sum_black <- analytic %>%
   )
 
 # Focused Q4 vs Q4 (highest quartile) comparison by year (Total vs SWD)
-###codex/refactor-quartile-naming-convention-and-scripts
 sum_q4_white <- sum_white %>%
   filter(white_prop_q_label == "Q4") %>%
   mutate(group = "White Q4")

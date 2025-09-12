@@ -24,8 +24,10 @@ message("Preparing data for analysis...")
 # Build rates by race and enrollment quartile, excluding "Not Reported"
 rates_by_size_race <- v6 %>%
   filter(enroll_q_label != "Unknown", !is.na(enroll_q_label)) %>%
-    mutate(student_group = canon_race_label(coalesce(subgroup, reporting_category))) %>%
-    filter(student_group %in% setdiff(ALLOWED_RACES, "All Students")) %>%
+
+  mutate(student_group = canon_race_label(coalesce(subgroup, reporting_category))) %>%
+  filter(student_group %in% setdiff(ALLOWED_RACES, "All Students")) %>%
+
 
   group_by(academic_year, enroll_q_label, student_group) %>%
   summarise(
@@ -36,8 +38,6 @@ rates_by_size_race <- v6 %>%
   mutate(
     suspension_rate = if_else(cumulative_enrollment > 0, (total_suspensions / cumulative_enrollment) * 100, 0)
   )
-
-## main
 
 # --- 4) Create and Save Individual Plots --------------------------------------
 
