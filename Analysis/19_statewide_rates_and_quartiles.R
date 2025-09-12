@@ -107,6 +107,7 @@ black_prop <- v6 %>%
 by_black_prop <- black_prop %>%
   group_by(academic_year) %>%
   mutate(black_prop_q = ntile(black_prop, 4)) %>%
+  filter(!is.na(black_prop_q)) %>%
   group_by(academic_year, black_prop_q) %>%
 
   summarise(
