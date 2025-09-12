@@ -4,54 +4,69 @@ author: "mc"
 date: "`r Sys.Date()`"
 output: html_document
 ---
-# Start from scratch (clean environment)
-If you want to reset your R session and clear all objects before re-running:
+
+# Workflow
+
+## Optional: clean environment
 
 ```r
 rm(list = ls())  # remove all objects
 gc()             # trigger garbage collection
+```
 
-# Optionally, restart R session (Session > Restart R in RStudio) 
-
-# First-time setup
-Run these commands once when setting up on a new machine:
+## First-time setup
 
 ```r
 install.packages("renv")   # install renv if not already present
 renv::restore()            # installs exact package versions from renv.lock
 ```
 
-#pull latest code from GitHub
-git pull # in bash terminal
+## Update to latest code
 
-#In R
-renv::restore()
-# installs exact package versions from renv.lock
+```bash
+git pull
+```
 
-# run the pipeline
-source("R/00_paths.R")
-source("R/01_ingest_v0.R")
-source("R/02_feature_locale_simple.R")
-source("R/02b_drop_charter_all.R")
-source("R/03_feature_size_quartiles_TA.R")
-source("R/04_feature_black_prop_quartiles.R")
-source("R/05_feature_school_levels.R")
-source("R/06_feature_reason_shares.R")
-source("R/22_build_v6_features.R")
+```r
+renv::restore()            # ensure packages match lockfile
+```
+
+## Run v6 pipeline
+
+```r
 source("run_pipeline.R")
+```
 
-The workflow now supports additional demographic categories, including English Learner and Migrant students.
+`run_pipeline.R` sequentially executes:
 
-#commit code changes
+- `R/01_ingest_v0.R`
+- `R/02_feature_locale_simple.R`
+- `R/02b_drop_charter_all.R`
+- `R/03_feature_size_quartiles_TA.R`
+- `R/04_feature_black_prop_quartiles.R`
+- `R/05_feature_school_level.R`
+- `R/06_feature_reason_shares.R`
+- `R/22_build_v6_features.R`
+
+The final dataset is written to `data-stage/susp_v6_long.parquet`.
+
+## Commit code changes
+
+```bash
 git add R/*.R renv.lock
 git commit -m "Update features / analysis"
-git push # in bash terminal
+git push
+```
 
-#when you add or remove packages
-renv::snapshot()    # updates renv.lock
-# then commit & push it
+## When packages change
 
-#sanity check
+```r
+renv::snapshot()    # updates renv.lock; then commit & push it
+```
+
+## Sanity check
+
+```r
 library(arrow)
 library(dplyr)
 
@@ -60,94 +75,14 @@ v6 <- read_parquet("data-stage/susp_v6_long.parquet")
 v6 %>%
   select(academic_year, county_name, district_name, school_name,
          category, subgroup, num, den, rate) %>%
-  glimpse()
-# should show ~1,000,000 rows
+  glimpse()  # should show ~1,000,000 rows
+```
 
-# troubleshooting
+## Troubleshooting
+
+```r
 renv::restore() # installs exact package versions from renv.lock
-
 install.packages("pkgname")   # replace with actual package name
 renv::snapshot()              # then commit & push updated lockfile
+```
 
-
----
-# setup chunk
-source("R/00_paths.R")                  # if present
-source("R/01_ingest_v0.R")              # brings in raw data
-source("R/02_feature_locale_simple.R")  # adds locale variable
-source("R/02b_drop_charter_all.R")      # cleans, creates v2
-source("R/03_feature_size_quartiles_TA.R")
-source("R/04_feature_black_prop_quartiles.R")
-source("R/05_feature_school_levels.R")
-source("R/06_feature_reason_shares.R")
-source("R/22_build_v6_features.R")
-source("run_pipeline.R")
-# end setup chunk
-
-# Repo Setup
-## Project Layout
-                   # analysis scripts (run in numeric order)
-source("R/01_ingest.R")
-source("R/02_clean.R")
-source("R/02b_drop_charter_all.R"),
-source("R/03_feature_size_quartiles_TA.R")
-source("R/04_feature_black_prop_quartiles.R")
-source("R/05_feature_school_levels.R")
-source("R/06_feature_reason_shares.R")
-source("R/22_build_v6_features.R")
-
-The workflow now includes additional demographic categories such as English Learner and Migrant.
-data-raw/               # original source files (not committed if large)
-data-stage/             # intermediate parquet (v1…v6*.parquet)
-outputs/                # tables/figures as needed
-
-#Daily Workflow
-#pull latest code
-#bash
-git pull
-#In R
-renv::restore()  # ensure packages are up to date
-# run the pipeline
-source("R/01_ingest.R")
-source("R/02_clean.R")
-source("R/02b_drop_charter_all.R"),
-source("R/03_feature_size_quartiles_TA.R")
-source("R/04_feature_black_prop_quartiles.R")
-source("R/05_feature_school_levels.R")
-source("R/06_feature_reason_shares.R")
-source("R/22_build_v6_features.R")
-
-The workflow now supports additional demographic categories, including English Learner and Migrant students.
-
-#commit code changes
-#bash
-git add R/*.R renv.lock
-git commit -m "Update features / analysis"
-git push
-
-#when you add or remove packages
-#In R
-renv::snapshot()    # updates renv.lock; then commit & push it
-
-#How to pick up where you left off
-#In R
-#close the repo--> open in R --> run
-install.packages("renv")
-renv::restore() # installs the exact package versions from renv.lock
-
-#sanity check
-library(arrow); library(dplyr)
-v6 <- read_parquet("data-stage/susp_v6_long.parquet")
-
-v6 %>%
-  select(academic_year, county_name, district_name, school_name,
-         category, subgroup, num, den, rate) %>%
-  glimpse() # should show ~1,000,000 rows
-  
- #troubleshooting
-#In R
-# if you get an error about a package not being found, run:
-renv::restore()  # installs the exact package versions from renv.lock
-# if you get an error about a package not installing, try:
-install.packages("pkgname")  # replace pkgname with the package name
-renv::snapshot()            # updates renv.lock; then commit & push it
