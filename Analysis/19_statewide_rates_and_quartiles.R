@@ -43,6 +43,7 @@ v6_all <- bind_rows(
 )
 
 # ---- Statewide totals --------------------------------------------------------
+
 statewide_all <- v6_all %>%
   group_by(academic_year, subgroup, school_group, school_type) %>%
   summarise(
