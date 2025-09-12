@@ -183,7 +183,7 @@ p_weighted <- ggplot(plot_df_weighted, aes(x = black_prop_q_label, y = weighted_
 
 # Add after your main analysis to verify temporal stability
 yearly_check <- v6_clean %>%
-  group_by(year, black_prop_q_label) %>%
+  group_by(academic_year, black_prop_q_label) %>%
   summarise(
     n_schools = n(),
     mean_rate = mean(swd_rate, na.rm = TRUE),
@@ -227,21 +227,19 @@ writeData(
 
 # School-level detail
 addWorksheet(wb, "school_level")
-writeData(
-  wb, "school_level",
-  v6_clean %>% 
-    transmute(
-      school_code,
-      year,
-      black_share   = percent(black_share, accuracy = 0.1),
-      black_quartile = as.character(black_q),
-      swd_rate     = percent(swd_rate, accuracy = 0.1),
-      swd_enrollment = swd_den,
-####main
-
-      school_type
-    )
-)
+  writeData(
+    wb, "school_level",
+    v6_clean %>%
+      transmute(
+        school_code,
+        academic_year,
+        black_share   = percent(black_share, accuracy = 0.1),
+        black_quartile = as.character(black_q),
+        swd_rate     = percent(swd_rate, accuracy = 0.1),
+        swd_enrollment = swd_den,
+        school_type
+      )
+  )
 
 # Enrollment distribution summary
 addWorksheet(wb, "enrollment_distribution")

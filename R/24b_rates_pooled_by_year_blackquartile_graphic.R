@@ -11,7 +11,7 @@ library(ggrepel)
 sum_2 <- sum_by %>%
   dplyr::filter(subgroup %in% c("Total", "Students with Disabilities")) %>%
   dplyr::mutate(
-    year               = fct_inorder(year),
+    academic_year      = fct_inorder(academic_year),
     black_prop_q_label = fct_relevel(black_prop_q_label, "Q1","Q2","Q3","Q4"),
     series             = dplyr::recode(subgroup,
                                        "Total" = "Total (All Students)",
@@ -61,7 +61,7 @@ sum_2 <- sum_2 %>%
 library(ggrepel)
 
 p <- ggplot(sum_2,
-            aes(x = year, y = pooled_rate,
+            aes(x = academic_year, y = pooled_rate,
                 group = interaction(black_prop_q_label, series, drop = TRUE, lex.order = TRUE),
                 color = interaction(black_prop_q_label, series, drop = TRUE, lex.order = TRUE))) +
   geom_line(linewidth = 1.0) +
