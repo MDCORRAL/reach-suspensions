@@ -32,18 +32,18 @@ DROP_ALL_STUDENTS_IN_B <- TRUE   # drop it in View B (race facets)
 set.seed(42)
 
 # --- 3) Load & guards ---------------------------------------------------------
-message("Loading v5…")
-v5_path <- here::here("data-stage","susp_v6_long.parquet")
-if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
-v5 <- arrow::read_parquet(v5_path)
+message("Loading v6…")
+v6_path <- here::here("data-stage","susp_v6_long.parquet")
+if (!file.exists(v6_path)) stop("Data file not found: ", v6_path)
+v6 <- arrow::read_parquet(v6_path)
 
 need <- c("subgroup","academic_year","school_level",
           "school_type","total_suspensions","cumulative_enrollment")
-miss <- setdiff(need, names(v5))
-if (length(miss)) stop("Missing columns in v5: ", paste(miss, collapse=", "))
+miss <- setdiff(need, names(v6))
+if (length(miss)) stop("Missing columns in v6: ", paste(miss, collapse=", "))
 
 # academic year order
-year_levels <- v5 %>%
+year_levels <- v6 %>%
   filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 if (!length(year_levels)) stop("No TA rows to establish year order.")
@@ -54,7 +54,7 @@ if (!length(year_levels)) stop("No TA rows to establish year order.")
 # --- 4) Derive school group (Traditional vs All other) ------------------------
 # "Traditional" = Elementary/Middle/High (canonical levels)
 # "All other"   = Alternative + Other grade spans (alt/continuation/comm day/juvenile court, atypical/unknown)
-v5 <- v5 %>%
+v6 <- v6 %>%
   mutate(
     school_group = dplyr::case_when(
       school_level %in% c("Elementary","Middle","High") ~ "Traditional",
@@ -63,7 +63,7 @@ v5 <- v5 %>%
   )
 
 # Plain-English description for captions/subtitles
-alt_examples <- v5 %>%
+alt_examples <- v6 %>%
   filter(school_level == "Alternative") %>%
   distinct(school_type) %>% pull() %>%
   tolower() %>% unique()
@@ -79,7 +79,7 @@ all_other_note <- paste0(
 
 # --- 5) Build pooled rates by year × school_group × race ----------------------
 # All Students baseline
-df_total <- v5 %>%
+df_total <- v6 %>%
   filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   group_by(academic_year, school_group) %>%
   summarise(
@@ -91,7 +91,7 @@ df_total <- v5 %>%
          race = "All Students")
 
 # Race-specific
-df_race <- v5 %>%
+df_race <- v6 %>%
   mutate(race = canon_race_label(subgroup)) %>%
   filter(race %in% setdiff(ALLOWED_RACES, "All Students")) %>%
   group_by(academic_year, school_group, race) %>%

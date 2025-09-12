@@ -25,28 +25,28 @@ LABEL_SIZE_REASON  <- 2.8
 NUDGE_X_LABELS     <- 0.15
 
 # ============ Load ============
-v5_raw <- read_parquet(here("data-stage", "susp_v6_long.parquet")) |> build_keys()
+v6_raw <- read_parquet(here("data-stage", "susp_v6_long.parquet")) |> build_keys()
 
-# Make this robust whether or not aggregate_level exists in v5
-v5 <- {
-  if ("aggregate_level" %in% names(v5_raw)) {
-    v5_raw |> filter_campus_only()
+# Make this robust whether or not aggregate_level exists in v6
+v6 <- {
+  if ("aggregate_level" %in% names(v6_raw)) {
+    v6_raw |> filter_campus_only()
   } else {
     # fall back: drop special 0000000/0000001 if present
-    v5_raw |> filter(!school_code %in% SPECIAL_SCHOOL_CODES)
+    v6_raw |> filter(!school_code %in% SPECIAL_SCHOOL_CODES)
   }
 }
 
 # sanity: TA should be unique per campus-year (the long table itself is not)
-ta_dups <- v5 |> filter(category_type == "Race/Ethnicity", subgroup == "All Students") |>
+ta_dups <- v6 |> filter(category_type == "Race/Ethnicity", subgroup == "All Students") |>
   count(cds_school, academic_year, name = "n") |> filter(n > 1)
 if (nrow(ta_dups) > 0) {
-  stop("TA not unique per campus-year in v5. Examples:\n",
+  stop("TA not unique per campus-year in v6. Examples:\n",
        paste(utils::capture.output(print(head(ta_dups, 10))), collapse = "\n"))
 }
 
 # Year order from TA rows
-year_levels <- v5 |>
+year_levels <- v6 |>
   filter(category_type == "Race/Ethnicity", subgroup == "All Students") |>
   distinct(academic_year) |>
   arrange(academic_year) |>
@@ -54,7 +54,7 @@ year_levels <- v5 |>
 
 # ============ Plot 1: Suspension RATES (All vs Race) ============
 # Statewide rate = sum(suspensions) / sum(enrollment) from campus-only rows
-overall_rate_by_year <- v5 |>
+overall_rate_by_year <- v6 |>
   filter(category_type == "Race/Ethnicity", subgroup == "All Students") |>
   group_by(academic_year) |>
   summarise(
@@ -68,7 +68,7 @@ overall_rate_by_year <- v5 |>
     year_fct = factor(academic_year, levels = year_levels)
   )
 
-race_rate_by_year <- v5 |>
+race_rate_by_year <- v6 |>
   mutate(race = canon_race_label(subgroup)) |>
   filter(race %in% ALLOWED_RACES) |>
   group_by(academic_year, race) |>
@@ -142,17 +142,17 @@ p_rate_totals <- ggplot() +
 
 # ============ Plot 2: Reason MIX (SHARE of suspensions) ============
 # If prop columns are absent, skip gracefully.
-has_prop_cols <- any(grepl("^prop_susp_", names(v5)))
+has_prop_cols <- any(grepl("^prop_susp_", names(v6)))
 if (has_prop_cols) {
-  ta_susp_by_year <- v5 |>
+  ta_susp_by_year <- v6 |>
     filter(category_type == "Race/Ethnicity", subgroup == "All Students") |>
     group_by(academic_year) |>
     summarise(total_susp_all = sum(total_suspensions, na.rm = TRUE), .groups = "drop")
   
-  v5_race <- v5 |> filter(subgroup != "All Students")
-  reason_cols <- names(v5_race)[grepl("^prop_susp_", names(v5_race))]
+  v6_race <- v6 |> filter(subgroup != "All Students")
+  reason_cols <- names(v6_race)[grepl("^prop_susp_", names(v6_race))]
   
-  reason_share_by_year <- v5_race |>
+  reason_share_by_year <- v6_race |>
     select(academic_year, total_suspensions, all_of(reason_cols)) |>
     pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") |>
     mutate(

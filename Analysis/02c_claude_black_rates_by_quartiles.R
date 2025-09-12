@@ -24,27 +24,27 @@ white_quartile_colors <- setNames(
 
 # --- 2) Load + guards ---------------------------------------------------------
 message("Loading data...")
-v5 <- arrow::read_parquet(here::here("data-stage","susp_v6_long.parquet")) %>%
+v6 <- arrow::read_parquet(here::here("data-stage","susp_v6_long.parquet")) %>%
   build_keys() %>%            # adds cds_district, cds_school (canonical keys)
   filter_campus_only()        # drops fake schools + special codes
 
 need_cols <- c("subgroup","academic_year",
                "total_suspensions","cumulative_enrollment",
                "black_prop_q","white_prop_q")
-missing <- setdiff(need_cols, names(v5))
-if (length(missing)) stop("Missing in v5: ", paste(missing, collapse=", "))
+missing <- setdiff(need_cols, names(v6))
+if (length(missing)) stop("Missing in v6: ", paste(missing, collapse=", "))
 
 # make sure readable quartile labels exist using shared helper
-if (!"black_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q, "Black"))
-if (!"white_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q, "White"))
+if (!"black_prop_q_label" %in% names(v6)) v6 <- v6 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q, "Black"))
+if (!"white_prop_q_label" %in% names(v6)) v6 <- v6 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q, "White"))
 
 # order x-axis by TA years that actually have enrollment
-year_levels <- v5 %>%
+year_levels <- v6 %>%
   filter(category_type == "Race/Ethnicity", subgroup == "All Students", cumulative_enrollment > 0) %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 
 # restrict to Black rows for all calculations
-black_students_data <- v5 %>% filter(subgroup == "Black/African American")
+black_students_data <- v6 %>% filter(subgroup == "Black/African American")
 
 # Reason columns: prefer *_count columns if present; otherwise derive from proportions
 has_count_cols <- all(c(
@@ -54,9 +54,9 @@ has_count_cols <- all(c(
   "suspension_count_weapons_possession",
   "suspension_count_illicit_drug_related",
   "suspension_count_other_reasons"
-) %in% names(v5))
+) %in% names(v6))
 
-  prop_cols <- grep("^prop_susp_", names(v5), value = TRUE)
+  prop_cols <- grep("^prop_susp_", names(v6), value = TRUE)
 
 # --- 3) Total Rate Plot helper -----------------------------------------------
 create_total_rate_plot <- function(data, group_var, colors, title_suffix, legend_title) {
@@ -159,7 +159,7 @@ create_category_rate_plot <- function(data, group_var, colors, title_suffix, leg
         year_fct    = factor(academic_year, levels = year_levels)
       )
   } else {
-    stop("No reason data available: neither *_count nor prop_susp_* columns exist in v5.")
+    stop("No reason data available: neither *_count nor prop_susp_* columns exist in v6.")
   }
   
   df2 <- plot_data %>% filter(!is.na(reason_rate))
