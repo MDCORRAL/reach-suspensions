@@ -95,6 +95,13 @@ reason_rate_by_black_quartile <- black_students_data %>%
     names_to = "reason", values_to = "count"
   ) %>%
   mutate(reason = sub("^suspension_count_", "", reason)) %>%
+  mutate(reason = dplyr::case_match(
+    reason,
+    "violent_incident_injury"    ~ "violent_injury",
+    "violent_incident_no_injury" ~ "violent_no_injury",
+    "illicit_drug_related"       ~ "illicit_drug",
+    .default = reason
+  )) %>%
   add_reason_label("reason") %>%
   group_by(academic_year, black_prop_q_label, reason_lab) %>%
   summarise(
@@ -178,6 +185,13 @@ reason_rate_by_white_quartile <- black_students_data %>%
     names_to = "reason", values_to = "count"
   ) %>%
   mutate(reason = sub("^suspension_count_", "", reason)) %>%
+  mutate(reason = dplyr::case_match(
+    reason,
+    "violent_incident_injury"    ~ "violent_injury",
+    "violent_incident_no_injury" ~ "violent_no_injury",
+    "illicit_drug_related"       ~ "illicit_drug",
+    .default = reason
+  )) %>%
   add_reason_label("reason") %>%
   group_by(academic_year, white_prop_q_label, reason_lab) %>%
   summarise(
