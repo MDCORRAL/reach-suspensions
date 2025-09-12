@@ -151,6 +151,7 @@ canon_race_label <- function(x) {
       "multiple"
     ) ~ "Two or More Races",
     x_clean %in% c("rw", "white") ~ "White",
+    x_clean %in% c("rd", "not reported", "not_reported", "notreported") ~ "Not Reported",
     stringr::str_detect(x_clean, "gender|male|female") ~ "Sex",
     TRUE ~ NA_character_
   )
@@ -158,6 +159,7 @@ canon_race_label <- function(x) {
 #codex/remove-obsolete-race_label-function
 
 # Canonical race labels referenced across analysis scripts
+# "Not Reported" is mapped but intentionally omitted from this set
 ALLOWED_RACES <- c(
   "All Students",
   "Black/African American",

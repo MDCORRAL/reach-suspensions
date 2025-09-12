@@ -42,7 +42,7 @@ year_levels <- v5 %>%
 
 df_all <- v5 %>%
   mutate(race = canon_race_label(subgroup)) %>%
-  filter(!is.na(race)) %>%
+  filter(race %in% ALLOWED_RACES) %>%  # drop Not Reported
   group_by(academic_year, locale_simple, race) %>%
   summarise(susp=sum(total_suspensions, na.rm=TRUE),
             enroll=sum(cumulative_enrollment, na.rm=TRUE), .groups="drop") %>%
