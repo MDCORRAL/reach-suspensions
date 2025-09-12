@@ -43,9 +43,3 @@ for (f in scripts) run(f)
 message("\nAll done: ", format(Sys.time(), usetz = TRUE))
 
 # End of file -----------------------------------------------------------------
-
-
-# --- optional: clear environment and rerun entire pipeline -------------------
-rm(list = ls()); gc()
-source("run_pipeline.R")
-# Rerun the pipeline to ensure everything works from start to finish.
