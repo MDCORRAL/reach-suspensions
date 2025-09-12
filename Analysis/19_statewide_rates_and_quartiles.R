@@ -35,14 +35,7 @@ need_cols <- c(
 )
 stopifnot(all(need_cols %in% names(v6)))
 
-# duplicate rows with school_group and/or school_level = "All" for
-# overall statewide summaries and breakdowns
-v6_all <- bind_rows(
-  v6,
-  v6 %>% mutate(school_group = "All"),
-  v6 %>% mutate(school_level = "All"),
-  v6 %>% mutate(school_group = "All", school_level = "All")
-)
+#codex/delete-or-modify-v6_all-creation
 
 # ---- Statewide totals --------------------------------------------------------
 statewide_all <- v6_all %>%
