@@ -11,6 +11,8 @@ suppressPackageStartupMessages({
   library(ggrepel)
 })
 
+try(here::i_am("Analysis/10_analysis_by_size_and_race.R"), silent = TRUE)
+
 # Load helper functions
 source(here::here("R", "utils_keys_filters.R"))
 

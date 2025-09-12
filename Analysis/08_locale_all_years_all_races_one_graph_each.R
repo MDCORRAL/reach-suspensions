@@ -7,6 +7,8 @@ suppressPackageStartupMessages({
   library(stringr); library(ggplot2); library(scales); library(ggrepel)
 })
 
+try(here::i_am("Analysis/08_locale_all_years_all_races_one_graph_each.R"), silent = TRUE)
+
 source(here::here("R", "utils_keys_filters.R"))
 
 # --- 2) Config ----------------------------------------------------------------

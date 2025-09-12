@@ -7,6 +7,8 @@ suppressPackageStartupMessages({
   library(stringr); library(ggplot2); library(scales); library(ggrepel)
 })
 
+try(here::i_am("Analysis/05b_rates_by_locale_facet_race_TWO.R"), silent = TRUE)
+
 source(here::here("R", "utils_keys_filters.R"))
 
 # --- 2) Config ----------------------------------------------------------------

@@ -4,6 +4,8 @@ suppressPackageStartupMessages({
   library(stringr); library(ggplot2); library(scales); library(ggrepel); library(readr)
 })
 
+try(here::i_am("Analysis/04_rates_by_size_quartile_and_race.R"), silent = TRUE)
+
 source(here::here("R", "utils_keys_filters.R"))
 # ======= knobs =======
 LABEL_EVERY   <- 1    # label every 1 year (all points). Try 2 for every other year.
