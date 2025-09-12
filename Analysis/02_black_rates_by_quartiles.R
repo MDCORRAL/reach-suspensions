@@ -6,8 +6,6 @@ suppressPackageStartupMessages({
 
 try(here::i_am("Analysis/02_black_rates_by_quartiles.R"), silent = TRUE)
 
-# project root
-here::here()
 
 # sanity: these should both be TRUE if set up right
 stopifnot(file.exists(here::here("Analysis", "01_trends.R")))
