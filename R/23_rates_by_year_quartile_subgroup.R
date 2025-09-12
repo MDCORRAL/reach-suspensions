@@ -79,7 +79,10 @@ long_src <- read_parquet(V6L_PARQ) %>% clean_names() %>%
 analytic <- long_src %>%
   inner_join(v6_features, by = c("school_code","year")) %>%
   filter(is_traditional, !is.na(black_prop_q), !is.na(rate)) %>%
-  mutate(black_prop_q = factor(paste0("Q", black_prop_q), levels = paste0("Q",1:4)))
+  mutate(
+    black_prop_q_label = factor(paste0("Q", black_prop_q),
+                                 levels = paste0("Q", 1:4))
+  )
 
 if (nrow(analytic) == 0) stop("No rows after join/filter. Check year formats or keys.")
 # With the fixed normalizer, this will pass:
@@ -88,7 +91,7 @@ stopifnot(n_distinct(analytic$black_prop_q) <= 4)
 
 # --- Summarize by year × black quartile × subgroup ---------------------------
 sum_by <- analytic %>%
-  group_by(year, black_prop_q, subgroup) %>%
+  group_by(year, black_prop_q_label, subgroup) %>%
   summarise(
     n_schools = dplyr::n(),
     n_valid   = sum(!is.na(rate)),
@@ -98,8 +101,8 @@ sum_by <- analytic %>%
     ci_low    = mean_rate - qt(0.975, df = pmax(n_valid - 1, 1)) * se_rate,
     ci_high   = mean_rate + qt(0.975, df = pmax(n_valid - 1, 1)) * se_rate,
     .groups   = "drop"
-  )%>%
-  arrange(subgroup, year, black_prop_q)
+  ) %>%
+  arrange(subgroup, year, black_prop_q_label)
 
 # --- Plot: one facet per subgroup; lines = Black quartiles over time ---------
 # --- Palette (reuse across scripts) ------------------------------------------
@@ -125,11 +128,14 @@ scale_linetype_manual <- function(...) {
 year_levels <- analytic$year |> unique() |> sort()
 sum_by <- sum_by |>
   mutate(
-    year         = factor(year, levels = year_levels),
-    black_prop_q = forcats::fct_relevel(black_prop_q, "Q1","Q2","Q3","Q4")
+    year               = factor(year, levels = year_levels),
+    black_prop_q_label = forcats::fct_relevel(black_prop_q_label,
+                                              "Q1","Q2","Q3","Q4")
   )
 
-p <- ggplot(sum_by, aes(x = year, y = mean_rate, group = black_prop_q, color = black_prop_q)) +
+p <- ggplot(sum_by,
+            aes(x = year, y = mean_rate,
+                group = black_prop_q_label, color = black_prop_q_label)) +
   geom_line(size = 0.9) +
   geom_point(size = 2) +
   geom_errorbar(aes(ymin = ci_low, ymax = ci_high), width = 0.08, alpha = 0.7) +
@@ -160,23 +166,23 @@ writeData(
   wb, "tidy_by_year_q_subgroup",
   sum_by |>
     mutate(
-    across(c(year, black_prop_q, subgroup), as.character),
+      across(c(year, black_prop_q_label, subgroup), as.character),
       across(c(mean_rate, ci_low, ci_high), ~ scales::percent(.x, accuracy = 0.1))
     )
 )
 
 wide_n <- sum_by |>
-  select(year, black_prop_q, subgroup, n_schools) |>
-  mutate(across(c(year, black_prop_q), as.character)) |>
+  select(year, black_prop_q_label, subgroup, n_schools) |>
+  mutate(across(c(year, black_prop_q_label), as.character)) |>
   pivot_wider(names_from = subgroup, values_from = n_schools) |>
-  arrange(year, black_prop_q)
+  arrange(year, black_prop_q_label)
 
 wide_rates <- sum_by |>
-  select(year, black_prop_q, subgroup, mean_rate) |>
-  mutate(across(c(year, black_prop_q), as.character),
+  select(year, black_prop_q_label, subgroup, mean_rate) |>
+  mutate(across(c(year, black_prop_q_label), as.character),
          mean_rate = scales::percent(mean_rate, accuracy = 0.1)) |>
   tidyr::pivot_wider(names_from = subgroup, values_from = mean_rate) |>
-  arrange(year, black_prop_q)
+  arrange(year, black_prop_q_label)
 
 openxlsx::addWorksheet(wb, "wide_rates")
 openxlsx::writeData(wb, "wide_rates", wide_rates)
