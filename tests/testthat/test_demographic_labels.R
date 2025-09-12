@@ -14,7 +14,7 @@ test_that('code_alias_to_canon resolves known aliases', {
 test_that('canon_demo_label returns canonical labels', {
   inputs <- c('english learner','students with disabilities','Total')
   expect_equal(canon_demo_label(inputs),
-               c('English Learner','Students with Disabilities','Total'))
+               c('English Learner','Students with Disabilities','All Students'))
 })
 
 test_that('canonicalize_demo adds canonical fields', {
