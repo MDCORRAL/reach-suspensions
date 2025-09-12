@@ -123,7 +123,7 @@ if ("can_assume_zero" %in% names(demo_data) && length(present_reason_cols_oth)) 
 # 3) Canonical school/year attributes from v5 (source of truth)
 #     join with suffix ".v5", then coalesce, then drop extras
 # --- v5 keys + robust campus filter (with fallback) ---
-v5_path <- here("data-stage", "susp_v5.parquet")
+v5_path <- here("data-stage", "susp_v6_long.parquet")
 stopifnot(file.exists(v5_path))
 
 # 1) Read and keep aggregate_level if present
@@ -235,7 +235,7 @@ message("[15a] missing attrs in OTH: ",
 present_reason_cols <- intersect(REASON_COLS, names(race_long))
 
 all_students <- race_long %>%
-  filter(reporting_category == "TA") %>%
+  filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   inner_join(
     v5_schools_only %>% select(academic_year, county_code, district_code, school_code),
     by = c("academic_year","county_code","district_code","school_code")
@@ -255,7 +255,7 @@ all_students <- race_long %>%
 # Non-intersectional stack (Race/Ethnicity + Other)
 # Race/Ethnicity (campus-only)
 race_non_ta <- race_long %>%
-  filter(reporting_category != "TA") %>%
+  filter(subgroup != "All Students") %>%
   inner_join(
     v5_schools_only %>% select(academic_year, county_code, district_code, school_code),
     by = c("academic_year","county_code","district_code","school_code")
@@ -266,7 +266,7 @@ race_non_ta <- race_long %>%
     county_name, district_name, school_name,
     ed_ops_name, setting, school_level,
     reporting_domain = "Race/Ethnicity",
-    subgroup_label = coalesce(reporting_category_description, reporting_category),
+    subgroup_label = coalesce(subgroup_description, subgroup),
     cumulative_enrollment, total_suspensions,
     undup_total = unduplicated_count_of_students_suspended_total,
     !!!syms(present_reason_cols)
@@ -313,7 +313,7 @@ message("[15a] Wrote: ", file.path(out_dir, "school_year_subgroups_nonintersecti
 present_reason_cols <- intersect(REASON_COLS, names(race_long))
 
 nps_by_district <- race_long %>%
-  filter(reporting_category == "TA", school_code == "0000001") %>%
+  filter(category_type == "Race/Ethnicity", subgroup == "All Students", school_code == "0000001") %>%
   group_by(
     year, academic_year,
     county_code, district_code,

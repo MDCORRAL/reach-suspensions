@@ -19,12 +19,12 @@ list.files(here::here("R"))
 # ---------- Load ----------
 source(here::here("R","utils_keys_filters.R"))
 
-v5 <- read_parquet(here("data-stage","susp_v5.parquet")) %>%
+v5 <- read_parquet(here("data-stage","susp_v6_long.parquet")) %>%
   build_keys() %>%
   filter_campus_only()
 
 # quick guards
-need_cols <- c("reporting_category","academic_year","total_suspensions","cumulative_enrollment")
+need_cols <- c("subgroup","academic_year","total_suspensions","cumulative_enrollment")
 stopifnot(all(need_cols %in% names(v5)))
 
 # quartile columns from file 04 (black & white prop quartiles)
@@ -43,7 +43,7 @@ if (!"white_prop_q_label" %in% names(v5)) {
 
 # Year order from TA rows
 year_levels <- v5 %>%
-  filter(reporting_category == "TA") %>%
+  filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 
 # Reason columns (built in R/06)
@@ -54,7 +54,7 @@ reason_cols <- names(v5)[grepl("^prop_susp_", names(v5))]
 agg_rb_by_quart <- function(v5, quart_var, quart_title) {
   # 1) TOTAL rate & counts (RB only)
   rb_totals <- v5 %>%
-    filter(reporting_category == "RB", !is.na(.data[[quart_var]]), .data[[quart_var]] != "Unknown")%>%
+    filter(subgroup == "Black/African American", !is.na(.data[[quart_var]]), .data[[quart_var]] != "Unknown")%>%
     group_by(academic_year, .data[[quart_var]]) %>%
     summarise(
       susp   = sum(total_suspensions, na.rm = TRUE),
@@ -69,7 +69,7 @@ agg_rb_by_quart <- function(v5, quart_var, quart_title) {
   
   # 2) Reason-specific RB rate = (prop * total_suspensions) / RB enrollment
   rb_reason <- v5 %>%
-    filter(reporting_category == "RB", !is.na(.data[[quart_var]])) %>%
+    filter(subgroup == "Black/African American", !is.na(.data[[quart_var]])) %>%
     select(academic_year, cumulative_enrollment, total_suspensions, .data[[quart_var]], all_of(reason_cols)) %>%
     pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
     mutate(

@@ -96,16 +96,39 @@ assert_unique_campus <- function(df, year_col = "year", extra_keys = character()
 # assert uniqueness for a district-level frame
 # (function intentionally left for future implementation)
 
-# map CRDC race codes to descriptive labels
-race_label <- function(code) dplyr::recode(
-  code,
-  RB = "Black/African American", RW = "White",
-  RH = "Hispanic/Latino", RL = "Hispanic/Latino",
-  RI = "American Indian/Alaska Native", RA = "Asian",
-  RF = "Filipino", RP = "Pacific Islander",
-  RT = "Two or More Races", TA = "All Students",
-  .default = NA_character_
-)
+# Map various race/ethnicity inputs to canonical labels. Accepts either
+# legacy reporting-category codes (e.g., "RB") or descriptive subgroup
+# names (e.g., "Black").
+canon_race_label <- function(x) {
+  x_clean <- stringr::str_to_lower(stringr::str_trim(x))
+  dplyr::case_when(
+    x_clean %in% c("ta", "total", "all students", "all_students") ~ "All Students",
+    x_clean %in% c("ra", "asian") ~ "Asian",
+    x_clean %in% c(
+      "rb", "black", "african american", "black/african american",
+      "african_american"
+    ) ~ "Black/African American",
+    x_clean %in% c("rf", "filipino") ~ "Filipino",
+    x_clean %in% c(
+      "rh", "rl", "hispanic", "latino", "hispanic/latino",
+      "hispanic_latino"
+    ) ~ "Hispanic/Latino",
+    x_clean %in% c(
+      "ri", "american indian", "alaska native",
+      "american indian/alaska native", "native american"
+    ) ~ "American Indian/Alaska Native",
+    x_clean %in% c("rp", "pacific islander", "native hawaiian") ~ "Pacific Islander",
+    x_clean %in% c(
+      "rt", "two or more", "two or more races", "multirace",
+      "multiple"
+    ) ~ "Two or More Races",
+    x_clean %in% c("rw", "white") ~ "White",
+    TRUE ~ NA_character_
+  )
+}
+
+# Backward-compatible alias used by legacy scripts
+race_label <- canon_race_label
 
 =======
 # construct standardized quartile labels like "Q1 (Lowest % Black)"

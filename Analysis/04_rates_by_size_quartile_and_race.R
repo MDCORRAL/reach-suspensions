@@ -16,15 +16,15 @@ HALO_ALPHA    <- 0.2 # label box fill transparency (0=clear, 1=opaque)
 RACE_SET <- NULL  # e.g., c("All Students","Hispanic/Latino","Black/African American","White","Asian")
 
 # ======= data load & guards =======
-v5 <- read_parquet(here("data-stage","susp_v5.parquet"))
+v5 <- read_parquet(here("data-stage","susp_v6_long.parquet"))
 
-need <- c("reporting_category","academic_year","total_suspensions","cumulative_enrollment","enroll_q_label")
+need <- c("subgroup","academic_year","total_suspensions","cumulative_enrollment","enroll_q_label")
 miss <- setdiff(need, names(v5))
 if (length(miss)) stop("Missing columns in v5: ", paste(miss, collapse=", "),
                        "\nRe-run 03_feature_size_quartiles_TA.R and downstream.")
 
 # Year order
-year_levels <- v5 %>% filter(reporting_category=="TA") %>%
+year_levels <- v5 %>% filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 
 # Enrollment quartiles of interest
@@ -34,12 +34,12 @@ q_keep <- c("Q1 (Smallest)","Q4 (Largest)")
 pal_quart <- c("Q1 (Smallest)"="#0072B2", "Q4 (Largest)"="#D55E00")
 shape_quart <- c("Q1 (Smallest)"=16, "Q4 (Largest)"=17)  # circle vs triangle
 
-# Race code map (RD excluded) provided by race_label() helper
+# Race code map (RD excluded) provided by canon_race_label() helper
 
 # ======= aggregate: pooled rates by year × quartile × race =======
 # Total (All Students) from TA
 df_total <- v5 %>%
-  filter(reporting_category=="TA", !is.na(enroll_q_label), enroll_q_label %in% q_keep) %>%
+  filter(category_type == "Race/Ethnicity", subgroup == "All Students", !is.na(enroll_q_label), enroll_q_label %in% q_keep) %>%
   group_by(academic_year, enroll_q_label) %>%
   summarise(
     susp   = sum(total_suspensions, na.rm=TRUE),
@@ -52,11 +52,11 @@ df_total <- v5 %>%
   )
 
 # Races
-allowed_race_codes <- c("RB","RW","RH","RL","RI","RA","RF","RP","RT")
+allowed_races <- c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Pacific Islander","Two or More Races")
 df_race <- v5 %>%
-  filter(reporting_category %in% allowed_race_codes,
+  filter(canon_race_label(subgroup) %in% allowed_races,
          !is.na(enroll_q_label), enroll_q_label %in% q_keep) %>%
-  mutate(race = race_label(reporting_category)) %>%
+  mutate(race = canon_race_label(subgroup)) %>%
   filter(!is.na(race)) %>%
   group_by(academic_year, enroll_q_label, race) %>%
   summarise(
