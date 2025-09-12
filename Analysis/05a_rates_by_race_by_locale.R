@@ -51,13 +51,9 @@ df_total <- v6 %>%
   mutate(rate=if_else(enroll>0, susp/enroll, NA_real_), race="All Students")
 
 # Race-specific
-##codex/edit-race-filter-for-hispanic/latino
-df_race <- v5 %>%
-###codex/import-and-use-allowed_races-constant
-  filter(subgroup %in% setdiff(ALLOWED_RACES, "All Students")) %>%
-
-  mutate(race=canon_race_label(subgroup)) %>%
-  filter(!is.na(race)) %>%
+df_race <- v6 %>%
+  mutate(race = canon_race_label(subgroup)) %>%
+  filter(race %in% setdiff(ALLOWED_RACES, "All Students")) %>%
   group_by(academic_year, locale_simple, race) %>%
   summarise(susp=sum(total_suspensions, na.rm=TRUE),
             enroll=sum(cumulative_enrollment, na.rm=TRUE), .groups="drop") %>%
