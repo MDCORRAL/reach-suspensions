@@ -11,17 +11,13 @@ suppressPackageStartupMessages({
   library(here)
 })
 
+source("R/ingest_helpers.R")
+
 # -------- Config -------------------------------------------------------------
-###odex/refactor-demo_data_path-to-relative-path
 # Path to the raw demographics XLSX. Use an environment variable override
 # if available, otherwise fall back to the copy stored under data-raw/.
 DEMO_DATA_PATH <- Sys.getenv("OTH_RAW_PATH")
-if (DEMO_DATA_PATH == "") {
-####
-# Path to the OTH demographic XLSX. Can be overridden by OTH_RAW_PATH env var.
-DEMO_DATA_PATH <- Sys.getenv("OTH_RAW_PATH")
 if (!nzchar(DEMO_DATA_PATH)) {
-##### main
   DEMO_DATA_PATH <- here("data-raw", "copy_CDE_suspensions_1718-2324_sc_oth.xlsx")
 }
 
@@ -33,37 +29,6 @@ safe_rate <- function(susp, enroll, min_enroll = 0) ifelse(enroll > min_enroll, 
 norm <- function(x) x %>%
   stringr::str_replace_all("\u2013|\u2014", "-") %>%
   stringr::str_squish()
-
-# Pick likely column names (tolerant to header variants)
-pick_col <- function(df, candidates, required=TRUE, label=NULL) {
-  nm <- intersect(candidates, names(df))[1]
-  if (is.na(nm) && required) stop("Missing expected column", if(!is.null(label)) paste0(" for ", label), ": ", paste(candidates, collapse=", "))
-  nm
-}
-
-# Numeric fields present in CDE files
-NUMERIC_COLS <- c(
-  "cumulative_enrollment",
-  "total_suspensions",
-  "unduplicated_count_of_students_suspended_total",
-  "suspension_rate_total"
-)
-
-# Safely derive year and academic_year from possible columns
-derive_year <- function(df) {
-  ay_col   <- pick_col(df, c("academic_year","academic_yr"), FALSE)
-  year_col <- pick_col(df, c("year"), FALSE)
-
-  yr <- if (!is.na(year_col)) suppressWarnings(as.integer(df[[year_col]])) else NA_integer_
-  ay <- if (!is.na(ay_col)) as.character(df[[ay_col]]) else NA_character_
-
-  academic_year <- dplyr::coalesce(
-    if (!all(is.na(ay))) ay else NA_character_,
-    ifelse(!is.na(yr), paste0(yr - 1, "-", substr(yr,3,4)), NA_character_)
-  )
-
-  list(year = yr, academic_year = academic_year)
-}
 
 # -------- Read XLSX ----------------------------------------------------------
 if (!file.exists(DEMO_DATA_PATH)) stop("File not found: ", DEMO_DATA_PATH)
@@ -77,6 +42,8 @@ message("Using sheet: ", school_sheet)
 raw <- readxl::read_excel(
   DEMO_DATA_PATH, sheet = school_sheet, na = c("", "NA", "N/A", "—", "-", "--")
 ) |> janitor::clean_names()
+
+num_cols <- numeric_cols(raw)
 
 # Identify key columns once
 rc_col  <- pick_col(raw, c("reporting_category","reporting_category_code"), TRUE,  "reporting category")
@@ -148,7 +115,7 @@ raw_norm <- raw |>
     academic_year = academic_year,
     across(any_of(c("county_code","district_code","school_code",
                     "county_name","district_name","school_name")), as.character),
-    across(any_of(NUMERIC_COLS), ~ readr::parse_number(as.character(.x))),
+    across(any_of(num_cols), ~ readr::parse_number(as.character(.x))),
     rc_code = norm(.data[[rc_col]]),
     rc_desc = norm(.data[[rcd_col]])
   )

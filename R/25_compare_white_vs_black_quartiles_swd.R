@@ -1,4 +1,5 @@
 ##25_compare_white_vs_black_quartiles_swd.R─────────────────────────────
+# Canonical subgroup term: Students with Disabilities (SWD)
 
 suppressPackageStartupMessages({
   library(dplyr); library(stringr); library(forcats); library(janitor)
@@ -104,7 +105,9 @@ long_counts_all <- read_parquet(V6L_PARQ) %>% clean_names() %>%
     den         = as.numeric(den)
   ) %>% filter(!is.na(subgroup))
 
-# Keep only Total & SWD; join keys; filter Traditional
+##codex/rename-variables-for-canonical-term
+# Keep only Total & Students with Disabilities (SWD); join keys; filter Traditional
+
 analytic <- long_counts_all %>%
   filter(subgroup %in% c("Total","Students with Disabilities")) %>%
   inner_join(keys, by = c("school_code","year")) %>%
@@ -145,12 +148,15 @@ sum_black <- analytic %>%
   )
 
 # Focused Q4 vs Q4 (highest quartile) comparison by year (Total vs SWD)
+###codex/refactor-quartile-naming-convention-and-scripts
 sum_q4_white <- sum_white %>%
   filter(white_prop_q_label == "Q4") %>%
   mutate(group = "White Q4")
 sum_q4_black <- sum_black %>%
   filter(black_prop_q_label == "Q4") %>%
   mutate(group = "Black Q4")
+
+### main
 sum_q4_compare <- bind_rows(
   sum_q4_white %>% select(year, subgroup, pooled_rate, group),
   sum_q4_black %>% select(year, subgroup, pooled_rate, group)
@@ -178,7 +184,7 @@ base_theme <- theme_minimal(base_size = 13) +
     plot.title       = element_text(face = "bold", size = 16)
   )
 
-# Lines: color = quartile, linetype = subgroup (Total solid, SWD dashed)
+# Lines: color = quartile, linetype = subgroup (Total solid, Students with Disabilities dashed)
 # White quartiles plot
 plot_white <- ggplot(
   sum_white %>% mutate(series = recode(subgroup,
@@ -276,7 +282,7 @@ writeData(
     arrange(white_prop_q_label, year, subgroup)
 )
 
-# White quartiles — wide (rows = year × quartile; cols = Total, SWD)
+# White quartiles — wide (rows = year × quartile; cols = Total, Students with Disabilities)
 addWorksheet(wb, "white_quartiles_wide")
 writeData(
   wb, "white_quartiles_wide",

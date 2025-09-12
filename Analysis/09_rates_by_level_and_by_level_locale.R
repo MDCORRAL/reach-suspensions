@@ -1,10 +1,5 @@
-
-# analysis/09_rates_by_level_and_by_level_locale.R
+# Analysis/09_rates_by_level_and_by_level_locale.R
 # One graph per school level (Elementary/Middle/High School), and one per (level × locale),
-=======
-# analysis/02c_rates_by_level_and_by_level_locale.R
-# One graph per school level (Elementary/Middle/High), and one per (level × locale),
-
 # showing all years and all race/ethnicity lines with readable labels.
 
 # --- 1) Setup -----------------------------------------------------------------
@@ -47,11 +42,12 @@ year_levels <- v5 %>%
 if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 
 # Levels to include
+# canonical grade levels
 LEVELS <- c("Elementary","Middle","High")
 
 # --- 4) Race labels & allowed codes ------------------------------------------
 # provided via canon_race_label() helper
-allowed_codes <- c("All Students","Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Pacific Islander","Two or More Races")
+allowed_codes <- c("All Students","Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Native Hawaiian/Pacific Islander","Two or More Races")
 
 # --- 5) Prep data -------------------------------------------------------------
 # Base long with race and year factor

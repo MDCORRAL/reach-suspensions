@@ -156,16 +156,16 @@ analytic_data <- v5_complete %>%
     black_q = order_quartile(black_q),
     white_q = order_quartile(white_q),
     setting = factor(setting, levels = c("Traditional", "Non-traditional")),
-    grade_level = factor(grade_level, levels = c("Elementary", "Middle", "High", "K-12", "Alternative", "Other/Unknown"))
+    grade_level = factor(grade_level, levels = c("Elementary", "Middle", "High", "Other", "Alternative"))
   )
 
 # NOW add the diagnostic code:
 unknown_schools <- analytic_data %>%
-  filter(grade_level == "Other/Unknown") %>%
+  filter(grade_level == "Other") %>%
   count(school_level, sort = TRUE) %>%
   head(20)
 
-message("Top school level values classified as Other/Unknown:")
+message("Top school level values classified as Other:")
 print(unknown_schools)
 
 # -------------------------------------------------------------------------
@@ -347,7 +347,7 @@ create_grade_level_plot <- function() {
     filter(
       race_ethnicity == "Black/African American",
       setting == "Traditional",
-      grade_level %in% c("Elementary", "Middle", "High", "K-12")
+      grade_level %in% c("Elementary", "Middle", "High", "Other")
     ) %>%
     calc_summary_stats(year, grade_level, black_q)
   

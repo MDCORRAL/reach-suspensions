@@ -59,14 +59,14 @@ alt_examples <- v5 %>%
 alt_hint <- c("continuation","community day","juvenile court","alternative")
 alt_found <- alt_hint[alt_hint %in% unique(unlist(str_split(alt_examples, "\\W+")))]
 alt_found_pretty <- if (length(alt_found)) paste(alt_found, collapse=", ") else "alternative settings"
-all_other_note <- paste0("All other = Alternative (e.g., ", alt_found_pretty, 
-                         ") + schools with Other/Unknown grade spans.")
+all_other_note <- paste0("All other = Alternative (e.g., ", alt_found_pretty,
+                         ") + schools with Other grade spans.")
 
 # --- 5) Race labels -----------------------------------------------------------
 # handled via shared canon_race_label() helper
 
 # --- 6) Aggregate to pooled rates by year × locale × race × group ------------
-allowed_races <- c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Pacific Islander","Two or More Races","All Students")
+allowed_races <- c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Native Hawaiian/Pacific Islander","Two or More Races","All Students")
 
 df_all <- v5 %>%
   mutate(race = canon_race_label(subgroup)) %>%

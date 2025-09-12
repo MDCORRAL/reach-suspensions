@@ -52,7 +52,7 @@ df_total <- v5 %>%
   )
 
 # Races
-allowed_races <- c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Pacific Islander","Two or More Races")
+allowed_races <- c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Native Hawaiian/Pacific Islander","Two or More Races")
 df_race <- v5 %>%
   filter(canon_race_label(subgroup) %in% allowed_races,
          !is.na(enroll_q_label), enroll_q_label %in% q_keep) %>%
