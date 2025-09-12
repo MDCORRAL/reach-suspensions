@@ -40,7 +40,7 @@ cols <- list(
   school_name = "school_name", 
   year        = "academic_year",
   setting     = "school_type",                    # Traditional vs Other
-  level       = "school_level_final",
+  level       = "school_level",
   enrollment  = "cumulative_enrollment",
   total_susp  = "total_suspensions",
   undup_susp  = "unduplicated_count_of_students_suspended_total"
