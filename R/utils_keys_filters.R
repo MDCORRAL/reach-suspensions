@@ -99,7 +99,7 @@ race_label <- function(code) dplyr::recode(
   RB = "Black/African American", RW = "White",
   RH = "Hispanic/Latino", RL = "Hispanic/Latino",
   RI = "American Indian/Alaska Native", RA = "Asian",
-  RF = "Filipino", RP = "Pacific Islander",
+  RF = "Filipino", RP = "Native Hawaiian/Pacific Islander",
   RT = "Two or More Races", TA = "All Students",
   .default = NA_character_
 )

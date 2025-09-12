@@ -37,7 +37,7 @@ rates_by_size_race <- v5 %>%
       reporting_category == "RA" ~ "Asian",
       reporting_category == "RF" ~ "Filipino",
       reporting_category == "RH" ~ "Hispanic",
-      reporting_category == "RP" ~ "Pacific Islander",
+      reporting_category == "RP" ~ "Native Hawaiian/Pacific Islander",
       reporting_category == "RW" ~ "White",
       reporting_category == "RT" ~ "Two or More Races",
       reporting_category == "RD" ~ "Not Reported",
