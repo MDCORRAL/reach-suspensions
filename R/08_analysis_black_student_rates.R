@@ -15,12 +15,12 @@ suppressPackageStartupMessages({
 source(here::here("R", "utils_keys_filters.R"))
 
 # --- 2) Load Data -------------------------------------------------------------
-v5 <- arrow::read_parquet(here::here("data-stage", "susp_v5.parquet")) %>%
+v6 <- arrow::read_parquet(here::here("data-stage", "susp_v6_long.parquet")) %>%
   build_keys() %>%          # Standardize CDS codes
   filter_campus_only()      # Exclude special aggregation rows
 
 # --- 3) Filter for Black Students Data ---------------------------------------
-black_students_data <- v5 %>%
+black_students_data <- v6 %>%
   filter(reporting_category == "RB")
 
 # ==============================================================================
@@ -60,22 +60,32 @@ p1_black_by_black <- ggplot(rate_by_black_quartile, aes(x = academic_year, y = s
 reason_rate_by_black_quartile <- black_students_data %>%
   # Most robust filter
   filter(
-    reporting_category == "RB", 
-    !is.na(black_prop_q_label), 
+    reporting_category == "RB",
+    !is.na(black_prop_q_label),
     black_prop_q_label != "Unknown"
   ) %>%
   group_by(academic_year, black_prop_q_label) %>%
   summarise(
-    Defiance = sum(suspension_count_defiance_only, na.rm = TRUE),
-    `Violent Injury` = sum(suspension_count_violent_incident_injury, na.rm = TRUE),
-    `Violent No Injury` = sum(suspension_count_violent_incident_no_injury, na.rm = TRUE),
-    Weapons = sum(suspension_count_weapons_possession, na.rm = TRUE),
-    Drugs = sum(suspension_count_illicit_drug_related, na.rm = TRUE),
-    Other = sum(suspension_count_other_reasons, na.rm = TRUE),
+    across(
+      c(
+        violent_injury     = suspension_count_violent_incident_injury,
+        violent_no_injury  = suspension_count_violent_incident_no_injury,
+        weapons_possession = suspension_count_weapons_possession,
+        illicit_drug       = suspension_count_illicit_drug_related,
+        defiance_only      = suspension_count_defiance_only,
+        other_reasons      = suspension_count_other_reasons
+      ),
+      ~ sum(.x, na.rm = TRUE)
+    ),
     enrollment = sum(cumulative_enrollment, na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  pivot_longer(cols = -c(academic_year, black_prop_q_label, enrollment), names_to = "suspension_reason", values_to = "count") %>%
+  pivot_longer(
+    cols = -c(academic_year, black_prop_q_label, enrollment),
+    names_to = "reason",
+    values_to = "count"
+  ) %>%
+  add_reason_label() %>%
   mutate(reason_rate = if_else(enrollment > 0, (count / enrollment), 0))
 
 # Data for total labels in each facet
@@ -85,7 +95,7 @@ labels_reason_black_q <- reason_rate_by_black_quartile %>%
 
 # --- 7) CHART 1B: Suspension Reason Rates by Black Enrollment Quartile ------
 p2_reasons_by_black <- ggplot(reason_rate_by_black_quartile, aes(x = academic_year, y = reason_rate,
-                                                                 group = suspension_reason, fill = suspension_reason)) +
+                                                                 group = reason_lab, fill = reason_lab)) +
   geom_area(position = "stack") +
   geom_text(data = labels_reason_black_q,
             aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),
@@ -136,16 +146,26 @@ reason_rate_by_white_quartile <- black_students_data %>%
   filter(white_prop_q_label != "Unknown") %>%
   group_by(academic_year, white_prop_q_label) %>%
   summarise(
-    Defiance = sum(suspension_count_defiance_only, na.rm = TRUE),
-    `Violent Injury` = sum(suspension_count_violent_incident_injury, na.rm = TRUE),
-    `Violent No Injury` = sum(suspension_count_violent_incident_no_injury, na.rm = TRUE),
-    Weapons = sum(suspension_count_weapons_possession, na.rm = TRUE),
-    Drugs = sum(suspension_count_illicit_drug_related, na.rm = TRUE),
-    Other = sum(suspension_count_other_reasons, na.rm = TRUE),
+    across(
+      c(
+        violent_injury     = suspension_count_violent_incident_injury,
+        violent_no_injury  = suspension_count_violent_incident_no_injury,
+        weapons_possession = suspension_count_weapons_possession,
+        illicit_drug       = suspension_count_illicit_drug_related,
+        defiance_only      = suspension_count_defiance_only,
+        other_reasons      = suspension_count_other_reasons
+      ),
+      ~ sum(.x, na.rm = TRUE)
+    ),
     enrollment = sum(cumulative_enrollment, na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  pivot_longer(cols = -c(academic_year, white_prop_q_label, enrollment), names_to = "suspension_reason", values_to = "count") %>%
+  pivot_longer(
+    cols = -c(academic_year, white_prop_q_label, enrollment),
+    names_to = "reason",
+    values_to = "count"
+  ) %>%
+  add_reason_label() %>%
   mutate(reason_rate = if_else(enrollment > 0, (count / enrollment), 0))
 
 # Data for total labels in each facet
@@ -155,7 +175,7 @@ labels_reason_white_q <- reason_rate_by_white_quartile %>%
 
 # --- 11) CHART 2B: Suspension Reason Rates by White Enrollment Quartile ------
 p4_reasons_by_white <- ggplot(reason_rate_by_white_quartile, aes(x = academic_year, y = reason_rate,
-                                                                 group = suspension_reason, fill = suspension_reason)) +
+                                                                 group = reason_lab, fill = reason_lab)) +
   geom_area(position = "stack") +
   geom_text(data = labels_reason_white_q,
             aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),

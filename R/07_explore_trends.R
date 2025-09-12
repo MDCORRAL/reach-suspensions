@@ -13,7 +13,7 @@ suppressPackageStartupMessages({
 })
 
 # --- 2) Load Data -------------------------------------------------------------
-v5 <- arrow::read_parquet(here::here("data-stage", "susp_v5.parquet"))
+v6 <- arrow::read_parquet(here::here("data-stage", "susp_v6_long.parquet"))
 
 # --- helpers ------------------------------------------------------------------
 order_year <- function(x) {
@@ -34,7 +34,7 @@ order_quartile <- function(x) {
 }
 
 # --- 3) Filter for Black Students Data ---------------------------------------
-black_students_data <- v5 %>%
+black_students_data <- v6 %>%
   filter(reporting_category == "RB") %>%
   mutate(
     academic_year     = order_year(academic_year),

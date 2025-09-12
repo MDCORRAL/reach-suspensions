@@ -19,6 +19,7 @@ run <- function(f) {
 
 # 1) Core build (00–06, with USE_TA toggle inside run_pipeline.R)
 run("run_pipeline.R")
+run("R/22_build_v6_features.R")
 
 # 2) EDA + merge steps that produce non-intersectional exports used by tail analysis
 #    (these paths match what you showed; adjust if your files live elsewhere)
