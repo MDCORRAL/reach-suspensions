@@ -32,22 +32,22 @@ set.seed(42)
 
 # --- 3) Load & guards ---------------------------------------------------------
 message("Loading data…")
-v5_path <- here::here("data-stage","susp_v6_long.parquet")
-if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
-v5 <- arrow::read_parquet(v5_path)
+v6_path <- here::here("data-stage","susp_v6_long.parquet")
+if (!file.exists(v6_path)) stop("Data file not found: ", v6_path)
+v6 <- arrow::read_parquet(v6_path)
 
 need <- c("subgroup","academic_year","locale_simple","school_level",
           "school_type","total_suspensions","cumulative_enrollment")
-miss <- setdiff(need, names(v5))
+miss <- setdiff(need, names(v6))
 if (length(miss)) stop("Missing required columns: ", paste(miss, collapse=", "))
 
-year_levels <- v5 %>%
+year_levels <- v6 %>%
   dplyr::filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   dplyr::distinct(academic_year) %>% dplyr::arrange(academic_year) %>% dplyr::pull(academic_year)
 if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 
 # --- 4) School group & caption note ------------------------------------------
-v5 <- v5 %>%
+v6 <- v6 %>%
   mutate(
     school_group = dplyr::case_when(
       school_level %in% c("Elementary","Middle","High") ~ "Traditional",
@@ -56,7 +56,7 @@ v5 <- v5 %>%
   )
 
 # Build a short hint of what “All other” includes
-alt_examples <- v5 %>%
+alt_examples <- v6 %>%
   filter(school_level == "Alternative") %>%
   distinct(school_type) %>% pull() %>% tolower()
 alt_hint <- c("continuation","community day","juvenile court","alternative")
@@ -69,7 +69,7 @@ all_other_note <- paste0("All other = Alternative (e.g., ", alt_found_pretty,
 # handled via shared canon_race_label() helper
 
 # --- 6) Aggregate to pooled rates by year × locale × race × group ------------
-df_all <- v5 %>%
+df_all <- v6 %>%
   mutate(race = canon_race_label(subgroup)) %>%
   filter(race %in% ALLOWED_RACES) %>%
   group_by(academic_year, locale_simple, school_group, race) %>%

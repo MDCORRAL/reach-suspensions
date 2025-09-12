@@ -16,15 +16,15 @@ HALO_ALPHA    <- 0.2 # label box fill transparency (0=clear, 1=opaque)
 RACE_SET <- NULL  # e.g., c("All Students","Hispanic/Latino","Black/African American","White","Asian")
 
 # ======= data load & guards =======
-v5 <- read_parquet(here("data-stage","susp_v6_long.parquet"))
+v6 <- read_parquet(here("data-stage","susp_v6_long.parquet"))
 
 need <- c("subgroup","academic_year","total_suspensions","cumulative_enrollment","enroll_q_label")
-miss <- setdiff(need, names(v5))
-if (length(miss)) stop("Missing columns in v5: ", paste(miss, collapse=", "),
+miss <- setdiff(need, names(v6))
+if (length(miss)) stop("Missing columns in v6: ", paste(miss, collapse=", "),
                        "\nRe-run 03_feature_size_quartiles_TA.R and downstream.")
 
 # Year order
-year_levels <- v5 %>% filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
+year_levels <- v6 %>% filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 
 # Enrollment quartiles of interest
@@ -39,7 +39,7 @@ shape_quart <- c("Q1 (Smallest)"=16, "Q4 (Largest)"=17)  # circle vs triangle
 
 # ======= aggregate: pooled rates by year × quartile × race =======
 # Total (All Students) from TA
-df_total <- v5 %>%
+df_total <- v6 %>%
   filter(category_type == "Race/Ethnicity", subgroup == "All Students", !is.na(enroll_q_label), enroll_q_label %in% q_keep) %>%
   group_by(academic_year, enroll_q_label) %>%
   summarise(
@@ -53,7 +53,7 @@ df_total <- v5 %>%
   )
 
 # Races
-df_race <- v5 %>%
+df_race <- v6 %>%
   mutate(race = canon_race_label(subgroup)) %>%
   filter(
     race %in% setdiff(ALLOWED_RACES, "All Students"),

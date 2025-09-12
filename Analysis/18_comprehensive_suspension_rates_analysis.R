@@ -21,7 +21,7 @@ DATA_STAGE <- here("data-stage")
 V6_LONG_PARQ <- file.path(DATA_STAGE, "susp_v6_long.parquet")
 V6F_PARQ <- file.path(DATA_STAGE, "susp_v6_features.parquet")
 stopifnot(file.exists(V6_LONG_PARQ), file.exists(V6F_PARQ))
-v5 <- read_parquet(V6_LONG_PARQ)
+v6 <- read_parquet(V6_LONG_PARQ)
 v6_features <- read_parquet(V6F_PARQ)
 
 # Output setup
@@ -51,30 +51,6 @@ order_year <- function(x) {
 order_quartile <- function(x) {
   factor(x, levels = c("Q1", "Q2", "Q3", "Q4"))
 }
-
-#### codex/refactor-canon_race_label-and-labels
-# canon_race_label sourced from R/utils_keys_filters.R
-
-# Canonical race/ethnicity labels following repository conventions
-canon_race_label <- function(x) {
-  x_clean <- str_to_lower(str_trim(x))
-  case_when(
-    x_clean %in% c("ta", "total", "all students", "all_students") ~ "All Students",
-    x_clean %in% c("ra", "asian") ~ "Asian",
-    x_clean %in% c("rb", "black", "african american", "black/african american", "african_american") ~ "Black/African American",
-    x_clean %in% c("rf", "filipino") ~ "Filipino", 
-    x_clean %in% c("rh", "hispanic", "latino", "hispanic/latino", "hispanic_latino") ~ "Hispanic/Latino",
-    x_clean %in% c("ri", "american indian", "alaska native", "american indian/alaska native", "native american") ~ "American Indian/Alaska Native",
-    x_clean %in% c("rp", "pacific islander", "native hawaiian") ~ "Native Hawaiian/Pacific Islander",
-    x_clean %in% c("rt", "two or more", "multiple", "two or more races", "multirace") ~ "Two or More Races",
-    x_clean %in% c("rw", "white") ~ "White",
-    str_detect(x_clean, "disabilit|special.{0,5}ed") ~ "Students with Disabilities",
-    str_detect(x_clean, "english.{0,5}learn|ell") ~ "English Learner",
-    str_detect(x_clean, "gender|male|female") ~ "By Gender",
-    TRUE ~ NA_character_
-  )
-}
-####main
 
 # Color palette following repository conventions
 reach_quartile_cols <- c(
@@ -106,7 +82,7 @@ reach_race_cols <- c(
 message("=== APPLYING DIRECT GRADE LEVEL FIX ===")
 
 # Step 1: Get everything directly from v6 long (which has all the data we need)
-v5_complete <- v5 %>%
+v6_complete <- v6 %>%
   clean_names() %>%
   build_keys() %>%
   filter_campus_only() %>%
@@ -144,7 +120,7 @@ v6_traditional <- v6_features %>%
   distinct()
 
 # Step 3: Join and finalize
-analytic_data <- v5_complete %>%
+analytic_data <- v6_complete %>%
   left_join(v6_traditional, by = c("school_code", "year")) %>%
   mutate(
     is_traditional = ifelse(is.na(is_traditional), TRUE, is_traditional),
