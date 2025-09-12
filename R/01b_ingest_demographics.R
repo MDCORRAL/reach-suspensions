@@ -12,9 +12,16 @@ suppressPackageStartupMessages({
 })
 
 # -------- Config -------------------------------------------------------------
+###odex/refactor-demo_data_path-to-relative-path
+# Path to the raw demographics XLSX. Use an environment variable override
+# if available, otherwise fall back to the copy stored under data-raw/.
+DEMO_DATA_PATH <- Sys.getenv("OTH_RAW_PATH")
+if (DEMO_DATA_PATH == "") {
+####
 # Path to the OTH demographic XLSX. Can be overridden by OTH_RAW_PATH env var.
 DEMO_DATA_PATH <- Sys.getenv("OTH_RAW_PATH")
 if (!nzchar(DEMO_DATA_PATH)) {
+##### main
   DEMO_DATA_PATH <- here("data-raw", "copy_CDE_suspensions_1718-2324_sc_oth.xlsx")
 }
 
