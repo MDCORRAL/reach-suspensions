@@ -7,6 +7,7 @@
 # Outputs: - 15_demographic_*.xlsx (disparity analysis)
 #          - 15_demographic_flags.csv (merge-ready summary)
 # Dependencies: R/utils_keys_filters.R, R/01b_ingest_demographics.R
+# Canonical subgroup term: Students with Disabilities (SWD)
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -93,7 +94,7 @@ demo_data <- demo_data %>%
       stringr::str_to_lower(subgroup) %in% c("missing gender") ~ "Missing Gender",
       stringr::str_to_lower(subgroup) %in% c("not reported") ~ "Not Reported",
       
-      # Special Education
+      # Students with Disabilities (SWD)
       stringr::str_to_lower(subgroup) %in% c("students with disabilities","swd") ~ "Students with Disabilities",
       stringr::str_to_lower(subgroup) %in% c("special education") ~ "Students with Disabilities",
       

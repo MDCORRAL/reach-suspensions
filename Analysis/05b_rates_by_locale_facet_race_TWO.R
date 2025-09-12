@@ -1,4 +1,4 @@
-# analysis/05b_rates_by_locale_facet_race_TWO.R
+# Analysis/05b_rates_by_locale_facet_race_TWO.R
 # Suspension rates by locale, faceted by race (<=2 facets per image).
 
 # --- 1) Setup -----------------------------------------------------------------

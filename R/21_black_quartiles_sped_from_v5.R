@@ -1,4 +1,6 @@
-#####21_black_quartiles_swd_from_v5.R
+# 21_black_quartiles_swd_from_v5.R
+# Canonical subgroup term: Students with Disabilities (SWD)
+###main
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -28,12 +30,22 @@ if (!("sped_rate" %in% names(v6_features))) {
   stop("sped_rate column not found in v6_features")
 }
 stopifnot("sped_den" %in% names(v6_features))
+###codex/rename-variables-for-canonical-terms
+###
 stopifnot(all(c("is_traditional","black_prop_q") %in% names(v6_features)))
+####main
 
-# Rename for canonical terminology
+###codex/rename-variables-for-canonical-term
+#
+# Rename to canonical SWD terminology
 v6_features <- v6_features %>%
-  rename(swd_rate = sped_rate,
-         swd_den  = sped_den)
+  rename(
+    swd_rate = sped_rate,
+    swd_den  = sped_den
+  )
+
+stopifnot(all(c("is_traditional","black_q","swd_rate","swd_den") %in% names(v6_features)))
+###main
 
 # Check for data completeness
 message("SWD rate coverage: ",
@@ -46,12 +58,27 @@ print(table(v6_features$black_prop_q[v6_features$is_traditional], useNA = "alway
 
 # Clean and filter data
 v6_clean <- v6_features %>%
+###codex/rename-variables-for-canonical-terms
+  mutate(
+    black_q = as.character(black_q),
+    black_q = str_replace(black_q, "^QQ", "Q"),
+    black_q = str_replace(black_q, "\\s*\\(.*\\)$", ""),
+    black_q = ifelse(str_detect(black_q, "Unknown|NA"), NA_character_, black_q)
+  ) %>%
+  filter(is_traditional,
+         str_detect(black_q, "^Q[1-4]$"),  # Only valid quartiles
+         !is.na(swd_rate),
+         !is.na(swd_den),
+         swd_den > 0) %>%  # Exclude schools with no SWD students
+  mutate(black_q = fct_relevel(factor(black_q), "Q1","Q2","Q3","Q4"))
+###
   filter(is_traditional,
          !is.na(black_prop_q),
          !is.na(swd_rate),
          !is.na(swd_den),
          swd_den > 0) %>%
   mutate(black_prop_q_label = fct_relevel(factor(paste0("Q", black_prop_q)), "Q1","Q2","Q3","Q4"))
+####main
 
 # Report sample size
 total_traditional <- sum(v6_features$is_traditional, na.rm = TRUE)
@@ -172,10 +199,13 @@ print(yearly_check)
 # Save outputs
 dir.create(here("outputs"), showWarnings = FALSE)
 
+##codex/rename-variables-for-canonical-term
 ggsave(here("outputs","21_swd_rate_by_black_quartile_unweighted.png"), 
        p_unweighted, width = 8, height = 5.2, dpi = 300)
 
 ggsave(here("outputs","21_swd_rate_by_black_quartile_weighted.png"), 
+       
+###main
        p_weighted, width = 8, height = 5.2, dpi = 300)
 
 # Excel output with both analyses
@@ -208,9 +238,12 @@ writeData(
       school_code,
       year,
       black_share   = percent(black_share, accuracy = 0.1),
-      black_quartile = as.character(black_prop_q_label),
-      swd_rate       = percent(swd_rate, accuracy = 0.1),
+###codex/rename-variables-for-canonical-terms
+      black_quartile = as.character(black_q),
+      swd_rate     = percent(swd_rate, accuracy = 0.1),
       swd_enrollment = swd_den,
+####main
+
       school_type
     )
 )
@@ -225,9 +258,15 @@ excluded_schools <- v6_features %>%
   mutate(
     included = school_code %in% v6_clean$school_code,
     quartile_status = case_when(
-      is.na(black_prop_q) ~ "Unknown quartile",
+###codex/rename-variables-for-canonical-terms
+      str_detect(black_q, "Unknown") ~ "Unknown quartile",
       is.na(swd_rate) ~ "Missing SWD rate",
       is.na(swd_den) | swd_den == 0 ~ "No SWD enrollment",
+
+##codex/rename-variables-for-canonical-term
+      is.na(swd_rate) ~ "Missing SWD rate",
+      is.na(swd_den) | swd_den == 0 ~ "No SWD enrollment",
+
       TRUE ~ "Included"
     )
   )

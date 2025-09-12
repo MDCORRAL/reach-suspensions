@@ -75,10 +75,8 @@ map_grade_level <- function(x) {
     str_detect(x_clean, "elementary|elem|primary|k.*5|k.*6") ~ "Elementary",
     str_detect(x_clean, "middle|junior|intermediate|6.*8|7.*8") ~ "Middle",
     str_detect(x_clean, "high|secondary|9.*12|senior") ~ "High",
-    str_detect(x_clean, "k.*12|ungraded|mixed|span") ~ "K-12/Mixed",
-    str_detect(x_clean, "adult|continuation") ~ "Adult/Alternative",
-    !is.na(x_clean) ~ "Other",
-    TRUE ~ "Unknown"
+    str_detect(x_clean, "adult|continuation") ~ "Alternative",
+    TRUE ~ "Other"
   )
 }
 

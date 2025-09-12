@@ -11,6 +11,9 @@ suppressPackageStartupMessages({
 
 message(">>> Running from project root: ", here::here())
 
+# canonical helpers (reason labels, palettes, etc.)
+source(here::here("R", "utils_keys_filters.R"))
+
 # ---- read v4 ---------------------------------------------------------------
 v4 <- arrow::read_parquet(here::here("data-stage", "susp_v4.parquet"))
 
@@ -46,7 +49,7 @@ v5 <- v4 %>%
 # optional: long format for analysis/plotting
 v5_long <- v5 %>%
   pivot_longer(
-    starts_with("prop_susp_"),
+    cols = dplyr::all_of(paste0("prop_susp_", reason_labels$reason)),
     names_to  = "reason",
     values_to = "prop_of_total_susp"
   ) %>%
