@@ -26,7 +26,7 @@ suppressPackageStartupMessages({
 
 # Data paths - updated for your repository structure
 DATA_STAGE <- here("data-stage")
-INPUT_PATH <- file.path(DATA_STAGE, "susp_v5.parquet")  # Main suspension data
+INPUT_PATH <- file.path(DATA_STAGE, "susp_v6_long.parquet")  # Main suspension data
 V6F_PARQ   <- file.path(DATA_STAGE, "susp_v6_features.parquet")  # School features
 
 # Output directory
@@ -40,7 +40,7 @@ cols <- list(
   school_name = "school_name", 
   year        = "academic_year",
   setting     = "school_type",                    # Traditional vs Other
-  level       = "school_level_final",
+  level       = "school_level",
   enrollment  = "cumulative_enrollment",
   total_susp  = "total_suspensions",
   undup_susp  = "unduplicated_count_of_students_suspended_total"
@@ -164,7 +164,7 @@ if (length(missing_cols) > 0) {
 # Process and clean data
 dat <- dat0 %>%
   # Filter to Total/All Students records only
-  filter(str_to_lower(reporting_category) %in% c("total", "all students", "ta")) %>%
+  filter(str_to_lower(subgroup) %in% c("total", "all students", "ta")) %>%
   rename(
     school_id   = !!sym(cols$school_id),
     year        = !!sym(cols$year),

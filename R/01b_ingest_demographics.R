@@ -12,11 +12,18 @@ suppressPackageStartupMessages({
 })
 
 # -------- Config -------------------------------------------------------------
-# Option A: absolute path (works today)
-DEMO_DATA_PATH <- "/Users/michaelcorral/Library/CloudStorage/GoogleDrive-mdcorral@g.ucla.edu/.shortcut-targets-by-id/1qNAOKIg0UjuT3XWFlk4dkDLN6UPWJVGx/Center for the Transformation of Schools/Research/CA Race Education And Community Healing (REACH)/2. REACH Network (INTERNAL)/15. REACH Baseline Report_Summer 2025/6. R Data Analysis Project Folders/reach-suspensions/data-raw/copy_CDE_suspensions_1718-2324_sc_oth.xlsx"
-
-# Option B: if you ever move the XLSX into your repo:
-# DEMO_DATA_PATH <- here("data-raw", "copy_CDE_suspensions_1718-2324_sc_oth.xlsx")
+###odex/refactor-demo_data_path-to-relative-path
+# Path to the raw demographics XLSX. Use an environment variable override
+# if available, otherwise fall back to the copy stored under data-raw/.
+DEMO_DATA_PATH <- Sys.getenv("OTH_RAW_PATH")
+if (DEMO_DATA_PATH == "") {
+####
+# Path to the OTH demographic XLSX. Can be overridden by OTH_RAW_PATH env var.
+DEMO_DATA_PATH <- Sys.getenv("OTH_RAW_PATH")
+if (!nzchar(DEMO_DATA_PATH)) {
+##### main
+  DEMO_DATA_PATH <- here("data-raw", "copy_CDE_suspensions_1718-2324_sc_oth.xlsx")
+}
 
 OUT_PARQUET <- here("data-stage", "oth_long.parquet")
 MIN_ENROLLMENT_THRESHOLD <- 10
@@ -34,6 +41,30 @@ pick_col <- function(df, candidates, required=TRUE, label=NULL) {
   nm
 }
 
+# Numeric fields present in CDE files
+NUMERIC_COLS <- c(
+  "cumulative_enrollment",
+  "total_suspensions",
+  "unduplicated_count_of_students_suspended_total",
+  "suspension_rate_total"
+)
+
+# Safely derive year and academic_year from possible columns
+derive_year <- function(df) {
+  ay_col   <- pick_col(df, c("academic_year","academic_yr"), FALSE)
+  year_col <- pick_col(df, c("year"), FALSE)
+
+  yr <- if (!is.na(year_col)) suppressWarnings(as.integer(df[[year_col]])) else NA_integer_
+  ay <- if (!is.na(ay_col)) as.character(df[[ay_col]]) else NA_character_
+
+  academic_year <- dplyr::coalesce(
+    if (!all(is.na(ay))) ay else NA_character_,
+    ifelse(!is.na(yr), paste0(yr - 1, "-", substr(yr,3,4)), NA_character_)
+  )
+
+  list(year = yr, academic_year = academic_year)
+}
+
 # -------- Read XLSX ----------------------------------------------------------
 if (!file.exists(DEMO_DATA_PATH)) stop("File not found: ", DEMO_DATA_PATH)
 
@@ -47,28 +78,12 @@ raw <- readxl::read_excel(
   DEMO_DATA_PATH, sheet = school_sheet, na = c("", "NA", "N/A", "—", "-", "--")
 ) |> janitor::clean_names()
 
-# Likely columns
-rc_col   <- pick_col(raw, c("reporting_category","reporting_category_code"), TRUE,  "reporting category")
-rcd_col  <- pick_col(raw, c("reporting_category_description","reporting_category_desc","reporting_category_descrip"), FALSE)
-ay_col   <- pick_col(raw, c("academic_year","academic_yr"), FALSE)
-year_col <- pick_col(raw, c("year"), FALSE)
-
-# Derive academic_year safely
-yr <- rep(NA_integer_, nrow(raw))
-if (!is.na(year_col)) yr <- suppressWarnings(as.integer(raw[[year_col]]))
-ay <- if (!is.na(ay_col)) as.character(raw[[ay_col]]) else NA_character_
-academic_year <- dplyr::coalesce(
-  if (!all(is.na(ay))) ay else NA_character_,
-  ifelse(!is.na(yr), paste0(yr - 1, "-", substr(yr,3,4)), NA_character_)
-)
-
-# Numeric fields present in CDE files
-num_like <- c(
-  "cumulative_enrollment",
-  "total_suspensions",
-  "unduplicated_count_of_students_suspended_total",
-  "suspension_rate_total"
-)
+# Identify key columns once
+rc_col  <- pick_col(raw, c("reporting_category","reporting_category_code"), TRUE,  "reporting category")
+rcd_col <- pick_col(raw, c("reporting_category_description","reporting_category_desc","reporting_category_descrip"), TRUE, "reporting category description")
+year_info <- derive_year(raw)
+yr <- year_info$year
+academic_year <- year_info$academic_year
 
 # ---------------- Codebook (authoritative mapping) ---------------------------
 # Includes aliases that often show up under "Other"
@@ -127,34 +142,13 @@ codebook <- tibble::tribble(
 # -------- Longify + normalize + promote aliases ------------------------------
 # ---- after `raw` is read and clean_names() applied ----
 
-# Likely column names
-rc_col   <- pick_col(raw, c("reporting_category","reporting_category_code"), TRUE,  "reporting category")
-rcd_col  <- pick_col(raw, c("reporting_category_description","reporting_category_desc","reporting_category_descrip"), TRUE, "reporting category description")
-ay_col   <- pick_col(raw, c("academic_year","academic_yr"), FALSE)
-year_col <- pick_col(raw, c("year"), FALSE)
-
-# Derive academic_year
-yr <- if (!is.na(year_col)) suppressWarnings(as.integer(raw[[year_col]])) else NA_integer_
-ay <- if (!is.na(ay_col)) as.character(raw[[ay_col]]) else NA_character_
-academic_year <- dplyr::coalesce(
-  if (!all(is.na(ay))) ay else NA_character_,
-  ifelse(!is.na(yr), paste0(yr - 1, "-", substr(yr,3,4)), NA_character_)
-)
-
-num_like <- c(
-  "cumulative_enrollment",
-  "total_suspensions",
-  "unduplicated_count_of_students_suspended_total",
-  "suspension_rate_total"
-)
-
 raw_norm <- raw |>
   mutate(
     year = yr,
     academic_year = academic_year,
     across(any_of(c("county_code","district_code","school_code",
                     "county_name","district_name","school_name")), as.character),
-    across(any_of(num_like), ~ readr::parse_number(as.character(.x))),
+    across(any_of(NUMERIC_COLS), ~ readr::parse_number(as.character(.x))),
     rc_code = norm(.data[[rc_col]]),
     rc_desc = norm(.data[[rcd_col]])
   )

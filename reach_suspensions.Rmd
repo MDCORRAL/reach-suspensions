@@ -37,7 +37,10 @@ source("R/03_feature_size_quartiles_TA.R")
 source("R/04_feature_black_prop_quartiles.R")
 source("R/05_feature_school_levels.R")
 source("R/06_feature_reason_shares.R")
+source("R/22_build_v6_features.R")
 source("run_pipeline.R")
+
+The workflow now supports additional demographic categories, including English Learner and Migrant students.
 
 #commit code changes
 git add R/*.R renv.lock
@@ -52,13 +55,13 @@ renv::snapshot()    # updates renv.lock
 library(arrow)
 library(dplyr)
 
-v5 <- read_parquet("data-stage/susp_v5.parquet")
+v6 <- read_parquet("data-stage/susp_v6_long.parquet")
 
-v5 %>%
+v6 %>%
   select(academic_year, county_name, district_name, school_name,
-         reporting_category, starts_with("prop_susp_")) %>%
+         category, subgroup, num, den, rate) %>%
   glimpse()
-# should show 1,000,000 rows
+# should show ~1,000,000 rows
 
 # troubleshooting
 renv::restore() # installs exact package versions from renv.lock
@@ -77,6 +80,7 @@ source("R/03_feature_size_quartiles_TA.R")
 source("R/04_feature_black_prop_quartiles.R")
 source("R/05_feature_school_levels.R")
 source("R/06_feature_reason_shares.R")
+source("R/22_build_v6_features.R")
 source("run_pipeline.R")
 # end setup chunk
 
@@ -90,8 +94,11 @@ source("R/03_feature_size_quartiles_TA.R")
 source("R/04_feature_black_prop_quartiles.R")
 source("R/05_feature_school_levels.R")
 source("R/06_feature_reason_shares.R")
+source("R/22_build_v6_features.R")
+
+The workflow now includes additional demographic categories such as English Learner and Migrant.
 data-raw/               # original source files (not committed if large)
-data-stage/             # intermediate parquet (v1…v5*.parquet)
+data-stage/             # intermediate parquet (v1…v6*.parquet)
 outputs/                # tables/figures as needed
 
 #Daily Workflow
@@ -108,6 +115,9 @@ source("R/03_feature_size_quartiles_TA.R")
 source("R/04_feature_black_prop_quartiles.R")
 source("R/05_feature_school_levels.R")
 source("R/06_feature_reason_shares.R")
+source("R/22_build_v6_features.R")
+
+The workflow now supports additional demographic categories, including English Learner and Migrant students.
 
 #commit code changes
 #bash
@@ -127,12 +137,12 @@ renv::restore() # installs the exact package versions from renv.lock
 
 #sanity check
 library(arrow); library(dplyr)
-v5 <- read_parquet("data-stage/susp_v5.parquet")
+v6 <- read_parquet("data-stage/susp_v6_long.parquet")
 
-v5 %>%
+v6 %>%
   select(academic_year, county_name, district_name, school_name,
-         reporting_category, starts_with("prop_susp_")) %>%
-  glimpse() # should show 1,000,000 rows
+         category, subgroup, num, den, rate) %>%
+  glimpse() # should show ~1,000,000 rows
   
  #troubleshooting
 #In R

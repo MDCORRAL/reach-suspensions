@@ -1,4 +1,4 @@
-# R/22_build_v6_and_analyze_sped_by_black_quartile.R
+# R/22_build_v6_features.R
 # Build v6 features and analyze SPED suspension rate by Black enrollment quartile.
 
 suppressPackageStartupMessages({
@@ -90,10 +90,11 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   # Roster
   roster <- v5 |> distinct(school_code, year)
   
-  # v5: one row per school-year (Total/All Students)
+  # v5: one row per school-year (All Students)
   v5_core <- if ("reporting_category" %in% names(v5)) {
     v5 %>%
-      filter(reporting_category %in% c("Total", "All Students", "TA")) %>%
+      mutate(subgroup = dplyr::coalesce(subgroup, canon_race_label(reporting_category))) %>%
+      filter(subgroup == "All Students") %>%
       distinct(school_code, year, .keep_all = TRUE)
   } else {
     v5 %>%
@@ -177,6 +178,74 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
       ell_rate = safe_div(ell_num, ell_den),
       .groups  = "drop"
     )
+
+  # Migrant
+  migrant_top <- keep_topline(
+    oth_long,
+    cat_pat  = "migrant",
+    code_pat = "^(mg)$",
+    subgroup_pat = "^migrant$"
+  ) %>% drop_impossible()
+
+  migrant_wide <- migrant_top %>%
+    group_by(school_code, year) %>%
+    summarise(
+      migrant_num  = sum(num, na.rm = TRUE),
+      migrant_den  = safe_max(den),
+      migrant_rate = safe_div(migrant_num, migrant_den),
+      .groups      = "drop"
+    )
+
+  # Foster
+  foster_top <- keep_topline(
+    oth_long,
+    cat_pat  = "foster",
+    code_pat = "^(fy)$",
+    subgroup_pat = "foster youth"
+  ) %>% drop_impossible()
+
+  foster_wide <- foster_top %>%
+    group_by(school_code, year) %>%
+    summarise(
+      foster_num  = sum(num, na.rm = TRUE),
+      foster_den  = safe_max(den),
+      foster_rate = safe_div(foster_num, foster_den),
+      .groups     = "drop"
+    )
+
+  # Homeless
+  homeless_top <- keep_topline(
+    oth_long,
+    cat_pat  = "homeless",
+    code_pat = "^(hl)$",
+    subgroup_pat = "^homeless$"
+  ) %>% drop_impossible()
+
+  homeless_wide <- homeless_top %>%
+    group_by(school_code, year) %>%
+    summarise(
+      homeless_num  = sum(num, na.rm = TRUE),
+      homeless_den  = safe_max(den),
+      homeless_rate = safe_div(homeless_num, homeless_den),
+      .groups       = "drop"
+    )
+
+  # Socioeconomically Disadvantaged
+  sed_top <- keep_topline(
+    oth_long,
+    cat_pat  = "socio|disadv",
+    code_pat = "^(sd)$",
+    subgroup_pat = "socioeconomically disadvantaged"
+  ) %>% drop_impossible()
+
+  sed_wide <- sed_top %>%
+    group_by(school_code, year) %>%
+    summarise(
+      sed_num  = sum(num, na.rm = TRUE),
+      sed_den  = safe_max(den),
+      sed_rate = safe_div(sed_num, sed_den),
+      .groups  = "drop"
+    )
   
   # SEX: male / female / (optional) non_binary
   # --- Start of Corrected Block 2 ---
@@ -209,7 +278,11 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
     left_join(v5_feats,   by = c("school_code","year")) %>%
     left_join(sped_wide,  by = c("school_code","year")) %>%
     left_join(ell_wide,   by = c("school_code","year")) %>%
-    left_join(sex_rates,  by = c("school_code","year"))
+    left_join(migrant_wide,  by = c("school_code","year")) %>%
+    left_join(foster_wide,   by = c("school_code","year")) %>%
+    left_join(homeless_wide, by = c("school_code","year")) %>%
+    left_join(sed_wide,      by = c("school_code","year")) %>%
+    left_join(sex_rates,     by = c("school_code","year"))
   
   # Traditional flag (robust: no NAs)
   # --- Start of Corrected Block 1 ---
@@ -241,7 +314,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   stopifnot(dplyr::n_distinct(v6_features[c("school_code","year")]) == nrow(v6_features))
   
   # Range checks
-  for (cc in c("sped_rate","ell_rate","sex_male_rate","sex_female_rate","sex_non_binary_rate")) {
+  for (cc in c("sped_rate","ell_rate","migrant_rate","foster_rate","homeless_rate","sed_rate","sex_male_rate","sex_female_rate","sex_non_binary_rate")) {
     if (cc %in% names(v6_features) && !rng_ok(v6_features[[cc]])) {
       warning("Rate outside [0,1] in ", cc, " — check subgroup selection/denoms.")
     }

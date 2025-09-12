@@ -12,7 +12,6 @@ source(here::here("R","utils_keys_filters.R"))
 DATA_STAGE <- here("data-stage")
 V6F_PARQ   <- file.path(DATA_STAGE, "susp_v6_features.parquet")  # keys + is_traditional (+ black_q in v6)
 V6L_PARQ   <- file.path(DATA_STAGE, "susp_v6_long.parquet")      # tidy metrics (num, den, rate)
-V5_PARQ    <- file.path(DATA_STAGE, "susp_v5.parquet")           # to fetch white/black quartiles if needed
 
 dir.create(here("outputs"), showWarnings = FALSE)
 OUT_XLSX <- here("outputs", "white_vs_black_quartiles_total_vs_swd.xlsx")
@@ -38,33 +37,66 @@ canon_label <- function(x) {                        # map to our subgroup set
   )
 }
 
-# ───────────────────────── Load features & quartiles ─────────────────────
-stopifnot(file.exists(V6F_PARQ), file.exists(V5_PARQ))
+ # ───────────────────────── Load features & quartiles ─────────────────────
+stopifnot(file.exists(V6F_PARQ), file.exists(V6L_PARQ))
 v6_features <- read_parquet(V6F_PARQ) %>% clean_names() %>%
   transmute(
     school_code = as.character(school_code),
     year        = as.character(year),
     is_traditional = !is.na(is_traditional) & is_traditional,
+###codex/refactor-quartile-naming-convention
     black_prop_q = as.integer(black_prop_q)
+###
+    black_q_raw = as.character(if ("black_q" %in% names(.)) black_q else NA)
+##main
   )
 
-# Pull white/black quartiles from v5 (authoritative)
-v5 <- read_parquet(V5_PARQ) %>% clean_names() %>%
+# Compute white quartile from v6_long
+v6_long <- read_parquet(V6L_PARQ) %>% clean_names() %>%
   transmute(
     school_code = as.character(school_code),
+##codex/refactor-quartile-naming-convention
     year        = as.character(academic_year),
     white_prop_q = as.integer(white_prop_q),
     black_prop_q_v5 = as.integer(black_prop_q)
   ) %>%
   distinct()
+###
+    year        = as.character(year),
+    subgroup    = str_to_lower(subgroup),
+    den         = as.numeric(den)
+  )
 
-# Merge quartiles onto v6_features; prefer v6 black if set, else v5
+total_enr <- v6_long %>%
+  filter(subgroup %in% c("total","all students","ta")) %>%
+  select(school_code, year, total_den = den)
+
+white_enr <- v6_long %>%
+  filter(str_detect(subgroup, "white")) %>%
+  select(school_code, year, white_den = den)
+#### main
+
+white_q <- total_enr %>%
+  inner_join(white_enr, by = c("school_code","year")) %>%
+  mutate(share = safe_div(white_den, total_den)) %>%
+  filter(!is.na(share)) %>%
+  group_by(year) %>%
+  mutate(white_q = paste0("Q", ntile(share, 4))) %>%
+  ungroup() %>%
+  select(school_code, year, white_q)
+
+# Merge quartiles onto v6_features
 keys <- v6_features %>%
-  left_join(v5, by = c("school_code","year")) %>%
+  left_join(white_q, by = c("school_code","year")) %>%
   mutate(
+###codex/refactor-quartile-naming-convention
     black_prop_q = ifelse(!is.na(black_prop_q), black_prop_q, black_prop_q_v5),
     black_prop_q = norm_quartile(black_prop_q),
     white_prop_q = norm_quartile(white_prop_q)
+######
+    black_q = norm_quartile(black_q_raw),
+    white_q = norm_quartile(white_q)
+##### main
   ) %>%
   select(school_code, year, is_traditional, black_prop_q, white_prop_q)
 
@@ -73,41 +105,15 @@ padw <- max(nchar(keys$school_code), na.rm = TRUE)
 keys <- keys %>% mutate(school_code = stringr::str_pad(school_code, padw, "left", "0"))
 
 # ─────────────── Preferred source for subgroup NUM/DEN (v6_long) ───────────
-get_long_counts <- function() {
-  if (file.exists(V6L_PARQ)) {
-    read_parquet(V6L_PARQ) %>% clean_names() %>%
-      transmute(
-        school_code = str_pad(as.character(school_code), padw, "left", "0"),
-        year        = as.character(year),
-        subgroup    = canon_label(subgroup),
-        num         = as.numeric(num),
-        den         = as.numeric(den)
-      ) %>% filter(!is.na(subgroup))
-  } else {
-    # Fallback from v5
-    subg_desc <- if ("reporting_category_description" %in% names(v5)) "reporting_category_description" else "reporting_category"
-    num_col   <- if ("unduplicated_count_of_students_suspended_total" %in% names(read_parquet(V5_PARQ) %>% clean_names()))
-      "unduplicated_count_of_students_suspended_total" else "total_suspensions"
-    den_col   <- "cumulative_enrollment"
-    
-    raw <- read_parquet(V5_PARQ) %>% clean_names()
-    if ("aggregate_level" %in% names(raw)) {
-      raw <- raw %>% filter(str_to_lower(aggregate_level) %in% c("school","sch"))
-    }
-    
-    raw %>%
-      transmute(
-        school_code = str_pad(as.character(school_code), padw, "left", "0"),
-        year        = as.character(academic_year),
-        subgroup    = canon_label(.data[[subg_desc]]),
-        num         = as.numeric(.data[[num_col]]),
-        den         = as.numeric(.data[[den_col]])
-      ) %>%
-      filter(!is.na(subgroup))
-  }
-}
-
-long_counts_all <- get_long_counts()
+stopifnot(file.exists(V6L_PARQ))
+long_counts_all <- read_parquet(V6L_PARQ) %>% clean_names() %>%
+  transmute(
+    school_code = str_pad(as.character(school_code), padw, "left", "0"),
+    year        = as.character(year),
+    subgroup    = canon_label(subgroup),
+    num         = as.numeric(num),
+    den         = as.numeric(den)
+  ) %>% filter(!is.na(subgroup))
 
 # Keep only Total & SWD; join keys; filter Traditional
 analytic <- long_counts_all %>%

@@ -27,33 +27,36 @@ safe_ntile <- function(x, n = 4L) {
 # ---- read input ------------------------------------------------------------
 v2 <- read_parquet(here("data-stage","susp_v2.parquet")) %>%
   build_keys() %>%
-  filter_campus_only()
+  filter_campus_only() %>%
+  mutate(subgroup = canon_race_label(reporting_category))
 
 # Input guard
-stopifnot(all(c("reporting_category","cumulative_enrollment") %in% names(v2)))
+stopifnot(all(c("subgroup","cumulative_enrollment") %in% names(v2)))
 
-# Optional heads-up if White code isn't present as "RW"
-if (!any(v2$reporting_category == "RW", na.rm = TRUE)) {
-  warning("No rows with reporting_category == 'RW' found. If your White code differs, update the filter below.")
+# Optional heads-up if White rows aren't present
+if (!any(v2$subgroup == "White", na.rm = TRUE)) {
+  warning("No rows with subgroup == 'White' found. If your White label differs, update the filter below.")
 }
 
-# --- 1) Pull RB (Black), RW (White), and TA totals at SCHOOL x YEAR --------
-# NOTE: RB = Black; RW = White; TA = Total Enrollment
+# --- 1) Pull Black, White, and Total enrollment at SCHOOL x YEAR --------
 rb_rw_ta <- v2 %>%
-  filter(reporting_category %in% c("RB","RW","TA")) %>%
-  select(academic_year, cds_school, reporting_category, cumulative_enrollment) %>%
-  group_by(academic_year, cds_school, reporting_category) %>%
+  filter(subgroup %in% c("Black/African American", "White", "All Students")) %>%
+  select(academic_year, cds_school, subgroup, cumulative_enrollment) %>%
+  mutate(subgroup = dplyr::recode(subgroup,
+                                  "Black/African American" = "Black",
+                                  "All Students" = "All")) %>%
+  group_by(academic_year, cds_school, subgroup) %>%
   summarise(enroll = first_non_na_num(cumulative_enrollment), .groups="drop") %>%
-  tidyr::pivot_wider(names_from = reporting_category, values_from = enroll, names_prefix = "enroll_")
+  tidyr::pivot_wider(names_from = subgroup, values_from = enroll, names_prefix = "enroll_")
 
 # --- 2) Proportion Black & White per school-year ---------------------------
-#leave RB/RW missing as NA; TA must be > 0 to compute proportions
+# Leave Black/White missing as NA; All must be > 0 to compute proportions
 rb_rw_ta <- rb_rw_ta %>%
   mutate(
-    prop_black = if_else(!is.na(enroll_TA) & enroll_TA > 0 & !is.na(enroll_RB),
-                         enroll_RB / enroll_TA, NA_real_),
-    prop_white = if_else(!is.na(enroll_TA) & enroll_TA > 0 & !is.na(enroll_RW),
-                         enroll_RW / enroll_TA, NA_real_)
+    prop_black = if_else(!is.na(enroll_All) & enroll_All > 0 & !is.na(enroll_Black),
+                         enroll_Black / enroll_All, NA_real_),
+    prop_white = if_else(!is.na(enroll_All) & enroll_All > 0 & !is.na(enroll_White),
+                         enroll_White / enroll_All, NA_real_)
   )
 
 # --- 3) Year-specific quartiles on prop_black & prop_white -----------------
@@ -99,31 +102,31 @@ v3 %>%
   arrange(academic_year, black_prop_q_label, white_prop_q_label) %>%
   print(n = 60)
 
-# (C) Why Unknown? (TA missing/zero or RB/RW missing)
+# (C) Why Unknown? (All missing/zero or subgroup missing)
 v3 %>%
   mutate(
     unknown_black_reason = case_when(
-      is.na(prop_black) & (is.na(enroll_TA) | enroll_TA <= 0) ~ "TA missing/zero",
-      is.na(prop_black) &  is.na(enroll_RB)                   ~ "RB missing",
-      TRUE                                                    ~ "Not unknown"
+      is.na(prop_black) & (is.na(enroll_All) | enroll_All <= 0) ~ "All missing/zero",
+      is.na(prop_black) &  is.na(enroll_Black)                  ~ "Black missing",
+      TRUE                                                      ~ "Not unknown"
     ),
     unknown_white_reason = case_when(
-      is.na(prop_white) & (is.na(enroll_TA) | enroll_TA <= 0) ~ "TA missing/zero",
-      is.na(prop_white) &  is.na(enroll_RW)                   ~ "RW missing",
-      TRUE                                                    ~ "Not unknown"
+      is.na(prop_white) & (is.na(enroll_All) | enroll_All <= 0) ~ "All missing/zero",
+      is.na(prop_white) &  is.na(enroll_White)                  ~ "White missing",
+      TRUE                                                      ~ "Not unknown"
     )
   ) %>%
   count(academic_year, unknown_black_reason, unknown_white_reason) %>%
   arrange(academic_year, unknown_black_reason, unknown_white_reason) %>%
   print(n = 60)
 
-# (D) Bounds: proportions in [0,1], RB/RW <= TA
+# (D) Bounds: proportions in [0,1], Black/White <= All
 rb_rw_ta %>%
   summarise(
     any_black_oob = any(prop_black < 0 | prop_black > 1, na.rm = TRUE),
     any_white_oob = any(prop_white < 0 | prop_white > 1, na.rm = TRUE),
-    any_RB_gt_TA  = any(enroll_RB > enroll_TA, na.rm = TRUE),
-    any_RW_gt_TA  = any(enroll_RW > enroll_TA, na.rm = TRUE),
+    any_Black_gt_All  = any(enroll_Black > enroll_All, na.rm = TRUE),
+    any_White_gt_All  = any(enroll_White > enroll_All, na.rm = TRUE),
     .by = academic_year
   ) %>%
   print(n = 60) # All should be FALSE

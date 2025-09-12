@@ -1,4 +1,4 @@
-# analysis/05c_rates_by_locale_facet_race_chunked.R
+# analysis/05b_rates_by_locale_facet_race_TWO.R
 # Suspension rates by locale, faceted by race (<=2 facets per image).
 
 # --- 1) Setup -----------------------------------------------------------------
@@ -27,21 +27,21 @@ set.seed(42)
 
 # --- 3) Load & prepare --------------------------------------------------------
 message("Loading and preparing data…")
-v5_path <- here::here("data-stage","susp_v5.parquet")
+v5_path <- here::here("data-stage","susp_v6_long.parquet")
 if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
 v5 <- arrow::read_parquet(v5_path)
 
-need <- c("reporting_category","academic_year","locale_simple",
+need <- c("subgroup","academic_year","locale_simple",
           "total_suspensions","cumulative_enrollment")
 miss <- setdiff(need, names(v5))
 if (length(miss)) stop("Missing required columns: ", paste(miss, collapse=", "))
 
 year_levels <- v5 %>%
-  filter(reporting_category == "TA") %>%
+  filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 
 df_all <- v5 %>%
-  mutate(race = race_label(reporting_category)) %>%
+  mutate(race = canon_race_label(subgroup)) %>%
   filter(!is.na(race)) %>%
   group_by(academic_year, locale_simple, race) %>%
   summarise(susp=sum(total_suspensions, na.rm=TRUE),
@@ -64,7 +64,7 @@ message("Races split into ", length(race_chunks), " image(s).")
 
 # Locale palette and ordering
 loc_levels <- locale_levels
-if (!INCLUDE_UNKNOWN) loc_levels <- setdiff(loc_levels, "Unknown")
+if (!INCLUDE_UNKNOWN) loc_levels <- head(loc_levels, -1)
 pal_locale_use <- pal_locale[loc_levels]
 
 # --- 4) Plot function ---------------------------------------------------------

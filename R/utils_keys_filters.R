@@ -5,7 +5,10 @@ suppressPackageStartupMessages({
 
 SPECIAL_SCHOOL_CODES <- c("0000000", "0000001")
 
-# Consistent locale ordering and color palette used across analyses
+# Canonical set of locale levels used across the project. To add or modify
+# locales, update this vector here rather than creating ad-hoc strings in
+# individual scripts.  The order of `locale_levels` drives plotting and factor
+# levels elsewhere, and `pal_locale` provides a consistent color mapping.
 locale_levels <- c("City", "Suburban", "Town", "Rural", "Unknown")
 pal_locale <- c(
   City     = "#0072B2",
@@ -93,16 +96,40 @@ assert_unique_campus <- function(df, year_col = "year", extra_keys = character()
 # assert uniqueness for a district-level frame
 # (function intentionally left for future implementation)
 
-# map CRDC race codes to descriptive labels
-race_label <- function(code) dplyr::recode(
-  code,
-  RB = "Black/African American", RW = "White",
-  RH = "Hispanic/Latino", RL = "Hispanic/Latino",
-  RI = "American Indian/Alaska Native", RA = "Asian",
-  RF = "Filipino", RP = "Pacific Islander",
-  RT = "Two or More Races", TA = "All Students",
-  .default = NA_character_
-)
+# Map various race/ethnicity inputs to canonical labels. Accepts either
+# legacy reporting-category codes (e.g., "RB") or descriptive subgroup
+# names (e.g., "Black").
+canon_race_label <- function(x) {
+  x_clean <- stringr::str_to_lower(stringr::str_trim(x))
+  dplyr::case_when(
+    x_clean %in% c("ta", "total", "all students", "all_students") ~ "All Students",
+    x_clean %in% c("ra", "asian") ~ "Asian",
+    x_clean %in% c(
+      "rb", "black", "african american", "black/african american",
+      "african_american"
+    ) ~ "Black/African American",
+    x_clean %in% c("rf", "filipino") ~ "Filipino",
+    x_clean %in% c(
+      "rh", "rl", "hispanic", "latino", "hispanic/latino",
+      "hispanic_latino"
+    ) ~ "Hispanic/Latino",
+    x_clean %in% c(
+      "ri", "american indian", "alaska native",
+      "american indian/alaska native", "native american"
+    ) ~ "American Indian/Alaska Native",
+    x_clean %in% c("rp", "pacific islander", "native hawaiian") ~ "Pacific Islander",
+    x_clean %in% c(
+      "rt", "two or more", "two or more races", "multirace",
+      "multiple"
+    ) ~ "Two or More Races",
+    x_clean %in% c("rw", "white") ~ "White",
+    stringr::str_detect(x_clean, "gender|male|female") ~ "Sex",
+    TRUE ~ NA_character_
+  )
+}
+
+# Backward-compatible alias used by legacy scripts
+race_label <- canon_race_label
 
 =======
 # construct standardized quartile labels like "Q1 (Lowest % Black)"

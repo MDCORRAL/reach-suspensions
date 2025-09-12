@@ -20,12 +20,12 @@ suppressPackageStartupMessages({
 source(here::here("R","utils_keys_filters.R"))
 
 # ------------ load & guards -------------------
-v5 <- read_parquet(here("data-stage","susp_v5.parquet")) %>%
+v5 <- read_parquet(here("data-stage","susp_v6_long.parquet")) %>%
   build_keys() %>%
   filter_campus_only()   # drops 0000000/0000001 and non-school rows
 
 need_cols <- c(
-  "reporting_category","academic_year",
+  "subgroup","academic_year",
   "total_suspensions","cumulative_enrollment",
   "black_prop_q","black_prop_q_label","white_prop_q","white_prop_q_label"
 )
@@ -38,7 +38,7 @@ if (!"white_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(white_prop_q_labe
 
 # year order (from TA rows with positive enrollment)
 year_levels <- v5 %>%
-  filter(reporting_category == "TA", cumulative_enrollment > 0) %>%
+  filter(category_type == "Race/Ethnicity", subgroup == "All Students", cumulative_enrollment > 0) %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 
 # reason columns (skip reason plots gracefully if none found)
@@ -52,7 +52,7 @@ if (length(reason_cols) == 0) {
 agg_rb_rates_and_counts <- function(v5, quart_var) {
   # total RB rate & counts
   totals <- v5 %>%
-    filter(reporting_category == "RB", !is.na(.data[[quart_var]]), .data[[quart_var]] != "Unknown") %>%
+    filter(subgroup == "Black/African American", !is.na(.data[[quart_var]]), .data[[quart_var]] != "Unknown") %>%
     group_by(academic_year, .data[[quart_var]]) %>%
     summarise(
       susp   = sum(total_suspensions, na.rm = TRUE),
@@ -67,7 +67,7 @@ agg_rb_rates_and_counts <- function(v5, quart_var) {
   
   # reason-specific RB rate
     reasons_rate <- v5 %>%
-      filter(reporting_category == "RB", !is.na(.data[[quart_var]])) %>%
+      filter(subgroup == "Black/African American", !is.na(.data[[quart_var]])) %>%
       select(academic_year, .data[[quart_var]], cumulative_enrollment, total_suspensions, all_of(reason_cols)) %>%
       pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
       mutate(
@@ -93,7 +93,7 @@ agg_rb_rates_and_counts <- function(v5, quart_var) {
 # shares: within year × quartile, fraction of RB suspensions by reason
 agg_rb_reason_shares <- function(v5, quart_var) {
     rb_reason_share <- v5 %>%
-      filter(reporting_category == "RB", !is.na(.data[[quart_var]])) %>%
+      filter(subgroup == "Black/African American", !is.na(.data[[quart_var]])) %>%
       select(academic_year, .data[[quart_var]], total_suspensions, all_of(reason_cols)) %>%
       pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
       mutate(
