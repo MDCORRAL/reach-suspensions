@@ -38,8 +38,10 @@ stopifnot(all(need_cols %in% names(v6)))
 #codex/delete-or-modify-v6_all-creation
 
 # ---- Statewide totals --------------------------------------------------------
+
 statewide_all <- v6_all %>%
   group_by(academic_year, subgroup, school_group, school_level) %>%
+
   summarise(
     total_suspensions = sum(total_suspensions, na.rm = TRUE),
     total_enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
