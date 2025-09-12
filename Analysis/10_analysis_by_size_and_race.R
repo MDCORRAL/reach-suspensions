@@ -11,6 +11,9 @@ suppressPackageStartupMessages({
   library(ggrepel)
 })
 
+# Load helper functions
+source(here::here("R", "utils_keys_filters.R"))
+
 # --- 2) Load Data -------------------------------------------------------------
 message("Loading data...")
 v5 <- arrow::read_parquet(here::here("data-stage", "susp_v6_long.parquet"))
@@ -21,7 +24,8 @@ message("Preparing data for analysis...")
 rates_by_size_race <- v5 %>%
   filter(enroll_q_label != "Unknown", !is.na(enroll_q_label)) %>%
   filter(subgroup != "All Students") %>%
-  group_by(academic_year, enroll_q_label, subgroup) %>%
+  mutate(student_group = canon_race_label(coalesce(subgroup, reporting_category))) %>%
+  group_by(academic_year, enroll_q_label, student_group) %>%
   summarise(
     total_suspensions = sum(total_suspensions, na.rm = TRUE),
     cumulative_enrollment = sum(cumulative_enrollment, na.rm = TRUE),
@@ -29,6 +33,7 @@ rates_by_size_race <- v5 %>%
   ) %>%
   mutate(
     suspension_rate = if_else(cumulative_enrollment > 0, (total_suspensions / cumulative_enrollment) * 100, 0)
+##codex/remove-obsolete-race_label-function
   ) %>%
   mutate(
     student_group = case_when(
@@ -56,6 +61,9 @@ rates_by_size_race <- v5 %>%
 ##main
     )
   )
+
+  ) 
+## main
 
 # --- 4) Create and Save Individual Plots --------------------------------------
 

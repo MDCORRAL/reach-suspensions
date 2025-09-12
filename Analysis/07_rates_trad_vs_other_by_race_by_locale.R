@@ -66,11 +66,9 @@ all_other_note <- paste0("All other = Alternative (e.g., ", alt_found_pretty,
 # handled via shared canon_race_label() helper
 
 # --- 6) Aggregate to pooled rates by year × locale × race × group ------------
-allowed_races <- c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Native Hawaiian/Pacific Islander","Two or More Races","All Students")
-
 df_all <- v5 %>%
   mutate(race = canon_race_label(subgroup)) %>%
-  filter(!is.na(race), canon_race_label(subgroup) %in% allowed_races) %>%
+  filter(race %in% ALLOWED_RACES) %>%
   group_by(academic_year, locale_simple, school_group, race) %>%
   summarise(
     susp   = sum(total_suspensions, na.rm = TRUE),

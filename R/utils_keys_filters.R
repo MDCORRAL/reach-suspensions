@@ -110,6 +110,19 @@ assert_unique_campus <- function(df, year_col = "year", extra_keys = character()
 
 # assert uniqueness for a district-level frame
 # (function intentionally left for future implementation)
+#codex/remove-obsolete-race_label-function
+
+# map CRDC race codes to descriptive labels
+race_label <- function(code) dplyr::recode(
+  code,
+  RB = "Black/African American", RW = "White",
+  RH = "Hispanic/Latino", RL = "Hispanic/Latino",
+  RI = "American Indian/Alaska Native", RA = "Asian",
+  RF = "Filipino", RP = "Native Hawaiian/Pacific Islander",
+  RT = "Two or More Races", TA = "All Students",
+  .default = NA_character_
+)
+
 #############
 # Map various race/ethnicity inputs to canonical labels. Accepts either
 # legacy reporting-category codes (e.g., "RB") or descriptive subgroup
@@ -142,6 +155,23 @@ canon_race_label <- function(x) {
     TRUE ~ NA_character_
   )
 }
+#codex/remove-obsolete-race_label-function
+
+# Canonical race labels referenced across analysis scripts
+ALLOWED_RACES <- c(
+  "All Students",
+  "Black/African American",
+  "White",
+  "Hispanic/Latino",
+  "American Indian/Alaska Native",
+  "Asian",
+  "Filipino",
+  "Native Hawaiian/Pacific Islander",
+  "Two or More Races"
+)
+
+# Backward-compatible alias used by legacy scripts
+race_label <- canon_race_label
 ##main
 ###############
 # construct standardized quartile labels like "Q1 (Lowest % Black)"
