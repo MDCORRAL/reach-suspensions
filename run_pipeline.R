@@ -31,7 +31,7 @@ scripts <- c(
   "R/00_paths.R",
   "R/01_ingest_v0.R",
   "R/02_feature_locale_simple.R",
-  "R/02b_drop_charter_all.R",
+  if (USE_TA) "R/02b_drop_charter_all.R",
   if (USE_TA) "R/03_feature_size_quartiles_TA.R" else "R/03_feature_size_quartiles.R",
   "R/04_feature_black_prop_quartiles.R",
   "R/05_feature_school_level.R",   # merged version; NOT the archived 'school_levels'
