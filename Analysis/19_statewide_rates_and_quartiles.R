@@ -55,11 +55,11 @@ school_enroll <- v6 %>%
   select(cds_school, academic_year, total_enrollment_all = cumulative_enrollment) %>%
   group_by(academic_year) %>%
   mutate(enrollment_q = ntile(total_enrollment_all, 4)) %>%
-  ungroup() %>%
-  select(cds_school, academic_year, enrollment_q)
+  ungroup()
 
 v6_enroll_q <- v6 %>%
-  left_join(school_enroll, by = c("cds_school", "academic_year"))
+  left_join(school_enroll %>% select(cds_school, academic_year, enrollment_q),
+    by = c("cds_school", "academic_year"))
 
 v6_enroll_q_all <- bind_rows(v6_enroll_q, v6_enroll_q %>% mutate(school_group = "All"))
 
@@ -81,8 +81,13 @@ black_enroll <- v6 %>%
   select(cds_school, academic_year, black_enrollment = cumulative_enrollment)
 
 black_prop <- black_enroll %>%
-  left_join(school_enroll, by = c("cds_school", "academic_year")) %>%
-  mutate(black_prop = if_else(total_enrollment_all > 0, black_enrollment / total_enrollment_all, NA_real_)) %>%
+  left_join(school_enroll %>% select(cds_school, academic_year, total_enrollment_all),
+    by = c("cds_school", "academic_year")) %>%
+  mutate(
+    black_prop = if_else(
+      total_enrollment_all > 0, black_enrollment / total_enrollment_all, NA_real_
+    )
+  ) %>%
   group_by(academic_year) %>%
   mutate(black_prop_q = ntile(black_prop, 4)) %>%
   ungroup() %>%
