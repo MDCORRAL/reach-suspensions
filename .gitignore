@@ -1,7 +1,7 @@
 # large/sensitive data (don’t push)
-data/ 
+data/
 data-raw/
-data-stage/
+data-stage/*.parquet
 *.duckdb
 *.xlsx
 *.csv
