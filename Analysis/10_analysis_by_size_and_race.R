@@ -33,7 +33,37 @@ rates_by_size_race <- v5 %>%
   ) %>%
   mutate(
     suspension_rate = if_else(cumulative_enrollment > 0, (total_suspensions / cumulative_enrollment) * 100, 0)
+##codex/remove-obsolete-race_label-function
+  ) %>%
+  mutate(
+    student_group = case_when(
+      reporting_category == "RB" ~ "Black",
+      reporting_category == "RI" ~ "American Indian",
+      reporting_category == "RA" ~ "Asian",
+      reporting_category == "RF" ~ "Filipino",
+      reporting_category == "RH" ~ "Hispanic",
+      reporting_category == "RP" ~ "Native Hawaiian/Pacific Islander",
+      reporting_category == "RW" ~ "White",
+      reporting_category == "RT" ~ "Two or More Races",
+      reporting_category == "RD" ~ "Not Reported",
+      TRUE ~ reporting_category
+##
+      subgroup == "Black/African American" ~ "Black",
+      subgroup == "American Indian/Alaska Native" ~ "American Indian",
+      subgroup == "Asian" ~ "Asian",
+      subgroup == "Filipino" ~ "Filipino",
+      subgroup == "Hispanic/Latino" ~ "Hispanic",
+      subgroup == "Native Hawaiian/Pacific Islander" ~ "Native Hawaiian/Pacific Islander",
+      subgroup == "White" ~ "White",
+      subgroup == "Two or More Races" ~ "Two or More Races",
+      subgroup == "RD" ~ "Not Reported",
+      TRUE ~ subgroup
+##main
+    )
+  )
+
   ) 
+## main
 
 # --- 4) Create and Save Individual Plots --------------------------------------
 

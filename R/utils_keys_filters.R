@@ -110,6 +110,8 @@ assert_unique_campus <- function(df, year_col = "year", extra_keys = character()
 
 # assert uniqueness for a district-level frame
 # (function intentionally left for future implementation)
+#codex/remove-obsolete-race_label-function
+
 # map CRDC race codes to descriptive labels
 race_label <- function(code) dplyr::recode(
   code,
@@ -120,6 +122,7 @@ race_label <- function(code) dplyr::recode(
   RT = "Two or More Races", TA = "All Students",
   .default = NA_character_
 )
+
 #############
 # Map various race/ethnicity inputs to canonical labels. Accepts either
 # legacy reporting-category codes (e.g., "RB") or descriptive subgroup
@@ -152,6 +155,7 @@ canon_race_label <- function(x) {
     TRUE ~ NA_character_
   )
 }
+#codex/remove-obsolete-race_label-function
 
 # Canonical race labels referenced across analysis scripts
 ALLOWED_RACES <- c(
