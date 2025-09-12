@@ -47,17 +47,16 @@ LEVELS <- c("Elementary","Middle","High")
 
 # --- 4) Race labels & allowed codes ------------------------------------------
 # provided via canon_race_label() helper
-allowed_codes <- c("All Students","Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Native Hawaiian/Pacific Islander","Two or More Races")
 
 # --- 5) Prep data -------------------------------------------------------------
 # Base long with race and year factor
 base <- v5 %>%
-  filter(school_level %in% LEVELS,
-         subgroup %in% allowed_codes) %>%
+  filter(school_level %in% LEVELS) %>%
   mutate(
     race = canon_race_label(subgroup),
     year_fct = factor(academic_year, levels = year_levels)
-  )
+  ) %>%
+  filter(race %in% ALLOWED_RACES)
 
 # A) Aggregated across locales -> by LEVEL × RACE × YEAR
 df_level <- base %>%
