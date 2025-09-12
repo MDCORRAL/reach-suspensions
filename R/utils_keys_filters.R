@@ -139,6 +139,10 @@ canon_race_label <- function(x) {
       "multiple"
     ) ~ "Two or More Races",
     x_clean %in% c("rw", "white") ~ "White",
+
+
+ # Map CRDC code RD and similar strings to the canonical "Not Reported" label
+
     x_clean %in% c("rd", "not reported", "not_reported", "notreported") ~ "Not Reported",
 
     stringr::str_detect(x_clean, "gender|male|female") ~ "Sex",
@@ -157,8 +161,7 @@ ALLOWED_RACES <- c(
   "Asian",
   "Filipino",
   "Native Hawaiian/Pacific Islander",
-  "Two or More Races",
-  # "Not Reported" intentionally excluded; treat missing race separately
+  "Two or More Races" # "Not Reported" intentionally excluded; treat missing race separately
 )
 
 ###############

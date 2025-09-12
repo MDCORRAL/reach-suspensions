@@ -26,17 +26,17 @@ IMG_DPI     <- 300
 set.seed(42)
 
 # --- 3) Load & guards ---------------------------------------------------------
-v5_path <- here::here("data-stage","susp_v6_long.parquet")
-if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
-v5 <- arrow::read_parquet(v5_path)
+v6_path <- here::here("data-stage","susp_v6_long.parquet")
+if (!file.exists(v6_path)) stop("Data file not found: ", v6_path)
+v6 <- arrow::read_parquet(v6_path)
 
 need <- c("subgroup","academic_year","locale_simple","school_level",
           "total_suspensions","cumulative_enrollment")
-miss <- setdiff(need, names(v5))
+miss <- setdiff(need, names(v6))
 if (length(miss)) stop("Missing columns: ", paste(miss, collapse=", "))
 
 # Academic year order driven by TA
-year_levels <- v5 %>%
+year_levels <- v6 %>%
   filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 if (!length(year_levels)) stop("No TA rows to establish academic year order.")
@@ -50,7 +50,7 @@ LEVELS <- c("Elementary","Middle","High")
 
 # --- 5) Prep data -------------------------------------------------------------
 # Base long with race and year factor
-base <- v5 %>%
+base <- v6 %>%
   filter(school_level %in% LEVELS) %>%
   mutate(
     race = canon_race_label(subgroup),

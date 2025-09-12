@@ -19,6 +19,6 @@ renv::restore()
 
 ### Canonical race labels
 
-`R/utils_keys_filters.R` defines `canon_race_label()` and `ALLOWED_RACES` used across analyses. The function now maps CRDC code `RD` and strings such as "Not Reported" to the canonical label "Not Reported." This group is recognized for completeness but excluded from plots to avoid conflating missing data with student populations.
+`R/utils_keys_filters.R` defines `canon_race_label()` and `ALLOWED_RACES` used across analyses. The function maps CRDC code `RD` and strings such as "Not Reported" to the canonical label "Not Reported." This category is tracked for completeness but omitted from plots to avoid conflating missing data with student populations.
 
 

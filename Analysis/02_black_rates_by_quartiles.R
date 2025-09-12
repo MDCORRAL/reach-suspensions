@@ -19,41 +19,41 @@ list.files(here::here("R"))
 # ---------- Load ----------
 source(here::here("R","utils_keys_filters.R"))
 
-v5 <- read_parquet(here("data-stage","susp_v6_long.parquet")) %>%
+v6 <- read_parquet(here("data-stage","susp_v6_long.parquet")) %>%
   build_keys() %>%
   filter_campus_only()
 
 # quick guards
 need_cols <- c("subgroup","academic_year","total_suspensions","cumulative_enrollment")
-stopifnot(all(need_cols %in% names(v5)))
+stopifnot(all(need_cols %in% names(v6)))
 
 # quartile columns from file 04 (black & white prop quartiles)
-has_black_q <- any(grepl("^black_prop_q", names(v5)))
-has_white_q <- any(grepl("^white_prop_q", names(v5)))
-if (!has_black_q) stop("Missing black_prop_q/q_label in v5. Re-run R/04 and downstream.")
-if (!has_white_q) stop("Missing white_prop_q/q_label in v5. Re-run revised R/04 and downstream.")
+has_black_q <- any(grepl("^black_prop_q", names(v6)))
+has_white_q <- any(grepl("^white_prop_q", names(v6)))
+if (!has_black_q) stop("Missing black_prop_q/q_label in v6. Re-run R/04 and downstream.")
+if (!has_white_q) stop("Missing white_prop_q/q_label in v6. Re-run revised R/04 and downstream.")
 
 # normalize label columns using shared helper
-if (!"black_prop_q_label" %in% names(v5)) {
-  v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q, "Black"))
+if (!"black_prop_q_label" %in% names(v6)) {
+  v6 <- v6 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q, "Black"))
 }
-if (!"white_prop_q_label" %in% names(v5)) {
-  v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q, "White"))
+if (!"white_prop_q_label" %in% names(v6)) {
+  v6 <- v6 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q, "White"))
 }
 
 # Year order from TA rows
-year_levels <- v5 %>%
+year_levels <- v6 %>%
   filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 
 # Reason columns (built in R/06)
-reason_cols <- names(v5)[grepl("^prop_susp_", names(v5))]
+reason_cols <- names(v6)[grepl("^prop_susp_", names(v6))]
 
 # ---------- Core aggregator: pooled rate for RB by a chosen quartile field ----------
 # pooled (sum susp) / (sum enroll) within year x quartile — preferred for stability
-agg_rb_by_quart <- function(v5, quart_var, quart_title) {
+agg_rb_by_quart <- function(v6, quart_var, quart_title) {
   # 1) TOTAL rate & counts (RB only)
-  rb_totals <- v5 %>%
+  rb_totals <- v6 %>%
     filter(subgroup == "Black/African American", !is.na(.data[[quart_var]]), .data[[quart_var]] != "Unknown")%>%
     group_by(academic_year, .data[[quart_var]]) %>%
     summarise(
@@ -68,7 +68,7 @@ agg_rb_by_quart <- function(v5, quart_var, quart_title) {
     )
   
   # 2) Reason-specific RB rate = (prop * total_suspensions) / RB enrollment
-  rb_reason <- v5 %>%
+  rb_reason <- v6 %>%
     filter(subgroup == "Black/African American", !is.na(.data[[quart_var]])) %>%
     select(academic_year, cumulative_enrollment, total_suspensions, .data[[quart_var]], all_of(reason_cols)) %>%
     pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
@@ -93,8 +93,8 @@ agg_rb_by_quart <- function(v5, quart_var, quart_title) {
 }
 
 # Build both views:
-blk_view   <- agg_rb_by_quart(v5, "black_prop_q_label", "School Black Enrollment Quartile")
-wht_view   <- agg_rb_by_quart(v5, "white_prop_q_label", "School White Enrollment Quartile")
+blk_view   <- agg_rb_by_quart(v6, "black_prop_q_label", "School Black Enrollment Quartile")
+wht_view   <- agg_rb_by_quart(v6, "white_prop_q_label", "School White Enrollment Quartile")
 
 ###sanity check#####
 missing_quart <- blk_view$totals %>%
