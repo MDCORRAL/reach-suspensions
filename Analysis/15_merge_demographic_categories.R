@@ -2,7 +2,7 @@
 # Merge additional demographic categories with race data for intersectional EDA
 # analysis/15_merge_demographic_categories.R
 # Purpose: Merge additional demographic categories with race data for intersectional EDA
-# Inputs:  - data-stage/susp_v5.parquet (race/ethnicity suspension data)
+# Inputs:  - data-stage/susp_v6_long.parquet (race/ethnicity suspension data)
 #          - data-stage/oth_long.parquet (other demographic categories)
 # Outputs: - 15_demographic_*.xlsx (disparity analysis)
 #          - 15_demographic_flags.csv (merge-ready summary)
@@ -24,7 +24,7 @@ suppressPackageStartupMessages({
 source(here("R", "utils_keys_filters.R"))
 
 # -------- Config -------------------------------------------------------------
-RACE_DATA_PATH <- here("data-stage", "susp_v5.parquet")
+RACE_DATA_PATH <- here("data-stage", "susp_v6_long.parquet")
 OTH_PARQUET    <- here("data-stage", "oth_long.parquet")
 MIN_ENROLLMENT_THRESHOLD <- 10
 
@@ -182,7 +182,7 @@ cat("Capped", sum(demo_data$rate_flag, na.rm = TRUE), "impossible suspension cou
 # -------- Create canonical school attributes --------------------------------
 # Year ordering (prefer TA in race_data if present)
 year_levels <- race_data %>%
-  filter(if ("reporting_category" %in% names(.)) reporting_category == "TA" else TRUE) %>%
+  filter(if ("subgroup" %in% names(.)) category_type == "Race/Ethnicity", subgroup == "All Students" else TRUE) %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull()
 
 if (!length(year_levels)) {
@@ -194,7 +194,7 @@ canon_keys <- race_data %>%
   filter_campus_only() %>%
   dplyr::select(dplyr::any_of(c(
     "academic_year","county_code","district_code","school_code","cds_school",
-    "ed_ops_name","school_level_final","level_strict3","locale_simple"
+    "ed_ops_name","school_level","locale_simple"
   ))) %>%
   dplyr::distinct()
 
@@ -236,7 +236,7 @@ cat("Fixed", sum(demo_data$rate_flag, na.rm = TRUE), "impossible suspension rate
 # -------- District-level fallback for missing attributes --------------------
 missing_count <- demo_data %>% 
   summarise(
-    missing_level = sum(is.na(level_strict3)),
+    missing_level = sum(is.na(school_level)),
     missing_locale = sum(is.na(locale_simple))
   )
 
@@ -255,10 +255,10 @@ if(missing_count$missing_level > 0 || missing_count$missing_locale > 0) {
     cat("Using cds_district for fallback join\n")
     
     district_attrs <- canon_keys %>%
-      filter(!is.na(level_strict3), !is.na(locale_simple)) %>%
+      filter(!is.na(school_level), !is.na(locale_simple)) %>%
       group_by(academic_year, cds_district) %>%
       summarise(
-        level_mode = names(sort(table(level_strict3), decreasing = TRUE))[1],
+        level_mode = names(sort(table(school_level), decreasing = TRUE))[1],
         locale_mode = names(sort(table(locale_simple), decreasing = TRUE))[1],
         .groups = "drop"
       )
@@ -266,7 +266,7 @@ if(missing_count$missing_level > 0 || missing_count$missing_locale > 0) {
     demo_data <- demo_data %>%
       left_join(district_attrs, by = c("academic_year", "cds_district")) %>%
       mutate(
-        level_strict3 = coalesce(level_strict3, level_mode),
+        school_level = coalesce(school_level, level_mode),
         locale_simple = coalesce(locale_simple, locale_mode)
       ) %>%
       select(-level_mode, -locale_mode)
@@ -279,10 +279,10 @@ if(missing_count$missing_level > 0 || missing_count$missing_locale > 0) {
     cat("Using county_code + district_code for fallback join\n")
     
     district_attrs <- canon_keys %>%
-      filter(!is.na(level_strict3), !is.na(locale_simple)) %>%
+      filter(!is.na(school_level), !is.na(locale_simple)) %>%
       group_by(academic_year, county_code, district_code) %>%
       summarise(
-        level_mode = names(sort(table(level_strict3), decreasing = TRUE))[1],
+        level_mode = names(sort(table(school_level), decreasing = TRUE))[1],
         locale_mode = names(sort(table(locale_simple), decreasing = TRUE))[1],
         .groups = "drop"
       )
@@ -290,7 +290,7 @@ if(missing_count$missing_level > 0 || missing_count$missing_locale > 0) {
     demo_data <- demo_data %>%
       left_join(district_attrs, by = c("academic_year", "county_code", "district_code")) %>%
       mutate(
-        level_strict3 = coalesce(level_strict3, level_mode),
+        school_level = coalesce(school_level, level_mode),
         locale_simple = coalesce(locale_simple, locale_mode)
       ) %>%
       select(-level_mode, -locale_mode)
@@ -310,7 +310,7 @@ cat("\n=== Calculating rates and disparities ===\n")
 demo_rates <- demo_data %>%
   filter(category_type != "Total") %>%
   mutate(year_fct = factor(academic_year, levels = year_levels, ordered = TRUE)) %>%
-  group_by(level_strict3, locale_simple, academic_year, year_fct, category_type, subgroup, subgroup_code) %>%
+  group_by(school_level, locale_simple, academic_year, year_fct, category_type, subgroup, subgroup_code) %>%
   summarise(
     susp = sum(total_suspensions, na.rm = TRUE),
     enroll = sum(cumulative_enrollment, na.rm = TRUE),
@@ -326,7 +326,7 @@ demo_rates <- demo_data %>%
 ta_rates <- demo_data %>%
   filter(category_type == "Total") %>%
   mutate(year_fct = factor(academic_year, levels = year_levels, ordered = TRUE)) %>%
-  group_by(level_strict3, locale_simple, academic_year, year_fct) %>%
+  group_by(school_level, locale_simple, academic_year, year_fct) %>%
   summarise(
     total_susp_TA = sum(total_suspensions, na.rm = TRUE),
     enroll_TA = sum(cumulative_enrollment, na.rm = TRUE),
@@ -336,7 +336,7 @@ ta_rates <- demo_data %>%
 
 # Calculate disparities vs Total All Students
 demo_disparities <- demo_rates %>%
-  left_join(ta_rates, by = c("level_strict3","locale_simple","academic_year","year_fct")) %>%
+  left_join(ta_rates, by = c("school_level","locale_simple","academic_year","year_fct")) %>%
   mutate(
     disparity_ratio = if_else(!is.na(rate) & !is.na(rate_TA) & rate_TA > 0, rate / rate_TA, NA_real_),
     disparity_diff = if_else(!is.na(rate) & !is.na(rate_TA), rate - rate_TA, NA_real_)
@@ -347,7 +347,7 @@ cat("\n=== Analyzing within-category spreads ===\n")
 
 within_category_disparities <- demo_disparities %>%
   filter(sufficient_sample) %>%
-  group_by(level_strict3, locale_simple, academic_year, category_type) %>%
+  group_by(school_level, locale_simple, academic_year, category_type) %>%
   filter(dplyr::n() >= 2) %>%
   summarise(
     n_groups = dplyr::n(),
@@ -363,7 +363,7 @@ within_category_disparities <- demo_disparities %>%
 # -------- Ranking by average disparity --------------------------------------
 demo_disparity_rank <- demo_disparities %>%
   filter(sufficient_sample) %>%
-  group_by(level_strict3, locale_simple, category_type, subgroup, subgroup_code) %>%
+  group_by(school_level, locale_simple, category_type, subgroup, subgroup_code) %>%
   summarise(
     years_n = dplyr::n(),
     avg_ratio_vs_all = mean(disparity_ratio[is.finite(disparity_ratio)], na.rm = TRUE),
@@ -382,7 +382,7 @@ cat("\n=== Creating intersectional summary using TA comparisons ===\n")
 # Extract disparity ratios vs TA for each demographic category
 demo_summary_by_setting <- demo_disparities %>%
   filter(sufficient_sample, !is.na(disparity_ratio)) %>%
-  select(level_strict3, locale_simple, academic_year, category_type, subgroup, disparity_ratio) %>%
+  select(school_level, locale_simple, academic_year, category_type, subgroup, disparity_ratio) %>%
   # Create meaningful column names for key demographics
   mutate(
     demographic_indicator = case_when(
@@ -408,7 +408,7 @@ demo_summary_by_setting <- demo_disparities %>%
 # Calculate male/female ratio separately to ensure it works
 sex_ratios <- demo_disparities %>%
   filter(sufficient_sample, !is.na(disparity_ratio), category_type == "Sex") %>%
-  select(level_strict3, locale_simple, academic_year, subgroup, disparity_ratio) %>%
+  select(school_level, locale_simple, academic_year, subgroup, disparity_ratio) %>%
   pivot_wider(names_from = subgroup, values_from = disparity_ratio, values_fn = mean) %>%
   mutate(
     male_female_ratio = if_else(
@@ -417,11 +417,11 @@ sex_ratios <- demo_disparities %>%
       NA_real_
     )
   ) %>%
-  select(level_strict3, locale_simple, academic_year, male_female_ratio)
+  select(school_level, locale_simple, academic_year, male_female_ratio)
 
 # Join back to main summary
 demo_summary_by_setting <- demo_summary_by_setting %>%
-  left_join(sex_ratios, by = c("level_strict3", "locale_simple", "academic_year")) %>%
+  left_join(sex_ratios, by = c("school_level", "locale_simple", "academic_year")) %>%
   # Remove individual male/female ratios, keep the comparison
   select(-any_of(c("male_vs_ta_ratio", "female_vs_ta_ratio"))) %>%
   # Rename for consistency
@@ -477,7 +477,7 @@ extreme_disparities <- demo_disparities %>%
   group_by(category_type, subgroup) %>%
   summarise(
     observations = n(),
-    settings_n = n_distinct(level_strict3, locale_simple),
+    settings_n = n_distinct(school_level, locale_simple),
     years_n = n_distinct(academic_year),
     
     # Disparity statistics
@@ -584,7 +584,7 @@ write_xlsx(
 # -------- Console summary ---------------------------------------------------
 cat("\n========== DEMOGRAPHIC ANALYSIS SUMMARY ==========\n")
 cat("Categories analyzed:", paste(sort(unique(demo_disparities$category_type)), collapse=", "), "\n")
-cat("Settings with data:", dplyr::n_distinct(demo_disparities$level_strict3, demo_disparities$locale_simple), "\n")
+cat("Settings with data:", dplyr::n_distinct(demo_disparities$school_level, demo_disparities$locale_simple), "\n")
 cat("Years covered:", paste(sort(unique(demo_disparities$academic_year)), collapse=", "), "\n")
 
 cat("\nHighest disparities by category:\n")
@@ -598,7 +598,7 @@ cat("\nLargest within-category gaps:\n")
 max_gaps <- within_category_disparities %>% 
   group_by(category_type) %>%
   slice_max(spread_ratio, n = 1, with_ties = FALSE, na_rm = TRUE) %>%
-  select(category_type, level_strict3, locale_simple, spread_ratio, highest_group, lowest_group)
+  select(category_type, school_level, locale_simple, spread_ratio, highest_group, lowest_group)
 print(max_gaps, n = Inf)
 
 cat("\nExtreme disparities (>5x rate):\n")
@@ -619,7 +619,7 @@ if(length(missing_cols) > 0) {
 }
 
 cat("✓ Analysis complete. Generated", nrow(demo_summary_by_setting), "setting-year combinations\n")
-cat("✓ Merge-ready summary available for joining with race data on: level_strict3, locale_simple, academic_year\n")
+cat("✓ Merge-ready summary available for joining with race data on: school_level, locale_simple, academic_year\n")
 cat("=================================================\n")
 
 # EOF

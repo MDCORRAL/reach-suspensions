@@ -21,29 +21,29 @@ IMG_DPI           <- 300
 set.seed(42)
 
 # --- 3) Load & guards ---------------------------------------------------------
-v5_path <- here::here("data-stage","susp_v5.parquet")
+v5_path <- here::here("data-stage","susp_v6_long.parquet")
 if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
 v5 <- arrow::read_parquet(v5_path)
 
-need <- c("reporting_category","academic_year","locale_simple",
+need <- c("subgroup","academic_year","locale_simple",
           "total_suspensions","cumulative_enrollment")
 miss <- setdiff(need, names(v5))
 if (length(miss)) stop("Missing columns: ", paste(miss, collapse=", "))
 
 # Year order driven by TA
 year_levels <- v5 %>%
-  filter(reporting_category == "TA") %>%
+  filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 
 # --- 4) Race labels and Data Prep ---------------------------------------------
 # Keep TA + known races; drop RD (Not Reported)
-allowed_codes <- c("TA","RB","RW","RH","RL","RI","RA","RF","RP","RT")
+allowed_codes <- c("All Students","Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Pacific Islander","Two or More Races")
 
 df <- v5 %>%
-  filter(reporting_category %in% allowed_codes) %>%
+  filter(subgroup %in% allowed_codes) %>%
   mutate(
-    race = race_label(reporting_category),
+    race = canon_race_label(subgroup),
     year_fct = factor(academic_year, levels = year_levels)
   ) %>%
   group_by(locale_simple, race, academic_year, year_fct) %>%
@@ -58,7 +58,7 @@ df <- v5 %>%
   )
 
 # Locales to render (1 image per)
-loc_levels <- setdiff(locale_levels, "Unknown")
+loc_levels <- head(locale_levels, -1)
 
 # --- 5) Plot helper (Sharpened with Corrected Label Size) ----------------------
 plot_one_locale <- function(loc_name) {

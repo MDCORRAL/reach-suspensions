@@ -24,27 +24,27 @@ white_quartile_colors <- setNames(
 
 # --- 2) Load + guards ---------------------------------------------------------
 message("Loading data...")
-v5 <- arrow::read_parquet(here::here("data-stage","susp_v5.parquet")) %>%
+v5 <- arrow::read_parquet(here::here("data-stage","susp_v6_long.parquet")) %>%
   build_keys() %>%            # adds cds_district, cds_school (canonical keys)
   filter_campus_only()        # drops fake schools + special codes
 
-need_cols <- c("reporting_category","academic_year",
+need_cols <- c("subgroup","academic_year",
                "total_suspensions","cumulative_enrollment",
-               "black_prop_q4","white_prop_q4")
+               "black_prop_q","white_prop_q")
 missing <- setdiff(need_cols, names(v5))
 if (length(missing)) stop("Missing in v5: ", paste(missing, collapse=", "))
 
 # make sure readable quartile labels exist using shared helper
-if (!"black_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q4, "Black"))
-if (!"white_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q4, "White"))
+if (!"black_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q, "Black"))
+if (!"white_prop_q_label" %in% names(v5)) v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q, "White"))
 
 # order x-axis by TA years that actually have enrollment
 year_levels <- v5 %>%
-  filter(reporting_category == "TA", cumulative_enrollment > 0) %>%
+  filter(category_type == "Race/Ethnicity", subgroup == "All Students", cumulative_enrollment > 0) %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 
 # restrict to Black rows for all calculations
-black_students_data <- v5 %>% filter(reporting_category == "RB")
+black_students_data <- v5 %>% filter(subgroup == "Black/African American")
 
 # Reason columns: prefer *_count columns if present; otherwise derive from proportions
 has_count_cols <- all(c(

@@ -18,8 +18,11 @@ message(">>> Running from project root: ", here::here())
 
 # Data paths
 DATA_STAGE <- here("data-stage")
-V5_PARQ <- file.path(DATA_STAGE, "susp_v5.parquet")
+V6_LONG_PARQ <- file.path(DATA_STAGE, "susp_v6_long.parquet")
 V6F_PARQ <- file.path(DATA_STAGE, "susp_v6_features.parquet")
+stopifnot(file.exists(V6_LONG_PARQ), file.exists(V6F_PARQ))
+v5 <- read_parquet(V6_LONG_PARQ)
+v6_features <- read_parquet(V6F_PARQ)
 
 # Output setup
 RUN_TAG <- format(Sys.time(), "%Y%m%d_%H%M")
@@ -49,6 +52,9 @@ order_quartile <- function(x) {
   factor(x, levels = c("Q1", "Q2", "Q3", "Q4"))
 }
 
+#### codex/refactor-canon_race_label-and-labels
+# canon_race_label sourced from R/utils_keys_filters.R
+
 # Canonical race/ethnicity labels following repository conventions
 canon_race_label <- function(x) {
   x_clean <- str_to_lower(str_trim(x))
@@ -63,11 +69,12 @@ canon_race_label <- function(x) {
     x_clean %in% c("rt", "two or more", "multiple", "two or more races", "multirace") ~ "Two or More Races",
     x_clean %in% c("rw", "white") ~ "White",
     str_detect(x_clean, "disabilit|special.{0,5}ed") ~ "Students with Disabilities",
-    str_detect(x_clean, "english.{0,5}learn|ell") ~ "English Learners",
+    str_detect(x_clean, "english.{0,5}learn|ell") ~ "English Learner",
     str_detect(x_clean, "gender|male|female") ~ "By Gender",
     TRUE ~ NA_character_
   )
 }
+####main
 
 # Color palette following repository conventions
 reach_quartile_cols <- c(
@@ -88,17 +95,17 @@ reach_race_cols <- c(
   "Two or More Races" = "#e377c2",
   "White" = "#7f7f7f",
   "Students with Disabilities" = "#bcbd22",
-  "English Learners" = "#17becf"
+  "English Learner" = "#17becf"
 )
 
 # -------------------------------------------------------------------------
 # Data Loading and Processing
 # -------------------------------------------------------------------------
 
-# DIRECT FIX: Get grade levels directly from v5
+# DIRECT FIX: Get grade levels directly from v6 long
 message("=== APPLYING DIRECT GRADE LEVEL FIX ===")
 
-# Step 1: Get everything directly from v5 (which has all the data we need)
+# Step 1: Get everything directly from v6 long (which has all the data we need)
 v5_complete <- v5 %>%
   clean_names() %>%
   build_keys() %>%
@@ -106,21 +113,14 @@ v5_complete <- v5 %>%
   transmute(
     school_code = school_code,
     year = as.character(academic_year),
-    race_ethnicity = canon_race_label(reporting_category),
+    race_ethnicity = canon_race_label(subgroup),
     enrollment = as.numeric(cumulative_enrollment),
     total_suspensions = as.numeric(total_suspensions),
     undup_suspensions = as.numeric(unduplicated_count_of_students_suspended_total),
     white_q = norm_quartile(white_prop_q_label),
     black_q = norm_quartile(black_prop_q_label),
-    school_level_final = school_level_final,  # ADD THIS LINE
-    grade_level = case_when(
-      str_detect(str_to_lower(school_level_final), "elementary") ~ "Elementary",
-      str_detect(str_to_lower(school_level_final), "middle") ~ "Middle",
-      str_detect(str_to_lower(school_level_final), "high school") ~ "High School",
-      str_detect(str_to_lower(school_level_final), "k-12") ~ "K-12",
-      str_detect(str_to_lower(school_level_final), "alternative") ~ "Alternative",
-      TRUE ~ "Other/Unknown"
-    )
+    school_level = school_level,
+    grade_level = school_level
   ) %>%
   filter(
     !is.na(race_ethnicity),
@@ -156,13 +156,13 @@ analytic_data <- v5_complete %>%
     black_q = order_quartile(black_q),
     white_q = order_quartile(white_q),
     setting = factor(setting, levels = c("Traditional", "Non-traditional")),
-    grade_level = factor(grade_level, levels = c("Elementary", "Middle", "High School", "K-12", "Alternative", "Other/Unknown"))
+    grade_level = factor(grade_level, levels = c("Elementary", "Middle", "High", "K-12", "Alternative", "Other/Unknown"))
   )
 
 # NOW add the diagnostic code:
 unknown_schools <- analytic_data %>%
   filter(grade_level == "Other/Unknown") %>%
-  count(school_level_final, sort = TRUE) %>%
+  count(school_level, sort = TRUE) %>%
   head(20)
 
 message("Top school level values classified as Other/Unknown:")
@@ -347,7 +347,7 @@ create_grade_level_plot <- function() {
     filter(
       race_ethnicity == "Black/African American",
       setting == "Traditional",
-      grade_level %in% c("Elementary", "Middle", "High School", "K-12")
+      grade_level %in% c("Elementary", "Middle", "High", "K-12")
     ) %>%
     calc_summary_stats(year, grade_level, black_q)
   

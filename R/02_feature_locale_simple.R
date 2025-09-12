@@ -8,6 +8,8 @@ suppressPackageStartupMessages({
   library(stringr)  # string helpers
 })
 
+source(here::here("R", "utils_keys_filters.R"))
+
 message(">>> Running from project root: ", here::here())
 
 # Load v0 from staged data (root-anchored path)
@@ -22,7 +24,8 @@ v1 <- v0 %>%
       !is.na(school_locale) & str_detect(str_to_lower(school_locale), "rural")    ~ "Rural",
       !is.na(school_locale) & str_detect(str_to_lower(school_locale), "town")     ~ "Town",
       TRUE ~ "Unknown"
-    )
+    ),
+    locale_simple = factor(locale_simple, levels = locale_levels)
   )
 
 # Minimal, quiet diagnostics

@@ -13,15 +13,15 @@ suppressPackageStartupMessages({
 
 # --- 2) Load Data -------------------------------------------------------------
 message("Loading data...")
-v5 <- arrow::read_parquet(here::here("data-stage", "susp_v5.parquet"))
+v5 <- arrow::read_parquet(here::here("data-stage", "susp_v6_long.parquet"))
 
 # --- 3) Prepare Data for Plotting ---------------------------------------------
 message("Preparing data for analysis...")
 
 rates_by_size_race <- v5 %>%
   filter(enroll_q_label != "Unknown", !is.na(enroll_q_label)) %>%
-  filter(reporting_category != "TA") %>%
-  group_by(academic_year, enroll_q_label, reporting_category) %>%
+  filter(subgroup != "All Students") %>%
+  group_by(academic_year, enroll_q_label, subgroup) %>%
   summarise(
     total_suspensions = sum(total_suspensions, na.rm = TRUE),
     cumulative_enrollment = sum(cumulative_enrollment, na.rm = TRUE),
@@ -32,6 +32,7 @@ rates_by_size_race <- v5 %>%
   ) %>%
   mutate(
     student_group = case_when(
+##codex/update-pacific-islander-label-throughout-repo
       reporting_category == "RB" ~ "Black",
       reporting_category == "RI" ~ "American Indian",
       reporting_category == "RA" ~ "Asian",
@@ -42,6 +43,18 @@ rates_by_size_race <- v5 %>%
       reporting_category == "RT" ~ "Two or More Races",
       reporting_category == "RD" ~ "Not Reported",
       TRUE ~ reporting_category
+##
+      subgroup == "Black/African American" ~ "Black",
+      subgroup == "American Indian/Alaska Native" ~ "American Indian",
+      subgroup == "Asian" ~ "Asian",
+      subgroup == "Filipino" ~ "Filipino",
+      subgroup == "Hispanic/Latino" ~ "Hispanic",
+      subgroup == "Pacific Islander" ~ "Pacific Islander",
+      subgroup == "White" ~ "White",
+      subgroup == "Two or More Races" ~ "Two or More Races",
+      subgroup == "RD" ~ "Not Reported",
+      TRUE ~ subgroup
+##main
     )
   )
 

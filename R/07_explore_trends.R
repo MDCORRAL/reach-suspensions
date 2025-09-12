@@ -1,4 +1,4 @@
-# R/08_analysis_black_student_rates.R
+# R/07_explore_trends.R
 # Analysis of Black student suspension rates with data labels for every year.
 
 # --- 1) Setup -----------------------------------------------------------------
@@ -13,7 +13,7 @@ suppressPackageStartupMessages({
 })
 
 # --- 2) Load Data -------------------------------------------------------------
-v5 <- arrow::read_parquet(here::here("data-stage", "susp_v5.parquet"))
+v6 <- arrow::read_parquet(here::here("data-stage", "susp_v6_long.parquet"))
 
 # --- helpers ------------------------------------------------------------------
 order_year <- function(x) {
@@ -34,8 +34,11 @@ order_quartile <- function(x) {
 }
 
 # --- 3) Filter for Black Students Data ---------------------------------------
-black_students_data <- v5 %>%
-  filter(reporting_category == "RB") %>%
+black_students_data <- v6 %>%
+  filter(
+    category_type == "Race/Ethnicity",
+    subgroup == "Black/African American"
+  ) %>%
   mutate(
     academic_year     = order_year(academic_year),
     black_prop_q_label= order_quartile(black_prop_q_label),

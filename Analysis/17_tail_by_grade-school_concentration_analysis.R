@@ -17,7 +17,7 @@ suppressPackageStartupMessages({
 
 # Data paths - updated for your repository structure
 DATA_STAGE <- here("data-stage")
-INPUT_PATH <- file.path(DATA_STAGE, "susp_v5.parquet")  # Main suspension data
+INPUT_PATH <- file.path(DATA_STAGE, "susp_v6_long.parquet")  # Main suspension data
 V6F_PARQ   <- file.path(DATA_STAGE, "susp_v6_features.parquet")  # School features
 
 # Output directory
@@ -31,7 +31,7 @@ cols <- list(
   school_name = "school_name", 
   year        = "academic_year",
   setting     = "school_type",                    # Traditional vs Other
-  level       = "school_level_final",             # Grade level classification
+  level       = "school_level",             # Grade level classification
   enrollment  = "cumulative_enrollment",
   total_susp  = "total_suspensions",
   undup_susp  = "unduplicated_count_of_students_suspended_total"
@@ -74,7 +74,7 @@ map_grade_level <- function(x) {
     is.na(x) ~ "Unknown",
     str_detect(x_clean, "elementary|elem|primary|k.*5|k.*6") ~ "Elementary",
     str_detect(x_clean, "middle|junior|intermediate|6.*8|7.*8") ~ "Middle",
-    str_detect(x_clean, "high|secondary|9.*12|senior") ~ "High School",
+    str_detect(x_clean, "high|secondary|9.*12|senior") ~ "High",
     str_detect(x_clean, "k.*12|ungraded|mixed|span") ~ "K-12/Mixed",
     str_detect(x_clean, "adult|continuation") ~ "Adult/Alternative",
     !is.na(x_clean) ~ "Other",
@@ -221,7 +221,7 @@ generate_comparison_tables <- function(df, output_dir) {
   # Compare traditional vs non-traditional by grade level
   comparison_by_grade <- df %>%
     filter(!is.na(level), !is.na(setting), 
-           level %in% c("Elementary", "Middle", "High School"),
+           level %in% c("Elementary", "Middle", "High"),
            setting %in% c("Traditional", "Non-traditional")) %>%
     group_by(year_num, level, setting) %>%
     summarise(
@@ -285,7 +285,7 @@ if (length(missing_cols) > 0) {
 # Process and clean data
 dat <- dat0 %>%
   # Filter to Total/All Students records only
-  filter(str_to_lower(reporting_category) %in% c("total", "all students", "ta")) %>%
+  filter(str_to_lower(subgroup) %in% c("total", "all students", "ta")) %>%
   rename(
     school_id   = !!sym(cols$school_id),
     year        = !!sym(cols$year),
@@ -300,7 +300,7 @@ dat <- dat0 %>%
     undup_susp  = as.numeric(undup_susp),
     measure     = if (MEASURE == "undup_susp") undup_susp else total_susp,
     school_name = if ("school_name" %in% names(dat0)) school_name else school_id,
-    level       = level_strict3  # Add this line
+    level       = school_level  # Add this line
   ) %>%
   # Filter out invalid records
   filter(
