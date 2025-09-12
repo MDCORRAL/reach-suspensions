@@ -42,11 +42,11 @@ if (!"white_prop_q_label" %in% names(v6)) v6 <- v6 %>% mutate(white_prop_q_label
 
 # order x-axis by TA years that actually have enrollment
 year_levels <- v6 %>%
-  filter(category_type == "Race/Ethnicity", subgroup == "All Students", cumulative_enrollment > 0) %>%
+  filter(category_type == "Race/Ethnicity", canon_race_label(subgroup) == "All Students", cumulative_enrollment > 0) %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 
 # restrict to Black rows for all calculations
-black_students_data <- v6 %>% filter(subgroup == "Black/African American")
+black_students_data <- v6 %>% filter(canon_race_label(subgroup) == "Black/African American")
 
 # Reason columns: prefer *_count columns if present; otherwise derive from proportions
 has_count_cols <- all(c(
