@@ -31,22 +31,16 @@ v6 <- read_parquet(here("data-stage", "susp_v6_long.parquet")) %>%
 
 need_cols <- c(
   "category_type", "subgroup", "academic_year", "school_group",
-  "total_suspensions", "cumulative_enrollment"
+  "school_level", "total_suspensions", "cumulative_enrollment"
 )
 stopifnot(all(need_cols %in% names(v6)))
 
-# duplicate rows with school_group = "All" for overall statewide summaries
-v6_all <- bind_rows(v6, v6 %>% mutate(school_group = "All"))
+#codex/delete-or-modify-v6_all-creation
 
 # ---- Statewide totals --------------------------------------------------------
-statewide <- v6 %>%
-  group_by(subgroup, academic_year) %>%
-  # Rates are pooled: suspensions and enrollment are summed across schools
-  # before computing the statewide rate. This contrasts with scripts that
-  # compute school-level rates and then take an unweighted average (e.g.,
-  # R/23_rates_by_year_quartile_subgroup.R), which would give small and large
-  # schools the same influence. The pooled approach weights each student
-  # equally.
+
+statewide_all <- v6_all %>%
+  group_by(academic_year, subgroup, school_group, school_level) %>%
 
   summarise(
     total_suspensions = sum(total_suspensions, na.rm = TRUE),
@@ -55,7 +49,20 @@ statewide <- v6 %>%
     .groups = "drop"
   )
 
+# overall statewide totals only (both group and level = "All")
+statewide <- statewide_all %>%
+  filter(school_group == "All", school_level == "All")
+
 write_parquet(statewide, here("data-stage", "statewide_totals.parquet"))
+
+# breakdowns by school_group and school_level
+statewide_breakdowns <- statewide_all %>%
+  filter(!(school_group == "All" & school_level == "All"))
+
+write_parquet(
+  statewide_breakdowns,
+  here("data-stage", "statewide_totals_breakdowns.parquet")
+)
 
 # ---- Quartile helpers --------------------------------------------------------
 ##codex/create-statewide-data-frame-analysis-ke1b6u
@@ -102,6 +109,7 @@ black_prop <- v6 %>%
 by_black_prop <- black_prop %>%
   group_by(academic_year) %>%
   mutate(black_prop_q = ntile(black_prop, 4)) %>%
+  filter(!is.na(black_prop_q)) %>%
   group_by(academic_year, black_prop_q) %>%
 
   summarise(
