@@ -170,10 +170,7 @@ if (has_prop_cols) {
       year_fct = factor(academic_year, levels = year_levels)
     )
   
-  reason_colors <- setNames(
-    c("#d62728", "#ff7f0e", "#2ca02c", "#1f77b4", "#9467bd", "#8c564b"),
-    reason_labels$reason_lab
-  )
+  reason_colors <- pal_reason
   
   reason_labels_all <- reason_share_by_year |> filter(!is.na(share))
   
@@ -188,7 +185,7 @@ if (has_prop_cols) {
       max.overlaps = Inf, direction = "y", nudge_x = NUDGE_X_LABELS,
       box.padding = 0.15, point.padding = 0.15, min.segment.length = 0
     ) +
-    scale_color_manual(values = reason_colors) +
+    scale_color_manual(values = reason_colors, breaks = names(reason_colors)) +
     scale_y_continuous(labels = percent_format(accuracy = 0.1), limits = c(0, NA),
                        expand = expansion(mult = c(0, 0.15))) +
     scale_x_discrete(expand = expansion(mult = c(0.02, 0.25))) +

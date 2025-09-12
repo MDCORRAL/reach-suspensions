@@ -39,9 +39,20 @@ reason_labels <- dplyr::tibble(
   )
 )
 
+# consistent color palette for suspension reasons
+pal_reason <- setNames(
+  c("#d62728", "#ff7f0e", "#2ca02c", "#1f77b4", "#9467bd", "#8c564b"),
+  reason_labels$reason_lab
+)
+
 # helper to append readable reason labels
 add_reason_label <- function(df, reason_col = "reason") {
-  dplyr::left_join(df, reason_labels, by = setNames("reason", reason_col))
+  reason_sym <- rlang::sym(reason_col)
+  dplyr::left_join(df, reason_labels, by = setNames("reason", reason_col)) %>%
+    dplyr::mutate(
+      !!reason_sym := factor(!!reason_sym, levels = reason_labels$reason),
+      reason_lab   = factor(reason_lab, levels = reason_labels$reason_lab)
+    )
 }
 
 # build canonical 14-digit CDS keys
