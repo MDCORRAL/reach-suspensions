@@ -112,6 +112,13 @@ create_category_rate_plot <- function(data, group_var, colors, title_suffix, leg
         names_to = "reason", values_to = "suspension_count"
       ) %>%
       mutate(reason = sub("^suspension_count_", "", reason)) %>%
+      mutate(reason = dplyr::case_match(
+        reason,
+        "violent_incident_injury"    ~ "violent_injury",
+        "violent_incident_no_injury" ~ "violent_no_injury",
+        "illicit_drug_related"       ~ "illicit_drug",
+        .default = reason
+      )) %>%
       group_by(academic_year, !!gsym, reason) %>%
       summarise(
         suspension_count = sum(suspension_count, na.rm = TRUE),
@@ -133,6 +140,13 @@ create_category_rate_plot <- function(data, group_var, colors, title_suffix, leg
         reason = sub("^prop_susp_", "", prop_name),
         reason_count = prop * total_suspensions
       ) %>%
+      mutate(reason = dplyr::case_match(
+        reason,
+        "violent_incident_injury"    ~ "violent_injury",
+        "violent_incident_no_injury" ~ "violent_no_injury",
+        "illicit_drug_related"       ~ "illicit_drug",
+        .default = reason
+      )) %>%
       group_by(academic_year, !!gsym, reason) %>%
       summarise(
         suspension_count = sum(reason_count, na.rm = TRUE),
