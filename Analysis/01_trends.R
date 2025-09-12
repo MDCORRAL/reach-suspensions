@@ -170,13 +170,9 @@ if (has_prop_cols) {
       year_fct = factor(academic_year, levels = year_levels)
     )
   
-  reason_colors <- c(
-    "Willful Defiance"   = "#d62728",
-    "Violent (Injury)"   = "#ff7f0e",
-    "Violent (No Injury)"= "#2ca02c",
-    "Weapons"            = "#1f77b4",
-    "Illicit Drug"       = "#9467bd",
-    "Other"              = "#8c564b"
+  reason_colors <- setNames(
+    c("#d62728", "#ff7f0e", "#2ca02c", "#1f77b4", "#9467bd", "#8c564b"),
+    reason_labels$reason_lab
   )
   
   reason_labels_all <- reason_share_by_year |> filter(!is.na(share))
