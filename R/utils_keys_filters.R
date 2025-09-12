@@ -110,7 +110,6 @@ assert_unique_campus <- function(df, year_col = "year", extra_keys = character()
 
 # assert uniqueness for a district-level frame
 # (function intentionally left for future implementation)
-##codex/update-pacific-islander-label-throughout-repo
 # map CRDC race codes to descriptive labels
 race_label <- function(code) dplyr::recode(
   code,
