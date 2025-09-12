@@ -22,6 +22,9 @@ suppressPackageStartupMessages({
 
 try(here::i_am("Analysis/16_tail_concentration_analysis.R"), silent = TRUE)
 
+# Shared school-level helpers
+source(here::here("R", "utils_keys_filters.R"))
+
 ## -------------------------------------------------------------------------
 ## Configuration
 ## -------------------------------------------------------------------------

@@ -10,6 +10,7 @@ suppressPackageStartupMessages({
   library(stringr)
   library(tibble)
 })
+# LEVEL_LABELS, span_label(), and is_alt() come from this utility
 source(here::here("R","utils_keys_filters.R"))
 message(">>> Running from project root: ", here::here())
 
@@ -40,23 +41,6 @@ extract_min_max_grade <- function(gs) {
 
 get_min_grade <- function(x) vapply(x, function(s) extract_min_max_grade(s)[1], numeric(1))
 get_max_grade <- function(x) vapply(x, function(s) extract_min_max_grade(s)[2], numeric(1))
-
-LEVEL_LABELS <- c("Elementary", "Middle", "High", "Other", "Alternative")
-
-span_label <- function(gmin, gmax) {
-  if (is.na(gmin) || is.na(gmax)) return("Other")
-  if (gmin <= 0 && gmax >= 12) return("Other")
-  if (gmax <= 5) return("Elementary")
-  if (gmin >= 6 && gmax <= 8) return("Middle")
-  if (gmax >= 9) return("High")
-  if (gmin <= 0 && gmax <= 8) return("Elementary")
-  "Other"
-}
-
-is_alt <- function(school_type) {
-  st <- tolower(ifelse(is.na(school_type), "", school_type))
-  str_detect(st, "juvenile court|community day|alternative|continuation")
-}
 
 # --- build features ---------------------------------------------------------
 v4 <- v3_in %>%
