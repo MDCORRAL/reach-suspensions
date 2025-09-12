@@ -25,15 +25,15 @@ school_year_enroll <- v1 %>%
 school_year_enroll <- school_year_enroll %>%
   group_by(academic_year) %>%
   mutate(
-    enroll_q4 = if_else(any_enroll_reported & enroll_total > 0,
-                        ntile(enroll_total, 4L),
-                        NA_integer_),
+    enroll_q = if_else(any_enroll_reported & enroll_total > 0,
+                       ntile(enroll_total, 4L),
+                       NA_integer_),
     enroll_q_label = case_when(
-      is.na(enroll_q4) ~ "Unknown",
-      enroll_q4 == 1   ~ "Q1 (Smallest)",
-      enroll_q4 == 2   ~ "Q2",
-      enroll_q4 == 3   ~ "Q3",
-      enroll_q4 == 4   ~ "Q4 (Largest)"
+      is.na(enroll_q) ~ "Unknown",
+      enroll_q == 1   ~ "Q1 (Smallest)",
+      enroll_q == 2   ~ "Q2",
+      enroll_q == 3   ~ "Q3",
+      enroll_q == 4   ~ "Q4 (Largest)"
     )
   ) %>%
   ungroup()

@@ -18,15 +18,6 @@ dir.create(here("outputs"), showWarnings = FALSE)
 # --- Helpers -----------------------------------------------------------------
 safe_div <- function(n, d) ifelse(is.na(d) | d == 0, NA_real_, n / d)
 
-# Return NA unless x clearly encodes quartile 1-4
-norm_black_q <- function(x) {
-  x <- as.character(x) |> stringr::str_trim()
-  # match: optional Q/Quartile + spaces + [1-4], and nothing else
-  m <- stringr::str_match(x, "^(?:[Qq](?:uartile)?\\s*)?([1-4])\\s*$")[,2]
-  out <- ifelse(is.na(m), NA_character_, paste0("Q", m))
-  factor(out, levels = c("Q1","Q2","Q3","Q4"), ordered = TRUE)
-}
-
 canon_label <- function(x) {
   xl <- stringr::str_to_lower(x %||% "")
   dplyr::case_when(
@@ -59,18 +50,17 @@ v6_features <- read_parquet(V6F_PARQ) %>%
   transmute(
     school_code    = as.character(school_code),
     year           = as.character(year),
-    black_q        = norm_black_q(black_q),
+    black_prop_q   = as.integer(black_prop_q),
     is_traditional = !is.na(is_traditional) & is_traditional
   ) %>%
-  # drop anything that didn't map cleanly to Q1-Q4
-  filter(!is.na(black_q))
+  filter(!is.na(black_prop_q))
 
 # Pad to common width for stable joins
 padw <- max(nchar(v6_features$school_code), na.rm = TRUE)
 v6_features <- v6_features %>% mutate(school_code = str_pad(school_code, padw, "left", "0"))
 
 # (Optional) quick diagnostic if you’re curious
-# print(v6_features %>% count(black_q, sort = TRUE))
+# print(v6_features %>% count(black_prop_q, sort = TRUE))
 
 
 # --- Get subgroup school-level rates (from v6_long) --------------------------
@@ -87,16 +77,17 @@ long_src <- read_parquet(V6L_PARQ) %>% clean_names() %>%
 # --- Join keys + filter to traditional ---------------------------------------
 analytic <- long_src %>%
   inner_join(v6_features, by = c("school_code","year")) %>%
-  filter(is_traditional, !is.na(black_q), !is.na(rate))
+  filter(is_traditional, !is.na(black_prop_q), !is.na(rate)) %>%
+  mutate(black_prop_q = factor(paste0("Q", black_prop_q), levels = paste0("Q",1:4)))
 
 if (nrow(analytic) == 0) stop("No rows after join/filter. Check year formats or keys.")
 # With the fixed normalizer, this will pass:
-stopifnot(n_distinct(analytic$black_q) <= 4)
+stopifnot(n_distinct(analytic$black_prop_q) <= 4)
 
 
 # --- Summarize by year × black quartile × subgroup ---------------------------
 sum_by <- analytic %>%
-  group_by(year, black_q, subgroup) %>%
+  group_by(year, black_prop_q, subgroup) %>%
   summarise(
     n_schools = dplyr::n(),
     n_valid   = sum(!is.na(rate)),
@@ -107,7 +98,7 @@ sum_by <- analytic %>%
     ci_high   = mean_rate + qt(0.975, df = pmax(n_valid - 1, 1)) * se_rate,
     .groups   = "drop"
   )%>%
-  arrange(subgroup, year, black_q)
+  arrange(subgroup, year, black_prop_q)
 
 # --- Plot: one facet per subgroup; lines = Black quartiles over time ---------
 # --- Palette (reuse across scripts) ------------------------------------------
@@ -133,11 +124,11 @@ scale_linetype_manual <- function(...) {
 year_levels <- analytic$year |> unique() |> sort()
 sum_by <- sum_by |>
   mutate(
-    year    = factor(year, levels = year_levels),
-    black_q = forcats::fct_relevel(black_q, "Q1","Q2","Q3","Q4")
+    year         = factor(year, levels = year_levels),
+    black_prop_q = forcats::fct_relevel(black_prop_q, "Q1","Q2","Q3","Q4")
   )
 
-p <- ggplot(sum_by, aes(x = year, y = mean_rate, group = black_q, color = black_q)) +
+p <- ggplot(sum_by, aes(x = year, y = mean_rate, group = black_prop_q, color = black_prop_q)) +
   geom_line(size = 0.9) +
   geom_point(size = 2) +
   geom_errorbar(aes(ymin = ci_low, ymax = ci_high), width = 0.08, alpha = 0.7) +
@@ -168,23 +159,23 @@ writeData(
   wb, "tidy_by_year_q_subgroup",
   sum_by |>
     mutate(
-      across(c(year, black_q, subgroup), as.character),
+    across(c(year, black_prop_q, subgroup), as.character),
       across(c(mean_rate, ci_low, ci_high), ~ scales::percent(.x, accuracy = 0.1))
     )
 )
 
 wide_n <- sum_by |>
-  select(year, black_q, subgroup, n_schools) |>
-  mutate(across(c(year, black_q), as.character)) |>
+  select(year, black_prop_q, subgroup, n_schools) |>
+  mutate(across(c(year, black_prop_q), as.character)) |>
   pivot_wider(names_from = subgroup, values_from = n_schools) |>
-  arrange(year, black_q)
+  arrange(year, black_prop_q)
 
 wide_rates <- sum_by |>
-  select(year, black_q, subgroup, mean_rate) |>
-  mutate(across(c(year, black_q), as.character),
+  select(year, black_prop_q, subgroup, mean_rate) |>
+  mutate(across(c(year, black_prop_q), as.character),
          mean_rate = scales::percent(mean_rate, accuracy = 0.1)) |>
   tidyr::pivot_wider(names_from = subgroup, values_from = mean_rate) |>
-  arrange(year, black_q)
+  arrange(year, black_prop_q)
 
 openxlsx::addWorksheet(wb, "wide_rates")
 openxlsx::writeData(wb, "wide_rates", wide_rates)
