@@ -133,7 +133,7 @@ p_rate_totals <- ggplot() +
     subtitle = "Suspension events per enrolled student (annual rate)",
     x = NULL, y = "Suspensions per student (%)",
     color = NULL,
-    caption = "Rate = total suspensions ÷ enrollment. RH=Hispanic/Latino; RI=American Indian/Alaska Native; RD excluded."
+    caption = "Rate = total suspensions ÷ enrollment. RH=Hispanic/Latino; RI=American Indian/Alaska Native. 'Not Reported' omitted."
   ) +
   theme_minimal(base_size = 12) +
   theme(axis.text.x = element_text(angle = 35, hjust = 1))

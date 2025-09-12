@@ -48,7 +48,8 @@ year_levels <- v5 %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 if (!length(year_levels)) stop("No TA rows to establish year order.")
 
-# Race label map (RD omitted; RL -> RH) handled by canon_race_label() helper
+# Race label map (RD -> "Not Reported"; RL -> RH) handled by canon_race_label();
+# "Not Reported" is excluded from plots.
 
 # --- 4) Derive school group (Traditional vs All other) ------------------------
 # "Traditional" = Elementary/Middle/High (canonical levels)

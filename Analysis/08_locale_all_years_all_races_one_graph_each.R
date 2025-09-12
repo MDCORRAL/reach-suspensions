@@ -37,7 +37,7 @@ year_levels <- v5 %>%
 if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 
 # --- 4) Race labels and Data Prep ---------------------------------------------
-# Keep TA + known races; drop RD (Not Reported)
+# Keep TA + known races; drop "Not Reported" (RD)
 df <- v5 %>%
   mutate(
     race = canon_race_label(subgroup),

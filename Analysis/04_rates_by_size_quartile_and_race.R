@@ -34,7 +34,8 @@ q_keep <- c("Q1 (Smallest)","Q4 (Largest)")
 pal_quart <- c("Q1 (Smallest)"="#0072B2", "Q4 (Largest)"="#D55E00")
 shape_quart <- c("Q1 (Smallest)"=16, "Q4 (Largest)"=17)  # circle vs triangle
 
-# Race code map (RD excluded) provided by canon_race_label() helper
+# Race code map provided by canon_race_label() helper (RD -> "Not Reported");
+# "Not Reported" is filtered out of plots.
 
 # ======= aggregate: pooled rates by year × quartile × race =======
 # Total (All Students) from TA
