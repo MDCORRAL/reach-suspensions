@@ -1,4 +1,4 @@
-#####21_black_quartiles_sped_from_v5.R
+#####21_black_quartiles_swd_from_v5.R
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -30,10 +30,14 @@ if (!("sped_rate" %in% names(v6_features))) {
 stopifnot("sped_den" %in% names(v6_features))
 stopifnot(all(c("is_traditional","black_prop_q") %in% names(v6_features)))
 
+# Rename for canonical terminology
+v6_features <- v6_features %>%
+  rename(swd_rate = sped_rate,
+         swd_den  = sped_den)
 
 # Check for data completeness
-message("SPED rate coverage: ", 
-        sum(!is.na(v6_features$sped_rate[v6_features$is_traditional])), 
+message("SWD rate coverage: ",
+        sum(!is.na(v6_features$swd_rate[v6_features$is_traditional])),
         " of ", sum(v6_features$is_traditional), " traditional schools")
 
 # Validate quartile distribution
@@ -44,9 +48,9 @@ print(table(v6_features$black_prop_q[v6_features$is_traditional], useNA = "alway
 v6_clean <- v6_features %>%
   filter(is_traditional,
          !is.na(black_prop_q),
-         !is.na(sped_rate),
-         !is.na(sped_den),
-         sped_den > 0) %>%
+         !is.na(swd_rate),
+         !is.na(swd_den),
+         swd_den > 0) %>%
   mutate(black_prop_q_label = fct_relevel(factor(paste0("Q", black_prop_q)), "Q1","Q2","Q3","Q4"))
 
 # Report sample size
@@ -59,15 +63,15 @@ message("Analysis sample: ", final_sample, " of ", total_traditional,
 enrollment_summary <- v6_clean %>%
   group_by(black_prop_q_label) %>%
   summarise(
-    min_sped_den = min(sped_den, na.rm = TRUE),
-    q25_sped_den = quantile(sped_den, 0.25, na.rm = TRUE),
-    median_sped_den = median(sped_den, na.rm = TRUE),
-    q75_sped_den = quantile(sped_den, 0.75, na.rm = TRUE),
-    max_sped_den = max(sped_den, na.rm = TRUE),
+    min_swd_den = min(swd_den, na.rm = TRUE),
+    q25_swd_den = quantile(swd_den, 0.25, na.rm = TRUE),
+    median_swd_den = median(swd_den, na.rm = TRUE),
+    q75_swd_den = quantile(swd_den, 0.75, na.rm = TRUE),
+    max_swd_den = max(swd_den, na.rm = TRUE),
     .groups = "drop"
   )
 
-message("SPED enrollment distribution by quartile:")
+message("SWD enrollment distribution by quartile:")
 print(enrollment_summary)
 
 # Create both weighted and unweighted analyses
@@ -76,13 +80,13 @@ plot_df_weighted <- v6_clean %>%
   group_by(black_prop_q_label) %>%
   summarise(
     n_schools = n(),
-    events    = sum(sped_rate * sped_den, na.rm = TRUE),
-    denom     = sum(sped_den,             na.rm = TRUE),
+    events    = sum(swd_rate * swd_den, na.rm = TRUE),
+    denom     = sum(swd_den,             na.rm = TRUE),
     weighted_rate = ifelse(denom > 0, events / denom, NA_real_),
-    unweighted_rate = mean(sped_rate, na.rm = TRUE),
-    median_rate     = median(sped_rate, na.rm = TRUE),
-    sd_rate         = sd(sped_rate, na.rm = TRUE),
-    median_enrollment = median(sped_den, na.rm = TRUE),
+    unweighted_rate = mean(swd_rate, na.rm = TRUE),
+    median_rate     = median(swd_rate, na.rm = TRUE),
+    sd_rate         = sd(swd_rate, na.rm = TRUE),
+    median_enrollment = median(swd_den, na.rm = TRUE),
     .groups = "drop"
   ) %>%
   mutate(
@@ -98,13 +102,13 @@ plot_df_unweighted <- v6_clean %>%
   group_by(black_prop_q_label) %>%
   summarise(
     n_schools = n(),
-    mean_rate = mean(sped_rate, na.rm = TRUE),
-    sd_rate   = sd(sped_rate,   na.rm = TRUE),
+    mean_rate = mean(swd_rate, na.rm = TRUE),
+    sd_rate   = sd(swd_rate,   na.rm = TRUE),
     se_rate   = sd_rate / sqrt(n_schools),
     tcrit     = qt(0.975, df = pmax(n_schools - 1, 1)),
     ci_low    = pmax(0, mean_rate - tcrit * se_rate),
     ci_high   = pmin(1, mean_rate + tcrit * se_rate),
-    median_rate = median(sped_rate, na.rm = TRUE),
+    median_rate = median(swd_rate, na.rm = TRUE),
     .groups = "drop"
   )
 
@@ -126,8 +130,8 @@ p_unweighted <- ggplot(plot_df_unweighted, aes(x = black_prop_q_label, y = mean_
   scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
   labs(
     x = "Quartile of Black Student Enrollment (Q1 = lowest share)",
-    y = "Special Education Suspension Rate",
-    title = "SPED Suspension Rate by Black Enrollment Quartile (Unweighted)",
+    y = "Students with Disabilities Suspension Rate",
+    title = "SWD Suspension Rate by Black Enrollment Quartile (Unweighted)",
     caption = paste0("Traditional schools only; unweighted school-level means with 95% CI.\n",
                      "Sample sizes: Q1=", plot_df_unweighted$n_schools[1], 
                      ", Q2=", plot_df_unweighted$n_schools[2], 
@@ -143,8 +147,8 @@ p_weighted <- ggplot(plot_df_weighted, aes(x = black_prop_q_label, y = weighted_
   scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
   labs(
     x = "Quartile of Black Student Enrollment (Q1 = lowest share)",
-    y = "Special Education Suspension Rate",
-    title = "SPED Suspension Rate by Black Enrollment Quartile (Enrollment-Weighted)",
+    y = "Students with Disabilities Suspension Rate",
+    title = "SWD Suspension Rate by Black Enrollment Quartile (Enrollment-Weighted)",
     caption = paste0("Traditional schools only; enrollment-weighted rates.\n",
                      "Sample sizes: Q1=", plot_df_weighted$n_schools[1], 
                      ", Q2=", plot_df_weighted$n_schools[2], 
@@ -158,7 +162,7 @@ yearly_check <- v6_clean %>%
   group_by(year, black_prop_q_label) %>%
   summarise(
     n_schools = n(),
-    mean_rate = mean(sped_rate, na.rm = TRUE),
+    mean_rate = mean(swd_rate, na.rm = TRUE),
     .groups = "drop"
   )
 
@@ -168,10 +172,10 @@ print(yearly_check)
 # Save outputs
 dir.create(here("outputs"), showWarnings = FALSE)
 
-ggsave(here("outputs","21_sped_rate_by_black_quartile_unweighted.png"), 
+ggsave(here("outputs","21_swd_rate_by_black_quartile_unweighted.png"), 
        p_unweighted, width = 8, height = 5.2, dpi = 300)
 
-ggsave(here("outputs","21_sped_rate_by_black_quartile_weighted.png"), 
+ggsave(here("outputs","21_swd_rate_by_black_quartile_weighted.png"), 
        p_weighted, width = 8, height = 5.2, dpi = 300)
 
 # Excel output with both analyses
@@ -205,8 +209,8 @@ writeData(
       year,
       black_share   = percent(black_share, accuracy = 0.1),
       black_quartile = as.character(black_prop_q_label),
-      sped_rate     = percent(sped_rate, accuracy = 0.1),
-      sped_enrollment = sped_den,
+      swd_rate       = percent(swd_rate, accuracy = 0.1),
+      swd_enrollment = swd_den,
       school_type
     )
 )
@@ -222,14 +226,14 @@ excluded_schools <- v6_features %>%
     included = school_code %in% v6_clean$school_code,
     quartile_status = case_when(
       is.na(black_prop_q) ~ "Unknown quartile",
-      is.na(sped_rate) ~ "Missing SPED rate",
-      is.na(sped_den) | sped_den == 0 ~ "No SPED enrollment",
+      is.na(swd_rate) ~ "Missing SWD rate",
+      is.na(swd_den) | swd_den == 0 ~ "No SWD enrollment",
       TRUE ~ "Included"
     )
   )
 
 table(excluded_schools$quartile_status)
-saveWorkbook(wb, here("outputs","21_sped_rate_by_black_quartile.xlsx"), overwrite = TRUE)
+saveWorkbook(wb, here("outputs","21_swd_rate_by_black_quartile.xlsx"), overwrite = TRUE)
 
 message("Analysis complete. Check outputs folder for plots and Excel file.")
 message("Consider which approach (weighted vs unweighted) is most appropriate for your research question.")

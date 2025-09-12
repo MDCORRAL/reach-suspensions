@@ -388,7 +388,7 @@ demo_summary_by_setting <- demo_disparities %>%
     demographic_indicator = case_when(
       category_type == "Sex" & subgroup == "Male" ~ "male_vs_ta_ratio",
       category_type == "Sex" & subgroup == "Female" ~ "female_vs_ta_ratio", 
-      category_type == "Special Education" & subgroup == "Students with Disabilities" ~ "sped_vs_ta_ratio",
+      category_type == "Special Education" & subgroup == "Students with Disabilities" ~ "swd_vs_ta_ratio",
       category_type == "Socioeconomic" & subgroup == "Socioeconomically Disadvantaged" ~ "sed_vs_ta_ratio",
       category_type == "English Learner" & subgroup == "English Learner" ~ "el_vs_ta_ratio",
       category_type == "Foster" & subgroup == "Foster Youth" ~ "foster_vs_ta_ratio",
@@ -426,7 +426,7 @@ demo_summary_by_setting <- demo_summary_by_setting %>%
   select(-any_of(c("male_vs_ta_ratio", "female_vs_ta_ratio"))) %>%
   # Rename for consistency
   rename(
-    sped_ratio = sped_vs_ta_ratio,
+    swd_ratio = swd_vs_ta_ratio,
     sed_ratio = sed_vs_ta_ratio,
     el_ratio = el_vs_ta_ratio,
     foster_ratio = foster_vs_ta_ratio,
@@ -535,7 +535,7 @@ if(nrow(extreme_disparities) > 0) {
 merged_summary <- demo_summary_by_setting %>%
   mutate(
     data_source = "demographic",
-    high_sped_disparity = sped_ratio > 2,
+    high_swd_disparity = swd_ratio > 2,
     high_gender_disparity = abs(male_female_ratio - 1) > 0.5,
     high_sed_disparity = sed_ratio > 1.5,
     high_foster_disparity = foster_ratio > 10,
@@ -609,7 +609,7 @@ if(nrow(extreme_disparities) > 0) {
 }
 
 # Validation checks
-expected_cols <- c("male_female_ratio", "sped_ratio", "sed_ratio", "el_ratio")
+expected_cols <- c("male_female_ratio", "swd_ratio", "sed_ratio", "el_ratio")
 missing_cols <- setdiff(expected_cols, names(demo_summary_by_setting))
 
 if(length(missing_cols) > 0) {

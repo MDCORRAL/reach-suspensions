@@ -115,7 +115,7 @@ long_counts_all <- read_parquet(V6L_PARQ) %>% clean_names() %>%
     den         = as.numeric(den)
   ) %>% filter(!is.na(subgroup))
 
-# Keep only Total & SWD; join keys; filter Traditional
+# Keep only Total & Students with Disabilities; join keys; filter Traditional
 analytic <- long_counts_all %>%
   filter(subgroup %in% c("Total","Students with Disabilities")) %>%
   inner_join(keys, by = c("school_code","year")) %>%
@@ -152,7 +152,7 @@ sum_black <- analytic %>%
     black_prop_q = fct_relevel(black_prop_q, "Q1","Q2","Q3","Q4")
   )
 
-# Focused Q4 vs Q4 (highest quartile) comparison by year (Total vs SWD)
+# Focused Q4 vs Q4 (highest quartile) comparison by year (Total vs Students with Disabilities)
 sum_q4_white <- sum_white %>% filter(white_prop_q == "Q4") %>% mutate(group = "White Q4")
 sum_q4_black <- sum_black %>% filter(black_prop_q == "Q4") %>% mutate(group = "Black Q4")
 sum_q4_compare <- bind_rows(
@@ -182,7 +182,7 @@ base_theme <- theme_minimal(base_size = 13) +
     plot.title       = element_text(face = "bold", size = 16)
   )
 
-# Lines: color = quartile, linetype = subgroup (Total solid, SWD dashed)
+# Lines: color = quartile, linetype = subgroup (Total solid, Students with Disabilities dashed)
 # White quartiles plot
 plot_white <- ggplot(
   sum_white %>% mutate(series = recode(subgroup,
@@ -278,7 +278,7 @@ writeData(
     arrange(white_prop_q, year, subgroup)
 )
 
-# White quartiles — wide (rows = year × quartile; cols = Total, SWD)
+# White quartiles — wide (rows = year × quartile; cols = Total, Students with Disabilities)
 addWorksheet(wb, "white_quartiles_wide")
 writeData(
   wb, "white_quartiles_wide",
