@@ -51,8 +51,8 @@ if (!length(year_levels)) stop("No TA rows to establish year order.")
 # Race label map (RD omitted; RL -> RH) handled by canon_race_label() helper
 
 # --- 4) Derive school group (Traditional vs All other) ------------------------
-# "Traditional" = Elementary/Middle/High (your strict 3-band)
-# "All other"   = Alternative + Other/Unknown (alt/continuation/comm day/juvenile court, atypical/unknown)
+# "Traditional" = Elementary/Middle/High (canonical levels)
+# "All other"   = Alternative + Other grade spans (alt/continuation/comm day/juvenile court, atypical/unknown)
 v5 <- v5 %>%
   mutate(
     school_group = dplyr::case_when(
@@ -72,8 +72,8 @@ alt_found <- alt_hint[alt_hint %in% unique(unlist(str_split(alt_examples, "\\W+"
 alt_found_pretty <- if (length(alt_found)) paste(alt_found, collapse=", ") else "alternative settings"
 
 all_other_note <- paste0(
-  "All other = Alternative (e.g., ", alt_found_pretty, 
-  ") plus schools with Other/Unknown grade spans."
+  "All other = Alternative (e.g., ", alt_found_pretty,
+  ") plus schools with Other grade spans."
 )
 
 # --- 5) Build pooled rates by year × school_group × race ----------------------
