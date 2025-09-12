@@ -105,34 +105,20 @@ create_category_rate_plot <- function(data, group_var, colors, title_suffix, leg
     # Use provided *_count columns
     plot_data <- data %>%
       filter(!is.na(!!gsym)) %>%
-      group_by(academic_year, !!gsym) %>%
+      select(academic_year, !!gsym, cumulative_enrollment,
+             starts_with("suspension_count_")) %>%
+      pivot_longer(
+        cols = starts_with("suspension_count_"),
+        names_to = "reason", values_to = "suspension_count"
+      ) %>%
+      mutate(reason = sub("^suspension_count_", "", reason)) %>%
+      group_by(academic_year, !!gsym, reason) %>%
       summarise(
-        Defiance          = sum(suspension_count_defiance_only, na.rm = TRUE),
-        `Violent Injury`  = sum(suspension_count_violent_incident_injury, na.rm = TRUE),
-        `Violent No Injury` = sum(suspension_count_violent_incident_no_injury, na.rm = TRUE),
-        Weapons           = sum(suspension_count_weapons_possession, na.rm = TRUE),
-        Drugs             = sum(suspension_count_illicit_drug_related, na.rm = TRUE),
-        Other             = sum(suspension_count_other_reasons, na.rm = TRUE),
-        total_enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
+        suspension_count = sum(suspension_count, na.rm = TRUE),
+        total_enrollment = sum(cumulative_enrollment, na.rm = TRUE),
         .groups = "drop"
       ) %>%
-      pivot_longer(
-        cols = c(Defiance, `Violent Injury`, `Violent No Injury`, Weapons, Drugs, Other),
-        names_to = "category", values_to = "suspension_count"
-      ) %>%
-      mutate(
-        reason = dplyr::case_match(
-          category,
-          "Defiance" ~ "defiance_only",
-          "Violent Injury" ~ "violent_injury",
-          "Violent No Injury" ~ "violent_no_injury",
-          "Weapons" ~ "weapons_possession",
-          "Drugs" ~ "illicit_drug",
-          "Other" ~ "other_reasons",
-          .default = category
-        )
-      ) %>%
-      add_reason_label() %>%
+      add_reason_label("reason") %>%
       mutate(
         reason_rate = if_else(total_enrollment > 0, suspension_count / total_enrollment, NA_real_),
         year_fct = factor(academic_year, levels = year_levels)

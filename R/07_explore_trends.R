@@ -12,6 +12,9 @@ suppressPackageStartupMessages({
   library(scales)
 })
 
+# canonical reason labels + palettes
+source(here::here("R", "utils_keys_filters.R"))
+
 # --- 2) Load Data -------------------------------------------------------------
 v6 <- arrow::read_parquet(here::here("data-stage", "susp_v6_long.parquet"))
 
@@ -85,20 +88,19 @@ p1 <- ggplot(rate_by_black_quartile,
 # --- 6) Prepare Data for Suspension REASON Rate Plot (by Black Quartile) -----
 reason_rate_by_black_quartile <- black_students_data %>%
   filter(!is.na(black_prop_q_label), black_prop_q_label != "Unknown") %>%
-  group_by(academic_year, black_prop_q_label) %>%
-  summarise(
-    Defiance              = sum(suspension_count_defiance_only, na.rm = TRUE),
-    `Violent Injury`      = sum(suspension_count_violent_incident_injury, na.rm = TRUE),
-    `Violent No Injury`   = sum(suspension_count_violent_incident_no_injury, na.rm = TRUE),
-    Weapons               = sum(suspension_count_weapons_possession, na.rm = TRUE),
-    Drugs                 = sum(suspension_count_illicit_drug_related, na.rm = TRUE),
-    Other                 = sum(suspension_count_other_reasons, na.rm = TRUE),
-    enrollment            = sum(cumulative_enrollment, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
+  select(academic_year, black_prop_q_label, cumulative_enrollment,
+         starts_with("suspension_count_")) %>%
   pivot_longer(
-    cols = -c(academic_year, black_prop_q_label, enrollment),
-    names_to = "suspension_reason", values_to = "count"
+    cols = starts_with("suspension_count_"),
+    names_to = "reason", values_to = "count"
+  ) %>%
+  mutate(reason = sub("^suspension_count_", "", reason)) %>%
+  add_reason_label("reason") %>%
+  group_by(academic_year, black_prop_q_label, reason_lab) %>%
+  summarise(
+    count      = sum(count, na.rm = TRUE),
+    enrollment = sum(cumulative_enrollment, na.rm = TRUE),
+    .groups    = "drop"
   ) %>%
   mutate(reason_rate = if_else(enrollment > 0, count / enrollment, NA_real_))
 
@@ -110,13 +112,14 @@ labels_reason_black_q <- reason_rate_by_black_quartile %>%
 # --- 7) CHART 1B: Suspension Reason Rates by Black Enrollment Quartile -------
 p1b <- ggplot(reason_rate_by_black_quartile,
               aes(x = academic_year, y = reason_rate,
-                  group = suspension_reason, fill = suspension_reason)) +
+                  group = reason_lab, fill = reason_lab)) +
   geom_area(position = "stack", na.rm = TRUE) +
   geom_text(data = labels_reason_black_q,
             aes(x = academic_year, y = total_rate,
                 label = percent(total_rate, accuracy = 0.1)),
             vjust = -0.5, fontface = "bold", inherit.aes = FALSE, na.rm = TRUE) +
   facet_wrap(~ black_prop_q_label, ncol = 2) +
+  scale_fill_manual(values = pal_reason, name = "Reason for Suspension") +
   scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
   labs(
     title = "Composition of Black Student Suspensions by School's Black Enrollment",
@@ -168,20 +171,19 @@ p2 <- ggplot(rate_by_white_quartile,
 # --- 10) Prepare & Plot Suspension REASON Rates (by White Quartile) ----------
 reason_rate_by_white_quartile <- black_students_data %>%
   filter(!is.na(white_prop_q_label), white_prop_q_label != "Unknown") %>%
-  group_by(academic_year, white_prop_q_label) %>%
-  summarise(
-    Defiance              = sum(suspension_count_defiance_only, na.rm = TRUE),
-    `Violent Injury`      = sum(suspension_count_violent_incident_injury, na.rm = TRUE),
-    `Violent No Injury`   = sum(suspension_count_violent_incident_no_injury, na.rm = TRUE),
-    Weapons               = sum(suspension_count_weapons_possession, na.rm = TRUE),
-    Drugs                 = sum(suspension_count_illicit_drug_related, na.rm = TRUE),
-    Other                 = sum(suspension_count_other_reasons, na.rm = TRUE),
-    enrollment            = sum(cumulative_enrollment, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
+  select(academic_year, white_prop_q_label, cumulative_enrollment,
+         starts_with("suspension_count_")) %>%
   pivot_longer(
-    cols = -c(academic_year, white_prop_q_label, enrollment),
-    names_to = "suspension_reason", values_to = "count"
+    cols = starts_with("suspension_count_"),
+    names_to = "reason", values_to = "count"
+  ) %>%
+  mutate(reason = sub("^suspension_count_", "", reason)) %>%
+  add_reason_label("reason") %>%
+  group_by(academic_year, white_prop_q_label, reason_lab) %>%
+  summarise(
+    count      = sum(count, na.rm = TRUE),
+    enrollment = sum(cumulative_enrollment, na.rm = TRUE),
+    .groups    = "drop"
   ) %>%
   mutate(reason_rate = if_else(enrollment > 0, count / enrollment, NA_real_))
 
@@ -192,7 +194,7 @@ labels_reason_white_q <- reason_rate_by_white_quartile %>%
 # --- 11) CHART 2B: Suspension Reason Rates by White Enrollment Quartile -------
 p2b <- ggplot(reason_rate_by_white_quartile,
               aes(x = academic_year, y = reason_rate,
-                  group = suspension_reason, fill = suspension_reason)) +
+                  group = reason_lab, fill = reason_lab)) +
   geom_area(position = "stack", na.rm = TRUE) +
   geom_text(
     data = labels_reason_white_q,
@@ -200,6 +202,7 @@ p2b <- ggplot(reason_rate_by_white_quartile,
     vjust = -0.5, fontface = "bold", inherit.aes = FALSE, na.rm = TRUE
   ) +
   facet_wrap(~ white_prop_q_label, ncol = 2) +
+  scale_fill_manual(values = pal_reason, name = "Reason for Suspension") +
   scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
   labs(
     title = "Composition of Black Student Suspensions by School's White Enrollment",
