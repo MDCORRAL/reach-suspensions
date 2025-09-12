@@ -35,7 +35,8 @@ scripts <- c(
   if (USE_TA) "R/03_feature_size_quartiles_TA.R" else "R/03_feature_size_quartiles.R",
   "R/04_feature_black_prop_quartiles.R",
   "R/05_feature_school_level.R",   # merged version; NOT the archived 'school_levels'
-  "R/06_feature_reason_shares.R"
+  "R/06_feature_reason_shares.R",
+  "R/22_build_v6_features.R"
 )
 
 message("Pipeline start: ", format(Sys.time(), usetz = TRUE))

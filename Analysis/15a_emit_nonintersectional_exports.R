@@ -1,5 +1,5 @@
 # analysis/15a_emit_nonintersectional_exports.R
-# === Non-intersectional exports for tail/pareto (Pattern B: ".v5" suffix) ===
+# === Non-intersectional exports for tail/pareto ===
 suppressPackageStartupMessages({
   library(arrow)
   library(dplyr)
@@ -78,6 +78,10 @@ canonicalize_undup <- function(df) {
 # -------------------------------------------------------------------
 # 1) Read race-long (has reason columns)
 # -------------------------------------------------------------------
+###### codex/update-references-and-pipeline-documentation
+RACE_LONG_PATH <- here("data-stage", "susp_v6_long.parquet")
+stopifnot(file.exists(RACE_LONG_PATH))
+####
 RACE_LONG_CANDIDATES <- c(
   here("data-stage", "susp_v6_long_strict.parquet"),
   here("data-stage", "susp_v6_long.parquet")
@@ -86,6 +90,7 @@ RACE_LONG_PATH <- RACE_LONG_CANDIDATES[which(file.exists(RACE_LONG_CANDIDATES))]
 if (is.na(RACE_LONG_PATH)) {
   stop("[15a] Needed long race file missing. Expected one of:\n  - data-stage/susp_v6_long_strict.parquet\n  - data-stage/susp_v6_long.parquet")
 }
+#######
 
 race_long <- arrow::read_parquet(RACE_LONG_PATH) %>%
   clean_names() %>%
@@ -120,14 +125,14 @@ if ("can_assume_zero" %in% names(demo_data) && length(present_reason_cols_oth)) 
 }
 
 # -------------------------------------------------------------------
-# 3) Canonical school/year attributes from v5 (source of truth)
-#     join with suffix ".v5", then coalesce, then drop extras
-# --- v5 keys + robust campus filter (with fallback) ---
-v5_path <- here("data-stage", "susp_v6_long.parquet")
-stopifnot(file.exists(v5_path))
+# 3) Canonical school/year attributes from v6 (source of truth)
+#     join with suffix ".v6", then coalesce, then drop extras
+# --- v6 keys + robust campus filter (with fallback) ---
+v6_path <- here("data-stage", "susp_v6_long.parquet")
+stopifnot(file.exists(v6_path))
 
 # 1) Read and keep aggregate_level if present
-v5_keys_raw <- arrow::read_parquet(v5_path) %>%
+v6_keys_raw <- arrow::read_parquet(v6_path) %>%
   clean_names() %>%
   maybe_pad() %>%
   select(
@@ -139,11 +144,11 @@ v5_keys_raw <- arrow::read_parquet(v5_path) %>%
   distinct()
 
 # 2) Fallback: infer aggregate_level == "S" for real campuses if missing/empty
-needs_fallback <- (!"aggregate_level" %in% names(v5_keys_raw)) ||
-  all(is.na(v5_keys_raw$aggregate_level))
+needs_fallback <- (!"aggregate_level" %in% names(v6_keys_raw)) ||
+  all(is.na(v6_keys_raw$aggregate_level))
 
-v5_keys <- if (needs_fallback) {
-  v5_keys_raw %>%
+v6_keys <- if (needs_fallback) {
+  v6_keys_raw %>%
     mutate(
       aggregate_level = dplyr::case_when(
         nchar(school_code) == 7 & !school_code %in% c("0000000","0000001") ~ "S",
@@ -152,66 +157,66 @@ v5_keys <- if (needs_fallback) {
     )
 } else {
   # normalize case/whitespace just in case
-  v5_keys_raw %>%
+  v6_keys_raw %>%
     mutate(aggregate_level = stringr::str_trim(stringr::str_to_upper(aggregate_level)))
 }
 
 # 3) Campus-only filter (excludes district agg 0000000 and NPS 0000001)
-v5_schools_only <- v5_keys %>%
+v6_schools_only <- v6_keys %>%
   filter(
     stringr::str_to_upper(aggregate_level) == "S",
     nchar(school_code) == 7,
     !school_code %in% c("0000000", "0000001")
   )
         # -------------------------------------------------------------------
-                    # ---- race_long + v5-------------#
+                    # ---- race_long + v6-------------#
 race_joined <- left_join(
-  race_long, v5_keys,
+  race_long, v6_keys,
   by = c("academic_year","county_code","district_code","school_code"),
   relationship = "many-to-one",
-  suffix = c("", ".v5")
+  suffix = c("", ".v6")
 )
 
 race_long <- race_joined %>%
   mutate(
-    county_name   = coalesce(!!!rlang::syms(intersect(c("county_name","county_name.v5","county_name.x","county_name.y"), names(race_joined)))),
-    district_name = coalesce(!!!rlang::syms(intersect(c("district_name","district_name.v5","district_name.x","district_name.y"), names(race_joined)))),
-    school_name   = coalesce(!!!rlang::syms(intersect(c("school_name","school_name.v5","school_name.x","school_name.y"), names(race_joined)))),
-    ed_ops_name   = coalesce(!!!rlang::syms(intersect(c("ed_ops_name","ed_ops_name.v5","ed_ops_name.x","ed_ops_name.y"), names(race_joined)))),
-    school_level  = coalesce(!!!rlang::syms(intersect(c("school_level","school_level.v5","school_level.x","school_level.y"), names(race_joined)))),
-    locale_simple = coalesce(!!!rlang::syms(intersect(c("locale_simple","locale_simple.v5","locale_simple.x","locale_simple.y"), names(race_joined)))),
+    county_name   = coalesce(!!!rlang::syms(intersect(c("county_name","county_name.v6","county_name.x","county_name.y"), names(race_joined)))),
+    district_name = coalesce(!!!rlang::syms(intersect(c("district_name","district_name.v6","district_name.x","district_name.y"), names(race_joined)))),
+    school_name   = coalesce(!!!rlang::syms(intersect(c("school_name","school_name.v6","school_name.x","school_name.y"), names(race_joined)))),
+    ed_ops_name   = coalesce(!!!rlang::syms(intersect(c("ed_ops_name","ed_ops_name.v6","ed_ops_name.x","ed_ops_name.y"), names(race_joined)))),
+    school_level  = coalesce(!!!rlang::syms(intersect(c("school_level","school_level.v6","school_level.x","school_level.y"), names(race_joined)))),
+    locale_simple = coalesce(!!!rlang::syms(intersect(c("locale_simple","locale_simple.v6","locale_simple.x","locale_simple.y"), names(race_joined)))),
     setting       = setting_from_ops(ed_ops_name)
   ) %>%
   select(-any_of(c(
-    "county_name.v5","district_name.v5","school_name.v5",
-    "ed_ops_name.v5","school_level.v5","locale_simple.v5",
+    "county_name.v6","district_name.v6","school_name.v6",
+    "ed_ops_name.v6","school_level.v6","locale_simple.v6",
     "county_name.x","district_name.x","school_name.x",
     "ed_ops_name.x","school_level.x","locale_simple.x",
     "county_name.y","district_name.y","school_name.y",
     "ed_ops_name.y","school_level.y","locale_simple.y"
   )))
 
-# ---- demo_data + v5
+# ---- demo_data + v6
 demo_joined <- left_join(
-  demo_data, v5_keys,
+  demo_data, v6_keys,
   by = c("academic_year","county_code","district_code","school_code"),
   relationship = "many-to-one",
-  suffix = c("", ".v5")
+  suffix = c("", ".v6")
 )
 
 demo_data <- demo_joined %>%
   mutate(
-    county_name   = coalesce(!!!rlang::syms(intersect(c("county_name","county_name.v5","county_name.x","county_name.y"), names(demo_joined)))),
-    district_name = coalesce(!!!rlang::syms(intersect(c("district_name","district_name.v5","district_name.x","district_name.y"), names(demo_joined)))),
-    school_name   = coalesce(!!!rlang::syms(intersect(c("school_name","school_name.v5","school_name.x","school_name.y"), names(demo_joined)))),
-    ed_ops_name   = coalesce(!!!rlang::syms(intersect(c("ed_ops_name","ed_ops_name.v5","ed_ops_name.x","ed_ops_name.y"), names(demo_joined)))),
-    school_level  = coalesce(!!!rlang::syms(intersect(c("school_level","school_level.v5","school_level.x","school_level.y"), names(demo_joined)))),
-    locale_simple = coalesce(!!!rlang::syms(intersect(c("locale_simple","locale_simple.v5","locale_simple.x","locale_simple.y"), names(demo_joined)))),
+    county_name   = coalesce(!!!rlang::syms(intersect(c("county_name","county_name.v6","county_name.x","county_name.y"), names(demo_joined)))),
+    district_name = coalesce(!!!rlang::syms(intersect(c("district_name","district_name.v6","district_name.x","district_name.y"), names(demo_joined)))),
+    school_name   = coalesce(!!!rlang::syms(intersect(c("school_name","school_name.v6","school_name.x","school_name.y"), names(demo_joined)))),
+    ed_ops_name   = coalesce(!!!rlang::syms(intersect(c("ed_ops_name","ed_ops_name.v6","ed_ops_name.x","ed_ops_name.y"), names(demo_joined)))),
+    school_level  = coalesce(!!!rlang::syms(intersect(c("school_level","school_level.v6","school_level.x","school_level.y"), names(demo_joined)))),
+    locale_simple = coalesce(!!!rlang::syms(intersect(c("locale_simple","locale_simple.v6","locale_simple.x","locale_simple.y"), names(demo_joined)))),
     setting       = setting_from_ops(ed_ops_name)
   ) %>%
   select(-any_of(c(
-    "county_name.v5","district_name.v5","school_name.v5",
-    "ed_ops_name.v5","school_level.v5","locale_simple.v5",
+    "county_name.v6","district_name.v6","school_name.v6",
+    "ed_ops_name.v6","school_level.v6","locale_simple.v6",
     "county_name.x","district_name.x","school_name.x",
     "ed_ops_name.x","school_level.x","locale_simple.x",
     "county_name.y","district_name.y","school_name.y",
@@ -237,7 +242,7 @@ present_reason_cols <- intersect(REASON_COLS, names(race_long))
 all_students <- race_long %>%
   filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   inner_join(
-    v5_schools_only %>% select(academic_year, county_code, district_code, school_code),
+    v6_schools_only %>% select(academic_year, county_code, district_code, school_code),
     by = c("academic_year","county_code","district_code","school_code")
   ) %>%
   select_existing(c(
@@ -257,7 +262,7 @@ all_students <- race_long %>%
 race_non_ta <- race_long %>%
   filter(subgroup != "All Students") %>%
   inner_join(
-    v5_schools_only %>% select(academic_year, county_code, district_code, school_code),
+    v6_schools_only %>% select(academic_year, county_code, district_code, school_code),
     by = c("academic_year","county_code","district_code","school_code")
   ) %>%
   transmute(
@@ -276,7 +281,7 @@ race_non_ta <- race_long %>%
 # OTH (campus-only)
 oth_norm <- demo_data %>%
   inner_join(
-    v5_schools_only %>% select(academic_year, county_code, district_code, school_code),
+    v6_schools_only %>% select(academic_year, county_code, district_code, school_code),
     by = c("academic_year","county_code","district_code","school_code")
   ) %>%
   transmute(

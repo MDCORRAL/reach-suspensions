@@ -15,12 +15,12 @@ suppressPackageStartupMessages({
 source(here::here("R", "utils_keys_filters.R"))
 
 # --- 2) Load Data -------------------------------------------------------------
-v5 <- arrow::read_parquet(here::here("data-stage", "susp_v5.parquet")) %>%
+v6 <- arrow::read_parquet(here::here("data-stage", "susp_v6_long.parquet")) %>%
   build_keys() %>%          # Standardize CDS codes
   filter_campus_only()      # Exclude special aggregation rows
 
 # --- 3) Filter for Black Students Data ---------------------------------------
-black_students_data <- v5 %>%
+black_students_data <- v6 %>%
   filter(reporting_category == "RB")
 
 # ==============================================================================
