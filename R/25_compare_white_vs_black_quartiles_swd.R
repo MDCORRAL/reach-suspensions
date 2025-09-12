@@ -8,6 +8,7 @@ suppressPackageStartupMessages({
 })
 
 source(here::here("R","utils_keys_filters.R"))
+source(here::here("R","utils_demographic_labels.R"))
 
 # ───────────────────────────── Config / Paths ─────────────────────────────
 DATA_STAGE <- here("data-stage")
@@ -27,15 +28,6 @@ norm_quartile <- function(x) {                      # "Q1"/"1"/" q2 " -> ordered
   x <- as.character(x) |> str_trim()
   qn <- suppressWarnings(as.integer(str_extract(x, "[1-4]")))
   forcats::fct_relevel(factor(paste0("Q", qn)), "Q1","Q2","Q3","Q4")
-}
-
-canon_label <- function(x) {                        # map to our subgroup set
-  xl <- str_to_lower(x)
-  dplyr::case_when(
-    str_detect(xl, "\\b(total|all)\\b")                          ~ "Total",
-    str_detect(xl, "students? with disabilities|special\\s*education") ~ "Students with Disabilities",
-    TRUE ~ NA_character_
-  )
 }
 
  # ───────────────────────── Load features & quartiles ─────────────────────
@@ -100,7 +92,8 @@ long_counts_all <- read_parquet(V6L_PARQ) %>% clean_names() %>%
   transmute(
     school_code = str_pad(as.character(school_code), padw, "left", "0"),
     year        = as.character(year),
-    subgroup    = canon_label(subgroup),
+    subgroup    = dplyr::coalesce(canon_demo_label(subgroup),
+                                  canon_race_label(subgroup)),
     num         = as.numeric(num),
     den         = as.numeric(den)
   ) %>% filter(!is.na(subgroup))

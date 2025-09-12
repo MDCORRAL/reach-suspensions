@@ -6,6 +6,9 @@ suppressPackageStartupMessages({
   library(arrow); library(here); library(ggplot2); library(openxlsx); library(scales); library(tidyr)
 })
 
+source(here::here("R", "utils_keys_filters.R"))
+source(here::here("R", "utils_demographic_labels.R"))
+
 # --- Paths -------------------------------------------------------------------
 # CORRECTED, PORTABLE PATH
 DATA_STAGE <- here("data-stage")
@@ -18,31 +21,6 @@ dir.create(here("outputs"), showWarnings = FALSE)
 
 # --- Helpers -----------------------------------------------------------------
 safe_div <- function(n, d) ifelse(is.na(d) | d == 0, NA_real_, n / d)
-
-canon_label <- function(x) {
-  xl <- stringr::str_to_lower(x %||% "")
-  dplyr::case_when(
-    stringr::str_detect(xl, "black|african")                               ~ "Black/African American",
-    stringr::str_detect(xl, "white")                                       ~ "White",
-    stringr::str_detect(xl, "hispanic|latino")                             ~ "Hispanic/Latino",
-    stringr::str_detect(xl, "\\basian\\b")                                 ~ "Asian",
-    stringr::str_detect(xl, "filipino")                                    ~ "Filipino",
-    stringr::str_detect(xl, "american indian|alaska")                      ~ "American Indian/Alaska Native",
-    stringr::str_detect(xl, "pacific islander|hawaiian")                   ~ "Native Hawaiian/Pacific Islander",
-    stringr::str_detect(xl, "two or more|multiracial|two or more races")   ~ "Two or More Races",
-    stringr::str_detect(xl, "english\\s*only|\\beo\\b")                 ~ "English Only",
-    stringr::str_detect(xl, "english\\s*learner|\\bell\\b")            ~ "English Learner",
-    stringr::str_detect(xl, "socioeconomically disadvantaged|\\bsed\\b|low\\s*income|economically disadvantaged")
-    ~ "Socioeconomically Disadvantaged",
-    stringr::str_detect(xl, "foster|\\bfy\\b")                           ~ "Foster Youth",
-    stringr::str_detect(xl, "migrant|\\bmg\\b")                          ~ "Migrant",
-    stringr::str_detect(xl, "homeless|\\bhl\\b")                         ~ "Homeless",
-    stringr::str_detect(xl, "students? with disabilities|special\\s*education|\\bswd\\b")
-    ~ "Students with Disabilities",
-    stringr::str_detect(xl, "all students|\\b(total|all)\\b")              ~ "Total",
-    TRUE ~ NA_character_
-  )
-}
 
 # --- Load v6 features (authoritative keys/flags) -----------------------------
 # --- Load v6 features (authoritative keys/flags) -----------------------------
@@ -70,7 +48,8 @@ long_src <- read_parquet(V6L_PARQ) %>% clean_names() %>%
   transmute(
     school_code = str_pad(as.character(school_code), padw, "left", "0"),
     year        = as.character(year),
-    subgroup    = canon_label(subgroup),
+    subgroup    = dplyr::coalesce(canon_demo_label(subgroup),
+                                  canon_race_label(subgroup)),
     rate        = as.numeric(rate)
   ) %>%
   filter(!is.na(subgroup))

@@ -5,6 +5,7 @@ suppressPackageStartupMessages({
 })
 
 source(here::here("R","utils_keys_filters.R"))
+source(here::here("R","utils_demographic_labels.R"))
 
 # ──────────────────────────────── Config / Paths ──────────────────────────────
 DATA_STAGE <- here("data-stage")                   # portable path
@@ -19,23 +20,6 @@ OUT_XLSX <- here("outputs", "rates_pooled_by_year_blackquartile_subgroup.xlsx")
 safe_div <- function(n, d) ifelse(is.na(d) | d == 0, NA_real_, n / d)
 
 norm_black_q <- NULL  # no longer needed; quartiles stored numerically
-
-canon_label <- function(x) {                       # canonicalize subgroup labels
-  xl <- stringr::str_to_lower(x)
-  dplyr::case_when(
-    str_detect(xl, "\\b(total|all)\\b")                          ~ "Total",
-    str_detect(xl, "black|african")                               ~ "Black/African American",
-    str_detect(xl, "white")                                       ~ "White",
-    str_detect(xl, "hispanic|latino")                             ~ "Hispanic/Latino",
-    str_detect(xl, "\\basian\\b")                                 ~ "Asian",
-    str_detect(xl, "filipino")                                    ~ "Filipino",
-    str_detect(xl, "american indian|alaska")                      ~ "American Indian/Alaska Native",
-    str_detect(xl, "pacific islander|hawaiian")                   ~ "Native Hawaiian/Pacific Islander",
-    str_detect(xl, "two or more|multiracial|two or more races")   ~ "Two or More Races",
-    str_detect(xl, "students? with disabilities|special\\s*education") ~ "Students with Disabilities",
-    TRUE ~ NA_character_
-  )
-}
 
 # ───────────────────────────── Load v6_features ───────────────────────────────
 stopifnot(file.exists(V6F_PARQ))
@@ -57,7 +41,8 @@ long_counts <- read_parquet(V6L_PARQ) %>% clean_names() %>%
   transmute(
     school_code = stringr::str_pad(as.character(school_code), padw, "left", "0"),
     year        = as.character(year),
-    subgroup    = canon_label(subgroup),
+    subgroup    = dplyr::coalesce(canon_demo_label(subgroup),
+                                  canon_race_label(subgroup)),
     num         = as.numeric(num),
     den         = as.numeric(den)
   ) %>%
