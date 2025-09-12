@@ -38,28 +38,28 @@ trend_dir_spearman <- function(v) {
 }
 
 # --- Load & guards -----------------------------------------------------------
-v5_path <- here("data-stage", "susp_v6_long.parquet")
-if (!file.exists(v5_path)) stop("Data file not found: ", v5_path)
-v5 <- read_parquet(v5_path)
+v6_path <- here("data-stage", "susp_v6_long.parquet")
+if (!file.exists(v6_path)) stop("Data file not found: ", v6_path)
+v6 <- read_parquet(v6_path)
 
 required_cols <- c("subgroup","academic_year","total_suspensions",
                    "cumulative_enrollment","school_level","locale_simple")
-missing_cols <- setdiff(required_cols, names(v5))
+missing_cols <- setdiff(required_cols, names(v6))
 if (length(missing_cols)) stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
 
 # Order academic years (driven by TA)
-year_levels <- v5 %>%
+year_levels <- v6 %>%
   filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull()
 if (!length(year_levels)) stop("No TA rows found to anchor academic_year order.")
 
 # Optional: drop Unknown locale up front
 if (isTRUE(DROP_UNKNOWN_LOCALE)) {
-  v5 <- v5 %>% filter(locale_simple != "Unknown")
+  v6 <- v6 %>% filter(locale_simple != "Unknown")
 }
 
 # --- Base with labels & factors ---------------------------------------------
-base <- v5 %>%
+base <- v6 %>%
   mutate(
     race     = canon_race_label(subgroup),
     year_fct = factor(academic_year, levels = year_levels, ordered = TRUE)
@@ -71,7 +71,7 @@ base <- v5 %>%
   )
 
 # Small memory cleanup
-rm(v5); invisible(gc())
+rm(v6); invisible(gc())
 
 # --- Outputs: directory + timestamp (used throughout) ------------------------
 outdir <- here("outputs"); dir.create(outdir, showWarnings = FALSE, recursive = TRUE)

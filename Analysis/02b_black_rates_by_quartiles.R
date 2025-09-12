@@ -20,7 +20,7 @@ suppressPackageStartupMessages({
 source(here::here("R","utils_keys_filters.R"))
 
 # ------------ load & guards -------------------
-v5 <- read_parquet(here("data-stage","susp_v6_long.parquet")) %>%
+v6 <- read_parquet(here("data-stage","susp_v6_long.parquet")) %>%
   build_keys() %>%
   filter_campus_only()   # drops 0000000/0000001 and non-school rows
 
@@ -29,29 +29,29 @@ need_cols <- c(
   "total_suspensions","cumulative_enrollment",
   "black_prop_q","black_prop_q_label","white_prop_q","white_prop_q_label"
 )
-missing <- setdiff(need_cols, names(v5))
-if (length(missing)) stop("Missing in v5: ", paste(missing, collapse=", "))
+missing <- setdiff(need_cols, names(v6))
+if (length(missing)) stop("Missing in v6: ", paste(missing, collapse=", "))
 
 # ensure readable labels exist via shared helper
-if (!"black_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q, "Black"))
-if (!"white_prop_q_label" %in% names(v5))  v5 <- v5 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q, "White"))
+if (!"black_prop_q_label" %in% names(v6))  v6 <- v6 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q, "Black"))
+if (!"white_prop_q_label" %in% names(v6))  v6 <- v6 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q, "White"))
 
 # year order (from TA rows with positive enrollment)
-year_levels <- v5 %>%
+year_levels <- v6 %>%
   filter(category_type == "Race/Ethnicity", subgroup == "All Students", cumulative_enrollment > 0) %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 
 # reason columns (skip reason plots gracefully if none found)
-reason_cols <- names(v5)[grepl("^prop_susp_", names(v5))]
+reason_cols <- names(v6)[grepl("^prop_susp_", names(v6))]
 if (length(reason_cols) == 0) {
   message("No reason proportion columns found; reason plots will be skipped.")
 }
 
 # ------------ core aggregators for RB ---------
 # pooled rates: (sum events) / (sum RB enrollment) within year × quartile
-agg_rb_rates_and_counts <- function(v5, quart_var) {
+agg_rb_rates_and_counts <- function(v6, quart_var) {
   # total RB rate & counts
-  totals <- v5 %>%
+  totals <- v6 %>%
     filter(subgroup == "Black/African American", !is.na(.data[[quart_var]]), .data[[quart_var]] != "Unknown") %>%
     group_by(academic_year, .data[[quart_var]]) %>%
     summarise(
@@ -66,7 +66,7 @@ agg_rb_rates_and_counts <- function(v5, quart_var) {
     )
   
   # reason-specific RB rate
-    reasons_rate <- v5 %>%
+    reasons_rate <- v6 %>%
       filter(subgroup == "Black/African American", !is.na(.data[[quart_var]])) %>%
       select(academic_year, .data[[quart_var]], cumulative_enrollment, total_suspensions, all_of(reason_cols)) %>%
       pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
@@ -91,8 +91,8 @@ agg_rb_rates_and_counts <- function(v5, quart_var) {
 }
 
 # shares: within year × quartile, fraction of RB suspensions by reason
-agg_rb_reason_shares <- function(v5, quart_var) {
-    rb_reason_share <- v5 %>%
+agg_rb_reason_shares <- function(v6, quart_var) {
+    rb_reason_share <- v6 %>%
       filter(subgroup == "Black/African American", !is.na(.data[[quart_var]])) %>%
       select(academic_year, .data[[quart_var]], total_suspensions, all_of(reason_cols)) %>%
       pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
@@ -115,10 +115,10 @@ agg_rb_reason_shares <- function(v5, quart_var) {
 }
 
 # ------------ build both views --------------
-blk_view  <- agg_rb_rates_and_counts(v5, "black_prop_q_label")
-wht_view  <- agg_rb_rates_and_counts(v5, "white_prop_q_label")
-blk_share <- agg_rb_reason_shares(v5, "black_prop_q_label")
-wht_share <- agg_rb_reason_shares(v5, "white_prop_q_label")
+blk_view  <- agg_rb_rates_and_counts(v6, "black_prop_q_label")
+wht_view  <- agg_rb_rates_and_counts(v6, "white_prop_q_label")
+blk_share <- agg_rb_reason_shares(v6, "black_prop_q_label")
+wht_share <- agg_rb_reason_shares(v6, "white_prop_q_label")
 
 # drop Unknown quartile from plots
 keep_blk <- get_quartile_label(1:4, "Black")

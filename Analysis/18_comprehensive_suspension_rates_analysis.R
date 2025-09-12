@@ -21,7 +21,7 @@ DATA_STAGE <- here("data-stage")
 V6_LONG_PARQ <- file.path(DATA_STAGE, "susp_v6_long.parquet")
 V6F_PARQ <- file.path(DATA_STAGE, "susp_v6_features.parquet")
 stopifnot(file.exists(V6_LONG_PARQ), file.exists(V6F_PARQ))
-v5 <- read_parquet(V6_LONG_PARQ)
+v6 <- read_parquet(V6_LONG_PARQ)
 v6_features <- read_parquet(V6F_PARQ)
 
 # Output setup
@@ -106,7 +106,7 @@ reach_race_cols <- c(
 message("=== APPLYING DIRECT GRADE LEVEL FIX ===")
 
 # Step 1: Get everything directly from v6 long (which has all the data we need)
-v5_complete <- v5 %>%
+v6_complete <- v6 %>%
   clean_names() %>%
   build_keys() %>%
   filter_campus_only() %>%
@@ -144,7 +144,7 @@ v6_traditional <- v6_features %>%
   distinct()
 
 # Step 3: Join and finalize
-analytic_data <- v5_complete %>%
+analytic_data <- v6_complete %>%
   left_join(v6_traditional, by = c("school_code", "year")) %>%
   mutate(
     is_traditional = ifelse(is.na(is_traditional), TRUE, is_traditional),
