@@ -49,7 +49,9 @@ v5_long <- v5 %>%
     starts_with("prop_susp_"),
     names_to  = "reason",
     values_to = "prop_of_total_susp"
-  )
+  ) %>%
+  mutate(reason = sub("^prop_susp_", "", reason)) %>%
+  add_reason_label()
 
 # ---- write outputs ---------------------------------------------------------
 arrow::write_parquet(v5,      here::here("data-stage", "susp_v5.parquet"))

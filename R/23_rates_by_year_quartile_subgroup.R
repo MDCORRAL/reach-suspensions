@@ -9,8 +9,7 @@ suppressPackageStartupMessages({
 # CORRECTED, PORTABLE PATH
 DATA_STAGE <- here("data-stage")
 V6F_PARQ <- file.path(DATA_STAGE, "susp_v6_features.parquet")  # keys + flags
-V6L_PARQ <- file.path(DATA_STAGE, "susp_v6_long.parquet")      # (optional) tidy subgroup metrics
-V5_PARQ  <- file.path(DATA_STAGE, "susp_v5.parquet")           # fallback source for subgroup rates
+V6L_PARQ <- file.path(DATA_STAGE, "susp_v6_long.parquet")      # tidy subgroup metrics
 
 OUT_IMG  <- here("outputs", "rates_by_year_blackquartile_by_subgroup.png")
 OUT_XLSX <- here("outputs", "rates_by_year_blackquartile_by_subgroup.xlsx")
@@ -39,6 +38,13 @@ canon_label <- function(x) {
     stringr::str_detect(xl, "american indian|alaska")                      ~ "American Indian/Alaska Native",
     stringr::str_detect(xl, "pacific islander|hawaiian")                   ~ "Native Hawaiian/Pacific Islander",
     stringr::str_detect(xl, "two or more|multiracial|two or more races")   ~ "Two or More Races",
+    stringr::str_detect(xl, "english\\s*only|\\beo\\b")                 ~ "English Only",
+    stringr::str_detect(xl, "english\\s*learner|\\bell\\b")            ~ "English Learner",
+    stringr::str_detect(xl, "socioeconomically disadvantaged|\\bsed\\b|low\\s*income|economically disadvantaged")
+    ~ "Socioeconomically Disadvantaged",
+    stringr::str_detect(xl, "foster|\\bfy\\b")                           ~ "Foster Youth",
+    stringr::str_detect(xl, "migrant|\\bmg\\b")                          ~ "Migrant",
+    stringr::str_detect(xl, "homeless|\\bhl\\b")                         ~ "Homeless",
     stringr::str_detect(xl, "students? with disabilities|special\\s*education|\\bswd\\b|\\bsped\\b")
     ~ "Students with Disabilities",
     stringr::str_detect(xl, "all students|\\b(total|all)\\b")              ~ "Total",
@@ -67,36 +73,16 @@ v6_features <- v6_features %>% mutate(school_code = str_pad(school_code, padw, "
 # print(v6_features %>% count(black_q, sort = TRUE))
 
 
-# --- Get subgroup school-level rates (prefer v6_long; else v5) ---------------
-if (file.exists(V6L_PARQ)) {
-  # v6_long: expected columns: school_code, year, category, subgroup, num, den, rate
-  long_src <- read_parquet(V6L_PARQ) %>% clean_names() %>%
-    transmute(
-      school_code = str_pad(as.character(school_code), padw, "left", "0"),
-      year        = as.character(year),
-      subgroup    = canon_label(subgroup),
-      rate        = as.numeric(rate)
-    ) %>%
-    filter(!is.na(subgroup))
-} else {
-  # Fallback to v5
-  v5 <- read_parquet(V5_PARQ) %>% clean_names()
-  subg_desc <- if ("reporting_category_description" %in% names(v5)) "reporting_category_description" else "reporting_category"
-  num_col   <- if ("unduplicated_count_of_students_suspended_total" %in% names(v5))
-    "unduplicated_count_of_students_suspended_total" else "total_suspensions"
-  den_col   <- "cumulative_enrollment"
-  # school-level only if present
-  if ("aggregate_level" %in% names(v5)) v5 <- v5 %>% filter(str_to_lower(aggregate_level) %in% c("school","sch"))
-  
-  long_src <- v5 %>%
-    transmute(
-      school_code = str_pad(as.character(school_code), padw, "left", "0"),
-      year        = as.character(academic_year),
-      subgroup    = canon_label(.data[[subg_desc]]),
-      rate        = safe_div(as.numeric(.data[[num_col]]), as.numeric(.data[[den_col]]))
-    ) %>%
-    filter(!is.na(subgroup))
-}
+# --- Get subgroup school-level rates (from v6_long) --------------------------
+stopifnot(file.exists(V6L_PARQ))
+long_src <- read_parquet(V6L_PARQ) %>% clean_names() %>%
+  transmute(
+    school_code = str_pad(as.character(school_code), padw, "left", "0"),
+    year        = as.character(year),
+    subgroup    = canon_label(subgroup),
+    rate        = as.numeric(rate)
+  ) %>%
+  filter(!is.na(subgroup))
 
 # --- Join keys + filter to traditional ---------------------------------------
 analytic <- long_src %>%
