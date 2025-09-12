@@ -39,6 +39,13 @@ canon_label <- function(x) {
     stringr::str_detect(xl, "american indian|alaska")                      ~ "American Indian/Alaska Native",
     stringr::str_detect(xl, "pacific islander|hawaiian")                   ~ "Native Hawaiian/Pacific Islander",
     stringr::str_detect(xl, "two or more|multiracial|two or more races")   ~ "Two or More Races",
+    stringr::str_detect(xl, "english\\s*only|\\beo\\b")                 ~ "English Only",
+    stringr::str_detect(xl, "english\\s*learner|\\bell\\b")            ~ "English Learner",
+    stringr::str_detect(xl, "socioeconomically disadvantaged|\\bsed\\b|low\\s*income|economically disadvantaged")
+    ~ "Socioeconomically Disadvantaged",
+    stringr::str_detect(xl, "foster|\\bfy\\b")                           ~ "Foster Youth",
+    stringr::str_detect(xl, "migrant|\\bmg\\b")                          ~ "Migrant",
+    stringr::str_detect(xl, "homeless|\\bhl\\b")                         ~ "Homeless",
     stringr::str_detect(xl, "students? with disabilities|special\\s*education|\\bswd\\b|\\bsped\\b")
     ~ "Students with Disabilities",
     stringr::str_detect(xl, "all students|\\b(total|all)\\b")              ~ "Total",
