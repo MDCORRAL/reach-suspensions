@@ -38,14 +38,12 @@ if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 
 # --- 4) Race labels and Data Prep ---------------------------------------------
 # Keep TA + known races; drop RD (Not Reported)
-allowed_codes <- c("All Students","Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Native Hawaiian/Pacific Islander","Two or More Races")
-
 df <- v5 %>%
-  filter(subgroup %in% allowed_codes) %>%
   mutate(
     race = canon_race_label(subgroup),
     year_fct = factor(academic_year, levels = year_levels)
   ) %>%
+  filter(race %in% ALLOWED_RACES) %>%
   group_by(locale_simple, race, academic_year, year_fct) %>%
   summarise(
     susp   = sum(total_suspensions, na.rm = TRUE),

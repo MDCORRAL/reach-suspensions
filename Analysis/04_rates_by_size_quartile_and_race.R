@@ -52,12 +52,12 @@ df_total <- v5 %>%
   )
 
 # Races
-allowed_races <- c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Native Hawaiian/Pacific Islander","Two or More Races")
 df_race <- v5 %>%
-  filter(canon_race_label(subgroup) %in% allowed_races,
-         !is.na(enroll_q_label), enroll_q_label %in% q_keep) %>%
   mutate(race = canon_race_label(subgroup)) %>%
-  filter(!is.na(race)) %>%
+  filter(
+    race %in% setdiff(ALLOWED_RACES, "All Students"),
+    !is.na(enroll_q_label), enroll_q_label %in% q_keep
+  ) %>%
   group_by(academic_year, enroll_q_label, race) %>%
   summarise(
     susp   = sum(total_suspensions, na.rm=TRUE),

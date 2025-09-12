@@ -154,6 +154,19 @@ canon_race_label <- function(x) {
   )
 }
 
+# Canonical race labels referenced across analysis scripts
+ALLOWED_RACES <- c(
+  "All Students",
+  "Black/African American",
+  "White",
+  "Hispanic/Latino",
+  "American Indian/Alaska Native",
+  "Asian",
+  "Filipino",
+  "Native Hawaiian/Pacific Islander",
+  "Two or More Races"
+)
+
 # Backward-compatible alias used by legacy scripts
 race_label <- canon_race_label
 ##main
