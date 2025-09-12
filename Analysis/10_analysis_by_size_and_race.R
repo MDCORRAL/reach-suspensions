@@ -49,7 +49,7 @@ rates_by_size_race <- v5 %>%
       subgroup == "Asian" ~ "Asian",
       subgroup == "Filipino" ~ "Filipino",
       subgroup == "Hispanic/Latino" ~ "Hispanic",
-      subgroup == "Pacific Islander" ~ "Pacific Islander",
+      subgroup == "Native Hawaiian/Pacific Islander" ~ "Native Hawaiian/Pacific Islander",
       subgroup == "White" ~ "White",
       subgroup == "Two or More Races" ~ "Two or More Races",
       subgroup == "RD" ~ "Not Reported",

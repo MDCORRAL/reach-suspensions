@@ -128,7 +128,7 @@ canon_race_label <- function(x) {
       "ri", "american indian", "alaska native",
       "american indian/alaska native", "native american"
     ) ~ "American Indian/Alaska Native",
-    x_clean %in% c("rp", "pacific islander", "native hawaiian") ~ "Pacific Islander",
+    x_clean %in% c("rp", "pacific islander", "native hawaiian") ~ "Native Hawaiian/Pacific Islander",
     x_clean %in% c(
       "rt", "two or more", "two or more races", "multirace",
       "multiple"

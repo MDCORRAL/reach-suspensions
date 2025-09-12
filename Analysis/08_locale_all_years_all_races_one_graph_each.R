@@ -38,7 +38,7 @@ if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 
 # --- 4) Race labels and Data Prep ---------------------------------------------
 # Keep TA + known races; drop RD (Not Reported)
-allowed_codes <- c("All Students","Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Pacific Islander","Two or More Races")
+allowed_codes <- c("All Students","Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Native Hawaiian/Pacific Islander","Two or More Races")
 
 df <- v5 %>%
   filter(subgroup %in% allowed_codes) %>%

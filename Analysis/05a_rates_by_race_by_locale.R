@@ -50,7 +50,7 @@ df_total <- v5 %>%
 
 # Race-specific
 df_race <- v5 %>%
-  filter(subgroup %in% c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Pacific Islander","Two or More Races")) %>%
+  filter(subgroup %in% c("Black/African American","White","Hispanic/Latino","Hispanic/Latino","American Indian/Alaska Native","Asian","Filipino","Native Hawaiian/Pacific Islander","Two or More Races")) %>%
   mutate(race=canon_race_label(subgroup)) %>%
   filter(!is.na(race)) %>%
   group_by(academic_year, locale_simple, race) %>%
