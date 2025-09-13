@@ -173,9 +173,22 @@ write_parquet(by_enrollment, here("data-stage", "quartile_rates_by_enrollment.pa
 
 # Quartiles by racial proportion example: Black share of enrollment
 # Compute proportion of Black enrollment out of school total and derive quartiles
+
+# verify no duplicate campus-year entries with differing enrollment
+enrollment_keys <- c("cds_school", "academic_year")
+extra_keys <- intersect(c("reason", "grade"), names(v6))
+enrollment_keys <- c(enrollment_keys, extra_keys)
+
+dup_check <- v6 %>%
+  filter(subgroup == "All Students") %>%
+  group_by(across(all_of(enrollment_keys))) %>%
+  summarise(n_enroll = n_distinct(cumulative_enrollment), .groups = "drop") %>%
+  filter(n_enroll > 1)
+stopifnot(nrow(dup_check) == 0)
+
 all_enroll <- v6 %>%
   filter(subgroup == "All Students") %>%
-  group_by(cds_school, academic_year) %>%
+  group_by(across(all_of(enrollment_keys))) %>%
   summarise(
     total_enrollment_all = sum(cumulative_enrollment, na.rm = TRUE),
     .groups = "drop"
@@ -185,7 +198,7 @@ black_prop <- v6 %>%
   filter(subgroup == "Black/African American") %>%
   left_join(
     all_enroll,
-    by = c("cds_school", "academic_year"),
+    by = enrollment_keys,
     relationship = "one-to-one"
   ) %>%
   mutate(
