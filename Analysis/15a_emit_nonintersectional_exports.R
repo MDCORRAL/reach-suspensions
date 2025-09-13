@@ -63,6 +63,25 @@ canonicalize_undup <- function(df) {
              suppressWarnings(as.numeric(unduplicated_count_of_students_suspended_total)))
 }
 
+ensure_keys <- function(df) {
+  if (!all(c("county_code", "district_code", "school_code") %in% names(df))) {
+    if ("cds_school" %in% names(df)) {
+      df <- df %>%
+        mutate(
+          county_code   = substr(cds_school, 1, 2),
+          district_code = substr(cds_school, 3, 7),
+          school_code   = substr(cds_school, 8, 14)
+        )
+    }
+  }
+  if (all(c("county_code", "district_code", "school_code") %in% names(df))) {
+    df %>% build_keys()
+  } else {
+    warning("[15a] Missing county/district/school codes; skipping build_keys().")
+    df
+  }
+}
+
 # -------------------------------------------------------------------
 # 1) Read race-long (has reason columns)
 # -------------------------------------------------------------------
@@ -80,24 +99,8 @@ if (is.na(RACE_LONG_PATH)) {
 #######
 
 race_long <- arrow::read_parquet(RACE_LONG_PATH) %>%
-  clean_names()
-
-if (!all(c("county_code", "district_code", "school_code") %in% names(race_long))) {
-  if ("cds_school" %in% names(race_long)) {
-    race_long <- race_long %>%
-      mutate(
-        county_code   = substr(cds_school, 1, 2),
-        district_code = substr(cds_school, 3, 7),
-        school_code   = substr(cds_school, 8, 14)
-      )
-  }
-}
-
-if (all(c("county_code", "district_code", "school_code") %in% names(race_long))) {
-  race_long <- race_long %>% build_keys()
-} else {
-  warning("[15a] Missing county/district/school codes; skipping build_keys().")
-}
+  clean_names() %>%
+  ensure_keys()
 
 race_long <- race_long %>%
   mutate(year = suppressWarnings(as.integer(substr(as.character(academic_year), 1, 4))))
@@ -117,26 +120,8 @@ if (!file.exists(OTH_PARQUET)) {
   stop("[15a] Missing file: data-stage/oth_long.parquet. Run analysis/01b_ingest_demographics.R first.")
 }
 demo_data <- arrow::read_parquet(OTH_PARQUET) %>%
-  clean_names()
-
-if (!all(c("county_code", "district_code", "school_code") %in% names(demo_data))) {
-  if ("cds_school" %in% names(demo_data)) {
-    demo_data <- demo_data %>%
-      mutate(
-        county_code   = substr(cds_school, 1, 2),
-        district_code = substr(cds_school, 3, 7),
-        school_code   = substr(cds_school, 8, 14)
-      )
-  }
-}
-
-if (all(c("county_code", "district_code", "school_code") %in% names(demo_data))) {
-  demo_data <- demo_data %>% build_keys()
-} else {
-  warning("[15a] Missing county/district/school codes; skipping build_keys().")
-}
-
-demo_data <- demo_data %>%
+  clean_names() %>%
+  ensure_keys() %>%
   mutate(year = suppressWarnings(as.integer(substr(as.character(academic_year), 1, 4)))) %>%
   canonicalize_undup()
 
@@ -156,26 +141,8 @@ stopifnot(file.exists(v6_path))
 
 # 1) Read and keep aggregate_level if present
 v6_keys_raw <- arrow::read_parquet(v6_path) %>%
-  clean_names()
-
-if (!all(c("county_code", "district_code", "school_code") %in% names(v6_keys_raw))) {
-  if ("cds_school" %in% names(v6_keys_raw)) {
-    v6_keys_raw <- v6_keys_raw %>%
-      mutate(
-        county_code   = substr(cds_school, 1, 2),
-        district_code = substr(cds_school, 3, 7),
-        school_code   = substr(cds_school, 8, 14)
-      )
-  }
-}
-
-if (all(c("county_code", "district_code", "school_code") %in% names(v6_keys_raw))) {
-  v6_keys_raw <- v6_keys_raw %>% build_keys()
-} else {
-  warning("[15a] Missing county/district/school codes; skipping build_keys().")
-}
-
-v6_keys_raw <- v6_keys_raw %>%
+  clean_names() %>%
+  ensure_keys() %>%
   select(
     academic_year, county_code, district_code, school_code,
     county_name, district_name, school_name,
