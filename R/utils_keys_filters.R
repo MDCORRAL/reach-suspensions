@@ -83,8 +83,31 @@ add_reason_label <- function(df, reason_col = "reason") {
     )
 }
 
+# Ensure county, district, and school codes are present.
+# If they are missing but a 14-digit `cds_school` key exists, split it into
+# components. Otherwise, halt with a helpful message so upstream data can be
+# rebuilt.
+ensure_keys <- function(df) {
+  needed <- c("county_code", "district_code", "school_code")
+  if (!all(needed %in% names(df))) {
+    if ("cds_school" %in% names(df)) {
+      df <- df %>%
+        mutate(
+          county_code   = substr(cds_school, 1, 2),
+          district_code = substr(cds_school, 3, 7),
+          school_code   = substr(cds_school, 8, 14)
+        )
+    }
+  }
+  if (!all(needed %in% names(df))) {
+    stop("Missing county/district/school codes. Rebuild data-stage/susp_v6_long.parquet.")
+  }
+  df
+}
+
 # build canonical 14-digit CDS keys
 build_keys <- function(df) {
+  df <- ensure_keys(df)
   df %>%
     mutate(
       county_code  = str_pad(as.character(county_code),  width = 2,  pad = "0"),
