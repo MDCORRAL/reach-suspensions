@@ -34,23 +34,51 @@ need_cols <- c(
   "school_level", "school_type", "total_suspensions", "cumulative_enrollment"
 )
 stopifnot(all(need_cols %in% names(v6)))
-
-v6_all <- bind_rows(
-  v6,
-  v6 %>% mutate(school_group = "All"),
-  v6 %>% mutate(school_type = "All"),
-  v6 %>% mutate(school_group = "All", school_type = "All")
-)
-
 # ---- Statewide totals --------------------------------------------------------
 
-statewide_all <- v6_all %>%
+statewide_by_group_type <- v6 %>%
   group_by(academic_year, subgroup, school_group, school_type) %>%
   summarise(
     total_suspensions = sum(total_suspensions, na.rm = TRUE),
     total_enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
-    statewide_rate    = if_else(total_enrollment > 0, total_suspensions / total_enrollment, NA_real_),
     .groups = "drop"
+  )
+
+statewide_by_type <- v6 %>%
+  group_by(academic_year, subgroup, school_type) %>%
+  summarise(
+    total_suspensions = sum(total_suspensions, na.rm = TRUE),
+    total_enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(school_group = "All")
+
+statewide_by_group <- v6 %>%
+  group_by(academic_year, subgroup, school_group) %>%
+  summarise(
+    total_suspensions = sum(total_suspensions, na.rm = TRUE),
+    total_enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(school_type = "All")
+
+statewide_overall <- v6 %>%
+  group_by(academic_year, subgroup) %>%
+  summarise(
+    total_suspensions = sum(total_suspensions, na.rm = TRUE),
+    total_enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(school_group = "All", school_type = "All")
+
+statewide_all <- bind_rows(
+  statewide_by_group_type,
+  statewide_by_type,
+  statewide_by_group,
+  statewide_overall
+) %>%
+  mutate(
+    statewide_rate = if_else(total_enrollment > 0, total_suspensions / total_enrollment, NA_real_)
   )
 
 # overall statewide totals only (both group and type = "All")
