@@ -83,6 +83,9 @@ race_long <- arrow::read_parquet(RACE_LONG_PATH) %>%
   clean_names() %>%
   build_keys()
 
+if (!"subgroup_description" %in% names(race_long))
+  race_long <- mutate(race_long, subgroup_description = subgroup)
+
 race_long <- race_long %>%
   mutate(year = suppressWarnings(as.integer(substr(as.character(academic_year), 1, 4))))
 
