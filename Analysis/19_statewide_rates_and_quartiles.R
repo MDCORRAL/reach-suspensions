@@ -117,12 +117,25 @@ write_parquet(by_enrollment, here("data-stage", "quartile_rates_by_enrollment.pa
 all_enroll <- v6 %>%
   filter(subgroup == "All Students") %>%
   group_by(cds_school, academic_year) %>%
-  summarise(total_enrollment_all = sum(cumulative_enrollment), .groups = "drop")
+  summarise(
+    total_enrollment_all = sum(cumulative_enrollment, na.rm = TRUE),
+    .groups = "drop"
+  )
 
 black_prop <- v6 %>%
   filter(subgroup == "Black/African American") %>%
-  left_join(all_enroll, by = c("cds_school", "academic_year"), relationship = "one-to-one") %>%
-  mutate(black_prop = if_else(total_enrollment_all > 0, cumulative_enrollment / total_enrollment_all, NA_real_))
+  left_join(
+    all_enroll,
+    by = c("cds_school", "academic_year"),
+    relationship = "one-to-one"
+  ) %>%
+  mutate(
+    black_prop = if_else(
+      total_enrollment_all > 0,
+      cumulative_enrollment / total_enrollment_all,
+      NA_real_
+    )
+  )
 
 by_black_prop <- black_prop %>%
   group_by(academic_year) %>%
