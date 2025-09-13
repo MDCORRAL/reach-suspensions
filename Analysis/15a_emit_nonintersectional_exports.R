@@ -339,30 +339,31 @@ try({
   if (nrow(dup_ta)) warning("[15a] TA duplicates found; inspect `dup_ta`.")
 })
 
+if (interactive()) {
+  #----------------------------##test###-------------------###
+  # Check the duplicates
+  dup_ta <- all_students %>%
+    count(year, school_code, name = "n") %>%
+    filter(n > 1)
+
+  # See how many duplicates and which schools
+  nrow(dup_ta)
+  head(dup_ta)
+
+  # Look at the actual duplicate rows
+  example_dup <- all_students %>%
+    filter(school_code %in% head(dup_ta$school_code, 3)) %>%
+    arrange(school_code, year)
+  View(example_dup)
+
+  #----------------------------------###test 2####
+  # any TA dupes left?
+  dup_ta <- all_students %>%
+    count(year, school_code, name = "n") %>%
+    filter(n > 1)
+
+  nrow(dup_ta)
+  head(dup_ta)
+}
 
 # End of file
-
-#----------------------------##test###-------------------###
-# Check the duplicates
-dup_ta <- all_students %>%
-  count(year, school_code, name = "n") %>%
-  filter(n > 1)
-
-# See how many duplicates and which schools
-nrow(dup_ta)
-head(dup_ta)
-
-# Look at the actual duplicate rows
-example_dup <- all_students %>%
-  filter(school_code %in% head(dup_ta$school_code, 3)) %>%
-  arrange(school_code, year)
-View(example_dup)
-
-#----------------------------------###test 2####
-# any TA dupes left?
-dup_ta <- all_students %>%
-  count(year, school_code, name = "n") %>%
-  filter(n > 1)
-
-nrow(dup_ta)
-head(dup_ta)
