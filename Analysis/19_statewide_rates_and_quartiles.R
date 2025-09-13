@@ -73,14 +73,21 @@ write_parquet(
 # Quartiles by total school enrollment (All Students baseline)
 school_enroll <- v6 %>%
   filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
-  select(cds_school, academic_year, total_enrollment_all = cumulative_enrollment) %>%
+  group_by(cds_school, academic_year) %>%
+  summarise(
+    total_enrollment_all = sum(cumulative_enrollment, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
   group_by(academic_year) %>%
   mutate(enrollment_q = ntile(total_enrollment_all, 4)) %>%
   ungroup()
 
 v6_enroll_q <- v6 %>%
-  left_join(school_enroll %>% select(cds_school, academic_year, enrollment_q),
-    by = c("cds_school", "academic_year"))
+  left_join(
+    school_enroll %>% select(cds_school, academic_year, enrollment_q),
+    by = c("cds_school", "academic_year"),
+    relationship = "one-to-one"
+  )
 
 v6_enroll_q_all <- bind_rows(
   v6_enroll_q,
