@@ -301,13 +301,8 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   
   # --- End of Corrected Block 1 ---
   
-  # Dedup guard
-  dup_check <- v6_features %>% count(school_code, academic_year) %>% filter(n > 1)
-  if (nrow(dup_check) > 0) {
-    message("Deduplicating duplicate school-year rows...")
-    v6_features <- v6_features %>% group_by(school_code, academic_year) %>% slice_head(n = 1) %>% ungroup()
-  }
-  stopifnot(dplyr::n_distinct(v6_features[c("school_code","academic_year")]) == nrow(v6_features))
+  # Ensure one row per campus-year
+  v6_features <- assert_unique_campus(v6_features, year_col = "academic_year")
   
   # Range checks
   for (cc in c("sped_rate","ell_rate","migrant_rate","foster_rate","homeless_rate","sed_rate","sex_male_rate","sex_female_rate","sex_non_binary_rate")) {
