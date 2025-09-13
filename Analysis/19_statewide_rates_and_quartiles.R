@@ -71,11 +71,12 @@ write_parquet(
 # ---- Quartile helpers --------------------------------------------------------
 ##codex/create-statewide-data-frame-analysis-ke1b6u
 # Quartiles by total school enrollment (All Students baseline)
+# Ensure one row per school-year before assigning quartiles
 school_enroll <- v6 %>%
   filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
   group_by(cds_school, academic_year) %>%
   summarise(
-    total_enrollment_all = sum(cumulative_enrollment, na.rm = TRUE),
+    total_enrollment_all = first(cumulative_enrollment),
     .groups = "drop"
   ) %>%
   group_by(academic_year) %>%
