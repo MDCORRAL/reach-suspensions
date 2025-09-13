@@ -117,9 +117,10 @@ v6_traditional <- v6_features %>%
   clean_names() %>%
   transmute(
     school_code = as.character(school_code),
-    year = as.character(year),
+    year = as.character(academic_year),
     is_traditional = !is.na(is_traditional) & is_traditional
   ) %>%
+  select(school_code, year, is_traditional) %>%
   distinct()
 
 # Step 3: Join and finalize
