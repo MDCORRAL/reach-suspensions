@@ -143,9 +143,9 @@ roll_nonpublic_to_district <- function(df, value_cols, year_col = "year") {
 }
 
 # assert uniqueness for a campus-level frame
-assert_unique_campus <- function(df, year_col = "year", extra_keys = character()) {
+assert_unique_campus <- function(df, campus_col = "cds_school", year_col = "year", extra_keys = character()) {
   ysym <- rlang::sym(year_col)
-  key_syms <- rlang::syms(c("cds_school", extra_keys))
+  key_syms <- rlang::syms(c(campus_col, extra_keys))
   dup <- df %>%
     dplyr::count(!!!key_syms, !!ysym, name = "n") %>%
     dplyr::filter(n > 1)
