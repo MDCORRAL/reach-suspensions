@@ -177,7 +177,7 @@ all_enroll <- v6 %>%
   filter(subgroup == "All Students") %>%
   group_by(cds_school, academic_year) %>%
   summarise(
-    total_enrollment_all = sum(cumulative_enrollment, na.rm = TRUE),
+    total_enrollment_all = first(cumulative_enrollment),
     .groups = "drop"
   )
 
