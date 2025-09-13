@@ -46,8 +46,12 @@ norm <- function(x) {
 
 # -------- Load and validate data ---------------------------------------------
 cat("\n=== Loading race data ===\n")
-race_data <- arrow::read_parquet(RACE_DATA_PATH) %>% 
+race_data <- arrow::read_parquet(RACE_DATA_PATH) %>%
   janitor::clean_names()
+
+if (!"category_type" %in% names(race_data)) {
+  stop("`susp_v6_long.parquet` missing `category_type`; rebuild v6 long parquet.")
+}
 
 # Create academic_year if needed
 if (!"academic_year" %in% names(race_data) && "year" %in% names(race_data)) {
