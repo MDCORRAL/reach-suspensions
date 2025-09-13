@@ -119,8 +119,13 @@ cat("Capped", sum(demo_data$rate_flag, na.rm = TRUE), "impossible suspension cou
 # -------- Create canonical school attributes --------------------------------
 # Year ordering (prefer TA in race_data if present)
 year_levels <- race_data %>%
-  filter(if ("subgroup" %in% names(.)) category_type == "Race/Ethnicity", subgroup == "All Students" else TRUE) %>%
-  distinct(academic_year) %>% arrange(academic_year) %>% pull()
+  { if ("subgroup" %in% names(.))
+      filter(., category_type == "Race/Ethnicity", subgroup == "All Students")
+    else .
+  } %>%
+  distinct(academic_year) %>%
+  arrange(academic_year) %>%
+  pull()
 
 if (!length(year_levels)) {
   year_levels <- demo_data %>% distinct(academic_year) %>% arrange(academic_year) %>% pull()
