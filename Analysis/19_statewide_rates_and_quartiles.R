@@ -237,3 +237,25 @@ by_black_prop <- black_prop %>%
 write_parquet(by_black_prop, here("data-stage", "quartile_rates_by_black_prop.parquet"))
 
 # End of file
+
+####Tests to ensure accuracy####
+
+#1. Test A##
+dup_rows <- v6 %>%
+  filter(category_type == "Race/Ethnicity",
+         subgroup == "Black/African American") %>%
+  count(cds_school, academic_year, cumulative_enrollment) %>%
+  add_count(cds_school, academic_year, name = "n_rows") %>%
+  filter(n_rows > 1)
+
+nrow(dup_rows)
+
+
+##2. Test 2##
+# after running the script
+file.exists(here("data-stage", "statewide_totals.parquet"))
+file.exists(here("data-stage", "statewide_totals_breakdowns.parquet"))
+file.exists(here("data-stage", "quartile_rates_by_enrollment.parquet"))
+file.exists(here("data-stage", "quartile_rates_by_black_prop.parquet"))
+
+###END TEST###
