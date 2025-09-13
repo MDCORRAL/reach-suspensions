@@ -233,7 +233,14 @@ all_students <- race_long %>%
   inner_join(
     v6_schools_only %>% select(academic_year, county_code, district_code, school_code),
     by = c("academic_year","county_code","district_code","school_code")
-  ) %>%
+  )
+
+missing_names <- setdiff(c("county_name","district_name","school_name"), names(all_students))
+if (length(missing_names)) {
+  stop("[15a] Missing expected name columns: ", paste(missing_names, collapse = ", "))
+}
+
+all_students <- all_students %>%
   select_existing(c(
     "year","academic_year",
     "county_code","district_code","school_code",

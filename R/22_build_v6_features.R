@@ -72,8 +72,9 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   if (exists("filter_campus_only") && "aggregate_level" %in% names(v5))  v5  <- v5  |> filter_campus_only()
   if (exists("filter_campus_only") && "aggregate_level" %in% names(oth)) oth <- oth |> filter_campus_only()
   
-  # Roster
-  roster <- v5 |> distinct(school_code, academic_year)
+  # Roster (carry through name fields when available)
+  name_cols <- intersect(names(v5), c("county_name","district_name","school_name"))
+  roster <- v5 |> distinct(school_code, academic_year, !!!rlang::syms(name_cols))
   
   # v5: one row per school-year (All Students)
   v5_core <- if ("reporting_category" %in% names(v5)) {
@@ -297,7 +298,31 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
       warning("Rate outside [0,1] in ", cc, " — check subgroup selection/denoms.")
     }
   }
-  
+
+  # Ensure name columns are present; join from v5 if missing
+  needed_names <- c("county_name","district_name","school_name")
+  missing_cols <- setdiff(needed_names, names(v6_features))
+  missing_vals <- v6_features %>%
+    select(dplyr::any_of(needed_names)) %>%
+    summarise(across(everything(), ~ any(is.na(.)))) %>%
+    unlist() %>% any()
+  if (length(missing_cols) || missing_vals) {
+    lookup_names <- v5 %>%
+      distinct(school_code, academic_year, !!!rlang::syms(needed_names))
+    v6_features <- v6_features %>%
+      left_join(lookup_names, by = c("school_code","academic_year"),
+                suffix = c("", ".lkp")) %>%
+      mutate(
+        county_name   = coalesce(county_name, county_name.lkp),
+        district_name = coalesce(district_name, district_name.lkp),
+        school_name   = coalesce(school_name, school_name.lkp)
+      ) %>%
+      select(-dplyr::ends_with(".lkp"))
+  }
+  miss_after <- setdiff(needed_names, names(v6_features))
+  if (length(miss_after)) stop("Missing required name columns: ",
+                               paste(miss_after, collapse = ", "))
+
   # Write outputs
   dir.create(DATA_STAGE, showWarnings = FALSE, recursive = TRUE)
   write_parquet(v6_features, V6_FEAT_PARQ)
