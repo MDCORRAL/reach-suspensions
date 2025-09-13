@@ -270,7 +270,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   # --- End of Corrected Block 2 ---
   
   # Assemble (one row per school-year)
-  v6_features <- roster %>%
+  v6 <- roster %>%
     left_join(v5_feats,   by = c("school_code","academic_year")) %>%
     left_join(sped_wide,  by = c("school_code","academic_year")) %>%
     left_join(ell_wide,   by = c("school_code","academic_year")) %>%
@@ -289,7 +289,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
     "alternative","opportunity","adult","independent study","home","hospital",
     "state special","special education","jail","youth authorit","detention","probation"
   )
-  v6_features <- v6_features %>%
+  v6 <- v6 %>%
     mutate(
       stype_lower    = str_to_lower(coalesce(school_type, "")),
       looks_trad     = str_detect(stype_lower, "traditional|regular|elementary|middle|high|k-12|k12"),
@@ -302,29 +302,27 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   # --- End of Corrected Block 1 ---
   
   # Ensure one row per campus-year
-##codex/add-assertion-for-unique-campus-year-keys-93zvnk
-  v6_features <- assert_unique_campus(v6_features, campus_col = "school_code", year_col = "academic_year")
+##codex/add-assertion-for-unique-campus-year-keys-figr4y
+  v6 <- assert_unique_campus(v6, year_col = "academic_year")
 
-
-  
   # Range checks
   for (cc in c("sped_rate","ell_rate","migrant_rate","foster_rate","homeless_rate","sed_rate","sex_male_rate","sex_female_rate","sex_non_binary_rate")) {
-    if (cc %in% names(v6_features) && !rng_ok(v6_features[[cc]])) {
+    if (cc %in% names(v6) && !rng_ok(v6[[cc]])) {
       warning("Rate outside [0,1] in ", cc, " — check subgroup selection/denoms.")
     }
   }
 
   # Ensure name columns are present; join from v5 if missing
   needed_names <- c("county_name","district_name","school_name")
-  missing_cols <- setdiff(needed_names, names(v6_features))
-  missing_vals <- v6_features %>%
+  missing_cols <- setdiff(needed_names, names(v6))
+  missing_vals <- v6 %>%
     select(dplyr::any_of(needed_names)) %>%
     summarise(across(everything(), ~ any(is.na(.)))) %>%
     unlist() %>% any()
   if (length(missing_cols) || missing_vals) {
     lookup_names <- v5 %>%
       distinct(school_code, academic_year, !!!rlang::syms(needed_names))
-    v6_features <- v6_features %>%
+    v6 <- v6 %>%
       left_join(lookup_names, by = c("school_code","academic_year"),
                 suffix = c("", ".lkp")) %>%
       mutate(
@@ -334,34 +332,34 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
       ) %>%
       select(-dplyr::ends_with(".lkp"))
   }
-  miss_after <- setdiff(needed_names, names(v6_features))
+  miss_after <- setdiff(needed_names, names(v6))
   if (length(miss_after)) stop("Missing required name columns: ",
                                paste(miss_after, collapse = ", "))
 
   # Write outputs
   dir.create(DATA_STAGE, showWarnings = FALSE, recursive = TRUE)
-  write_parquet(v6_features, V6_FEAT_PARQ)
+  write_parquet(v6, V6_FEAT_PARQ)
   write_parquet(race_long,   V6_LONG_PARQ)
   message("Wrote:\n- ", V6_FEAT_PARQ, "\n- ", V6_LONG_PARQ)
 } else {
   message(">>> Using existing ", V6_FEAT_PARQ)
-  v6_features <- read_parquet(V6_FEAT_PARQ) |> clean_names()
+  v6 <- read_parquet(V6_FEAT_PARQ) |> clean_names()
 }
 
 # -------------------- (B) ANALYZE: SPED rate by Black quartile ----------------
   need <- c("black_prop_q_label","black_prop_q","black_share","is_traditional","sped_num","sped_den","sped_rate","school_code","academic_year","school_type")
-miss <- setdiff(need, names(v6_features))
-if (length(miss)) stop("Missing required columns in v6_features: ", paste(miss, collapse = ", "))
+miss <- setdiff(need, names(v6))
+if (length(miss)) stop("Missing required columns in v6: ", paste(miss, collapse = ", "))
 
-trad <- v6_features$is_traditional %in% TRUE
+trad <- v6$is_traditional %in% TRUE
 
-message("Rows traditional: ", sum(trad, na.rm = TRUE), " / ", nrow(v6_features))
+message("Rows traditional: ", sum(trad, na.rm = TRUE), " / ", nrow(v6))
 
   message("Quartile distribution (raw labels, traditional):")
-  print(table(v6_features$black_prop_q_label[trad], useNA = "always"))
+  print(table(v6$black_prop_q_label[trad], useNA = "always"))
 
   # Clean labels → Q1..Q4 only for primary analysis
-  v6_clean <- v6_features %>%
+  v6_clean <- v6 %>%
     filter(
       is_traditional %in% TRUE,
       !is.na(black_prop_q),
@@ -474,7 +472,7 @@ ggsave(here("outputs","21_swd_rate_by_black_quartile_weighted.png"),
        p_weighted, width = 8, height = 5.2, dpi = 300)
 
 # Exclusions breakdown (why rows dropped)
-excluded_schools <- v6_features %>%
+excluded_schools <- v6 %>%
   filter(is_traditional %in% TRUE) %>%
   mutate(
     included = school_code %in% v6_clean$school_code & academic_year %in% v6_clean$academic_year,
@@ -530,7 +528,7 @@ writeData(wb, "exclusions",
 # --- Raw quartile distribution (before filtering) ---
 addWorksheet(wb, "quartile_distribution")
 writeData(wb, "quartile_distribution",
-          v6_features %>%
+          v6 %>%
             filter(is_traditional) %>%
             count(black_prop_q_label, name = "n"))
 
