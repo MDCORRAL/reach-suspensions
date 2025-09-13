@@ -110,7 +110,10 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   # OTH → long metrics (category, subgroup)
   oth_long <- oth %>%
     transmute(
+      county_code,
+      district_code,
       school_code,
+      cds_school,
       academic_year,
       category = category_type,
       subgroup,
