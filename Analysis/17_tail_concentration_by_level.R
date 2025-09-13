@@ -98,17 +98,11 @@ susp <- raw %>%
     enrollment  = as.numeric(cumulative_enrollment),
     total_susp  = as.numeric(total_suspensions),
     undup_susp  = as.numeric(unduplicated_count_of_students_suspended_total),
-    measure     = if (MEASURE == "undup_susp") undup_susp else total_susp
+    measure     = if (MEASURE == "undup_susp") undup_susp else total_susp,
+    school_name = if ("school_name" %in% names(.)) school_name else school_code
   ) %>%
   mutate(year_num = as.integer(str_sub(year, 1, 4))) %>%
   filter(!is.na(year_num), enrollment > 0, !is.na(measure))
-
-# Add school name if present
-if ("school_name" %in% names(raw)) {
-  susp <- susp %>% mutate(school_name = raw$school_name)
-} else {
-  susp <- susp %>% mutate(school_name = school_id)
-}
 
 # Load features for level and setting
 feat <- read_parquet(V6_FEAT) %>% clean_names() %>%
