@@ -73,14 +73,21 @@ write_parquet(
 # Quartiles by total school enrollment (All Students baseline)
 school_enroll <- v6 %>%
   filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
-  select(cds_school, academic_year, total_enrollment_all = cumulative_enrollment) %>%
+  group_by(cds_school, academic_year) %>%
+  summarise(
+    total_enrollment_all = sum(cumulative_enrollment, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
   group_by(academic_year) %>%
   mutate(enrollment_q = ntile(total_enrollment_all, 4)) %>%
   ungroup()
 
 v6_enroll_q <- v6 %>%
-  left_join(school_enroll %>% select(cds_school, academic_year, enrollment_q),
-    by = c("cds_school", "academic_year"))
+  left_join(
+    school_enroll %>% select(cds_school, academic_year, enrollment_q),
+    by = c("cds_school", "academic_year"),
+    relationship = "one-to-one"
+  )
 
 v6_enroll_q_all <- bind_rows(
   v6_enroll_q,
@@ -108,11 +115,12 @@ write_parquet(by_enrollment, here("data-stage", "quartile_rates_by_enrollment.pa
 # Compute proportion of Black enrollment out of school total and derive quartiles
 all_enroll <- v6 %>%
   filter(subgroup == "All Students") %>%
-  select(cds_school, academic_year, total_enrollment_all = cumulative_enrollment)
+  group_by(cds_school, academic_year) %>%
+  summarise(total_enrollment_all = sum(cumulative_enrollment), .groups = "drop")
 
 black_prop <- v6 %>%
   filter(subgroup == "Black/African American") %>%
-  left_join(all_enroll, by = c("cds_school", "academic_year")) %>%
+  left_join(all_enroll, by = c("cds_school", "academic_year"), relationship = "one-to-one") %>%
   mutate(black_prop = if_else(total_enrollment_all > 0, cumulative_enrollment / total_enrollment_all, NA_real_))
 
 by_black_prop <- black_prop %>%

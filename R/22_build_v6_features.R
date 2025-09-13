@@ -302,7 +302,10 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   # --- End of Corrected Block 1 ---
   
   # Ensure one row per campus-year
+##codex/add-assertion-for-unique-campus-year-keys-93zvnk
   v6_features <- assert_unique_campus(v6_features, campus_col = "school_code", year_col = "academic_year")
+
+
   
   # Range checks
   for (cc in c("sped_rate","ell_rate","migrant_rate","foster_rate","homeless_rate","sed_rate","sex_male_rate","sex_female_rate","sex_non_binary_rate")) {
