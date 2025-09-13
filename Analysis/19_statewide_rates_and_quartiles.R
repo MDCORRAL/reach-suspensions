@@ -115,26 +115,57 @@ v6_enroll_q <- v6 %>%
   left_join(
     school_enroll %>% select(cds_school, academic_year, enrollment_q),
     by = c("cds_school", "academic_year"),
-    relationship = "one-to-one"
+    relationship = "many-to-one"
   )
-
-v6_enroll_q_all <- bind_rows(
-  v6_enroll_q,
-  v6_enroll_q %>% mutate(school_group = "All"),
-  v6_enroll_q %>% mutate(school_type = "All"),
-  v6_enroll_q %>% mutate(school_group = "All", school_type = "All")
-)
-
-by_enrollment <- v6_enroll_q_all %>%
+by_enrollment_group_type <- v6_enroll_q %>%
   filter(!is.na(enrollment_q)) %>%
   group_by(category_type, subgroup, academic_year, enrollment_q, school_group, school_type) %>%
-
   summarise(
     suspensions = sum(total_suspensions, na.rm = TRUE),
     enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
     rate        = if_else(enrollment > 0, suspensions / enrollment, NA_real_),
     .groups     = "drop"
   )
+
+by_enrollment_type <- v6_enroll_q %>%
+  filter(!is.na(enrollment_q)) %>%
+  group_by(category_type, subgroup, academic_year, enrollment_q, school_type) %>%
+  summarise(
+    suspensions = sum(total_suspensions, na.rm = TRUE),
+    enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
+    rate        = if_else(enrollment > 0, suspensions / enrollment, NA_real_),
+    .groups     = "drop"
+  ) %>%
+  mutate(school_group = "All")
+
+by_enrollment_group <- v6_enroll_q %>%
+  filter(!is.na(enrollment_q)) %>%
+  group_by(category_type, subgroup, academic_year, enrollment_q, school_group) %>%
+  summarise(
+    suspensions = sum(total_suspensions, na.rm = TRUE),
+    enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
+    rate        = if_else(enrollment > 0, suspensions / enrollment, NA_real_),
+    .groups     = "drop"
+  ) %>%
+  mutate(school_type = "All")
+
+by_enrollment_overall <- v6_enroll_q %>%
+  filter(!is.na(enrollment_q)) %>%
+  group_by(category_type, subgroup, academic_year, enrollment_q) %>%
+  summarise(
+    suspensions = sum(total_suspensions, na.rm = TRUE),
+    enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
+    rate        = if_else(enrollment > 0, suspensions / enrollment, NA_real_),
+    .groups     = "drop"
+  ) %>%
+  mutate(school_group = "All", school_type = "All")
+
+by_enrollment <- bind_rows(
+  by_enrollment_group_type,
+  by_enrollment_type,
+  by_enrollment_group,
+  by_enrollment_overall
+)
 
 write_parquet(by_enrollment, here("data-stage", "quartile_rates_by_enrollment.parquet"))
 
