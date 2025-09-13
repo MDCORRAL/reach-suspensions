@@ -115,7 +115,7 @@ v6_enroll_q <- v6 %>%
   left_join(
     school_enroll %>% select(cds_school, academic_year, enrollment_q),
     by = c("cds_school", "academic_year"),
-    relationship = "one-to-one"
+    relationship = "many-to-one"
   )
 
 v6_enroll_q_all <- bind_rows(
