@@ -12,6 +12,7 @@ REBUILD_V6 <- TRUE  # set FALSE to skip rebuild if susp_v6_features.parquet alre
 
 DATA_STAGE   <- here("data-stage")
 V5_PARQ      <- file.path(DATA_STAGE, "susp_v5.parquet")       # race/eth + quartiles
+V5_LONG_PARQ <- file.path(DATA_STAGE, "susp_v5_long.parquet")  # race/eth long form
 OTH_PARQ     <- file.path(DATA_STAGE, "oth_long.parquet")      # other demos (SPED/EL/SEX/etc.)
 V6_FEAT_PARQ <- file.path(DATA_STAGE, "susp_v6_features.parquet")
 V6_LONG_PARQ <- file.path(DATA_STAGE, "susp_v6_long.parquet")
@@ -48,29 +49,45 @@ drop_impossible <- function(df) {
 # -------------------- (A) BUILD v6_features -----------------------------------
 if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   message(">>> Rebuilding v6_features from v5 + oth ...")
-  stopifnot(file.exists(V5_PARQ), file.exists(OTH_PARQ))
-  
-  v5  <- read_parquet(V5_PARQ)  |> clean_names() |> mutate(
+  stopifnot(file.exists(V5_PARQ), file.exists(OTH_PARQ), file.exists(V5_LONG_PARQ))
+
+  v5  <- read_parquet(V5_PARQ)      |> clean_names() |> mutate(
     school_code   = as.character(school_code),
     academic_year = as.character(academic_year)
   )
-  oth <- read_parquet(OTH_PARQ) |> clean_names() |> mutate(
+  oth <- read_parquet(OTH_PARQ)     |> clean_names() |> mutate(
     school_code   = as.character(school_code),
     academic_year = as.character(academic_year)
+  )
+  race_long <- read_parquet(V5_LONG_PARQ) |> clean_names() |> mutate(
+    school_code   = as.character(school_code),
+    academic_year = as.character(academic_year),
+    category_type = "Race/Ethnicity"
   )
 
   # Keep leading zeros
-  target_w <- suppressWarnings(max(nchar(c(v5$school_code, oth$school_code)), na.rm = TRUE))
-  v5  <- v5  |> mutate(school_code = str_pad(school_code, target_w, pad = "0"))
-  oth <- oth |> mutate(school_code = str_pad(school_code, target_w, pad = "0"))
-  
+  target_w <- suppressWarnings(max(nchar(c(v5$school_code, oth$school_code, race_long$school_code)), na.rm = TRUE))
+  v5        <- v5        |> mutate(school_code = str_pad(school_code, target_w, pad = "0"))
+  oth       <- oth       |> mutate(school_code = str_pad(school_code, target_w, pad = "0"))
+  race_long <- race_long |> mutate(school_code = str_pad(school_code, target_w, pad = "0"))
+
   # Apply repo filters if available
   if (exists("build_keys")) {
-    v5  <- v5  |> build_keys()
-    oth <- oth |> build_keys()
+    v5        <- v5        |> build_keys()
+    oth       <- oth       |> build_keys()
+    race_long <- race_long |> build_keys()
   }
-  if (exists("filter_campus_only") && "aggregate_level" %in% names(v5))  v5  <- v5  |> filter_campus_only()
-  if (exists("filter_campus_only") && "aggregate_level" %in% names(oth)) oth <- oth |> filter_campus_only()
+  if (exists("filter_campus_only") && "aggregate_level" %in% names(v5))        v5        <- v5        |> filter_campus_only()
+  if (exists("filter_campus_only") && "aggregate_level" %in% names(oth))       oth       <- oth       |> filter_campus_only()
+  if (exists("filter_campus_only") && "aggregate_level" %in% names(race_long)) race_long <- race_long |> filter_campus_only()
+
+  race_long <- race_long %>%
+    select(
+      county_code, district_code, school_code, cds_school, academic_year,
+      county_name, district_name, school_name,
+      ed_ops_name, school_level, locale_simple,
+      category_type, subgroup, reason, reason_lab, everything()
+    )
   
   # Roster (carry through name fields when available)
   name_cols <- intersect(names(v5), c("county_name","district_name","school_name"))
@@ -326,7 +343,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   # Write outputs
   dir.create(DATA_STAGE, showWarnings = FALSE, recursive = TRUE)
   write_parquet(v6_features, V6_FEAT_PARQ)
-  write_parquet(oth_long,    V6_LONG_PARQ)
+  write_parquet(race_long,   V6_LONG_PARQ)
   message("Wrote:\n- ", V6_FEAT_PARQ, "\n- ", V6_LONG_PARQ)
 } else {
   message(">>> Using existing ", V6_FEAT_PARQ)
