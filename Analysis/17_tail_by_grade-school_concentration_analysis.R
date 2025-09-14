@@ -299,6 +299,7 @@ dat <- dat0 %>%
   # Filter to Total/All Students records only
   filter(str_to_lower(subgroup) %in% c("total", "all students", "ta")) %>%
   transmute(
+#codex/refactor-scripts-to-use-transmute
     school_id   = as.character(!!sym(cols$school_id)),
     school_name = if (has_school_name) as.character(!!sym(cols$school_name)) else as.character(!!sym(cols$school_id)),
     year        = as.character(!!sym(cols$year)),
@@ -323,39 +324,38 @@ dat <- dat0 %>%
 if (file.exists(V6F_PARQ)) {
   message("Loading and processing school features for traditional/non-traditional classification...")
   v6_features <- read_parquet(V6F_PARQ) %>% clean_names()
-  
+
   # Check available columns
-  available_cols <- intersect(c("school_code", "year", "is_traditional"), names(v6_features))
+  available_cols <- intersect(c("school_code", "academic_year", "is_traditional", "school_type"), names(v6_features))
   message("Using feature columns: ", paste(available_cols, collapse = ", "))
-  
+
   if ("is_traditional" %in% available_cols) {
     v6_features <- v6_features %>%
       select(all_of(available_cols)) %>%
       mutate(
-        school_code = as.character(school_code),
-        year_char = as.character(year)
+        school_code   = as.character(school_code),
+        academic_year = as.character(academic_year)
       )
-    
-    # Join features and apply simple setting classification
+
+    # Join features and apply simple setting/level classification
     dat <- dat %>%
       left_join(
-        v6_features, 
-        by = c("school_id" = "school_code", "year" = "year_char")
+        v6_features,
+        by = c("school_id" = "school_code", "year" = "academic_year")
       ) %>%
       mutate(
         setting = case_when(
-          !is.na(is_traditional) & is_traditional == TRUE ~ "Traditional",
-          !is.na(is_traditional) & is_traditional == FALSE ~ "Non-traditional",
-          TRUE ~ "Unknown"
-        )
+          !is.na(is_traditional) & is_traditional ~ "Traditional",
+          !is.na(is_traditional) & !is_traditional ~ "Non-traditional",
+          TRUE ~ setting
+        ),
+        level = if ("school_type" %in% names(.)) map_grade_level(coalesce(school_type, level)) else level
       )
   } else {
-    message("is_traditional column not found in features. Setting all to Unknown.")
-    dat <- dat %>% mutate(setting = "Unknown")
+    message("is_traditional column not found in features. Keeping existing setting.")
   }
 } else {
-  message("School features file not found. Setting traditional/non-traditional to Unknown.")
-  dat <- dat %>% mutate(setting = "Unknown")
+  message("School features file not found. Keeping existing setting.")
 }
 
 message("Final dataset: ", nrow(dat), " school-year records")

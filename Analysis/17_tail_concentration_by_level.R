@@ -24,6 +24,7 @@ DATA_STAGE <- here("data-stage")
 req_cols <- c(
   "school_code", "academic_year", "cumulative_enrollment",
   "total_suspensions", "unduplicated_count_of_students_suspended_total",
+  # Ensure long-format files with subgroup info are selected
   "subgroup"
 )
 
