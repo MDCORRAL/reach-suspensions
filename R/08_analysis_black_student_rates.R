@@ -89,6 +89,7 @@ reason_rate_by_black_quartile <- black_students_data %>%
   ) %>%
   add_reason_label() %>%
   mutate(
+#codex/replace-local-grade-and-locale-lists-gfehth
     reason_lab   = factor(reason_lab, levels = names(pal_reason)),
     reason_rate  = if_else(enrollment > 0, (count / enrollment), 0)
   )
@@ -173,6 +174,7 @@ reason_rate_by_white_quartile <- black_students_data %>%
   ) %>%
   add_reason_label() %>%
   mutate(
+#codex/replace-local-grade-and-locale-lists-gfehth
     reason_lab   = factor(reason_lab, levels = names(pal_reason)),
     reason_rate  = if_else(enrollment > 0, (count / enrollment), 0)
   )

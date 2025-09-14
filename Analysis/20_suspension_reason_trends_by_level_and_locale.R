@@ -20,19 +20,25 @@ source(here::here("R", "utils_keys_filters.R"))
 
 # output directory
 out_dir <- here::here("outputs")
-dir.create(out_dir, showWarnings = FALSE)
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 # --- 2) Load Data -------------------------------------------------------------
 # long-format v6 with suspension reasons and school attributes
-v6 <- arrow::read_parquet(here::here("data-stage", "susp_v6_long.parquet")) %>%
+v6 <- arrow::read_parquet(
+  here::here("data-stage", "susp_v6_long.parquet")
+) %>%
   filter(
     category_type == "Race/Ethnicity",
     subgroup == "All Students"
   )
 
 # academic year order (lexical sort works for "2017-18" style)
-year_levels <- v6 %>% distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
-v6 <- v6 %>% mutate(academic_year = factor(academic_year, levels = year_levels))
+year_levels <- v6 %>%
+  distinct(academic_year) %>%
+  arrange(academic_year) %>%
+  pull(academic_year)
+v6 <- v6 %>%
+  mutate(academic_year = factor(academic_year, levels = year_levels))
 
 # --- helpers ------------------------------------------------------------------
 # compute suspension reason rates for arbitrary grouping columns
@@ -57,7 +63,10 @@ summarise_reason_rates <- function(df, group_cols) {
       values_to = "count"
     ) %>%
     add_reason_label("reason") %>%
-    mutate(reason_rate = if_else(enrollment > 0, count / enrollment, NA_real_))
+    mutate(
+      reason_lab = factor(reason_lab, levels = names(pal_reason)),
+      reason_rate = if_else(enrollment > 0, count / enrollment, NA_real_)
+    )
 }
 
 # save helper
@@ -65,7 +74,7 @@ save_table <- function(df, filename) {
   readr::write_csv(df, file.path(out_dir, filename))
 }
 
-# plot helpers ---------------------------------------------------------------
+# plotting helpers -------------------------------------------------------------
 plot_total_rate <- function(df, title_txt, color_col = NULL, palette = NULL) {
   if (is.null(color_col)) {
     p <- ggplot(df, aes(x = academic_year, y = total_rate, group = 1))
@@ -140,6 +149,7 @@ plot_reason_area <- function(df, facet_col = NULL, title_txt) {
 }
 
 # --- 3) Overall trends -------------------------------------------------------
+#codex/replace-local-grade-and-locale-lists-gfehth
 overall_rates <- summarise_reason_rates(v6, "academic_year") %>%
   mutate(reason_lab = factor(reason_lab, levels = names(pal_reason)))
 save_table(overall_rates, "20_overall_reason_rates.csv")
@@ -157,7 +167,7 @@ ggsave(file.path(out_dir, "20_overall_reason_rates.png"), p_overall_reason,
        width = 10, height = 6, dpi = 300)
 
 # --- 4) By grade level -------------------------------------------------------
-grade_levels <- setdiff(LEVEL_LABELS, c("Other", "Alternative"))
+grade_levels <- LEVEL_LABELS[!LEVEL_LABELS %in% c("Other", "Alternative")]
 by_grade <- v6 %>%
   filter(school_level %in% grade_levels) %>%
   mutate(school_level = factor(school_level, levels = grade_levels))
@@ -181,7 +191,7 @@ ggsave(file.path(out_dir, "20_grade_reason_rates.png"), p_grade_reason,
        width = 12, height = 8, dpi = 300)
 
 # --- 5) By locale ------------------------------------------------------------
-loc_levels <- setdiff(locale_levels, "Unknown")
+loc_levels <- locale_levels[locale_levels != "Unknown"]
 by_locale <- v6 %>%
   filter(locale_simple %in% loc_levels) %>%
   mutate(locale_simple = factor(locale_simple, levels = loc_levels))
@@ -204,5 +214,5 @@ p_locale_reason <- plot_reason_area(locale_rates, "locale_simple",
 ggsave(file.path(out_dir, "20_locale_reason_rates.png"), p_locale_reason,
        width = 12, height = 8, dpi = 300)
 
-message("Analysis complete. Tables and graphics saved to:", out_dir)
+message("Analysis complete. Tables and graphics saved to: ", out_dir)
 
