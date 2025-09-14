@@ -10,7 +10,7 @@ source(here::here("R","demographic_labels.R"))
 # ──────────────────────────────── Config / Paths ──────────────────────────────
 DATA_STAGE <- here("data-stage")                   # portable path
 V6F_PARQ   <- file.path(DATA_STAGE, "susp_v6_features.parquet")  # keys + flags
-V6L_PARQ   <- file.path(DATA_STAGE, "susp_v6_long.parquet")      # tidy metrics (num, den, rate)
+V6L_PARQ   <- file.path(DATA_STAGE, "susp_v6_long.parquet")      # tidy metrics (total_suspensions, cumulative_enrollment, suspension_rate_percent_total)
 
 dir.create(here("outputs"), showWarnings = FALSE)
 OUT_IMG  <- here("outputs", "rates_pooled_by_year_blackquartile_subgroup.png")
@@ -35,7 +35,7 @@ v6_features <- read_parquet(V6F_PARQ) %>% clean_names() %>%
 padw <- max(nchar(v6_features$school_code), na.rm = TRUE)
 v6_features <- v6_features %>% mutate(school_code = stringr::str_pad(school_code, padw, "left", "0"))
 
-# ─────────────── Preferred source for subgroup NUM/DEN (v6_long) ─────────────
+# ───── Preferred source for subgroup totals (v6_long long metrics) ─────
 stopifnot(file.exists(V6L_PARQ))
 long_counts <- read_parquet(V6L_PARQ) %>% clean_names() %>%
   transmute(
@@ -43,15 +43,15 @@ long_counts <- read_parquet(V6L_PARQ) %>% clean_names() %>%
     academic_year = as.character(academic_year),
     subgroup      = dplyr::coalesce(canon_demo_label(subgroup),
                                     canon_race_label(subgroup)),
-    num           = as.numeric(num),
-    den           = as.numeric(den)
+    total_suspensions      = as.numeric(total_suspensions),
+    cumulative_enrollment  = as.numeric(cumulative_enrollment)
   ) %>%
   filter(!is.na(subgroup), subgroup != "Sex")
 
 # ───────────────────────── Join keys + filter to traditional ──────────────────
 analytic <- long_counts %>%
   inner_join(v6_features, by = c("school_code","academic_year")) %>%
-  filter(is_traditional, !is.na(black_prop_q), !is.na(num), !is.na(den)) %>%
+  filter(is_traditional, !is.na(black_prop_q), !is.na(total_suspensions), !is.na(cumulative_enrollment)) %>%
   mutate(black_prop_q_label = factor(paste0("Q", black_prop_q),
                                      levels = paste0("Q", 1:4)))
 
@@ -62,8 +62,8 @@ sum_by <- analytic %>%
   group_by(academic_year, black_prop_q_label, subgroup) %>%
   summarise(
     n_schools    = dplyr::n(),
-    total_susp   = sum(num, na.rm = TRUE),
-    total_enroll = sum(den, na.rm = TRUE),
+    total_susp   = sum(total_suspensions, na.rm = TRUE),
+    total_enroll = sum(cumulative_enrollment, na.rm = TRUE),
     pooled_rate  = safe_div(total_susp, total_enroll),
     .groups = "drop"
   ) %>%
@@ -171,6 +171,6 @@ openxlsx::saveWorkbook(wb, OUT_XLSX, overwrite = TRUE)
 message(
   "Done:\n- Plot: ", OUT_IMG,
   "\n- Excel: ", OUT_XLSX,
-  "\nSources: ", if (file.exists(V6L_PARQ)) "v6_long (num/den) + v6_features" else "v5 (num/den) + v6_features",
+  "\nSources: ", if (file.exists(V6L_PARQ)) "v6_long (total_suspensions/cumulative_enrollment) + v6_features" else "v5 (total_suspensions/cumulative_enrollment) + v6_features",
   "\nMethod: POOLED rates (sum susp / sum enr)."
 )

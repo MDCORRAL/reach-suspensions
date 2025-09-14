@@ -13,7 +13,7 @@ source(here::here("R","demographic_labels.R"))
 # ───────────────────────────── Config / Paths ─────────────────────────────
 DATA_STAGE <- here("data-stage")
 V6F_PARQ   <- file.path(DATA_STAGE, "susp_v6_features.parquet")  # keys + is_traditional (+ black_q in v6)
-V6L_PARQ   <- file.path(DATA_STAGE, "susp_v6_long.parquet")      # tidy metrics (num, den, rate)
+V6L_PARQ   <- file.path(DATA_STAGE, "susp_v6_long.parquet")      # tidy metrics (total_suspensions, cumulative_enrollment, suspension_rate_percent_total)
 
 dir.create(here("outputs"), showWarnings = FALSE)
 OUT_XLSX <- here("outputs", "white_vs_black_quartiles_total_vs_swd.xlsx")
@@ -46,17 +46,17 @@ v6_long <- read_parquet(V6L_PARQ) %>% clean_names() %>%
     school_code     = as.character(school_code),
     academic_year   = as.character(academic_year),
     subgroup        = str_to_lower(subgroup),
-    den             = as.numeric(den),
+    cumulative_enrollment = as.numeric(cumulative_enrollment),
     black_prop_q_v5 = as.integer(black_prop_q)
   )
 
 total_enr <- v6_long %>%
   filter(subgroup %in% c("total","all students","ta")) %>%
-  select(school_code, academic_year, total_den = den)
+  select(school_code, academic_year, total_den = cumulative_enrollment)
 
 white_enr <- v6_long %>%
   filter(str_detect(subgroup, "white")) %>%
-  select(school_code, academic_year, white_den = den)
+  select(school_code, academic_year, white_den = cumulative_enrollment)
 #### main
 
 white_q <- total_enr %>%
@@ -86,7 +86,7 @@ keys <- v6_features %>%
 padw <- max(nchar(keys$school_code), na.rm = TRUE)
 keys <- keys %>% mutate(school_code = stringr::str_pad(school_code, padw, "left", "0"))
 
-# ─────────────── Preferred source for subgroup NUM/DEN (v6_long) ───────────
+# ───── Preferred source for subgroup totals (v6_long long metrics) ─────
 stopifnot(file.exists(V6L_PARQ))
 long_counts_all <- read_parquet(V6L_PARQ) %>% clean_names() %>%
   transmute(
@@ -94,8 +94,8 @@ long_counts_all <- read_parquet(V6L_PARQ) %>% clean_names() %>%
     academic_year = as.character(academic_year),
     subgroup      = dplyr::coalesce(canon_demo_label(subgroup),
                                     canon_race_label(subgroup)),
-    num           = as.numeric(num),
-    den           = as.numeric(den)
+    total_suspensions     = as.numeric(total_suspensions),
+    cumulative_enrollment = as.numeric(cumulative_enrollment)
   ) %>% filter(!is.na(subgroup))
 
 # Keep only Total & Students with Disabilities (SWD); join keys; filter Traditional
@@ -104,7 +104,7 @@ analytic <- long_counts_all %>%
   filter(subgroup %in% c("Total","Students with Disabilities")) %>%
   inner_join(keys, by = c("school_code","academic_year")) %>%
   filter(is_traditional, !is.na(white_prop_q), !is.na(black_prop_q),
-         !is.na(num), !is.na(den))
+         !is.na(total_suspensions), !is.na(cumulative_enrollment))
 
 stopifnot(nrow(analytic) > 0)
 
@@ -113,8 +113,8 @@ sum_white <- analytic %>%
   group_by(academic_year, white_prop_q_label, subgroup) %>%
   summarise(
     n_schools    = n(),
-    total_susp   = sum(num, na.rm = TRUE),
-    total_enroll = sum(den, na.rm = TRUE),
+    total_susp   = sum(total_suspensions, na.rm = TRUE),
+    total_enroll = sum(cumulative_enrollment, na.rm = TRUE),
     pooled_rate  = safe_div(total_susp, total_enroll),
     .groups = "drop"
   ) %>%
@@ -128,8 +128,8 @@ sum_black <- analytic %>%
   group_by(academic_year, black_prop_q_label, subgroup) %>%
   summarise(
     n_schools    = n(),
-    total_susp   = sum(num, na.rm = TRUE),
-    total_enroll = sum(den, na.rm = TRUE),
+    total_susp   = sum(total_suspensions, na.rm = TRUE),
+    total_enroll = sum(cumulative_enrollment, na.rm = TRUE),
     pooled_rate  = safe_div(total_susp, total_enroll),
     .groups = "drop"
   ) %>%

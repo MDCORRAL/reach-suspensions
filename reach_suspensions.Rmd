@@ -74,8 +74,9 @@ v6 <- read_parquet("data-stage/susp_v6_long.parquet")
 
 v6 %>%
   select(academic_year, county_name, district_name, school_name,
-         category, subgroup, num, den, rate) %>%
-  glimpse()  # should show ~1,000,000 rows
+         category_type, subgroup, total_suspensions,
+         cumulative_enrollment, suspension_rate_percent_total) %>%
+  glimpse()  # should show ~3,400,000 rows
 ```
 
 ## Troubleshooting
