@@ -28,7 +28,6 @@ run <- function(f) {
 
 # --- assemble the script list (no archived [levels] variant) ----------------
 scripts <- c(
-  "R/00_paths.R",
   "R/01_ingest_v0.R",
   "R/02_feature_locale_simple.R",
   if (USE_TA) "R/02b_drop_charter_all.R",

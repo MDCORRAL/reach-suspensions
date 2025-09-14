@@ -9,6 +9,7 @@ suppressPackageStartupMessages({
   library(tidyr)    # pivot_longer
 })
 
+source("R/00_paths.R")
 message(">>> Running from project root: ", here::here())
 
 # canonical helpers (reason labels, palettes, etc.)

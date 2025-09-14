@@ -7,6 +7,7 @@ suppressPackageStartupMessages({
   library(dplyr)
 })
 
+source("R/00_paths.R")
 SHOW_SUMMARY <- TRUE
 source(here::here("R","utils_keys_filters.R"))
 message(">>> Running from project root: ", here::here())

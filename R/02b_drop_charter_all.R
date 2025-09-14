@@ -7,6 +7,7 @@ suppressPackageStartupMessages({
   library(dplyr)    # data wrangling
 })
 
+source("R/00_paths.R")
 message(">>> Running from project root: ", here::here())
 
 # -------------------------
