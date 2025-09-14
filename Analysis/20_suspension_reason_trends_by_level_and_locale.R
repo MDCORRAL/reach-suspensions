@@ -98,7 +98,10 @@ plot_reason_area <- function(df, facet_col = NULL, title_txt) {
       geom_text(data = labels,
                 aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),
                 vjust = -0.5, fontface = "bold", inherit.aes = FALSE) +
-      scale_fill_manual(values = pal_reason, name = "Reason for Suspension") +
+      scale_fill_manual(values = pal_reason,
+                        breaks = names(pal_reason),
+                        name = "Reason for Suspension",
+                        drop = FALSE) +
       scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
       labs(title = title_txt, x = "Academic Year", y = "Suspension Rate") +
       theme_minimal(base_size = 14) +
@@ -114,7 +117,10 @@ plot_reason_area <- function(df, facet_col = NULL, title_txt) {
                 aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),
                 vjust = -0.5, fontface = "bold", inherit.aes = FALSE) +
       facet_wrap(as.formula(paste0("~", facet_col)), ncol = 2) +
-      scale_fill_manual(values = pal_reason, name = "Reason for Suspension") +
+      scale_fill_manual(values = pal_reason,
+                        breaks = names(pal_reason),
+                        name = "Reason for Suspension",
+                        drop = FALSE) +
       scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
       labs(title = title_txt, x = "Academic Year", y = "Suspension Rate") +
       theme_minimal(base_size = 14) +
