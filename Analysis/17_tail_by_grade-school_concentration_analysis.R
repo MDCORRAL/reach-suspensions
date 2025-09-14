@@ -226,9 +226,10 @@ generate_comparison_tables <- function(df, output_dir) {
   
   # Compare traditional vs non-traditional by grade level
   comparison_by_grade <- df %>%
-    filter(!is.na(level), !is.na(setting), 
+    filter(!is.na(level), !is.na(setting),
            level %in% GRADE_LEVELS,
            setting %in% c("Traditional", "Non-traditional")) %>%
+    mutate(level = factor(level, levels = GRADE_LEVELS)) %>%
     group_by(year_num, level, setting) %>%
     summarise(
       n_schools = n_distinct(school_id),

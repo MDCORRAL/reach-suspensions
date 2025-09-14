@@ -64,9 +64,8 @@ df_all <- bind_rows(df_total, df_race) %>%
          label_txt=percent(rate, accuracy=0.1))
 
 # Locale sets (two images)
-LOCALES_A <- locale_levels[1:2]
-LOCALES_B <- locale_levels[!(locale_levels %in% LOCALES_A)]
-if (!INCLUDE_UNKNOWN) LOCALES_B <- LOCALES_B[LOCALES_B != tail(locale_levels, 1)]
+loc_levels <- if (INCLUDE_UNKNOWN) locale_levels else setdiff(locale_levels, "Unknown")
+loc_sets <- split(loc_levels, ceiling(seq_along(loc_levels) / 2))
 
 # Race palette (All Students = black)
 race_levels <- df_all %>% distinct(race) %>% arrange(race) %>% pull(race)
@@ -116,28 +115,16 @@ plot_by_locale_set <- function(locales, title_suffix) {
 # --- 5) Render & save ---------------------------------------------------------
 outdir <- here::here("outputs"); dir.create(outdir, showWarnings = FALSE)
 
-# Plot and save for each locale set using dynamic labels and filenames
-p_loc_set_a <- plot_by_locale_set(LOCALES_A, paste(LOCALES_A, collapse = " + "))
-p_loc_set_b <- plot_by_locale_set(LOCALES_B, paste(LOCALES_B, collapse = " + "))
-
-if (!is.null(p_loc_set_a)) {
-  print(p_loc_set_a)
-  fname_a <- paste0(
+for (locales in loc_sets) {
+  p <- plot_by_locale_set(locales, paste(locales, collapse = " + "))
+  if (is.null(p)) next
+  print(p)
+  fname <- paste0(
     "A_rates_by_race_",
-    stringr::str_replace_all(tolower(paste(LOCALES_A, collapse = "_")), " ", "_"),
+    stringr::str_replace_all(tolower(paste(locales, collapse = "_")), " ", "_"),
     ".png"
   )
-  ggsave(file.path(outdir, fname_a), p_loc_set_a,
-         width = IMG_WIDTH, height = IMG_HEIGHT, dpi = IMG_DPI, bg = "white")
-}
-if (!is.null(p_loc_set_b)) {
-  print(p_loc_set_b)
-  fname_b <- paste0(
-    "A_rates_by_race_",
-    stringr::str_replace_all(tolower(paste(LOCALES_B, collapse = "_")), " ", "_"),
-    ".png"
-  )
-  ggsave(file.path(outdir, fname_b), p_loc_set_b,
+  ggsave(file.path(outdir, fname), p,
          width = IMG_WIDTH, height = IMG_HEIGHT, dpi = IMG_DPI, bg = "white")
 }
 message("✓ Saved images to: ", outdir)
