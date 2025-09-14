@@ -18,8 +18,8 @@ V6_FEAT_PARQ <- file.path(DATA_STAGE, "susp_v6_features.parquet")
 V6_LONG_PARQ <- file.path(DATA_STAGE, "susp_v6_long.parquet")
 
 # -------------------- Repo utilities (optional) -------------------------------
+source("R/00_paths.R")
 if (file.exists(here("R","utils_keys_filters.R"))) source(here("R","utils_keys_filters.R"))
-if (file.exists(here("R","00_paths.R")))           source(here("R","00_paths.R"))
 
 # -------------------- Helpers --------------------------------------------------
 safe_div <- function(n, d) ifelse(is.na(d) | d <= 0, NA_real_, n / d)

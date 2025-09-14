@@ -11,6 +11,7 @@ suppressPackageStartupMessages({
   library(tibble)
 })
 # LEVEL_LABELS, span_label(), and is_alt() come from this utility
+source("R/00_paths.R")
 source(here::here("R","utils_keys_filters.R"))
 message(">>> Running from project root: ", here::here())
 

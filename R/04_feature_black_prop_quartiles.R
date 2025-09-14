@@ -9,6 +9,7 @@ suppressPackageStartupMessages({
   library(tidyr)    # pivot_wider
 })
 
+source("R/00_paths.R")
 source(here::here("R","utils_keys_filters.R"))
 
 message(">>> Running from project root: ", here::here())
