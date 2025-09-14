@@ -21,4 +21,8 @@ renv::restore()
 
 `R/utils_keys_filters.R` defines `canon_race_label()` and `ALLOWED_RACES` used across analyses. The function maps CRDC code `RD` and strings such as "Not Reported" to the canonical label "Not Reported." This category is tracked for completeness but omitted from plots to avoid conflating missing data with student populations.
 
+## Analysis scripts
+
+The canonical analysis of Black student suspension rates by school racial composition lives at
+`Analysis/02_black_rates_by_quartiles.R`.
 

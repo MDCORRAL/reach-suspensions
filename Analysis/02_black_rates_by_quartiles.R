@@ -1,255 +1,257 @@
 # analysis/02_black_rates_by_quartiles.R
+# Canonical analysis of Black student suspension rates by school racial composition.
+
+# --- 1) Setup -----------------------------------------------------------------
 suppressPackageStartupMessages({
-  library(here); library(arrow); library(dplyr); library(tidyr)
-  library(ggplot2); library(scales); library(ggrepel); library(stringr)
+  library(here); library(arrow); library(dplyr); library(ggplot2)
+  library(tidyr); library(scales); library(patchwork); library(ggrepel)
 })
 
 try(here::i_am("Analysis/02_black_rates_by_quartiles.R"), silent = TRUE)
 
-
-# sanity: these should both be TRUE if set up right
-stopifnot(file.exists(here::here("Analysis", "01_trends.R")))
-stopifnot(file.exists(here::here("R", "utils_keys_filters.R")))
-
-# peek at what's in R/ (helper scripts, etc.)
-list.files(here::here("R"))
-
-# load utils; this must exist at <project>/R/utils_keys_filters.R
-
-# ---------- Load ----------
+# keys + campus filter (handles 0000000/0000001)
 source(here::here("R","utils_keys_filters.R"))
 
-v6 <- read_parquet(here("data-stage","susp_v6_long.parquet")) %>%
-  build_keys() %>%
-  filter_campus_only()
+theme_set(theme_minimal(base_size = 12))
 
-# quick guards
-need_cols <- c("subgroup","academic_year","total_suspensions","cumulative_enrollment")
-stopifnot(all(need_cols %in% names(v6)))
+# Palettes (keep your originals)
+black_quartile_colors <- setNames(
+  c("#FEE5D9", "#FCAE91", "#FB6A4A", "#CB181D"),
+  get_quartile_label(1:4, "Black")
+)
+white_quartile_colors <- setNames(
+  c("#EFF3FF", "#BDD7E7", "#6BAED6", "#08519C"),
+  get_quartile_label(1:4, "White")
+)
 
-# quartile columns from file 04 (black & white prop quartiles)
-has_black_q <- any(grepl("^black_prop_q", names(v6)))
-has_white_q <- any(grepl("^white_prop_q", names(v6)))
-if (!has_black_q) stop("Missing black_prop_q/q_label in v6. Re-run R/04 and downstream.")
-if (!has_white_q) stop("Missing white_prop_q/q_label in v6. Re-run revised R/04 and downstream.")
+# --- 2) Load + guards ---------------------------------------------------------
+message("Loading data...")
+v6 <- arrow::read_parquet(here::here("data-stage","susp_v6_long.parquet")) %>%
+  build_keys() %>%            # adds cds_district, cds_school (canonical keys)
+  filter_campus_only()        # drops fake schools + special codes
 
-# normalize label columns using shared helper
-if (!"black_prop_q_label" %in% names(v6)) {
-  v6 <- v6 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q, "Black"))
-}
-if (!"white_prop_q_label" %in% names(v6)) {
-  v6 <- v6 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q, "White"))
-}
+need_cols <- c("subgroup","academic_year",
+               "total_suspensions","cumulative_enrollment",
+               "black_prop_q","white_prop_q")
+missing <- setdiff(need_cols, names(v6))
+if (length(missing)) stop("Missing in v6: ", paste(missing, collapse=", "))
 
-# Year order from TA rows
+# make sure readable quartile labels exist using shared helper
+if (!"black_prop_q_label" %in% names(v6)) v6 <- v6 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q, "Black"))
+if (!"white_prop_q_label" %in% names(v6)) v6 <- v6 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q, "White"))
+
+# order x-axis by TA years that actually have enrollment
 year_levels <- v6 %>%
-  filter(category_type == "Race/Ethnicity", subgroup == "All Students") %>%
+  filter(category_type == "Race/Ethnicity", canon_race_label(subgroup) == "All Students", cumulative_enrollment > 0) %>%
   distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
 
-# Reason columns (built in R/06)
-reason_cols <- names(v6)[grepl("^prop_susp_", names(v6))]
+# restrict to Black rows for all calculations
+black_students_data <- v6 %>% filter(canon_race_label(subgroup) == "Black/African American")
 
-# ---------- Core aggregator: pooled rate for RB by a chosen quartile field ----------
-# pooled (sum susp) / (sum enroll) within year x quartile — preferred for stability
-agg_rb_by_quart <- function(v6, quart_var, quart_title) {
-  # 1) TOTAL rate & counts (RB only)
-  rb_totals <- v6 %>%
-    filter(subgroup == "Black/African American", !is.na(.data[[quart_var]]), .data[[quart_var]] != "Unknown")%>%
-    group_by(academic_year, .data[[quart_var]]) %>%
+# Reason columns: prefer *_count columns if present; otherwise derive from proportions
+has_count_cols <- all(c(
+  "suspension_count_defiance_only",
+  "suspension_count_violent_incident_injury",
+  "suspension_count_violent_incident_no_injury",
+  "suspension_count_weapons_possession",
+  "suspension_count_illicit_drug_related",
+  "suspension_count_other_reasons"
+) %in% names(v6))
+
+  prop_cols <- grep("^prop_susp_", names(v6), value = TRUE)
+
+# --- 3) Total Rate Plot helper -----------------------------------------------
+create_total_rate_plot <- function(data, group_var, colors, title_suffix, legend_title) {
+  gsym <- rlang::ensym(group_var)
+  
+  plot_data <- data %>%
+    filter(!is.na(!!gsym), !!gsym != "Unknown") %>%
+    group_by(academic_year, !!gsym) %>%
     summarise(
-      susp   = sum(total_suspensions, na.rm = TRUE),
-      enroll = sum(cumulative_enrollment, na.rm = TRUE),
+      total_suspensions = sum(total_suspensions, na.rm = TRUE),
+      total_enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
       .groups = "drop"
     ) %>%
     mutate(
-      rate = dplyr::if_else(enroll > 0, susp / enroll, NA_real_),
-      quart = .data[[quart_var]],
+      suspension_rate = if_else(total_enrollment > 0, total_suspensions / total_enrollment, NA_real_),
       year_fct = factor(academic_year, levels = year_levels)
     )
   
-  # 2) Reason-specific RB rate = (prop * total_suspensions) / RB enrollment
-  rb_reason <- v6 %>%
-    filter(subgroup == "Black/African American", !is.na(.data[[quart_var]])) %>%
-    select(academic_year, cumulative_enrollment, total_suspensions, .data[[quart_var]], all_of(reason_cols)) %>%
-    pivot_longer(all_of(reason_cols), names_to = "reason", values_to = "prop") %>%
-    mutate(
-      reason = sub("^prop_susp_", "", reason),
-      reason_count = prop * total_suspensions
-    ) %>%
-    group_by(academic_year, .data[[quart_var]], reason) %>%
-    summarise(
-      susp_reason = sum(reason_count, na.rm = TRUE),
-      enroll      = sum(cumulative_enrollment, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    add_reason_label() %>%
-    mutate(
-      rate      = dplyr::if_else(enroll > 0, susp_reason / enroll, NA_real_),
-      quart     = .data[[quart_var]],
-      year_fct  = factor(academic_year, levels = year_levels)
-    )
+  df2 <- plot_data %>% filter(!is.na(suspension_rate))
+  ggplot(df2, aes(x = year_fct, y = suspension_rate, color = !!gsym, group = !!gsym)) +
+    geom_line(linewidth = 1.2) +
+    geom_point(size = 2.5) +
+    ggrepel::geom_text_repel(
+      aes(label = scales::percent(suspension_rate, accuracy = 0.1)),
+      color = "black", size = 3.2, segment.color = "grey60",
+      box.padding = 0.4, max.overlaps = Inf, nudge_x = 0.12
+    ) +
+    scale_color_manual(values = colors, name = legend_title) +
+    scale_y_continuous(labels = percent_format(accuracy = 0.1),
+                       expand = expansion(mult = c(0.05, 0.18))) +
+    labs(
+      title = paste("Black Student Suspension Rate by", title_suffix),
+      subtitle = "Suspension events per Black student (pooled rate)",
+      x = "Academic Year", y = "Suspensions per Black student (%)"
+    ) +
+    theme(legend.position = "bottom",
+          plot.title = element_text(face = "bold", size = 14),
+          axis.text.x = element_text(angle = 45, hjust = 1))
+}
+
+# --- 4) Reason-specific Rate Plot helper --------------------------------------
+create_category_rate_plot <- function(data, group_var, colors, title_suffix, legend_title) {
+  gsym <- rlang::ensym(group_var)
   
-  list(totals = rb_totals, reasons = rb_reason, quart_title = quart_title)
-}
-
-# Build both views:
-blk_view   <- agg_rb_by_quart(v6, "black_prop_q_label", "School Black Enrollment Quartile")
-wht_view   <- agg_rb_by_quart(v6, "white_prop_q_label", "School White Enrollment Quartile")
-
-###sanity check#####
-missing_quart <- blk_view$totals %>%
-  tidyr::complete(academic_year = year_levels, quart, fill = list(rate = NA_real_)) %>%
-  group_by(academic_year) %>%
-  summarise(missing = sum(is.na(rate)), .groups = "drop")
-if (any(missing_quart$missing > 0)) {
-  message("Heads up: some year×quartile combos have no data (common if RB enrollment is zero).")
-}
-###################
-# common colors for quartiles
-quart_levels_blk <- get_quartile_label(1:4, "Black")
-quart_levels_wht <- get_quartile_label(1:4, "White")
-pal_quart <- setNames(scales::hue_pal()(4), quart_levels_blk)
-
-# ---------- Plot helpers ----------
-
-plot_rb_total_rate <- function(df, title, caption = NULL) {
-  df2 <- df %>% filter(!is.na(rate))
-  ggplot(df2, aes(x = year_fct, y = rate, color = quart, group = quart)) +
-    geom_line(linewidth = 1.1) +
-    geom_point(size = 1.9) +
+  if (has_count_cols) {
+    # Use provided *_count columns
+    plot_data <- data %>%
+      filter(!is.na(!!gsym)) %>%
+      select(academic_year, !!gsym, cumulative_enrollment,
+             starts_with("suspension_count_")) %>%
+      pivot_longer(
+        cols = starts_with("suspension_count_"),
+        names_to = "reason", values_to = "suspension_count"
+      ) %>%
+      mutate(reason = sub("^suspension_count_", "", reason)) %>%
+      mutate(reason = dplyr::case_match(
+        reason,
+        "violent_incident_injury"    ~ "violent_injury",
+        "violent_incident_no_injury" ~ "violent_no_injury",
+        "illicit_drug_related"       ~ "illicit_drug",
+        .default = reason
+      )) %>%
+      group_by(academic_year, !!gsym, reason) %>%
+      summarise(
+        suspension_count = sum(suspension_count, na.rm = TRUE),
+        total_enrollment = sum(cumulative_enrollment, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      add_reason_label("reason") %>%
+      mutate(
+        reason_rate = if_else(total_enrollment > 0, suspension_count / total_enrollment, NA_real_),
+        year_fct = factor(academic_year, levels = year_levels)
+      )
+  } else if (length(prop_cols) > 0) {
+    # Derive counts from proportions × total_suspensions
+    plot_data <- data %>%
+      filter(!is.na(!!gsym)) %>%
+      select(academic_year, !!gsym, total_suspensions, cumulative_enrollment, all_of(prop_cols)) %>%
+      pivot_longer(all_of(prop_cols), names_to = "prop_name", values_to = "prop") %>%
+      mutate(
+        reason = sub("^prop_susp_", "", prop_name),
+        reason_count = prop * total_suspensions
+      ) %>%
+      mutate(reason = dplyr::case_match(
+        reason,
+        "violent_incident_injury"    ~ "violent_injury",
+        "violent_incident_no_injury" ~ "violent_no_injury",
+        "illicit_drug_related"       ~ "illicit_drug",
+        .default = reason
+      )) %>%
+      group_by(academic_year, !!gsym, reason) %>%
+      summarise(
+        suspension_count = sum(reason_count, na.rm = TRUE),
+        total_enrollment = sum(cumulative_enrollment, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      add_reason_label("reason") %>%
+      mutate(
+        reason_rate = if_else(total_enrollment > 0, suspension_count / total_enrollment, NA_real_),
+        year_fct    = factor(academic_year, levels = year_levels)
+      )
+  } else {
+    stop("No reason data available: neither *_count nor prop_susp_* columns exist in v6.")
+  }
+  
+  df2 <- plot_data %>% filter(!is.na(reason_rate))
+  ggplot(df2, aes(x = year_fct, y = reason_rate, color = !!gsym, group = !!gsym)) +
+    geom_line(linewidth = 0.9) +
+    geom_point(size = 1.8) +
     ggrepel::geom_text_repel(
-      data = df2,
-      aes(label = scales::percent(rate, accuracy = 0.1)),
-      size = 2.7, show.legend = FALSE,
-      max.overlaps = Inf, direction = "y", nudge_x = 0.12,
-      box.padding = 0.12, point.padding = 0.12, min.segment.length = 0
+      aes(label = scales::percent(reason_rate, accuracy = 0.1)),
+      color = "black", size = 2.8, segment.color = "grey60",
+      box.padding = 0.35, max.overlaps = Inf, nudge_x = 0.1
     ) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 0.1),
-                       limits = c(0, NA), expand = expansion(mult = c(0, 0.15))) +
-    scale_x_discrete(expand = expansion(mult = c(0.02, 0.25))) +
-    scale_color_manual(values = pal_quart) +
-    labs(
-      title = title,
-      subtitle = "Black student suspension rate (events per Black student)",
-      x = NULL, y = "Suspensions per Black student (%)",
-      color = "Quartile",
-      caption = caption
-    ) +
-    theme_minimal(base_size = 12) +
-    theme(axis.text.x = element_text(angle = 35, hjust = 1))
-}
-
-plot_rb_total_counts <- function(df, title) {
-  df2 <- df %>% filter(!is.na(susp))
-  ggplot(df2, aes(x = year_fct, y = susp, color = quart, group = quart)) +
-    geom_line(linewidth = 1.1) +
-    geom_point(size = 1.9) +
-    ggrepel::geom_text_repel(
-      data = df2,
-      aes(label = scales::comma(susp)),
-      size = 2.6, show.legend = FALSE,
-      max.overlaps = Inf, direction = "y", nudge_x = 0.12,
-      box.padding = 0.12, point.padding = 0.12, min.segment.length = 0
-    ) +
-    scale_y_continuous(labels = scales::comma,
+    facet_wrap(~ reason_lab, scales = "free_y", ncol = 3) +
+    scale_color_manual(values = colors, name = legend_title) +
+    scale_y_continuous(labels = percent_format(accuracy = 0.1),
                        expand = expansion(mult = c(0, 0.15))) +
-    scale_x_discrete(expand = expansion(mult = c(0.02, 0.25))) +
-    scale_color_manual(values = pal_quart) +
     labs(
-      title = title,
-      subtitle = "Total suspensions (events) for Black students",
-      x = NULL, y = "Total suspensions (events)",
-      color = "Quartile"
+      title = paste("Black Student Suspension Rates by Category and", title_suffix),
+      subtitle = "Events in reason per Black student (pooled rate)",
+      x = "Academic Year", y = "Rate (%)"
     ) +
-    theme_minimal(base_size = 12) +
-    theme(axis.text.x = element_text(angle = 35, hjust = 1))
+    theme(legend.position = "bottom",
+          plot.title = element_text(face = "bold", size = 14),
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          strip.text = element_text(face = "bold"))
 }
 
-plot_rb_reason_rates <- function(df, title) {
-  df2 <- df %>% filter(!is.na(rate))
-  ggplot(df2, aes(x = year_fct, y = rate, color = quart, group = quart)) +
-    geom_line(linewidth = 0.95) +
-    geom_point(size = 1.6) +
-    ggrepel::geom_text_repel(
-      data = df2,
-      aes(label = scales::percent(rate, accuracy = 0.01)),
-      size = 2.4, show.legend = FALSE,
-      max.overlaps = Inf, direction = "y", nudge_x = 0.1,
-      box.padding = 0.1, point.padding = 0.1, min.segment.length = 0
-    ) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 0.01),
-                       limits = c(0, NA), expand = expansion(mult = c(0, 0.12))) +
-    scale_x_discrete(expand = expansion(mult = c(0.02, 0.22))) +
-    scale_color_manual(values = pal_quart) +
-    labs(
-      title = title,
-      subtitle = "Reason-specific suspension rates (events per Black student)",
-      x = NULL, y = "Rate (%)", color = "Quartile"
-    ) +
-    facet_wrap(~ reason_lab, scales = "free_y") +
-    theme_minimal(base_size = 12) +
-    theme(axis.text.x = element_text(angle = 35, hjust = 1),
-          legend.position = "bottom")
-}
+# --- 5) Generate Plots --------------------------------------------------------
+message("Generating plots...")
 
-# ---------- BLACK quartiles ----------
-blk_totals <- blk_view$totals %>%
-  mutate(quart = factor(quart, levels = quart_levels_blk))
-
-blk_reasons <- blk_view$reasons %>%
-  mutate(quart = factor(quart, levels = quart_levels_blk))
-
-p_blk_rate   <- plot_rb_total_rate(blk_totals,
-                                   title = "Black Students • Suspension Rate by Year and School Black-Enrollment Quartile",
-                                   caption = "Quartiles are based on each school-year’s % Black enrollment (RB/TA)."
+# by Black-enrollment quartiles
+p1_total_black <- create_total_rate_plot(
+  black_students_data, "black_prop_q_label", black_quartile_colors,
+  "School Black Student Proportion", "School % Black Students"
 )
-p_blk_counts <- plot_rb_total_counts(blk_totals,
-                                     title = "Black Students • Total Suspensions by Year and School Black-Enrollment Quartile"
-)
-p_blk_reason <- plot_rb_reason_rates(blk_reasons,
-                                     title = "Black Students • Reason-Specific Rates by Year and School Black-Enrollment Quartile"
+p2_categories_black <- create_category_rate_plot(
+  black_students_data, "black_prop_q_label", black_quartile_colors,
+  "School Black Student Proportion", "School % Black Students"
 )
 
-# ---------- WHITE quartiles ----------
-# reuse the same palette but re-level to white labels for clean legends
-pal_quart <- setNames(scales::hue_pal()(4), quart_levels_wht)
-
-wht_totals <- wht_view$totals %>%
-  mutate(quart = factor(quart, levels = quart_levels_wht))
-wht_reasons <- wht_view$reasons %>%
-  mutate(quart = factor(quart, levels = quart_levels_wht))
-
-p_wht_rate   <- plot_rb_total_rate(wht_totals,
-                                   title = "Black Students • Suspension Rate by Year and School White-Enrollment Quartile",
-                                   caption = "Quartiles are based on each school-year’s % White enrollment (RW/TA)."
+# by White-enrollment quartiles
+p3_total_white <- create_total_rate_plot(
+  black_students_data, "white_prop_q_label", white_quartile_colors,
+  "School White Student Proportion", "School % White Students"
 )
-p_wht_counts <- plot_rb_total_counts(wht_totals,
-                                     title = "Black Students • Total Suspensions by Year and School White-Enrollment Quartile"
+p4_categories_white <- create_category_rate_plot(
+  black_students_data, "white_prop_q_label", white_quartile_colors,
+  "School White Student Proportion", "School % White Students"
 )
-p_wht_reason <- plot_rb_reason_rates(wht_reasons,
-                                     title = "Black Students • Reason-Specific Rates by Year and School White-Enrollment Quartile"
-)
+# Combine plots into a single layout 
 
-# ---------- Print & Save ----------
-print(p_blk_rate);   print(p_blk_counts);   print(p_blk_reason)
-print(p_wht_rate);   print(p_wht_counts);   print(p_wht_reason)
+# ---- optional: drop "Unknown" quartiles from all plots ----------------------
+drop_unknown <- function(p) p + scale_color_discrete(drop = TRUE)
+p1_total_black    <- p1_total_black    |> drop_unknown()
+p2_categories_black <- p2_categories_black |> drop_unknown()
+p3_total_white    <- p3_total_white    |> drop_unknown()
+p4_categories_white <- p4_categories_white |> drop_unknown()
 
-dir.create(here("outputs"), showWarnings = FALSE)
-ggsave(here("outputs","02_rb_rate_by_black_quart.png"),   p_blk_rate,   width = 11, height = 6.5, dpi = 300, bg = "white")
-ggsave(here("outputs","02_rb_counts_by_black_quart.png"), p_blk_counts, width = 11, height = 6.5, dpi = 300, bg = "white")
-ggsave(here("outputs","02_rb_reason_by_black_quart.png"), p_blk_reason, width = 12, height = 7.5, dpi = 300, bg = "white")
+# ---- combine with patchwork --------------------------------------------------
+# top row = total rates; bottom row = reason rates
+top_row    <- p1_total_black | p3_total_white
+bottom_row <- p2_categories_black | p4_categories_white
 
-ggsave(here("outputs","02_rb_rate_by_white_quart.png"),   p_wht_rate,   width = 11, height = 6.5, dpi = 300, bg = "white")
-ggsave(here("outputs","02_rb_counts_by_white_quart.png"), p_wht_counts, width = 11, height = 6.5, dpi = 300, bg = "white")
-ggsave(here("outputs","02_rb_reason_by_white_quart.png"), p_wht_reason, width = 12, height = 7.5, dpi = 300, bg = "white")
+final_grid <- (top_row / bottom_row) +
+  plot_layout(
+    heights = c(1, 2),
+    guides = "collect"
+  ) +
+  plot_annotation(
+    title = "Black Student Suspension Rates by School Racial Composition",
+    subtitle = "Campus-only data; special codes removed; pooled rates (sum of events ÷ sum of enrollment)",
+    theme = theme(
+      plot.title = element_text(face = "bold", size = 15),
+      legend.position = "bottom"
+    )
+  )
 
+# ---- save -------------------------------------------------------------------
+dir.create(here::here("outputs"), showWarnings = FALSE)
 
-##sanity check
-missing_quart <- blk_view$totals %>%
-  tidyr::complete(academic_year = year_levels, quart, fill = list(rate = NA_real_)) %>%
-  group_by(academic_year) %>%
-  summarise(missing = sum(is.na(rate)), .groups = "drop")
-if (any(missing_quart$missing > 0)) {
-  message("Heads up: some year×quartile combos have no data (common if RB enrollment is zero).")
-}
+ggsave(here::here("outputs","02_black_by_blackQuart_total.png"),
+       p1_total_black, width = 10, height = 7, dpi = 300, bg = "white")
 
+ggsave(here::here("outputs","02_black_by_blackQuart_reasons.png"),
+       p2_categories_black, width = 12, height = 8, dpi = 300, bg = "white")
+
+ggsave(here::here("outputs","02_black_by_whiteQuart_total.png"),
+       p3_total_white, width = 10, height = 7, dpi = 300, bg = "white")
+
+ggsave(here::here("outputs","02_black_by_whiteQuart_reasons.png"),
+       p4_categories_white, width = 12, height = 8, dpi = 300, bg = "white")
+
+ggsave(here::here("outputs","02_black_rates_all_panels.png"),
+       final_grid, width = 16, height = 14, dpi = 300, bg = "white")
