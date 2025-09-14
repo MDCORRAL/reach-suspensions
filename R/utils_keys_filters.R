@@ -70,7 +70,7 @@ reason_labels <- dplyr::tibble(
     "Violent (Injury)",
     "Violent (No Injury)",
     "Weapons",
-    "Illicit Drug",
+    "Illicit Drugs",
     "Willful Defiance",
     "Other"
   )
