@@ -23,11 +23,12 @@ DATA_STAGE <- here("data-stage")
 # Required columns for the core suspension dataset
 req_cols <- c(
   "school_code", "academic_year", "cumulative_enrollment",
-  "total_suspensions", "unduplicated_count_of_students_suspended_total"
+  "total_suspensions", "unduplicated_count_of_students_suspended_total",
+  "subgroup"
 )
 
-# Find the first susp_v*.parquet file containing all required columns
-susp_files <- list.files(DATA_STAGE, pattern = "^susp_v[0-9]+\\.parquet$", full.names = TRUE)
+# Find the first susp_v*_long.parquet file containing all required columns
+susp_files <- list.files(DATA_STAGE, pattern = "^susp_v[0-9]+_long\\.parquet$", full.names = TRUE)
 INPUT_PATH <- NULL
 for (f in susp_files) {
   cols <- names(read_parquet(f, as_data_frame = FALSE))
@@ -39,7 +40,7 @@ for (f in susp_files) {
     message("Skipping ", basename(f), ": missing columns")
   }
 }
-if (is.null(INPUT_PATH)) stop("No susp_v*.parquet file with all required columns found.")
+if (is.null(INPUT_PATH)) stop("No susp_v*_long.parquet file with all required columns found.")
 
 # Locate feature file for level/setting
 V6_FEAT <- file.path(DATA_STAGE, "susp_v6_features.parquet")
