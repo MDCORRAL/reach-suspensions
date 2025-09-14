@@ -94,13 +94,13 @@ raw <- read_parquet(INPUT_PATH) %>% clean_names()
 susp <- raw %>%
   filter(str_to_lower(subgroup) %in% c("total", "all students", "ta")) %>%
   transmute(
-    school_id   = school_code,
-    year        = academic_year,
+    school_id   = as.character(school_code),
+    year        = as.character(academic_year),
     enrollment  = as.numeric(cumulative_enrollment),
     total_susp  = as.numeric(total_suspensions),
     undup_susp  = as.numeric(unduplicated_count_of_students_suspended_total),
     measure     = if (MEASURE == "undup_susp") undup_susp else total_susp,
-    school_name = if ("school_name" %in% names(.)) school_name else school_code
+    school_name = if ("school_name" %in% names(.)) as.character(school_name) else as.character(school_code)
   ) %>%
   mutate(year_num = as.integer(str_sub(year, 1, 4))) %>%
   filter(!is.na(year_num), enrollment > 0, !is.na(measure))

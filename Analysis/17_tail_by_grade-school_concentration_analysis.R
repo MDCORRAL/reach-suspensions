@@ -299,9 +299,9 @@ dat <- dat0 %>%
   # Filter to Total/All Students records only
   filter(str_to_lower(subgroup) %in% c("total", "all students", "ta")) %>%
   transmute(
-    school_id   = !!sym(cols$school_id),
-    school_name = if (has_school_name) !!sym(cols$school_name) else !!sym(cols$school_id),
-    year        = !!sym(cols$year),
+    school_id   = as.character(!!sym(cols$school_id)),
+    school_name = if (has_school_name) as.character(!!sym(cols$school_name)) else as.character(!!sym(cols$school_id)),
+    year        = as.character(!!sym(cols$year)),
     setting     = map_setting(!!sym(cols$setting)),
     level       = map_grade_level(!!sym(cols$level)),
     enrollment  = as.numeric(!!sym(cols$enrollment)),
