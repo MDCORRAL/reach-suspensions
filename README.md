@@ -26,3 +26,11 @@ renv::restore()
 The canonical analysis of Black student suspension rates by school racial composition lives at
 `Analysis/02_black_rates_by_quartiles.R`.
 
+## Environment variables
+
+These optional environment variables allow the project to run without hard-coded paths. Set them in your shell or `.Renviron`.
+
+- `REACH_PROJECT_ROOT`: path to the project root. Defaults to the current working directory if unset.
+- `REACH_DATA_DIR`: directory for staged data files. Defaults to `data-stage/` under the project root.
+- `RAW_PATH`: full path to the raw Excel file `copy_CDE_suspensions_1718-2324_sc_race.xlsx`. Defaults to `data-raw/` under the project root.
+
