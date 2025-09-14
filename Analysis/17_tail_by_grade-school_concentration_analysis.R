@@ -282,6 +282,9 @@ if (length(missing_files) > 0) {
 message("Loading suspension data from: ", INPUT_PATH)
 dat0 <- read_parquet(INPUT_PATH) %>% clean_names()
 
+# Track availability of optional school name column
+has_school_name <- cols$school_name %in% names(dat0)
+
 # Check for required columns
 req_cols <- unlist(cols[c("school_id", "year", "enrollment", "total_susp", "undup_susp")])
 missing_cols <- setdiff(req_cols, names(dat0))
@@ -297,19 +300,15 @@ dat <- dat0 %>%
   filter(str_to_lower(subgroup) %in% c("total", "all students", "ta")) %>%
   transmute(
     school_id   = !!sym(cols$school_id),
+    school_name = if (has_school_name) !!sym(cols$school_name) else !!sym(cols$school_id),
     year        = !!sym(cols$year),
-    enrollment  = !!sym(cols$enrollment),
-    total_susp  = !!sym(cols$total_susp),
-    undup_susp  = !!sym(cols$undup_susp),
-    school_name = if ("school_name" %in% names(dat0)) !!sym(cols$school_name) else !!sym(cols$school_id),
-    level       = !!sym(cols$level)
-  ) %>%
-  mutate(
-    year_num    = extract_year(year),
-    enrollment  = as.numeric(enrollment),
-    total_susp  = as.numeric(total_susp),
-    undup_susp  = as.numeric(undup_susp),
-    measure     = if (MEASURE == "undup_susp") undup_susp else total_susp
+    setting     = map_setting(!!sym(cols$setting)),
+    level       = map_grade_level(!!sym(cols$level)),
+    enrollment  = as.numeric(!!sym(cols$enrollment)),
+    total_susp  = as.numeric(!!sym(cols$total_susp)),
+    undup_susp  = as.numeric(!!sym(cols$undup_susp)),
+    measure     = if (MEASURE == "undup_susp") undup_susp else total_susp,
+    year_num    = extract_year(year)
   ) %>%
   # Filter out invalid records
   filter(
