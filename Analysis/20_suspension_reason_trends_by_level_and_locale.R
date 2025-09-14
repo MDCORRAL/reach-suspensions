@@ -141,6 +141,9 @@ plot_reason_area <- function(df, facet_col = NULL, title_txt) {
 
 # --- 3) Overall trends -------------------------------------------------------
 overall_rates <- summarise_reason_rates(v6, "academic_year")
+print(unique(overall_rates$reason_lab))
+print(names(pal_reason))
+print(setdiff(unique(overall_rates$reason_lab), names(pal_reason)))
 save_table(overall_rates, "20_overall_reason_rates.csv")
 
 p_overall_total <- plot_total_rate(distinct(overall_rates, academic_year, total_rate),
