@@ -40,9 +40,7 @@ raw_candidates <- c(
   # 1) Optional override via environment variable RAW_PATH (set in ~/.Renviron or shell)
   Sys.getenv("RAW_PATH", unset = ""),
   # 2) Repo-relative default (portable across machines)
-  file.path(dp_raw, "copy_CDE_suspensions_1718-2324_sc_race.xlsx"),
-  # 3) Your original absolute path (kept as a fallback for this machine)
-  "/Users/michaelcorral/Library/CloudStorage/GoogleDrive-mdcorral@g.ucla.edu/.shortcut-targets-by-id/1qNAOKIg0UjuT3XWFlk4dkDLN6UPWJVGx/Center for the Transformation of Schools/Research/CA Race Education And Community Healing (REACH)/2. REACH Network (INTERNAL)/15. REACH Baseline Report_Summer 2025/6. R Data Analysis Project Folders/1. 250828_R Folder/copy_CDE_suspensions_1718-2324_sc_race.xlsx"
+  file.path(dp_raw, "copy_CDE_suspensions_1718-2324_sc_race.xlsx")
 )
 
 # drop blank strings so file.exists() won't get empty values
