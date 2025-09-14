@@ -107,10 +107,12 @@ susp <- raw %>%
   filter(!is.na(year_num), enrollment > 0, !is.na(measure))
 
 # Load features for level and setting
-feat <- read_parquet(V6_FEAT) %>% clean_names() %>%
+feat <- read_parquet(V6_FEAT) %>% clean_names()
+year_col <- intersect(c("year", "academic_year"), names(feat))[1]
+feat <- feat %>%
   transmute(
     school_code = as.character(school_code),
-    year_char   = as.character(year),
+    year_char   = as.character(.data[[year_col]]),
     is_traditional,
     school_type
   )
