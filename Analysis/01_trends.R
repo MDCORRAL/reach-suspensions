@@ -179,7 +179,9 @@ if (has_prop_cols) {
       max.overlaps = Inf, direction = "y", nudge_x = NUDGE_X_LABELS,
       box.padding = 0.15, point.padding = 0.15, min.segment.length = 0
     ) +
-    scale_color_manual(values = reason_colors, breaks = names(reason_colors)) +
+    scale_color_manual(values = reason_colors,
+                       breaks = names(reason_colors),
+                       drop = FALSE) +
     scale_y_continuous(labels = percent_format(accuracy = 0.1), limits = c(0, NA),
                        expand = expansion(mult = c(0, 0.15))) +
     scale_x_discrete(expand = expansion(mult = c(0.02, 0.25))) +
