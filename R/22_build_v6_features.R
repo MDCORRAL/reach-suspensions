@@ -302,7 +302,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   # --- End of Corrected Block 1 ---
   
   # Ensure one row per campus-year
-##codex/add-assertion-for-unique-campus-year-keys-figr4y
+# Verify uniqueness of campus-year keys
   v6 <- assert_unique_campus(v6, year_col = "academic_year")
 
   # Range checks

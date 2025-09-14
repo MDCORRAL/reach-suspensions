@@ -149,7 +149,7 @@ plot_reason_area <- function(df, facet_col = NULL, title_txt) {
 }
 
 # --- 3) Overall trends -------------------------------------------------------
-#codex/replace-local-grade-and-locale-lists-gfehth
+# Calculate overall statewide reason rates
 overall_rates <- summarise_reason_rates(v6, "academic_year") %>%
   mutate(reason_lab = factor(reason_lab, levels = names(pal_reason)))
 save_table(overall_rates, "20_overall_reason_rates.csv")

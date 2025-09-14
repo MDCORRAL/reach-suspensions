@@ -58,7 +58,7 @@ df <- v6 %>%
   )
 
 # Locales to render (1 image per)
-#codex/replace-local-grade-and-locale-lists-gfehth
+# Drop "Unknown" from locale list
 loc_levels <- setdiff(locale_levels, "Unknown")
 
 

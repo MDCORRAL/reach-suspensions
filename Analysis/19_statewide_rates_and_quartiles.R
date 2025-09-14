@@ -1,6 +1,5 @@
 # analysis/19_statewide_rates_and_quartiles.R
 #
-##codex/create-statewide-data-frame-analysis-ke1b6
 # Build statewide suspension/enrollment totals prior to any filtering.
 # Also derive quartile summaries (e.g., by enrollment, racial proportion)
 # independent from those statewide totals.
@@ -19,7 +18,7 @@ source(here::here("R", "utils_keys_filters.R"))
 # ---- Load raw long file ------------------------------------------------------
 v6 <- read_parquet(here("data-stage", "susp_v6_long.parquet")) %>%
   build_keys() %>%
-##odex/create-statewide-data-frame-analysis-ke1b6u
+  # Keep only campus-level records
   filter_campus_only() %>%
   mutate(
     school_group = school_level,
@@ -97,7 +96,6 @@ write_parquet(
 )
 
 # ---- Quartile helpers --------------------------------------------------------
-##codex/create-statewide-data-frame-analysis-ke1b6u
 # Quartiles by total school enrollment (All Students baseline)
 # Ensure one row per school-year before assigning quartiles
 school_enroll <- v6 %>%
@@ -169,7 +167,6 @@ by_enrollment <- bind_rows(
 
 write_parquet(by_enrollment, here("data-stage", "quartile_rates_by_enrollment.parquet"))
 
-##codex/create-statewide-data-frame-analysis-ke1b6u
 
 # Quartiles by racial proportion example: Black share of enrollment
 # Compute proportion of Black enrollment out of school total and derive quartiles
@@ -197,7 +194,7 @@ all_enroll <- v6 %>%
   )
 
 black_prop <- v6 %>%
-##codex/update-deduplication-logic-in-enrollment-script
+  # Join Black student data with totals to compute proportions
   filter(subgroup == "Black/African American") %>%
   left_join(
     all_enroll,
