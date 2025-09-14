@@ -25,3 +25,19 @@ test_that('scale_fill_manual uses pal_reason without warning', {
                                drop = FALSE)
   expect_no_warning(ggplot2::ggplot_build(p))
 })
+
+test_that('assert_unique_district enforces unique district-year keys', {
+  df <- tibble::tibble(
+    cds_district = c('0010001', '0010001'),
+    year = c(2020, 2021),
+    value = 1:2
+  )
+  expect_identical(assert_unique_district(df), df)
+
+  dup <- tibble::tibble(
+    cds_district = c('0010001', '0010001'),
+    year = c(2020, 2020),
+    value = 1:2
+  )
+  expect_error(assert_unique_district(dup), 'Duplicate district-year keys found')
+})
