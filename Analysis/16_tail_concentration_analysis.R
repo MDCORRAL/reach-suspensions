@@ -198,25 +198,30 @@ dat <- dat0 %>%
 if (file.exists(V6F_PARQ)) {
   message("Loading school features...")
   v6_features <- read_parquet(V6F_PARQ) %>% clean_names()
-  
+
+  # Ensure a common 'year' column exists
+  if (!"year" %in% names(v6_features) && "academic_year" %in% names(v6_features)) {
+    v6_features <- v6_features %>% mutate(year = as.character(academic_year))
+  }
+
   # Check what columns actually exist
   message("Available columns in v6_features: ", paste(names(v6_features), collapse = ", "))
-  
+
   # Select only columns that exist
   available_cols <- intersect(c("school_code", "year", "is_traditional", "school_type"), names(v6_features))
-  
+
   v6_features <- v6_features %>%
     select(all_of(available_cols)) %>%
     mutate(
       school_code = as.character(school_code),
-      year_char = as.character(year)
+      year = as.character(year)
     )
-  
+
   # Join features
   dat <- dat %>%
     left_join(
-      v6_features, 
-      by = c("school_id" = "school_code", "year" = "year_char")
+      v6_features,
+      by = c("school_id" = "school_code", "year")
     ) %>%
     mutate(
       setting = ifelse(is.na(is_traditional) | !is_traditional, 
