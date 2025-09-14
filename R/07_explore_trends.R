@@ -126,7 +126,8 @@ p1b <- ggplot(reason_rate_by_black_quartile,
                 label = percent(total_rate, accuracy = 0.1)),
             vjust = -0.5, fontface = "bold", inherit.aes = FALSE, na.rm = TRUE) +
   facet_wrap(~ black_prop_q_label, ncol = 2) +
-  scale_fill_manual(values = pal_reason, name = "Reason for Suspension") +
+  scale_fill_manual(values = pal_reason, name = "Reason for Suspension",
+                    breaks = names(pal_reason), drop = FALSE) +
   scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
   labs(
     title = "Composition of Black Student Suspensions by School's Black Enrollment",
@@ -216,7 +217,8 @@ p2b <- ggplot(reason_rate_by_white_quartile,
     vjust = -0.5, fontface = "bold", inherit.aes = FALSE, na.rm = TRUE
   ) +
   facet_wrap(~ white_prop_q_label, ncol = 2) +
-  scale_fill_manual(values = pal_reason, name = "Reason for Suspension") +
+  scale_fill_manual(values = pal_reason, name = "Reason for Suspension",
+                    breaks = names(pal_reason), drop = FALSE) +
   scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
   labs(
     title = "Composition of Black Student Suspensions by School's White Enrollment",
