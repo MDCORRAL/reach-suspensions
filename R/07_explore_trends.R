@@ -110,8 +110,9 @@ reason_rate_by_black_quartile <- black_students_data %>%
     .groups    = "drop"
   ) %>%
   mutate(
-    reason_rate = if_else(enrollment > 0, count / enrollment, NA_real_),
-    reason_lab  = factor(reason_lab, levels = names(pal_reason))
+#codex/replace-local-grade-and-locale-lists-gfehth
+    reason_lab = factor(reason_lab, levels = names(pal_reason)),
+    reason_rate = if_else(enrollment > 0, count / enrollment, NA_real_)
   )
 
 # Data for total labels in each facet
@@ -203,9 +204,9 @@ reason_rate_by_white_quartile <- black_students_data %>%
     enrollment = sum(cumulative_enrollment, na.rm = TRUE),
     .groups    = "drop"
   ) %>%
-  mutate(
-    reason_rate = if_else(enrollment > 0, count / enrollment, NA_real_),
-    reason_lab  = factor(reason_lab, levels = names(pal_reason))
+#codex/replace-local-grade-and-locale-lists-gfehth
+    reason_lab = factor(reason_lab, levels = names(pal_reason)),
+    reason_rate = if_else(enrollment > 0, count / enrollment, NA_real_)
   )
 
 labels_reason_white_q <- reason_rate_by_white_quartile %>%

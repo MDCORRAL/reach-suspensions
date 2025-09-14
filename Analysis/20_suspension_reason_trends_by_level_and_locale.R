@@ -149,7 +149,9 @@ plot_reason_area <- function(df, facet_col = NULL, title_txt) {
 }
 
 # --- 3) Overall trends -------------------------------------------------------
-overall_rates <- summarise_reason_rates(v6, "academic_year")
+#codex/replace-local-grade-and-locale-lists-gfehth
+overall_rates <- summarise_reason_rates(v6, "academic_year") %>%
+  mutate(reason_lab = factor(reason_lab, levels = names(pal_reason)))
 save_table(overall_rates, "20_overall_reason_rates.csv")
 
 p_overall_total <- plot_total_rate(distinct(overall_rates, academic_year, total_rate),
@@ -170,7 +172,8 @@ by_grade <- v6 %>%
   filter(school_level %in% grade_levels) %>%
   mutate(school_level = factor(school_level, levels = grade_levels))
 
-grade_rates <- summarise_reason_rates(by_grade, c("academic_year", "school_level"))
+grade_rates <- summarise_reason_rates(by_grade, c("academic_year", "school_level")) %>%
+  mutate(reason_lab = factor(reason_lab, levels = names(pal_reason)))
 save_table(grade_rates, "20_grade_reason_rates.csv")
 
 p_grade_total <- plot_total_rate(distinct(grade_rates, academic_year, school_level, total_rate),
@@ -193,7 +196,8 @@ by_locale <- v6 %>%
   filter(locale_simple %in% loc_levels) %>%
   mutate(locale_simple = factor(locale_simple, levels = loc_levels))
 
-locale_rates <- summarise_reason_rates(by_locale, c("academic_year", "locale_simple"))
+locale_rates <- summarise_reason_rates(by_locale, c("academic_year", "locale_simple")) %>%
+  mutate(reason_lab = factor(reason_lab, levels = names(pal_reason)))
 save_table(locale_rates, "20_locale_reason_rates.csv")
 
 p_locale_total <- plot_total_rate(distinct(locale_rates, academic_year, locale_simple, total_rate),

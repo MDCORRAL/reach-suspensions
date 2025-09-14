@@ -65,7 +65,8 @@ race_chunks <- split(race_order, chunk_id)
 message("Races split into ", length(race_chunks), " image(s).")
 
 # Locale palette and ordering
-loc_levels <- if (INCLUDE_UNKNOWN) locale_levels else locale_levels[locale_levels != "Unknown"]
+##codex/replace-local-grade-and-locale-lists-gfehth
+loc_levels <- if (INCLUDE_UNKNOWN) locale_levels else setdiff(locale_levels, "Unknown")
 pal_locale_use <- pal_locale[loc_levels]
 
 # --- 4) Plot function ---------------------------------------------------------
