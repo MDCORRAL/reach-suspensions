@@ -12,6 +12,7 @@ data-stage/*.parquet
 .Rproj.user/
 .Rhistory
 .RData
+.RDataTmp
 .Renviron
 
 # Generated figures
