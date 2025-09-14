@@ -178,7 +178,32 @@ assert_unique_campus <- function(df, campus_col = "cds_school", year_col = "year
 }
 
 # assert uniqueness for a district-level frame
-# (function intentionally left for future implementation)
+#' Assert that each district appears at most once per year.
+#'
+#' This helper mirrors `assert_unique_campus()` but works with district-level
+#' identifiers (defaults to `cds_district`). Use it after aggregating data to
+#' district/year (and optional `extra_keys`) to catch unexpected duplicates.
+#'
+#' @param df A data frame containing district and year identifiers.
+#' @param district_col Column name holding the district key. Defaults to
+#'   `"cds_district"`.
+#' @param year_col Column name holding the year identifier. Defaults to `"year"`.
+#' @param extra_keys Optional character vector of additional columns that, along
+#'   with district and year, should form a unique key.
+#'
+#' @return The input `df` if no duplicate district-year keys are found; otherwise
+#'   execution stops with an informative message.
+assert_unique_district <- function(df, district_col = "cds_district", year_col = "year", extra_keys = character()) {
+  ysym <- rlang::sym(year_col)
+  key_syms <- rlang::syms(c(district_col, extra_keys))
+  dup <- df %>%
+    dplyr::count(!!!key_syms, !!ysym, name = "n") %>%
+    dplyr::filter(n > 1)
+  if (nrow(dup) > 0) {
+    stop("Duplicate district-year keys found. Inspect 'dup' in the calling frame.")
+  }
+  df
+}
 
 #############
 # Map various race/ethnicity inputs to canonical labels. Accepts either
