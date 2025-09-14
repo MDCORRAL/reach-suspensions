@@ -299,19 +299,15 @@ dat <- dat0 %>%
   # Filter to Total/All Students records only
   filter(str_to_lower(subgroup) %in% c("total", "all students", "ta")) %>%
   transmute(
-    school_id   = !!sym(cols$school_id),
-    school_name = if (has_school_name) !!sym(cols$school_name) else !!sym(cols$school_id),
-    year        = !!sym(cols$year),
-    enrollment  = !!sym(cols$enrollment),
-    total_susp  = !!sym(cols$total_susp),
-    undup_susp  = !!sym(cols$undup_susp),
-    setting     = !!sym(cols$setting),
-    level       = !!sym(cols$level)
-  ) %>%
-  mutate(
-    setting     = map_setting(setting),
-    level       = map_grade_level(level),
-    across(c(enrollment, total_susp, undup_susp), as.numeric),
+#codex/refactor-scripts-to-use-transmute
+    school_id   = as.character(!!sym(cols$school_id)),
+    school_name = if (has_school_name) as.character(!!sym(cols$school_name)) else as.character(!!sym(cols$school_id)),
+    year        = as.character(!!sym(cols$year)),
+    setting     = map_setting(!!sym(cols$setting)),
+    level       = map_grade_level(!!sym(cols$level)),
+    enrollment  = as.numeric(!!sym(cols$enrollment)),
+    total_susp  = as.numeric(!!sym(cols$total_susp)),
+    undup_susp  = as.numeric(!!sym(cols$undup_susp)),
     measure     = if (MEASURE == "undup_susp") undup_susp else total_susp,
     year_num    = extract_year(year)
   ) %>%
