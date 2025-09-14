@@ -20,19 +20,25 @@ source(here::here("R", "utils_keys_filters.R"))
 
 # output directory
 out_dir <- here::here("outputs")
-dir.create(out_dir, showWarnings = FALSE)
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 # --- 2) Load Data -------------------------------------------------------------
 # long-format v6 with suspension reasons and school attributes
-v6 <- arrow::read_parquet(here::here("data-stage", "susp_v6_long.parquet")) %>%
+v6 <- arrow::read_parquet(
+  here::here("data-stage", "susp_v6_long.parquet")
+) %>%
   filter(
     category_type == "Race/Ethnicity",
     subgroup == "All Students"
   )
 
 # academic year order (lexical sort works for "2017-18" style)
-year_levels <- v6 %>% distinct(academic_year) %>% arrange(academic_year) %>% pull(academic_year)
-v6 <- v6 %>% mutate(academic_year = factor(academic_year, levels = year_levels))
+year_levels <- v6 %>%
+  distinct(academic_year) %>%
+  arrange(academic_year) %>%
+  pull(academic_year)
+v6 <- v6 %>%
+  mutate(academic_year = factor(academic_year, levels = year_levels))
 
 # --- helpers ------------------------------------------------------------------
 # compute suspension reason rates for arbitrary grouping columns
@@ -68,7 +74,7 @@ save_table <- function(df, filename) {
   readr::write_csv(df, file.path(out_dir, filename))
 }
 
-# plot helpers ---------------------------------------------------------------
+# plotting helpers -------------------------------------------------------------
 plot_total_rate <- function(df, title_txt, color_col = NULL, palette = NULL) {
   if (is.null(color_col)) {
     p <- ggplot(df, aes(x = academic_year, y = total_rate, group = 1))
@@ -204,5 +210,5 @@ p_locale_reason <- plot_reason_area(locale_rates, "locale_simple",
 ggsave(file.path(out_dir, "20_locale_reason_rates.png"), p_locale_reason,
        width = 12, height = 8, dpi = 300)
 
-message("Analysis complete. Tables and graphics saved to:", out_dir)
+message("Analysis complete. Tables and graphics saved to: ", out_dir)
 
