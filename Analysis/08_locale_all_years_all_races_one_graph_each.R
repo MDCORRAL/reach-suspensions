@@ -58,7 +58,7 @@ df <- v6 %>%
   )
 
 # Locales to render (1 image per)
-loc_levels <- head(locale_levels, -1)
+loc_levels <- locale_levels[locale_levels != "Unknown"]
 
 # --- 5) Plot helper (Sharpened with Corrected Label Size) ----------------------
 plot_one_locale <- function(loc_name) {

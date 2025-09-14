@@ -159,7 +159,7 @@ ggsave(file.path(out_dir, "20_overall_reason_rates.png"), p_overall_reason,
        width = 10, height = 6, dpi = 300)
 
 # --- 4) By grade level -------------------------------------------------------
-grade_levels <- setdiff(LEVEL_LABELS, c("Other", "Alternative"))
+grade_levels <- LEVEL_LABELS[!LEVEL_LABELS %in% c("Other", "Alternative")]
 by_grade <- v6 %>%
   filter(school_level %in% grade_levels) %>%
   mutate(school_level = factor(school_level, levels = grade_levels))
@@ -182,7 +182,7 @@ ggsave(file.path(out_dir, "20_grade_reason_rates.png"), p_grade_reason,
        width = 12, height = 8, dpi = 300)
 
 # --- 5) By locale ------------------------------------------------------------
-loc_levels <- setdiff(locale_levels, "Unknown")
+loc_levels <- locale_levels[locale_levels != "Unknown"]
 by_locale <- v6 %>%
   filter(locale_simple %in% loc_levels) %>%
   mutate(locale_simple = factor(locale_simple, levels = loc_levels))

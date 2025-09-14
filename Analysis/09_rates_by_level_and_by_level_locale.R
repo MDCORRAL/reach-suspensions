@@ -76,8 +76,7 @@ df_level <- base %>%
 
 # B) Split by locale -> by LEVEL × LOCALE × RACE × YEAR
 # Locales to render
-loc_levels <- locale_levels
-if (!INCLUDE_UNKNOWN_LOCALE) loc_levels <- head(loc_levels, -1)
+loc_levels <- if (INCLUDE_UNKNOWN_LOCALE) locale_levels else locale_levels[locale_levels != "Unknown"]
 
 df_level_loc <- base %>%
   group_by(school_level, locale_simple, race, academic_year, year_fct) %>%
