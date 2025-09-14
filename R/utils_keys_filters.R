@@ -14,6 +14,15 @@ SPECIAL_SCHOOL_CODES <- c("0000000", "0000001")
 #' Source this file to access these helpers in downstream scripts.
 LEVEL_LABELS <- c("Elementary", "Middle", "High", "Other", "Alternative")
 
+#' Consistent color palette for grade levels
+pal_level <- c(
+  Elementary = "#1b9e77",
+  Middle     = "#d95f02",
+  High       = "#7570b3",
+  Other      = "#e7298a",
+  Alternative= "#66a61e"
+)
+
 span_label <- function(gmin, gmax) {
   if (is.na(gmin) || is.na(gmax)) return("Other")
   if (gmin <= 0 && gmax >= 12) return("Other")
