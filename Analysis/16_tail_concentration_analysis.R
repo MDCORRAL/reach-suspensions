@@ -170,12 +170,13 @@ if (length(missing_cols) > 0) {
 dat <- dat0 %>%
   # Filter to Total/All Students records only
   filter(str_to_lower(subgroup) %in% c("total", "all students", "ta")) %>%
-  rename(
+  transmute(
     school_id   = !!sym(cols$school_id),
     year        = !!sym(cols$year),
     enrollment  = !!sym(cols$enrollment),
     total_susp  = !!sym(cols$total_susp),
-    undup_susp  = !!sym(cols$undup_susp)
+    undup_susp  = !!sym(cols$undup_susp),
+    school_name = if ("school_name" %in% names(dat0)) !!sym(cols$school_name) else !!sym(cols$school_id)
   ) %>%
   mutate(
     year_num    = extract_year(year),
@@ -184,12 +185,10 @@ dat <- dat0 %>%
     undup_susp  = as.numeric(undup_susp),
     measure     = if (MEASURE == "undup_susp") undup_susp else total_susp
   ) %>%
-  # Add school name if available
-  mutate(school_name = if ("school_name" %in% names(dat0)) school_name else school_id) %>%
   # Filter out invalid records
   filter(
-    !is.na(year_num), 
-    !is.na(enrollment), 
+    !is.na(year_num),
+    !is.na(enrollment),
     !is.na(measure),
     enrollment > 0,
     measure >= 0

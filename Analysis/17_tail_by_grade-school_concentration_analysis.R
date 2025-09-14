@@ -294,6 +294,8 @@ if (length(missing_cols) > 0) {
 
 # Process and clean data
 dat <- dat0 %>%
+  # Drop any pre-existing year column before renaming
+  select(-any_of("year")) %>%
   # Filter to Total/All Students records only
   filter(str_to_lower(subgroup) %in% c("total", "all students", "ta")) %>%
   transmute(
