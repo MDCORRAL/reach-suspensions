@@ -76,7 +76,7 @@ df_level <- base %>%
 
 # B) Split by locale -> by LEVEL × LOCALE × RACE × YEAR
 # Locales to render
-$codex/replace-local-grade-and-locale-lists-gfehth
+# Choose which locales to include
 loc_levels <- if (INCLUDE_UNKNOWN_LOCALE) locale_levels else setdiff(locale_levels, "Unknown")
 
 
