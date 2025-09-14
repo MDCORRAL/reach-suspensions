@@ -326,12 +326,18 @@ if (file.exists(V6F_PARQ)) {
   v6_features <- read_parquet(V6F_PARQ) %>% clean_names()
 
   # Check available columns
-  available_cols <- intersect(c("school_code", "academic_year", "is_traditional", "school_type"), names(v6_features))
+  available_cols <- intersect(c("school_code", "year", "academic_year", "is_traditional", "school_type"), names(v6_features))
   message("Using feature columns: ", paste(available_cols, collapse = ", "))
 
   if ("is_traditional" %in% available_cols) {
     v6_features <- v6_features %>%
-      select(all_of(available_cols)) %>%
+      select(all_of(available_cols))
+
+    if ("year" %in% names(v6_features) && !"academic_year" %in% names(v6_features)) {
+      v6_features <- v6_features %>% rename(academic_year = year)
+    }
+
+    v6_features <- v6_features %>%
       mutate(
         school_code   = as.character(school_code),
         academic_year = as.character(academic_year)
