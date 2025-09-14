@@ -72,7 +72,7 @@ plot_total_rate <- function(df, title_txt, color_col = NULL, palette = NULL) {
   } else {
     p <- ggplot(df, aes(x = academic_year, y = total_rate, group = !!sym(color_col), color = !!sym(color_col)))
   }
-  p +
+  p <- p +
     geom_line(linewidth = 1.2) +
     geom_point(size = 2.5) +
     ggrepel::geom_text_repel(
@@ -81,8 +81,17 @@ plot_total_rate <- function(df, title_txt, color_col = NULL, palette = NULL) {
       size = 3.0,
       na.rm = TRUE
     ) +
-    scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
-    scale_color_manual(values = palette) +
+    scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA))
+
+  if (!is.null(color_col)) {
+    if (!is.null(palette)) {
+      p <- p + scale_color_manual(values = palette)
+    } else {
+      p <- p + scale_color_discrete()
+    }
+  }
+
+  p +
     labs(title = title_txt, x = "Academic Year", y = "Suspension Rate", color = NULL) +
     theme_minimal(base_size = 14) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1),
