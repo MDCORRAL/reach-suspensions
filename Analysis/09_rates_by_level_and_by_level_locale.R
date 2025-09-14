@@ -45,7 +45,7 @@ if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 
 # Levels to include
 # canonical grade levels
-LEVELS <- c("Elementary","Middle","High")
+LEVELS <- setdiff(LEVEL_LABELS, c("Other", "Alternative"))
 
 # --- 4) Race labels & allowed codes ------------------------------------------
 # provided via canon_race_label() helper
@@ -56,7 +56,8 @@ base <- v6 %>%
   filter(school_level %in% LEVELS) %>%
   mutate(
     race = canon_race_label(subgroup),
-    year_fct = factor(academic_year, levels = year_levels)
+    year_fct = factor(academic_year, levels = year_levels),
+    school_level = factor(school_level, levels = LEVELS)
   ) %>%
   filter(race %in% ALLOWED_RACES)
 
@@ -74,6 +75,10 @@ df_level <- base %>%
   )
 
 # B) Split by locale -> by LEVEL × LOCALE × RACE × YEAR
+# Locales to render
+loc_levels <- locale_levels
+if (!INCLUDE_UNKNOWN_LOCALE) loc_levels <- head(loc_levels, -1)
+
 df_level_loc <- base %>%
   group_by(school_level, locale_simple, race, academic_year, year_fct) %>%
   summarise(
@@ -83,17 +88,14 @@ df_level_loc <- base %>%
   ) %>%
   mutate(
     rate      = if_else(enroll > 0, susp / enroll, NA_real_),
-    label_txt = percent(rate, accuracy = 0.1)
+    label_txt = percent(rate, accuracy = 0.1),
+    locale_simple = factor(locale_simple, levels = loc_levels)
   )
 
 # Global, consistent race palette across all images
 all_races <- df_level %>% distinct(race) %>% arrange(race) %>% pull(race)
 pal_race  <- setNames(scales::hue_pal()(length(all_races)), all_races)
 if ("All Students" %in% names(pal_race)) pal_race["All Students"] <- "#000000"
-
-# Locales to render
-loc_levels <- locale_levels
-if (!INCLUDE_UNKNOWN_LOCALE) loc_levels <- head(loc_levels, -1)
 
 # --- 6) Plot helpers ----------------------------------------------------------
 plot_one_level <- function(level_name) {

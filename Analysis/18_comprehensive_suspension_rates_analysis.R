@@ -136,7 +136,7 @@ analytic_data <- v6_complete %>%
     black_q = order_quartile(black_q),
     white_q = order_quartile(white_q),
     setting = factor(setting, levels = c("Traditional", "Non-traditional")),
-    grade_level = factor(grade_level, levels = c("Elementary", "Middle", "High", "Other", "Alternative"))
+    grade_level = factor(grade_level, levels = LEVEL_LABELS)
   )
 
 # NOW add the diagnostic code:
@@ -333,7 +333,7 @@ create_grade_level_plot <- function() {
     filter(
       race_ethnicity == "Black/African American",
       setting == "Traditional",
-      grade_level %in% c("Elementary", "Middle", "High", "Other")
+      grade_level %in% setdiff(LEVEL_LABELS, "Alternative")
     ) %>%
     calc_summary_stats(year, grade_level, black_q)
   

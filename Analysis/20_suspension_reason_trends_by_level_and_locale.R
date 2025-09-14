@@ -141,8 +141,10 @@ ggsave(file.path(out_dir, "20_overall_reason_rates.png"), p_overall_reason,
        width = 10, height = 6, dpi = 300)
 
 # --- 4) By grade level -------------------------------------------------------
-grade_levels <- c("Elementary", "Middle", "High")
-by_grade <- v6 %>% filter(school_level %in% grade_levels)
+grade_levels <- setdiff(LEVEL_LABELS, c("Other", "Alternative"))
+by_grade <- v6 %>%
+  filter(school_level %in% grade_levels) %>%
+  mutate(school_level = factor(school_level, levels = grade_levels))
 
 grade_rates <- summarise_reason_rates(by_grade, c("academic_year", "school_level"))
 save_table(grade_rates, "20_grade_reason_rates.csv")
@@ -162,8 +164,10 @@ ggsave(file.path(out_dir, "20_grade_reason_rates.png"), p_grade_reason,
        width = 12, height = 8, dpi = 300)
 
 # --- 5) By locale ------------------------------------------------------------
-loc_levels <- c("City", "Suburban", "Town", "Rural")
-by_locale <- v6 %>% filter(locale_simple %in% loc_levels)
+loc_levels <- setdiff(locale_levels, "Unknown")
+by_locale <- v6 %>%
+  filter(locale_simple %in% loc_levels) %>%
+  mutate(locale_simple = factor(locale_simple, levels = loc_levels))
 
 locale_rates <- summarise_reason_rates(by_locale, c("academic_year", "locale_simple"))
 save_table(locale_rates, "20_locale_reason_rates.csv")

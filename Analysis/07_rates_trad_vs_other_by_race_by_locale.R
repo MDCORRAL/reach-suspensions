@@ -52,8 +52,8 @@ if (!length(year_levels)) stop("No TA rows to establish academic year order.")
 v6 <- v6 %>%
   mutate(
     school_group = dplyr::case_when(
-      school_level %in% c("Elementary","Middle","High") ~ "Traditional",
-      TRUE                                                  ~ "All other"
+      school_level %in% setdiff(LEVEL_LABELS, c("Other", "Alternative")) ~ "Traditional",
+      TRUE                                                               ~ "All other"
     )
   )
 

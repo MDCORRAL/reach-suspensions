@@ -50,6 +50,9 @@ TOP_PCT <- c(0.05, 0.10, 0.20)
 RATE_PCTS <- c(0.90, 0.95)
 RATE_PER <- 100
 
+# canonical grade levels
+GRADE_LEVELS <- setdiff(LEVEL_LABELS, c("Other", "Alternative"))
+
 ## -------------------------------------------------------------------------
 ## Helper Functions
 ## -------------------------------------------------------------------------
@@ -224,7 +227,7 @@ generate_comparison_tables <- function(df, output_dir) {
   # Compare traditional vs non-traditional by grade level
   comparison_by_grade <- df %>%
     filter(!is.na(level), !is.na(setting), 
-           level %in% c("Elementary", "Middle", "High"),
+           level %in% GRADE_LEVELS,
            setting %in% c("Traditional", "Non-traditional")) %>%
     group_by(year_num, level, setting) %>%
     summarise(
