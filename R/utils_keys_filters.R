@@ -85,6 +85,19 @@ pal_reason <- setNames(
 # helper to append readable reason labels
 add_reason_label <- function(df, reason_col = "reason") {
   reason_sym <- rlang::sym(reason_col)
+
+  # identify unexpected reason codes and stop early
+  unmatched <- setdiff(unique(df[[reason_col]]), reason_labels$reason)
+  unmatched <- unmatched[!is.na(unmatched)]
+  if (length(unmatched) > 0) {
+    stop(
+      sprintf(
+        "Unexpected reason codes: %s",
+        paste(unmatched, collapse = ", ")
+      )
+    )
+  }
+
   dplyr::left_join(df, reason_labels, by = setNames("reason", reason_col)) %>%
     dplyr::mutate(
       !!reason_sym := factor(!!reason_sym, levels = reason_labels$reason),
