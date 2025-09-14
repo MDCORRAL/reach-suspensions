@@ -149,7 +149,8 @@ save_table(grade_rates, "20_grade_reason_rates.csv")
 
 p_grade_total <- plot_total_rate(distinct(grade_rates, academic_year, school_level, total_rate),
                                  "Suspension Rate by Grade Level",
-                                 color_col = "school_level")
+                                 color_col = "school_level",
+                                 palette = pal_level[grade_levels])
 
 ggsave(file.path(out_dir, "20_grade_total_rate.png"), p_grade_total,
        width = 10, height = 6, dpi = 300)
