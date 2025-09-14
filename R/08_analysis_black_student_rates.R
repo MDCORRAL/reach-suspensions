@@ -88,7 +88,10 @@ reason_rate_by_black_quartile <- black_students_data %>%
     values_to = "count"
   ) %>%
   add_reason_label() %>%
-  mutate(reason_rate = if_else(enrollment > 0, (count / enrollment), 0))
+  mutate(
+    reason_rate = if_else(enrollment > 0, (count / enrollment), 0),
+    reason_lab  = factor(reason_lab, levels = names(pal_reason))
+  )
 
 # Data for total labels in each facet
 labels_reason_black_q <- reason_rate_by_black_quartile %>%
@@ -169,7 +172,10 @@ reason_rate_by_white_quartile <- black_students_data %>%
     values_to = "count"
   ) %>%
   add_reason_label() %>%
-  mutate(reason_rate = if_else(enrollment > 0, (count / enrollment), 0))
+  mutate(
+    reason_rate = if_else(enrollment > 0, (count / enrollment), 0),
+    reason_lab  = factor(reason_lab, levels = names(pal_reason))
+  )
 
 # Data for total labels in each facet
 labels_reason_white_q <- reason_rate_by_white_quartile %>%
