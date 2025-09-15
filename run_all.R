@@ -2,20 +2,7 @@
 
 message("=== REACH: full pipeline start @ ", format(Sys.time(), usetz = TRUE), " ===")
 
-# Reuse the same helper signature as run_pipeline.R
-run <- function(f) {
-  message("\n=== Running: ", f, " ===")
-  tryCatch(
-    {
-      source(f, chdir = FALSE, local = new.env(parent = globalenv()))
-      message("✓ Finished: ", f)
-    },
-    error = function(e) {
-      message("✗ Error in ", f, "\n", conditionMessage(e))
-      stop(e)
-    }
-  )
-}
+source("R/run_helper.R")
 
 # 1) Core build (00–06, with USE_TA toggle inside run_pipeline.R)
 run("run_pipeline.R")
