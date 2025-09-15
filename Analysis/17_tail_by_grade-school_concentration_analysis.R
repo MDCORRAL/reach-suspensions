@@ -22,8 +22,6 @@ source(here::here("R", "utils_keys_filters.R"))
 
 # Data paths - updated for your repository structure
 DATA_STAGE <- here("data-stage")
-INPUT_PATH <- file.path(DATA_STAGE, "susp_v6_long.parquet")  # Main suspension data
-V6F_PARQ   <- file.path(DATA_STAGE, "susp_v6_features.parquet")  # School features
 
 # Output directory
 RUN_TAG <- format(Sys.time(), "%Y%m%d_%H%M")
@@ -33,7 +31,7 @@ if (!dir.exists(OUT_DIR)) dir.create(OUT_DIR, recursive = TRUE)
 # Updated column mappings for your data structure
 cols <- list(
   school_id   = "school_code",
-  school_name = "school_name", 
+  school_name = "school_name",
   year        = "academic_year",
   setting     = "school_type",                    # Traditional vs Other
   level       = "school_level",             # Grade level classification
@@ -41,6 +39,42 @@ cols <- list(
   total_susp  = "total_suspensions",
   undup_susp  = "unduplicated_count_of_students_suspended_total"
 )
+
+# Required columns for the long-format suspension file
+required_cols <- unique(c(
+  cols$school_id,
+  cols$year,
+  cols$setting,
+  cols$level,
+  cols$enrollment,
+  cols$total_susp,
+  cols$undup_susp,
+  "subgroup"
+))
+
+# Locate the appropriate susp_v*_long.parquet file
+susp_files <- list.files(DATA_STAGE, pattern = "^susp_v[0-9]+_long\\.parquet$", full.names = TRUE)
+INPUT_PATH <- NULL
+for (f in susp_files) {
+  file_cols <- names(read_parquet(f, as_data_frame = FALSE))
+  if (all(required_cols %in% file_cols)) {
+    INPUT_PATH <- f
+    message("Using suspension data: ", basename(f))
+    break
+  } else {
+    message("Skipping ", basename(f), ": missing columns")
+  }
+}
+if (is.null(INPUT_PATH)) {
+  stop("No susp_v*_long.parquet file with all required columns found.")
+}
+
+V6F_PARQ <- file.path(DATA_STAGE, "susp_v6_features.parquet")  # School features
+if (!file.exists(V6F_PARQ)) {
+  stop("Missing susp_v6_features.parquet. Run R/22_build_v6_features.R first.")
+} else {
+  message("Using features: ", basename(V6F_PARQ))
+}
 
 # Choose measure for concentration analysis
 MEASURE <- "total_susp"
@@ -272,7 +306,7 @@ generate_comparison_tables <- function(df, output_dir) {
 ## -------------------------------------------------------------------------
 
 # Check required files exist
-required_files <- c(INPUT_PATH)
+required_files <- c(INPUT_PATH, V6F_PARQ)
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {
   stop("Missing required files: ", paste(missing_files, collapse = ", "))
@@ -286,8 +320,7 @@ dat0 <- read_parquet(INPUT_PATH) %>% clean_names()
 has_school_name <- cols$school_name %in% names(dat0)
 
 # Check for required columns
-req_cols <- unlist(cols[c("school_id", "year", "enrollment", "total_susp", "undup_susp")])
-missing_cols <- setdiff(req_cols, names(dat0))
+missing_cols <- setdiff(required_cols, names(dat0))
 if (length(missing_cols) > 0) {
   stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
 }
@@ -321,47 +354,43 @@ dat <- dat0 %>%
   )
 
 # Add enhanced school features for traditional vs non-traditional classification
-if (file.exists(V6F_PARQ)) {
-  message("Loading and processing school features for traditional/non-traditional classification...")
-  v6_features <- read_parquet(V6F_PARQ) %>% clean_names()
+message("Loading and processing school features for traditional/non-traditional classification...")
+v6_features <- read_parquet(V6F_PARQ) %>% clean_names()
 
-  # Check available columns
-  available_cols <- intersect(c("school_code", "year", "academic_year", "is_traditional", "school_type"), names(v6_features))
-  message("Using feature columns: ", paste(available_cols, collapse = ", "))
+# Check available columns
+available_cols <- intersect(c("school_code", "year", "academic_year", "is_traditional", "school_type"), names(v6_features))
+message("Using feature columns: ", paste(available_cols, collapse = ", "))
 
-  if ("is_traditional" %in% available_cols) {
-    v6_features <- v6_features %>%
-      select(all_of(available_cols))
+if ("is_traditional" %in% available_cols) {
+  v6_features <- v6_features %>%
+    select(all_of(available_cols))
 
-    if ("year" %in% names(v6_features) && !"academic_year" %in% names(v6_features)) {
-      v6_features <- v6_features %>% rename(academic_year = year)
-    }
-
-    v6_features <- v6_features %>%
-      mutate(
-        school_code   = as.character(school_code),
-        academic_year = as.character(academic_year)
-      )
-
-    # Join features and apply simple setting/level classification
-    dat <- dat %>%
-      left_join(
-        v6_features,
-        by = c("school_id" = "school_code", "year" = "academic_year")
-      ) %>%
-      mutate(
-        setting = case_when(
-          !is.na(is_traditional) & is_traditional ~ "Traditional",
-          !is.na(is_traditional) & !is_traditional ~ "Non-traditional",
-          TRUE ~ setting
-        ),
-        level = if ("school_type" %in% names(.)) map_grade_level(coalesce(school_type, level)) else level
-      )
-  } else {
-    message("is_traditional column not found in features. Keeping existing setting.")
+  if ("year" %in% names(v6_features) && !"academic_year" %in% names(v6_features)) {
+    v6_features <- v6_features %>% rename(academic_year = year)
   }
+
+  v6_features <- v6_features %>%
+    mutate(
+      school_code   = as.character(school_code),
+      academic_year = as.character(academic_year)
+    )
+
+  # Join features and apply simple setting/level classification
+  dat <- dat %>%
+    left_join(
+      v6_features,
+      by = c("school_id" = "school_code", "year" = "academic_year")
+    ) %>%
+    mutate(
+      setting = case_when(
+        !is.na(is_traditional) & is_traditional ~ "Traditional",
+        !is.na(is_traditional) & !is_traditional ~ "Non-traditional",
+        TRUE ~ setting
+      ),
+      level = if ("school_type" %in% names(.)) map_grade_level(coalesce(school_type, level)) else level
+    )
 } else {
-  message("School features file not found. Keeping existing setting.")
+  message("is_traditional column not found in features. Keeping existing setting.")
 }
 
 message("Final dataset: ", nrow(dat), " school-year records")
