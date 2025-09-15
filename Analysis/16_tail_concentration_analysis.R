@@ -31,8 +31,93 @@ source(here::here("R", "utils_keys_filters.R"))
 
 # Data paths - updated for your repository structure
 DATA_STAGE <- here("data-stage")
-INPUT_PATH <- file.path(DATA_STAGE, "susp_v6_long.parquet")  # Main suspension data
-V6F_PARQ   <- file.path(DATA_STAGE, "susp_v6_features.parquet")  # School features
+
+# Required columns for the core suspension dataset
+req_cols <- c(
+  "school_code", "academic_year", "cumulative_enrollment",
+  "total_suspensions", "unduplicated_count_of_students_suspended_total",
+  "subgroup"
+)
+
+# Identify the first susp_v*_long.parquet file that contains the required columns
+susp_files <- list.files(
+  DATA_STAGE,
+  pattern = "^susp_v[0-9]+_long\\.parquet$",
+  full.names = TRUE
+)
+
+if (length(susp_files) == 0) {
+  stop("No susp_v*_long.parquet files found in data-stage/.")
+}
+
+INPUT_PATH <- NULL
+for (f in susp_files) {
+  cols_available <- names(read_parquet(f, as_data_frame = FALSE))
+  if (all(req_cols %in% cols_available)) {
+    INPUT_PATH <- f
+    message("Using suspension data: ", basename(f))
+    break
+  } else {
+    message("Skipping ", basename(f), ": missing columns")
+  }
+}
+if (is.null(INPUT_PATH)) {
+  stop("No susp_v*_long.parquet file with all required columns found in data-stage/.")
+}
+
+input_version <- stringr::str_match(basename(INPUT_PATH), "^susp_(v[0-9]+)_long\\.parquet$")[, 2]
+
+feature_files <- list.files(
+  DATA_STAGE,
+  pattern = "^susp_v[0-9]+_features\\.parquet$",
+  full.names = TRUE
+)
+
+if (length(feature_files) == 0) {
+  stop("No susp_v*_features.parquet files found in data-stage/. Run R/22_build_v6_features.R (or the latest features builder) first.")
+}
+
+feature_req_cols <- c("school_code", "is_traditional")
+preferred_feature <- if (!is.na(input_version)) paste0("susp_", input_version, "_features.parquet") else NA_character_
+
+feature_versions <- stringr::str_match(basename(feature_files), "^susp_v([0-9]+)_features\\.parquet$")[, 2]
+feature_versions_num <- suppressWarnings(as.integer(feature_versions))
+feature_order <- order(feature_versions_num, decreasing = TRUE, na.last = TRUE)
+feature_candidates <- feature_files[feature_order]
+
+if (!is.na(preferred_feature)) {
+  preferred_path <- file.path(DATA_STAGE, preferred_feature)
+  if (file.exists(preferred_path)) {
+    feature_candidates <- c(preferred_path, setdiff(feature_candidates, preferred_path))
+  }
+}
+
+FEATURE_PATH <- NULL
+for (f in feature_candidates) {
+  cols_available <- names(read_parquet(f, as_data_frame = FALSE))
+  missing_feature_cols <- setdiff(feature_req_cols, cols_available)
+  has_year_info <- any(c("year", "academic_year") %in% cols_available)
+  if (length(missing_feature_cols) > 0 || !has_year_info) {
+    missing_msg <- c(missing_feature_cols, if (!has_year_info) "year/academic_year")
+    message(
+      "Skipping ", basename(f), ": missing columns ",
+      paste(unique(missing_msg), collapse = ", ")
+    )
+    next
+  }
+  FEATURE_PATH <- f
+  break
+}
+
+if (is.null(FEATURE_PATH)) {
+  stop("No susp_v*_features.parquet file with the required columns found in data-stage/.")
+}
+
+if (!is.na(preferred_feature) && basename(FEATURE_PATH) != preferred_feature) {
+  message("Using features (fallback): ", basename(FEATURE_PATH))
+} else {
+  message("Using features: ", basename(FEATURE_PATH))
+}
 
 # Output directory
 RUN_TAG <- format(Sys.time(), "%Y%m%d_%H%M")
@@ -149,7 +234,7 @@ group_apply <- function(df, group_vars, fn) {
 ## -------------------------------------------------------------------------
 
 # Check required files exist
-required_files <- c(INPUT_PATH)
+required_files <- c(INPUT_PATH, FEATURE_PATH)
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {
   stop("Missing required files: ", paste(missing_files, collapse = ", "))
@@ -160,8 +245,8 @@ message("Loading suspension data from: ", INPUT_PATH)
 dat0 <- read_parquet(INPUT_PATH) %>% clean_names()
 
 # Check for required columns
-req_cols <- unlist(cols[c("school_id", "year", "enrollment", "total_susp", "undup_susp")])
-missing_cols <- setdiff(req_cols, names(dat0))
+req_cols_data <- unlist(cols[c("school_id", "year", "enrollment", "total_susp", "undup_susp")])
+missing_cols <- setdiff(req_cols_data, names(dat0))
 if (length(missing_cols) > 0) {
   stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
 }
@@ -194,48 +279,39 @@ dat <- dat0 %>%
     measure >= 0
   )
 
-# Add school features if available (traditional vs non-traditional)
-if (file.exists(V6F_PARQ)) {
-  message("Loading school features...")
-  v6_features <- read_parquet(V6F_PARQ) %>% clean_names()
+# Add school features (traditional vs non-traditional)
+message("Loading school features...")
+school_features <- read_parquet(FEATURE_PATH) %>% clean_names()
 
-  # Ensure a common 'year' column exists
-  if (!"year" %in% names(v6_features) && "academic_year" %in% names(v6_features)) {
-    v6_features <- v6_features %>% mutate(year = as.character(academic_year))
-  }
-
-  # Check what columns actually exist
-  message("Available columns in v6_features: ", paste(names(v6_features), collapse = ", "))
-
-  # Select only columns that exist
-  available_cols <- intersect(c("school_code", "year", "is_traditional", "school_type"), names(v6_features))
-
-  v6_features <- v6_features %>%
-    select(all_of(available_cols)) %>%
-    mutate(
-      school_code = as.character(school_code),
-      year = as.character(year)
-    )
-
-  # Join features
-  dat <- dat %>%
-    left_join(
-      v6_features,
-      by = c("school_id" = "school_code", "year")
-    ) %>%
-    mutate(
-      setting = ifelse(is.na(is_traditional) | !is_traditional, 
-                       "Non-traditional", "Traditional"),
-      level = if("school_type" %in% names(.)) coalesce(school_type, "Other") else "Other"
-    )
-} else {
-  # Default values if no features available
-  dat <- dat %>%
-    mutate(
-      setting = "Unknown",
-      level = "Unknown"
-    )
+# Ensure a common 'year' column exists
+if (!"year" %in% names(school_features) && "academic_year" %in% names(school_features)) {
+  school_features <- school_features %>% mutate(year = as.character(academic_year))
 }
+
+# Check what columns actually exist
+message("Available columns in school features: ", paste(names(school_features), collapse = ", "))
+
+# Select only columns that exist
+available_cols <- intersect(c("school_code", "year", "is_traditional", "school_type"), names(school_features))
+
+school_features <- school_features %>%
+  select(all_of(available_cols)) %>%
+  mutate(
+    school_code = as.character(school_code),
+    year = as.character(year)
+  )
+
+# Join features
+dat <- dat %>%
+  left_join(
+    school_features,
+    by = c("school_id" = "school_code", "year")
+  ) %>%
+  mutate(
+    setting = ifelse(is.na(is_traditional) | !is_traditional,
+                     "Non-traditional", "Traditional"),
+    level = if("school_type" %in% names(.)) coalesce(school_type, "Other") else "Other"
+  )
 
 message("Final dataset: ", nrow(dat), " school-year records")
 message("Years covered: ", paste(sort(unique(dat$year_num)), collapse = ", "))
