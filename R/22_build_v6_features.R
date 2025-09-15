@@ -91,7 +91,7 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   
   # Roster (carry through name fields when available)
   name_cols <- intersect(names(v5), c("county_name","district_name","school_name"))
-  roster <- v5 |> distinct(school_code, academic_year, !!!rlang::syms(name_cols))
+  roster <- v5 |> distinct(cds_school, school_code, academic_year, !!!rlang::syms(name_cols))
   
   # v5: one row per school-year (All Students)
   v5_core <- if ("reporting_category" %in% names(v5)) {
@@ -117,13 +117,18 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
                                   levels = c("Q1","Q2","Q3","Q4","Unknown"),
                                   ordered = TRUE)
     ) %>%
-    transmute(
-      school_code, academic_year,
+    select(
+      school_code,
+      academic_year,
+      dplyr::any_of("cds_school"),
       black_share = prop_black,
       black_prop_q,
       black_prop_q_label,
       school_type
     )
+
+  v5_feats <- v5_feats %>%
+    rename_with(~"cds_school_v5", .cols = dplyr::any_of("cds_school"))
   
   # OTH → long metrics (category, subgroup)
   oth_long <- oth %>%
@@ -271,7 +276,15 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   
   # Assemble (one row per school-year)
   v6 <- roster %>%
-    left_join(v5_feats,   by = c("school_code","academic_year")) %>%
+    left_join(v5_feats, by = c("school_code","academic_year"))
+
+  if ("cds_school_v5" %in% names(v6)) {
+    v6 <- v6 %>%
+      mutate(cds_school = coalesce(cds_school, cds_school_v5)) %>%
+      select(-cds_school_v5)
+  }
+
+  v6 <- v6 %>%
     left_join(sped_wide,  by = c("school_code","academic_year")) %>%
     left_join(ell_wide,   by = c("school_code","academic_year")) %>%
     left_join(migrant_wide,  by = c("school_code","academic_year")) %>%
@@ -302,7 +315,10 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
   # --- End of Corrected Block 1 ---
   
   # Ensure one row per campus-year
-# Verify uniqueness of campus-year keys
+  if (!"cds_school" %in% names(v6)) {
+    stop("cds_school is required before asserting unique campus-year keys.")
+  }
+  # Verify uniqueness of campus-year keys
   v6 <- assert_unique_campus(v6, year_col = "academic_year")
 
   # Range checks
