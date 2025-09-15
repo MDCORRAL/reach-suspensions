@@ -12,19 +12,7 @@ on.exit(options(pipeline_running = FALSE), add = TRUE)
 USE_TA <- TRUE   # TRUE = R/03_feature_size_quartiles_TA.R, FALSE = R/03_feature_size_quartiles.R
 
 # --- helper: source with progress + basic error handling --------------------
-run <- function(f) {
-  message("\n=== Running: ", f, " ===")
-  tryCatch(
-    {
-      source(f, chdir = FALSE, local = new.env(parent = globalenv()))
-      message("✓ Finished: ", f)
-    },
-    error = function(e) {
-      message("✗ Error in ", f, "\n", conditionMessage(e))
-      stop(e)
-    }
-  )
-}
+source("R/run_helper.R")
 
 # --- assemble the script list (no archived [levels] variant) ----------------
 scripts <- c(
