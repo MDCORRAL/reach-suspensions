@@ -27,7 +27,7 @@ calc_top_share <- function(df, label, top_frac = 0.10) {
       if (n_schools == 0) {
         return(tibble::tibble())
       }
-      top_n <- max(1, floor(top_frac * n_schools))
+      top_n <- max(1, ceiling(top_frac * n_schools))
       total_sum <- sum(school_totals$total_susp, na.rm = TRUE)
       top_sum <- sum(school_totals$total_susp[seq_len(top_n)], na.rm = TRUE)
       tibble::tibble(
