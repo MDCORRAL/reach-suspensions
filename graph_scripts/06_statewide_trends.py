@@ -228,18 +228,57 @@ def annotate_points(
         points = df[df["year_index"] == max_index]
 
     annotations: List[Annotation] = []
+    y_min, y_max = ax.get_ylim()
+    base_offset = abs(offset)
+    epsilon = max(base_offset * 0.1, 1e-6)
+
     for _, row in points.iterrows():
         label = f"{row['rate'] * 100:.1f}%"
+        idx = row["year_index"]
+        y_val = row["rate"]
+
+        prev_points = df[df["year_index"] < idx]
+        next_points = df[df["year_index"] > idx]
+        slope_indicator = 0.0
+        if not prev_points.empty:
+            slope_indicator += y_val - prev_points.iloc[-1]["rate"]
+        if not next_points.empty:
+            slope_indicator += next_points.iloc[0]["rate"] - y_val
+
+        space_above = max(y_max - y_val, 0.0)
+        space_below = max(y_val - y_min, 0.0)
+
+        if slope_indicator < -1e-9:
+            direction = -1.0
+        elif slope_indicator > 1e-9:
+            direction = 1.0
+        else:
+            direction = 1.0 if space_above >= space_below else -1.0
+
+        available_space = space_above if direction > 0 else space_below
+        opposite_space = space_below if direction > 0 else space_above
+        if available_space <= epsilon and opposite_space > available_space:
+            direction *= -1.0
+            available_space = opposite_space
+
+        offset_magnitude = base_offset
+        if available_space > 0:
+            offset_magnitude = min(base_offset, max(available_space * 0.8, epsilon))
+
+        target_y = y_val + direction * offset_magnitude
+        target_y = min(max(target_y, y_min + epsilon), y_max - epsilon)
+        va = "bottom" if direction >= 0 else "top"
+
         annotation = ax.annotate(
             label,
-            xy=(row["year_index"], row["rate"]),
+            xy=(idx, y_val),
             xycoords="data",
-            xytext=(row["year_index"], row["rate"] + offset),
+            xytext=(idx, target_y),
             textcoords="data",
             color=color,
             fontsize=8,
             ha="center",
-            va="bottom",
+            va=va,
             fontweight="bold",
             bbox={
                 "boxstyle": "round,pad=0.18",
@@ -251,7 +290,7 @@ def annotate_points(
         )
         annotation.set_clip_on(False)
         annotation.set_zorder(5)
-        setattr(annotation, "_initial_xytext", (row["year_index"], row["rate"] + offset))
+        setattr(annotation, "_initial_xytext", (idx, target_y))
         setattr(annotation, "_annotation_color", color)
         annotations.append(annotation)
 
@@ -269,10 +308,11 @@ def resolve_label_overlaps(ax: plt.Axes, annotations: Sequence[Annotation]) -> N
         annotations,
         ax=ax,
         only_move={"points": "y", "text": "xy"},
-        expand_points=(1.0, 1.05),
+        expand_points=(1.2, 1.35),
         expand_text=(1.02, 1.1),
         force_points=(0.05, 0.2),
-        force_text=(0.1, 0.3),
+        force_text=(0.3, 0.6),
+        add_objects=ax.lines,
         autoalign="y",
         lim=200,
     )
@@ -315,7 +355,7 @@ def finalize_figure(
     handles: Sequence,
     labels: Sequence[str],
     legend_cols: int = 4,
-    legend_y: float = 0.86,
+    legend_y: float = 0.91,
 ) -> None:
     fig.patch.set_facecolor("white")
     if handles:
@@ -333,7 +373,7 @@ def finalize_figure(
     fig.text(0.07, 0.965, title, fontsize=20, fontweight="bold", ha="left")
     fig.text(0.07, 0.933, subtitle, fontsize=13, ha="left")
     fig.text(0.07, 0.05, caption, fontsize=10, color="#4A4A4A", ha="left")
-    fig.subplots_adjust(left=0.07, right=0.98, top=0.82, bottom=0.18, wspace=0.28, hspace=0.36)
+    fig.subplots_adjust(left=0.07, right=0.98, top=0.80, bottom=0.18, wspace=0.28, hspace=0.36)
 
 
 def format_percent(value: float, accuracy: float = 0.1) -> str:
@@ -363,7 +403,7 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
             continue
         subset = subset.sort_values(["subgroup", "year_index"])
         apply_reach_style(ax, year_order, y_limit)
-        ax.set_title(f"{level} Schools", loc="left", fontsize=14, fontweight="bold", pad=16)
+        ax.set_title(f"{level} Schools", loc="left", fontsize=14, fontweight="bold", pad=4)
         axis_annotations: List[Annotation] = []
         for race in RACE_LEVELS:
             race_df = subset[subset["subgroup"] == race]
@@ -405,7 +445,7 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         handles=list(legend_handles.values()),
         labels=list(legend_handles.keys()),
         legend_cols=4,
-        legend_y=0.87,
+        legend_y=0.91,
     )
 
     out_path = OUTPUT_DIR / "statewide_race_trends_by_level.png"
@@ -431,7 +471,7 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
 
     for idx, (locale, ax) in enumerate(zip(LOCALE_ORDER, axes_flat)):
         subset = data[data["locale_simple"] == locale]
-        ax.set_title(f"{locale} Schools", loc="left", fontsize=14, fontweight="bold", pad=16)
+        ax.set_title(f"{locale} Schools", loc="left", fontsize=14, fontweight="bold", pad=4)
         if subset.empty:
             ax.axis("off")
             continue
@@ -479,7 +519,7 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         handles=list(legend_handles.values()),
         labels=list(legend_handles.keys()),
         legend_cols=4,
-        legend_y=0.88,
+        legend_y=0.91,
     )
 
     out_path = OUTPUT_DIR / "statewide_race_trends_by_locale.png"
@@ -521,7 +561,7 @@ def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
             continue
         subset = subset.sort_values(["subgroup", "year_index"])
         apply_reach_style(ax, year_order, y_limit)
-        ax.set_title(label, loc="left", fontsize=14, fontweight="bold", pad=16)
+        ax.set_title(label, loc="left", fontsize=14, fontweight="bold", pad=4)
         axis_annotations: List[Annotation] = []
         for race in RACE_LEVELS:
             race_df = subset[subset["subgroup"] == race]
@@ -561,7 +601,7 @@ def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         handles=list(legend_handles.values()),
         labels=list(legend_handles.keys()),
         legend_cols=4,
-        legend_y=0.87,
+        legend_y=0.91,
     )
 
     out_path = OUTPUT_DIR / "statewide_race_trends_quartile_comparison.png"
