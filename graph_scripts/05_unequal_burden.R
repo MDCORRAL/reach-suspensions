@@ -75,6 +75,7 @@ plot_concentration <- ggplot(series,
                              aes(x = academic_year, y = top_share, color = setting, group = setting)) +
   geom_line(linewidth = 1.05) +
   geom_point(size = 2.6) +
+
   geom_text_repel(data = label_data,
                   aes(label = label),
                   size = 3,
@@ -102,8 +103,10 @@ ggsave(out_path, plot_concentration, width = 11.5, height = 7, dpi = 320)
 fmt_percent <- function(x) if (!is.na(x)) scales::percent(x, accuracy = 0.1) else "N/A"
 
 first_year <- if (length(year_levels) > 0) year_levels[1] else NA_character_
+
 latest_all <- series %>% dplyr::filter(setting == "All Traditional Schools", as.character(academic_year) == latest_year)
 latest_elem <- series %>% dplyr::filter(setting == "Elementary Traditional Schools", as.character(academic_year) == latest_year)
+
 first_all <- series %>% dplyr::filter(setting == "All Traditional Schools", as.character(academic_year) == first_year)
 first_elem <- series %>% dplyr::filter(setting == "Elementary Traditional Schools", as.character(academic_year) == first_year)
 

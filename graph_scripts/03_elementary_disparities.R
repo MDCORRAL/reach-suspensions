@@ -55,6 +55,7 @@ plot_elem <- ggplot(elem_rates,
                     aes(x = academic_year, y = rate, color = subgroup, group = subgroup)) +
   geom_line(linewidth = 1.05) +
   geom_point(size = 2.6) +
+
   geom_text_repel(data = label_data,
                   aes(label = label),
                   size = 3,
