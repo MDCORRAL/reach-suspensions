@@ -685,9 +685,9 @@ def main() -> None:
     write_description(describe_locales(locale_data, locale_years), "statewide_race_trends_by_locale.txt")
     write_description(describe_quartiles(quartile_data, quartile_years), "statewide_race_trends_quartile_comparison.txt")
 
-    print("Saved statewide_race_trends_by_level.png")
-    print("Saved statewide_race_trends_by_locale.png")
-    print("Saved statewide_race_trends_quartile_comparison.png")
+    print("Saved Py06_statewide_race_trends_by_level.png")
+    print("Saved Py06_statewide_race_trends_by_locale.png")
+    print("Saved Py06_statewide_race_trends_quartile_comparison.png")
 
 
 if __name__ == "__main__":
