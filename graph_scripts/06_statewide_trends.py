@@ -361,7 +361,7 @@ def finalize_figure(
     handles: Sequence,
     labels: Sequence[str],
     legend_cols: int = 4,
-    legend_y: float = 0.86,
+    legend_y: float = 0.91,
 ) -> None:
     fig.patch.set_facecolor("white")
     if handles:
@@ -379,7 +379,7 @@ def finalize_figure(
     fig.text(0.07, 0.965, title, fontsize=20, fontweight="bold", ha="left")
     fig.text(0.07, 0.933, subtitle, fontsize=13, ha="left")
     fig.text(0.07, 0.05, caption, fontsize=10, color="#4A4A4A", ha="left")
-    fig.subplots_adjust(left=0.07, right=0.98, top=0.82, bottom=0.18, wspace=0.28, hspace=0.36)
+    fig.subplots_adjust(left=0.07, right=0.98, top=0.80, bottom=0.18, wspace=0.28, hspace=0.36)
 
 
 def format_percent(value: float, accuracy: float = 0.1) -> str:
@@ -409,7 +409,7 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
             continue
         subset = subset.sort_values(["subgroup", "year_index"])
         apply_reach_style(ax, year_order, y_limit)
-        ax.set_title(f"{level} Schools", loc="left", fontsize=14, fontweight="bold", pad=16)
+        ax.set_title(f"{level} Schools", loc="left", fontsize=14, fontweight="bold", pad=4)
         axis_annotations: List[Annotation] = []
         for race in RACE_LEVELS:
             race_df = subset[subset["subgroup"] == race]
@@ -457,7 +457,7 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         handles=list(legend_handles.values()),
         labels=list(legend_handles.keys()),
         legend_cols=4,
-        legend_y=0.87,
+        legend_y=0.91,
     )
 
     out_path = OUTPUT_DIR / "statewide_race_trends_by_level.png"
@@ -483,7 +483,7 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
 
     for idx, (locale, ax) in enumerate(zip(LOCALE_ORDER, axes_flat)):
         subset = data[data["locale_simple"] == locale]
-        ax.set_title(f"{locale} Schools", loc="left", fontsize=14, fontweight="bold", pad=16)
+        ax.set_title(f"{locale} Schools", loc="left", fontsize=14, fontweight="bold", pad=4)
         if subset.empty:
             ax.axis("off")
             continue
@@ -537,7 +537,7 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         handles=list(legend_handles.values()),
         labels=list(legend_handles.keys()),
         legend_cols=4,
-        legend_y=0.88,
+        legend_y=0.91,
     )
 
     out_path = OUTPUT_DIR / "statewide_race_trends_by_locale.png"
@@ -579,7 +579,7 @@ def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
             continue
         subset = subset.sort_values(["subgroup", "year_index"])
         apply_reach_style(ax, year_order, y_limit)
-        ax.set_title(label, loc="left", fontsize=14, fontweight="bold", pad=16)
+        ax.set_title(label, loc="left", fontsize=14, fontweight="bold", pad=4)
         axis_annotations: List[Annotation] = []
         for race in RACE_LEVELS:
             race_df = subset[subset["subgroup"] == race]
@@ -625,7 +625,7 @@ def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         handles=list(legend_handles.values()),
         labels=list(legend_handles.keys()),
         legend_cols=4,
-        legend_y=0.87,
+        legend_y=0.91,
     )
 
     out_path = OUTPUT_DIR / "statewide_race_trends_quartile_comparison.png"
