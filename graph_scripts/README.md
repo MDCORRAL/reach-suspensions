@@ -14,7 +14,7 @@ The scripts rely on these Python packages:
 Install them into your active environment with pip:
 
 ```bash
-python -m pip install matplotlib numpy pandas pyarrow
+python -m pip install matplotlib numpy pandas pyarrow adjustText
 ```
 
 ## Data dependencies
