@@ -7,6 +7,7 @@ suppressPackageStartupMessages({
   library(glue)
   library(here)
   library(scales)
+  library(ggrepel)
 })
 
 source(here::here("graph_scripts", "graph_utils.R"))
@@ -66,23 +67,23 @@ series <- series %>%
   ) %>%
   dplyr::filter(!is.na(top_share))
 
-latest_year <- latest_year_available(series$academic_year)
 label_data <- series %>%
-  dplyr::filter(as.character(academic_year) == latest_year) %>%
   dplyr::mutate(label = scales::percent(top_share, accuracy = 0.1))
+latest_year <- latest_year_available(series$academic_year)
 
 plot_concentration <- ggplot(series,
                              aes(x = academic_year, y = top_share, color = setting, group = setting)) +
   geom_line(linewidth = 1.05) +
   geom_point(size = 2.6) +
-  geom_text(data = label_data,
-            aes(label = label),
-            position = position_nudge(x = 0.18),
-            hjust = 0,
-            size = 3,
-            show.legend = FALSE) +
+
+  geom_text_repel(data = label_data,
+                  aes(label = label),
+                  size = 3,
+                  show.legend = FALSE,
+                  max.overlaps = Inf,
+                  seed = 123) +
   scale_color_manual(values = setting_palette, name = NULL) +
-  scale_x_discrete(expand = expansion(mult = c(0.02, 0.22))) +
+  scale_x_discrete(expand = expansion(mult = c(0.05, 0.05))) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 0.1),
                      expand = expansion(mult = c(0, 0.08))) +
   coord_cartesian(clip = "off") +
@@ -102,8 +103,10 @@ ggsave(out_path, plot_concentration, width = 11.5, height = 7, dpi = 320)
 fmt_percent <- function(x) if (!is.na(x)) scales::percent(x, accuracy = 0.1) else "N/A"
 
 first_year <- if (length(year_levels) > 0) year_levels[1] else NA_character_
-latest_all <- label_data %>% dplyr::filter(setting == "All Traditional Schools")
-latest_elem <- label_data %>% dplyr::filter(setting == "Elementary Traditional Schools")
+
+latest_all <- series %>% dplyr::filter(setting == "All Traditional Schools", as.character(academic_year) == latest_year)
+latest_elem <- series %>% dplyr::filter(setting == "Elementary Traditional Schools", as.character(academic_year) == latest_year)
+
 first_all <- series %>% dplyr::filter(setting == "All Traditional Schools", as.character(academic_year) == first_year)
 first_elem <- series %>% dplyr::filter(setting == "Elementary Traditional Schools", as.character(academic_year) == first_year)
 

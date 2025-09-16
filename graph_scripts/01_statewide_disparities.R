@@ -7,6 +7,8 @@ suppressPackageStartupMessages({
   library(glue)
   library(here)
   library(scales)
+  library(ggrepel)
+
 })
 
 source(here::here("graph_scripts", "graph_utils.R"))
@@ -43,25 +45,24 @@ statewide_rates <- statewide_base %>%
     subgroup = factorize_race(subgroup)
   )
 
-latest_year <- latest_year_available(statewide_rates$academic_year)
-
 label_data <- statewide_rates %>%
-  dplyr::filter(as.character(academic_year) == latest_year) %>%
   dplyr::mutate(label = scales::percent(rate, accuracy = 0.1))
+latest_year <- latest_year_available(statewide_rates$academic_year)
 
 plot_statewide <- ggplot(statewide_rates,
                          aes(x = academic_year, y = rate,
                              color = subgroup, group = subgroup)) +
   geom_line(linewidth = 1.1) +
   geom_point(size = 2.7) +
-  geom_text(data = label_data,
-            aes(label = label),
-            position = position_nudge(x = 0.18),
-            hjust = 0,
-            size = 3,
-            show.legend = FALSE) +
+
+  geom_text_repel(data = label_data,
+                  aes(label = label),
+                  size = 3,
+                  show.legend = FALSE,
+                  max.overlaps = Inf,
+                  seed = 123) +
   scale_color_manual(values = race_palette, guide = guide_legend(nrow = 2)) +
-  scale_x_discrete(expand = expansion(mult = c(0.01, 0.25))) +
+  scale_x_discrete(expand = expansion(mult = c(0.02, 0.02))) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 0.1),
                      expand = expansion(mult = c(0, 0.1))) +
   coord_cartesian(clip = "off") +
@@ -79,7 +80,9 @@ out_path <- file.path(OUTPUT_DIR, "statewide_race_trends.png")
 
 ggsave(out_path, plot_statewide, width = 12, height = 7, dpi = 320)
 
-latest_summary <- label_data %>% dplyr::select(subgroup, rate)
+latest_summary <- statewide_rates %>%
+  dplyr::filter(as.character(academic_year) == latest_year) %>%
+  dplyr::select(subgroup, rate)
 black_rate <- extract_rate(latest_summary, "Black/African American")
 white_rate <- extract_rate(latest_summary, "White")
 hisp_rate  <- extract_rate(latest_summary, "Hispanic/Latino")
