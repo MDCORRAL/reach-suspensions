@@ -7,11 +7,44 @@ import math
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
 
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import pyarrow.parquet as pq
-from matplotlib.ticker import FuncFormatter
+import sys
+
+try:
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import FuncFormatter
+except ImportError:
+    print(
+        "Required package 'matplotlib' is not installed. Install it with `pip install matplotlib`.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+try:
+    import numpy as np
+except ImportError:
+    print(
+        "Required package 'numpy' is not installed. Install it with `pip install numpy`.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+try:
+    import pandas as pd
+except ImportError:
+    print(
+        "Required package 'pandas' is not installed. Install it with `pip install pandas`.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+try:
+    import pyarrow.parquet as pq
+except ImportError:
+    print(
+        "Required package 'pyarrow' is not installed. Install it with `pip install pyarrow`.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DATA_STAGE = ROOT_DIR / "data-stage"
