@@ -12,9 +12,19 @@ import sys
 try:
     import matplotlib.pyplot as plt
     from matplotlib.ticker import FuncFormatter
+    from matplotlib.text import Annotation
 except ImportError:
     print(
         "Required package 'matplotlib' is not installed. Install it with `pip install matplotlib`.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+try:
+    from adjustText import adjust_text
+except ImportError:
+    print(
+        "Required package 'adjustText' is not installed. Install it with `pip install adjustText`.",
         file=sys.stderr,
     )
     sys.exit(1)
@@ -209,7 +219,7 @@ def annotate_points(
     color: str,
     offset: float,
     label_last_only: bool = True,
-) -> None:
+) -> List[Annotation]:
     """Label data points while trying to reduce clutter on busy lines."""
 
     points = df
@@ -217,25 +227,85 @@ def annotate_points(
         max_index = df["year_index"].max()
         points = df[df["year_index"] == max_index]
 
+    annotations: List[Annotation] = []
     for _, row in points.iterrows():
         label = f"{row['rate'] * 100:.1f}%"
-        ax.text(
-            row["year_index"],
-            row["rate"] + offset,
+        annotation = ax.annotate(
             label,
+            xy=(row["year_index"], row["rate"]),
+            xycoords="data",
+            xytext=(row["year_index"], row["rate"] + offset),
+            textcoords="data",
             color=color,
             fontsize=8,
             ha="center",
             va="bottom",
             fontweight="bold",
-            clip_on=False,
             bbox={
                 "boxstyle": "round,pad=0.18",
                 "facecolor": "white",
                 "edgecolor": "none",
                 "alpha": 0.85,
             },
+            annotation_clip=False,
         )
+        annotation.set_clip_on(False)
+        annotation.set_zorder(5)
+        setattr(annotation, "_initial_xytext", (row["year_index"], row["rate"] + offset))
+        setattr(annotation, "_annotation_color", color)
+        annotations.append(annotation)
+
+    return annotations
+
+def resolve_label_overlaps(ax: plt.Axes, annotations: Sequence[Annotation]) -> None:
+    """Nudge annotation labels to avoid overlap and add leader lines when moved."""
+
+    if not annotations:
+        return
+
+    initial_positions = [getattr(annotation, "_initial_xytext", annotation.get_position()) for annotation in annotations]
+
+    adjust_text(
+        annotations,
+        ax=ax,
+        only_move={"points": "y", "text": "xy"},
+        expand_points=(1.0, 1.05),
+        expand_text=(1.02, 1.1),
+        force_points=(0.05, 0.2),
+        force_text=(0.1, 0.3),
+        autoalign="y",
+        lim=200,
+    )
+
+    for annotation in annotations:
+        annotation.set_visible(True)
+
+    for annotation, initial in zip(annotations, initial_positions):
+        final_pos = annotation.get_position()
+        if not isinstance(final_pos, tuple):
+            final_pos = tuple(final_pos)
+
+        if (
+            abs(final_pos[0] - initial[0]) > 1e-6
+            or abs(final_pos[1] - initial[1]) > 1e-6
+        ):
+            arrow = ax.annotate(
+                "",
+                xy=annotation.xy,
+                xycoords="data",
+                xytext=final_pos,
+                textcoords="data",
+                arrowprops={
+                    "arrowstyle": "-",
+                    "color": getattr(annotation, "_annotation_color", "#555555"),
+                    "linewidth": 0.7,
+                    "alpha": 0.75,
+                },
+                annotation_clip=False,
+            )
+            if arrow.arrow_patch is not None:
+                arrow.arrow_patch.set_zorder(4)
+
 
 def finalize_figure(
     fig: plt.Figure,
@@ -283,7 +353,7 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     y_limit = y_max + max(0.01, y_max * 0.18)
     offset = max(0.0015, y_limit * 0.015)
 
-    fig, axes = plt.subplots(1, len(LEVEL_ORDER), figsize=(22, 7.5), sharey=True)
+    fig, axes = plt.subplots(1, len(LEVEL_ORDER), figsize=(22, 9), sharey=True)
     legend_handles: Dict[str, plt.Line2D] = {}
 
     for idx, (level, ax) in enumerate(zip(LEVEL_ORDER, np.atleast_1d(axes))):
@@ -294,6 +364,7 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         subset = subset.sort_values(["subgroup", "year_index"])
         apply_reach_style(ax, year_order, y_limit)
         ax.set_title(f"{level} Schools", loc="left", fontsize=14, fontweight="bold", pad=16)
+        axis_annotations: List[Annotation] = []
         for race in RACE_LEVELS:
             race_df = subset[subset["subgroup"] == race]
             if race_df.empty:
@@ -308,9 +379,12 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
                 markeredgecolor="white",
                 markeredgewidth=0.6,
             )
-            annotate_points(ax, race_df, RACE_PALETTE[race], offset)
+            axis_annotations.extend(
+                annotate_points(ax, race_df, RACE_PALETTE[race], offset)
+            )
             if race not in legend_handles:
                 legend_handles[race] = line
+        resolve_label_overlaps(ax, axis_annotations)
         if idx > 0:
             ax.set_ylabel("")
         else:
@@ -351,7 +425,7 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     y_limit = y_max + max(0.01, y_max * 0.18)
     offset = max(0.0015, y_limit * 0.015)
 
-    fig, axes = plt.subplots(2, 2, figsize=(22, 12), sharex=False, sharey=True)
+    fig, axes = plt.subplots(2, 2, figsize=(22, 14), sharex=False, sharey=True)
     axes_flat = axes.flatten()
     legend_handles: Dict[str, plt.Line2D] = {}
 
@@ -363,6 +437,7 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
             continue
         subset = subset.sort_values(["subgroup", "year_index"])
         apply_reach_style(ax, year_order, y_limit)
+        axis_annotations: List[Annotation] = []
         for race in RACE_LEVELS:
             race_df = subset[subset["subgroup"] == race]
             if race_df.empty:
@@ -377,9 +452,12 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
                 markeredgecolor="white",
                 markeredgewidth=0.6,
             )
-            annotate_points(ax, race_df, RACE_PALETTE[race], offset)
+            axis_annotations.extend(
+                annotate_points(ax, race_df, RACE_PALETTE[race], offset)
+            )
             if race not in legend_handles:
                 legend_handles[race] = line
+        resolve_label_overlaps(ax, axis_annotations)
         if idx % 2 == 0:
             ax.set_ylabel("Suspension rate", fontsize=11)
         else:
@@ -433,7 +511,7 @@ def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     y_limit = y_max + max(0.01, y_max * 0.18)
     offset = max(0.0015, y_limit * 0.015)
 
-    fig, axes = plt.subplots(1, len(quartile_order), figsize=(22, 7.5), sharey=True)
+    fig, axes = plt.subplots(1, len(quartile_order), figsize=(22, 9), sharey=True)
     legend_handles: Dict[str, plt.Line2D] = {}
 
     for idx, (label, ax) in enumerate(zip(quartile_order, np.atleast_1d(axes))):
@@ -444,6 +522,7 @@ def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         subset = subset.sort_values(["subgroup", "year_index"])
         apply_reach_style(ax, year_order, y_limit)
         ax.set_title(label, loc="left", fontsize=14, fontweight="bold", pad=16)
+        axis_annotations: List[Annotation] = []
         for race in RACE_LEVELS:
             race_df = subset[subset["subgroup"] == race]
             if race_df.empty:
@@ -458,9 +537,12 @@ def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
                 markeredgecolor="white",
                 markeredgewidth=0.6,
             )
-            annotate_points(ax, race_df, RACE_PALETTE[race], offset)
+            axis_annotations.extend(
+                annotate_points(ax, race_df, RACE_PALETTE[race], offset)
+            )
             if race not in legend_handles:
                 legend_handles[race] = line
+        resolve_label_overlaps(ax, axis_annotations)
         if idx > 0:
             ax.set_ylabel("")
         else:
