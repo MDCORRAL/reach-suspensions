@@ -218,7 +218,7 @@ def annotate_points(
     df: pd.DataFrame,
     color: str,
     offset: float,
-    label_last_only: bool = True,
+    label_last_only: bool = False,
 ) -> List[Annotation]:
     """Label data points while trying to reduce clutter on busy lines."""
 
@@ -302,7 +302,13 @@ def resolve_label_overlaps(ax: plt.Axes, annotations: Sequence[Annotation]) -> N
     if not annotations:
         return
 
+    if len(annotations) == 1:
+        annotations[0].set_visible(True)
+        return
+
     initial_positions = [getattr(annotation, "_initial_xytext", annotation.get_position()) for annotation in annotations]
+
+    max_iterations = max(50, min(180, len(annotations) * 5))
 
     adjust_text(
         annotations,
@@ -314,7 +320,7 @@ def resolve_label_overlaps(ax: plt.Axes, annotations: Sequence[Annotation]) -> N
         force_text=(0.3, 0.6),
         add_objects=ax.lines,
         autoalign="y",
-        lim=200,
+        lim=max_iterations,
     )
 
     for annotation in annotations:
@@ -420,7 +426,13 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
                 markeredgewidth=0.6,
             )
             axis_annotations.extend(
-                annotate_points(ax, race_df, RACE_PALETTE[race], offset)
+                annotate_points(
+                    ax,
+                    race_df,
+                    RACE_PALETTE[race],
+                    offset,
+                    label_last_only=False,
+                )
             )
             if race not in legend_handles:
                 legend_handles[race] = line
@@ -448,7 +460,7 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         legend_y=0.91,
     )
 
-    out_path = OUTPUT_DIR / "statewide_race_trends_by_level.png"
+    out_path = OUTPUT_DIR / "PY6_statewide_race_trends_by_level.png"
     fig.savefig(out_path, dpi=320)
     plt.close(fig)
     return data, year_order
@@ -493,7 +505,13 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
                 markeredgewidth=0.6,
             )
             axis_annotations.extend(
-                annotate_points(ax, race_df, RACE_PALETTE[race], offset)
+                annotate_points(
+                    ax,
+                    race_df,
+                    RACE_PALETTE[race],
+                    offset,
+                    label_last_only=False,
+                )
             )
             if race not in legend_handles:
                 legend_handles[race] = line
@@ -522,7 +540,7 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         legend_y=0.91,
     )
 
-    out_path = OUTPUT_DIR / "statewide_race_trends_by_locale.png"
+    out_path = OUTPUT_DIR / "PY6_statewide_race_trends_by_locale.png"
     fig.savefig(out_path, dpi=320)
     plt.close(fig)
     return data, year_order
@@ -591,7 +609,13 @@ def build_quartile_figure(
                 markeredgewidth=0.6,
             )
             axis_annotations.extend(
-                annotate_points(ax, race_df, RACE_PALETTE[race], offset)
+                annotate_points(
+                    ax,
+                    race_df,
+                    RACE_PALETTE[race],
+                    offset,
+                    label_last_only=False,
+                )
             )
             if race not in legend_handles:
                 legend_handles[race] = line
@@ -611,6 +635,7 @@ def build_quartile_figure(
         legend_cols=4,
         legend_y=0.91,
     )
+
 
     out_path = OUTPUT_DIR / output_filename
     fig.savefig(out_path, dpi=320)
