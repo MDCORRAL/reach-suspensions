@@ -460,7 +460,7 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         legend_y=0.91,
     )
 
-    out_path = OUTPUT_DIR / "statewide_race_trends_by_level.png"
+    out_path = OUTPUT_DIR / "PY6_statewide_race_trends_by_level.png"
     fig.savefig(out_path, dpi=320)
     plt.close(fig)
     return data, year_order
@@ -540,7 +540,7 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         legend_y=0.91,
     )
 
-    out_path = OUTPUT_DIR / "statewide_race_trends_by_locale.png"
+    out_path = OUTPUT_DIR / "PY6_statewide_race_trends_by_locale.png"
     fig.savefig(out_path, dpi=320)
     plt.close(fig)
     return data, year_order
@@ -628,7 +628,7 @@ def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         legend_y=0.91,
     )
 
-    out_path = OUTPUT_DIR / "statewide_race_trends_quartile_comparison.png"
+    out_path = OUTPUT_DIR / "PY6_statewide_race_trends_quartile_comparison.png"
     fig.savefig(out_path, dpi=320)
     plt.close(fig)
     return data, year_order
@@ -745,9 +745,9 @@ def main() -> None:
     locale_data, locale_years = build_locale_figure(base)
     quartile_data, quartile_years = build_quartile_figure(base)
 
-    write_description(describe_levels(level_data, level_years), "statewide_race_trends_by_level.txt")
-    write_description(describe_locales(locale_data, locale_years), "statewide_race_trends_by_locale.txt")
-    write_description(describe_quartiles(quartile_data, quartile_years), "statewide_race_trends_quartile_comparison.txt")
+    write_description(describe_levels(level_data, level_years), "PY6_statewide_race_trends_by_level.txt")
+    write_description(describe_locales(locale_data, locale_years), "PY6_statewide_race_trends_by_locale.txt")
+    write_description(describe_quartiles(quartile_data, quartile_years), "PY6_statewide_race_trends_quartile_comparison.txt")
 
     print("Saved Py06_statewide_race_trends_by_level.png")
     print("Saved Py06_statewide_race_trends_by_locale.png")
