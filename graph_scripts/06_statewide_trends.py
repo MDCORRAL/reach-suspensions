@@ -546,10 +546,23 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     return data, year_order
 
 
-def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
+def build_quartile_figure(
+    base: pd.DataFrame,
+    *,
+    base_subset: pd.DataFrame | None = None,
+    title: str = "Suspension Rates in Highest-Black vs. Highest-White Enrollment Schools",
+    subtitle: str = "Traditional schools in top quartile for Black vs. White enrollment, 2017-18 through 2023-24.",
+    caption: str = (
+        "Source: California statewide suspension data (susp_v5.parquet + susp_v6_features.parquet). "
+        "Traditional schools only; quartiles reference highest shares of Black or White enrollment."
+    ),
+    output_filename: str = "statewide_race_trends_quartile_comparison.png",
+) -> Tuple[pd.DataFrame, List[str]]:
+    working = base_subset if base_subset is not None else base
+
     pieces: List[pd.DataFrame] = []
     for field, value, label in QUARTILE_GROUPS:
-        subset = base[base[field] == value].copy()
+        subset = working[working[field] == value].copy()
         if subset.empty:
             continue
         subset = subset.assign(quartile_group=label)
@@ -612,14 +625,9 @@ def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         else:
             ax.set_ylabel("Suspension rate", fontsize=11)
 
-    caption = (
-        "Source: California statewide suspension data (susp_v5.parquet + susp_v6_features.parquet). "
-        "Traditional schools only; quartiles reference highest shares of Black or White enrollment."
-    )
-    subtitle = "Traditional schools in top quartile for Black vs. White enrollment, 2017-18 through 2023-24."
     finalize_figure(
         fig,
-        title="Suspension Rates in Highest-Black vs. Highest-White Enrollment Schools",
+        title=title,
         subtitle=subtitle,
         caption=caption,
         handles=list(legend_handles.values()),
@@ -628,7 +636,8 @@ def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         legend_y=0.91,
     )
 
-    out_path = OUTPUT_DIR / "PY6_statewide_race_trends_quartile_comparison.png"
+
+    out_path = OUTPUT_DIR / output_filename
     fig.savefig(out_path, dpi=320)
     plt.close(fig)
     return data, year_order
@@ -704,10 +713,13 @@ def describe_locales(data: pd.DataFrame, year_order: Sequence[str]) -> str:
     return " ".join(lines)
 
 
-def describe_quartiles(data: pd.DataFrame, year_order: Sequence[str]) -> str:
+def describe_quartiles(
+    data: pd.DataFrame,
+    year_order: Sequence[str],
+    population_note: str | None = None,
+) -> str:
     latest_year = year_order[-1]
     lines: List[str] = []
-    quartile_lookup = {label: label for _, _, label in QUARTILE_GROUPS}
     for _, _, label in QUARTILE_GROUPS:
         subset = data[(data["quartile_group"] == label) & (data["academic_year"] == latest_year)]
         if subset.empty:
@@ -732,7 +744,9 @@ def describe_quartiles(data: pd.DataFrame, year_order: Sequence[str]) -> str:
                 f"Black students in highest-Black-enrollment schools are suspended about {ratio:.1f}× as often as Black students in highest-White-enrollment schools."
             )
     lines.append(
-        "Quartile comparisons rely on the state's enrollment composition flags, with traditional schools aggregated statewide."
+        population_note
+        if population_note is not None
+        else "Quartile comparisons rely on the state's enrollment composition flags, with traditional schools aggregated statewide."
     )
     return " ".join(lines)
 
@@ -745,13 +759,39 @@ def main() -> None:
     locale_data, locale_years = build_locale_figure(base)
     quartile_data, quartile_years = build_quartile_figure(base)
 
-    write_description(describe_levels(level_data, level_years), "PY6_statewide_race_trends_by_level.txt")
-    write_description(describe_locales(locale_data, locale_years), "PY6_statewide_race_trends_by_locale.txt")
-    write_description(describe_quartiles(quartile_data, quartile_years), "PY6_statewide_race_trends_quartile_comparison.txt")
+    elementary_base = base[base["school_level"] == "Elementary"].copy()
+    if elementary_base.empty:
+        raise ValueError("No elementary school records available for quartile figure.")
+    elementary_quartile_data, elementary_quartile_years = build_quartile_figure(
+        base,
+        base_subset=elementary_base,
+        title="Elementary Suspension Rates in Highest-Black vs. Highest-White Enrollment Schools",
+        subtitle="Traditional elementary schools in top quartile for Black vs. White enrollment, 2017-18 through 2023-24.",
+        caption=(
+            "Source: California statewide suspension data (susp_v5.parquet + susp_v6_features.parquet). "
+            "Traditional elementary schools only; quartiles reference highest shares of Black or White enrollment."
+        ),
+        output_filename="statewide_race_trends_quartile_elementary.png",
+    )
+
+    write_description(describe_levels(level_data, level_years), "statewide_race_trends_by_level.txt")
+    write_description(describe_locales(locale_data, locale_years), "statewide_race_trends_by_locale.txt")
+    write_description(describe_quartiles(quartile_data, quartile_years), "statewide_race_trends_quartile_comparison.txt")
+    write_description(
+        describe_quartiles(
+            elementary_quartile_data,
+            elementary_quartile_years,
+            population_note=(
+                "Quartile comparisons rely on the state's enrollment composition flags, aggregated statewide across traditional elementary schools."
+            ),
+        ),
+        "statewide_race_trends_quartile_comparison_elementary.txt",
+    )
 
     print("Saved Py06_statewide_race_trends_by_level.png")
     print("Saved Py06_statewide_race_trends_by_locale.png")
     print("Saved Py06_statewide_race_trends_quartile_comparison.png")
+    print("Saved Py06_statewide_race_trends_quartile_elementary.png")
 
 
 if __name__ == "__main__":
