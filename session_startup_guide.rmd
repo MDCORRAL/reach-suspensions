@@ -1,0 +1,119 @@
+---
+title: "How to Start a Fresh Session: reach-suspensions Project"
+output: github_document
+---
+
+## Getting Up and Running in RStudio
+
+This guide walks you through all the steps needed to start a new session for the `reach-suspensions` project, whether on your main computer or a new machine.
+
+---
+
+### 1. **Open the Project**
+
+- Start **RStudio**.
+- Go to `File → Open Project…` and select `reach-suspensions.Rproj` from the project root.
+- Confirm the working directory:
+
+```{r}
+getwd()
+# Should display the project root folder
+```
+
+---
+
+### 2. **Restore R Packages with renv**
+
+- If `renv` is **not installed**:
+```{r}
+install.packages("renv")
+```
+
+- Restore the project environment (installs all required package versions from `renv.lock`):
+
+```{r}
+renv::restore()
+```
+
+---
+
+### 3. **Set or Confirm Environment Variables**
+
+Your project relies on `R/00_paths.R` to set up file paths. It looks for:
+
+- `REACH_PROJECT_ROOT`: Usually the project root (set only if repo lives elsewhere)  
+- `REACH_DATA_DIR`: Optional override for `data-stage/`  
+- `RAW_PATH`: Location of the raw Excel file (`copy_CDE_suspensions_1718-2324_sc_race.xlsx`)  
+
+**Best practice:**  
+Store these in `~/.Renviron` (or your session environment) so paths persist across machines.
+
+**Place** the raw data file in `data-raw/`, or set `RAW_PATH` to its location.
+
+---
+
+### 4. **Verify Data Paths**
+
+Run this to print out active paths and confirm directories:
+
+```{r}
+source("R/00_paths.R")
+```
+
+Check the console to make sure the project root, data-stage, and raw file locations are correct.
+
+---
+
+### 5. **Prepare the Data (if needed)**
+
+**To rebuild all processed data from the raw Excel:**
+
+```{r}
+source("run_pipeline.R")
+```
+
+This will run scripts in order, such as:
+
+- `R/01_ingest_v0.R`  
+- `R/02_feature_locale_simple.R`  
+- `R/03_feature_size_quartiles_TA.R` (or non-TA variant)  
+- `R/22_build_v6_features.R`  
+- …and others as listed in `run_pipeline.R`
+
+---
+
+### 6. **Run the Full Analytical Workflow**
+
+To run everything (including all main analyses):
+
+```{r}
+source("run_all.R")
+```
+
+This script calls `run_pipeline.R` plus analysis scripts (e.g., `Analysis/02_black_rates_by_quartiles.R`, `Analysis/16_tail_concentration_analysis.R`), and outputs results to `data-stage/` or `outputs/`.
+
+---
+
+### 7. **Running Individual Analyses**
+
+You can source any script in `Analysis/` after data is prepared. For example:
+
+```{r}
+source("Analysis/10_analysis_by_size_and_race.R")
+```
+
+---
+
+### 8. **When Switching Computers**
+
+- **Pull** the latest repo from GitHub.  
+- Repeat steps 1–4 to ensure packages and data paths are correct.  
+- **Only** rerun step 5 (“Prepare the Data”) if processed data files are missing or need to be regenerated; otherwise, go straight to analyses.  
+
+---
+
+### **Summary**
+
+Following these steps ensures that every new session—on any computer—has the correct scripts, package versions, and data files ready for analysis.
+
+---
