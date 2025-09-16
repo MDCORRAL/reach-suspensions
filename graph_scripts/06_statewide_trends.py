@@ -195,26 +195,47 @@ def apply_reach_style(ax: plt.Axes, year_order: Sequence[str], y_limit: float) -
     ax.grid(axis="x", color="#DFE2E5", linewidth=0.5, linestyle="--", alpha=0.4)
     ax.set_xticks(range(len(year_order)))
     ax.set_xticklabels(year_order, rotation=45, ha="right")
-    ax.tick_params(axis="both", labelsize=9)
+    ax.tick_params(axis="x", labelsize=10, pad=6)
+    ax.tick_params(axis="y", labelsize=10)
+    ax.margins(x=0.02)
+    ax.set_xlim(-0.35, len(year_order) - 0.65)
     ax.set_ylim(0, y_limit)
     ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{y * 100:.1f}%"))
 
 
-def annotate_points(ax: plt.Axes, df: pd.DataFrame, color: str, offset: float) -> None:
-    for _, row in df.iterrows():
+def annotate_points(
+    ax: plt.Axes,
+    df: pd.DataFrame,
+    color: str,
+    offset: float,
+    label_last_only: bool = True,
+) -> None:
+    """Label data points while trying to reduce clutter on busy lines."""
+
+    points = df
+    if label_last_only:
+        max_index = df["year_index"].max()
+        points = df[df["year_index"] == max_index]
+
+    for _, row in points.iterrows():
         label = f"{row['rate'] * 100:.1f}%"
         ax.text(
             row["year_index"],
             row["rate"] + offset,
             label,
             color=color,
-            fontsize=7,
+            fontsize=8,
             ha="center",
             va="bottom",
             fontweight="bold",
             clip_on=False,
+            bbox={
+                "boxstyle": "round,pad=0.18",
+                "facecolor": "white",
+                "edgecolor": "none",
+                "alpha": 0.85,
+            },
         )
-
 
 def finalize_figure(
     fig: plt.Figure,
@@ -239,10 +260,10 @@ def finalize_figure(
             title="Student group",
             title_fontsize=11,
         )
-    fig.text(0.07, 0.97, title, fontsize=20, fontweight="bold", ha="left")
-    fig.text(0.07, 0.93, subtitle, fontsize=13, ha="left")
+    fig.text(0.07, 0.965, title, fontsize=20, fontweight="bold", ha="left")
+    fig.text(0.07, 0.933, subtitle, fontsize=13, ha="left")
     fig.text(0.07, 0.05, caption, fontsize=10, color="#4A4A4A", ha="left")
-    fig.subplots_adjust(left=0.07, right=0.97, top=0.82, bottom=0.16)
+    fig.subplots_adjust(left=0.07, right=0.98, top=0.82, bottom=0.18, wspace=0.28, hspace=0.36)
 
 
 def format_percent(value: float, accuracy: float = 0.1) -> str:
@@ -262,7 +283,7 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     y_limit = y_max + max(0.01, y_max * 0.18)
     offset = max(0.0015, y_limit * 0.015)
 
-    fig, axes = plt.subplots(1, len(LEVEL_ORDER), figsize=(19, 7), sharey=True)
+    fig, axes = plt.subplots(1, len(LEVEL_ORDER), figsize=(22, 7.5), sharey=True)
     legend_handles: Dict[str, plt.Line2D] = {}
 
     for idx, (level, ax) in enumerate(zip(LEVEL_ORDER, np.atleast_1d(axes))):
@@ -272,7 +293,7 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
             continue
         subset = subset.sort_values(["subgroup", "year_index"])
         apply_reach_style(ax, year_order, y_limit)
-        ax.set_title(f"{level} Schools", loc="left", fontsize=13, fontweight="bold", pad=14)
+        ax.set_title(f"{level} Schools", loc="left", fontsize=14, fontweight="bold", pad=16)
         for race in RACE_LEVELS:
             race_df = subset[subset["subgroup"] == race]
             if race_df.empty:
@@ -281,9 +302,11 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
                 race_df["year_index"],
                 race_df["rate"],
                 color=RACE_PALETTE[race],
-                linewidth=2.1,
+                linewidth=2.3,
                 marker="o",
-                markersize=4.6,
+                markersize=5.3,
+                markeredgecolor="white",
+                markeredgewidth=0.6,
             )
             annotate_points(ax, race_df, RACE_PALETTE[race], offset)
             if race not in legend_handles:
@@ -328,13 +351,13 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     y_limit = y_max + max(0.01, y_max * 0.18)
     offset = max(0.0015, y_limit * 0.015)
 
-    fig, axes = plt.subplots(2, 2, figsize=(19, 10), sharex=False, sharey=True)
+    fig, axes = plt.subplots(2, 2, figsize=(22, 12), sharex=False, sharey=True)
     axes_flat = axes.flatten()
     legend_handles: Dict[str, plt.Line2D] = {}
 
     for idx, (locale, ax) in enumerate(zip(LOCALE_ORDER, axes_flat)):
         subset = data[data["locale_simple"] == locale]
-        ax.set_title(f"{locale} Schools", loc="left", fontsize=13, fontweight="bold", pad=14)
+        ax.set_title(f"{locale} Schools", loc="left", fontsize=14, fontweight="bold", pad=16)
         if subset.empty:
             ax.axis("off")
             continue
@@ -348,9 +371,11 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
                 race_df["year_index"],
                 race_df["rate"],
                 color=RACE_PALETTE[race],
-                linewidth=2.1,
+                linewidth=2.3,
                 marker="o",
-                markersize=4.6,
+                markersize=5.3,
+                markeredgecolor="white",
+                markeredgewidth=0.6,
             )
             annotate_points(ax, race_df, RACE_PALETTE[race], offset)
             if race not in legend_handles:
@@ -408,7 +433,7 @@ def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     y_limit = y_max + max(0.01, y_max * 0.18)
     offset = max(0.0015, y_limit * 0.015)
 
-    fig, axes = plt.subplots(1, len(quartile_order), figsize=(19, 7), sharey=True)
+    fig, axes = plt.subplots(1, len(quartile_order), figsize=(22, 7.5), sharey=True)
     legend_handles: Dict[str, plt.Line2D] = {}
 
     for idx, (label, ax) in enumerate(zip(quartile_order, np.atleast_1d(axes))):
@@ -418,7 +443,7 @@ def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
             continue
         subset = subset.sort_values(["subgroup", "year_index"])
         apply_reach_style(ax, year_order, y_limit)
-        ax.set_title(label, loc="left", fontsize=13, fontweight="bold", pad=14)
+        ax.set_title(label, loc="left", fontsize=14, fontweight="bold", pad=16)
         for race in RACE_LEVELS:
             race_df = subset[subset["subgroup"] == race]
             if race_df.empty:
@@ -427,9 +452,11 @@ def build_quartile_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
                 race_df["year_index"],
                 race_df["rate"],
                 color=RACE_PALETTE[race],
-                linewidth=2.1,
+                linewidth=2.3,
                 marker="o",
-                markersize=4.6,
+                markersize=5.3,
+                markeredgecolor="white",
+                markeredgewidth=0.6,
             )
             annotate_points(ax, race_df, RACE_PALETTE[race], offset)
             if race not in legend_handles:
