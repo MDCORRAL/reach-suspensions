@@ -1,5 +1,7 @@
 # graph_scripts/05_unequal_burden.R
-# Bar charts showing concentration of suspensions among a small share of schools.
+
+# Line graph showing concentration of suspensions among a small share of schools.
+
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -7,6 +9,7 @@ suppressPackageStartupMessages({
   library(glue)
   library(here)
   library(scales)
+  library(ggrepel)
 })
 
 source(here::here("graph_scripts", "graph_utils.R"))
@@ -74,6 +77,7 @@ level_order <- level_specs$label
 series <- series %>%
   dplyr::mutate(
     academic_year = factor(academic_year, levels = year_levels),
+    
     setting = factor(setting, levels = level_order)
   ) %>%
   dplyr::arrange(academic_year, setting) %>%
@@ -105,6 +109,7 @@ plot_all_years <- ggplot(series,
     y = "Share of suspensions",
     caption = "Source: California statewide suspension data (susp_v5 + v6 features)"
   ) +
+
   guides(fill = guide_legend(nrow = 1)) +
   theme_reach()
 
@@ -152,9 +157,11 @@ if (nrow(series_latest) > 0) {
   ggsave(out_path_latest, plot_latest, width = 8, height = 6, dpi = 320)
 }
 
+
 fmt_percent <- function(x) if (!is.na(x)) scales::percent(x, accuracy = 0.1) else "N/A"
 
 first_year <- if (length(year_levels) > 0) year_levels[1] else NA_character_
+
 
 pull_series_value <- function(setting_name, year_value, column) {
   if (is.na(year_value)) {

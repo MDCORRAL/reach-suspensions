@@ -50,9 +50,11 @@ comparison_palette <- c(
 
 setting_palette <- c(
   "All Traditional Schools"         = "#3B6FB6",
+
   "Elementary Traditional Schools"  = "#F4A261",
   "Middle Traditional Schools"      = "#2A9D8F",
   "High Traditional Schools"        = "#D1495B"
+
 )
 
 safe_div <- function(n, d) ifelse(is.na(d) | d == 0, NA_real_, n / d)

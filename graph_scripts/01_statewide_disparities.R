@@ -8,6 +8,7 @@ suppressPackageStartupMessages({
   library(here)
   library(scales)
   library(ggrepel)
+
 })
 
 source(here::here("graph_scripts", "graph_utils.R"))
@@ -53,6 +54,7 @@ plot_statewide <- ggplot(statewide_rates,
                              color = subgroup, group = subgroup)) +
   geom_line(linewidth = 1.1) +
   geom_point(size = 2.7) +
+
   geom_text_repel(data = label_data,
                   aes(label = label),
                   size = 3,
