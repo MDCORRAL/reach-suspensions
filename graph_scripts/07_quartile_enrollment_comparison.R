@@ -21,11 +21,6 @@ quartile_palette <- c(
   "Q4" = "#C81D25"
 )
 
-quartile_labels <- tibble::tibble(
-  quartile_short = factor(c("Q1", "Q2", "Q3", "Q4"), levels = c("Q1", "Q2", "Q3", "Q4")),
-  quartile_rank = c(1, 2, 3, 4)
-)
-
 quartile_group_levels <- c(
   "Black Enrollment Quartile",
   "White Enrollment Quartile",
@@ -86,7 +81,11 @@ quartile_long <- quartile_base %>%
     ),
     quartile_short = factor(quartile_short, levels = c("Q1", "Q2", "Q3", "Q4"))
   ) %>%
-  dplyr::filter(!is.na(quartile), !is.na(label), !is.na(quartile_short))
+  dplyr::filter(!is.na(quartile), !is.na(label), !is.na(quartile_short)) %>%
+  dplyr::filter(
+    quartile == 4L |
+      stringr::str_detect(label, stringr::regex("^Q4 ", ignore_case = TRUE))
+  )
 
 if (nrow(quartile_long) == 0) {
   stop("No quartile-tagged observations available for the comparison chart.")
@@ -103,12 +102,11 @@ quartile_rates <- quartile_long %>%
     .groups = "drop"
   ) %>%
   dplyr::filter(!is.na(rate)) %>%
-  dplyr::left_join(quartile_labels, by = "quartile_short") %>%
   dplyr::mutate(
     subgroup = factorize_race(subgroup),
     academic_year = factor(academic_year, levels = year_levels, ordered = TRUE)
   ) %>%
-  dplyr::arrange(subgroup, quartile_group, quartile_rank, academic_year)
+  dplyr::arrange(subgroup, quartile_group, academic_year)
 
 plot_title <- "Suspension Rates by Enrollment Quartile and Race/Ethnicity"
 plot_subtitle <- glue::glue(
