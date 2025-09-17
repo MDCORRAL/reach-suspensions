@@ -100,6 +100,7 @@ quartile_rates <- quartile_long %>%
     suspensions = sum(total_suspensions, na.rm = TRUE),
     enrollment = sum(cumulative_enrollment, na.rm = TRUE),
     rate = safe_div(suspensions, enrollment),
+    quartile_label = dplyr::first(label),
     .groups = "drop"
   ) %>%
   dplyr::filter(!is.na(rate)) %>%
@@ -115,14 +116,14 @@ quartile_q4_rates <- quartile_rates %>%
   dplyr::filter(quartile_short == "Q4") %>%
   dplyr::mutate(
     quartile_group = droplevels(quartile_group),
-    quartile_facet = dplyr::case_when(
+    quartile_group = dplyr::case_when(
       quartile_group == quartile_group_levels[1] ~ "Highest-Black enrollment schools",
       quartile_group == quartile_group_levels[2] ~ "Highest-White enrollment schools",
       quartile_group == quartile_group_levels[3] ~ "Highest-Hispanic/Latino enrollment schools",
       TRUE ~ as.character(quartile_group)
     ),
-    quartile_facet = factor(
-      quartile_facet,
+    quartile_group = factor(
+      quartile_group,
       levels = c(
         "Highest-Black enrollment schools",
         "Highest-White enrollment schools",
@@ -131,12 +132,12 @@ quartile_q4_rates <- quartile_rates %>%
       ordered = TRUE
     )
   ) %>%
-  dplyr::arrange(subgroup, quartile_facet, academic_year)
+  dplyr::arrange(subgroup, quartile_group, academic_year)
 
 plot_title <- "Suspension rates in highest-enrollment schools"
 plot_subtitle <- glue::glue(
   "Traditional schools in Q4—the highest share of Black, White, or Hispanic/Latino enrollment\n",
-  "Lines trace suspension rates for each student group across all reported years"
+  "Lines trace suspension rates by race/ethnicity across highest-Black, highest-White, and highest-Hispanic/Latino panels"
 )
 
 plot_rates <- ggplot(quartile_q4_rates,
@@ -151,7 +152,7 @@ plot_rates <- ggplot(quartile_q4_rates,
     values = race_palette,
     breaks = race_levels,
     limits = race_levels,
-    name = "Student group"
+    name = "Student race/ethnicity"
   ) +
 
   scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
@@ -162,7 +163,7 @@ plot_rates <- ggplot(quartile_q4_rates,
     y = "Suspension rate",
     caption = "Source: California statewide suspension data (susp_v5 + v6 features)"
   ) +
-  facet_wrap(~ quartile_facet, nrow = 1) +
+  facet_wrap(~ quartile_group, nrow = 1) +
   theme_reach() +
   theme(
     legend.position = "bottom"
@@ -176,7 +177,7 @@ table_path <- file.path(OUTPUT_DIR, "quartile_enrollment_comparison.csv")
 
 readr::write_csv(quartile_q4_rates %>%
                    dplyr::select(
-                     quartile_facet,
+                     quartile_group,
                      academic_year,
                      subgroup,
                      suspensions,
