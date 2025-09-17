@@ -4,6 +4,7 @@
 
 suppressPackageStartupMessages({
   library(dplyr)
+  library(ggrepel)
   library(ggplot2)
   library(glue)
   library(here)
@@ -123,6 +124,21 @@ plot_rates <- ggplot(quartile_rates,
                          group = quartile_short)) +
   geom_line(linewidth = 0.7) +
   geom_point(size = 1.6) +
+  ggrepel::geom_label_repel(
+    aes(label = scales::percent(rate, accuracy = 0.1)),
+    size = 2.6,
+    fontface = "bold",
+    fill = "white",
+    label.r = grid::unit(0.15, "lines"),
+    label.padding = grid::unit(0.08, "lines"),
+    box.padding = grid::unit(0.2, "lines"),
+    point.padding = grid::unit(0.1, "lines"),
+    label.size = 0,
+    segment.size = 0.2,
+    max.overlaps = Inf,
+    min.segment.length = 0,
+    show.legend = FALSE
+  ) +
   scale_color_manual(values = quartile_palette, name = "Enrollment quartile") +
   scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
   labs(
