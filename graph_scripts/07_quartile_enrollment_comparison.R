@@ -1,0 +1,161 @@
+# graph_scripts/07_quartile_enrollment_comparison.R
+# Compare suspension rates across enrollment quartiles defined by Black, White,
+# and Hispanic/Latino student concentration for every race/ethnicity and year.
+
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(ggplot2)
+  library(glue)
+  library(here)
+  library(scales)
+  library(stringr)
+  library(tidyr)
+})
+
+source(here::here("graph_scripts", "graph_utils.R"))
+
+quartile_palette <- c(
+  "Q1" = "#0B3954",
+  "Q2" = "#087E8B",
+  "Q3" = "#FF5A5F",
+  "Q4" = "#C81D25"
+)
+
+quartile_labels <- tibble::tibble(
+  quartile_short = factor(c("Q1", "Q2", "Q3", "Q4"), levels = c("Q1", "Q2", "Q3", "Q4")),
+  quartile_rank = c(1, 2, 3, 4)
+)
+
+quartile_group_levels <- c(
+  "Black Enrollment Quartile",
+  "White Enrollment Quartile",
+  "Hispanic/Latino Enrollment Quartile"
+)
+
+joined <- load_joined_data()
+
+quartile_base <- joined %>%
+  dplyr::filter(
+    is_traditional,
+    subgroup %in% race_levels,
+    !is.na(total_suspensions),
+    !is.na(cumulative_enrollment),
+    cumulative_enrollment > 0
+  ) %>%
+  dplyr::mutate(academic_year = as.character(academic_year))
+
+if (nrow(quartile_base) == 0) {
+  stop("No traditional school records available for quartile comparison.")
+}
+
+quartile_long <- quartile_base %>%
+  dplyr::select(
+    academic_year,
+    subgroup,
+    total_suspensions,
+    cumulative_enrollment,
+    black_quartile = black_prop_q,
+    black_label = black_prop_q_label,
+    white_quartile = white_prop_q,
+    white_label = white_prop_q_label,
+    hispanic_quartile = hispanic_prop_q,
+    hispanic_label = hispanic_prop_q_label
+  ) %>%
+  tidyr::pivot_longer(
+    cols = c(
+      black_quartile, black_label,
+      white_quartile, white_label,
+      hispanic_quartile, hispanic_label
+    ),
+    names_to = c("quartile_group", ".value"),
+    names_pattern = "(black|white|hispanic)_(quartile|label)"
+  ) %>%
+  dplyr::mutate(
+    quartile_group = factor(quartile_group, levels = c("black", "white", "hispanic")),
+    quartile_group = dplyr::recode(
+      quartile_group,
+      black = quartile_group_levels[1],
+      white = quartile_group_levels[2],
+      hispanic = quartile_group_levels[3]
+    ),
+    quartile_group = factor(quartile_group, levels = quartile_group_levels, ordered = TRUE),
+    quartile = as.integer(quartile),
+    quartile_short = dplyr::case_when(
+      quartile %in% c(1L, 2L, 3L, 4L) ~ paste0("Q", quartile),
+      TRUE ~ NA_character_
+    ),
+    quartile_short = factor(quartile_short, levels = c("Q1", "Q2", "Q3", "Q4"))
+  ) %>%
+  dplyr::filter(!is.na(quartile), !is.na(label), !is.na(quartile_short))
+
+if (nrow(quartile_long) == 0) {
+  stop("No quartile-tagged observations available for the comparison chart.")
+}
+
+year_levels <- quartile_long$academic_year %>% unique() %>% sort()
+
+quartile_rates <- quartile_long %>%
+  dplyr::group_by(quartile_group, quartile_short, academic_year, subgroup) %>%
+  dplyr::summarise(
+    suspensions = sum(total_suspensions, na.rm = TRUE),
+    enrollment = sum(cumulative_enrollment, na.rm = TRUE),
+    rate = safe_div(suspensions, enrollment),
+    .groups = "drop"
+  ) %>%
+  dplyr::filter(!is.na(rate)) %>%
+  dplyr::left_join(quartile_labels, by = "quartile_short") %>%
+  dplyr::mutate(
+    subgroup = factorize_race(subgroup),
+    academic_year = factor(academic_year, levels = year_levels, ordered = TRUE)
+  ) %>%
+  dplyr::arrange(subgroup, quartile_group, quartile_rank, academic_year)
+
+plot_title <- "Suspension Rates by Enrollment Quartile and Race/Ethnicity"
+plot_subtitle <- glue::glue(
+  "Traditional schools grouped by the share of Black, White, or Hispanic/Latino enrollment\n",
+  "Lines trace suspension rates for each quartile across all reported years"
+)
+
+plot_rates <- ggplot(quartile_rates,
+                     aes(x = academic_year,
+                         y = rate,
+                         color = quartile_short,
+                         group = quartile_short)) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 1.6) +
+  scale_color_manual(values = quartile_palette, name = "Enrollment quartile") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
+  labs(
+    title = plot_title,
+    subtitle = plot_subtitle,
+    x = "Academic year",
+    y = "Suspension rate",
+    caption = "Source: California statewide suspension data (susp_v5 + v6 features)"
+  ) +
+  facet_grid(subgroup ~ quartile_group) +
+  theme_reach() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
+
+out_path <- file.path(OUTPUT_DIR, "quartile_enrollment_comparison.png")
+
+ggsave(out_path, plot_rates, width = 13, height = 14, dpi = 320)
+
+table_path <- file.path(OUTPUT_DIR, "quartile_enrollment_comparison.csv")
+
+readr::write_csv(quartile_rates %>%
+                   dplyr::select(
+                     quartile_group,
+                     quartile_short,
+                     academic_year,
+                     subgroup,
+                     suspensions,
+                     enrollment,
+                     rate
+                   ),
+                 table_path)
+
+message("Saved comparison plot to ", out_path)
+message("Saved comparison table to ", table_path)

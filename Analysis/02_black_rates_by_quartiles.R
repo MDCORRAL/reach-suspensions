@@ -23,6 +23,10 @@ white_quartile_colors <- setNames(
   c("#EFF3FF", "#BDD7E7", "#6BAED6", "#08519C"),
   get_quartile_label(1:4, "White")
 )
+hispanic_quartile_colors <- setNames(
+  c("#F2F0F7", "#DADAEB", "#BCBDDC", "#756BB1"),
+  get_quartile_label(1:4, "Hispanic/Latino")
+)
 
 # --- 2) Load + guards ---------------------------------------------------------
 message("Loading data...")
@@ -32,13 +36,14 @@ v6 <- arrow::read_parquet(here::here("data-stage","susp_v6_long.parquet")) %>%
 
 need_cols <- c("subgroup","academic_year",
                "total_suspensions","cumulative_enrollment",
-               "black_prop_q","white_prop_q")
+               "black_prop_q","white_prop_q","hispanic_prop_q")
 missing <- setdiff(need_cols, names(v6))
 if (length(missing)) stop("Missing in v6: ", paste(missing, collapse=", "))
 
 # make sure readable quartile labels exist using shared helper
 if (!"black_prop_q_label" %in% names(v6)) v6 <- v6 %>% mutate(black_prop_q_label = get_quartile_label(black_prop_q, "Black"))
 if (!"white_prop_q_label" %in% names(v6)) v6 <- v6 %>% mutate(white_prop_q_label = get_quartile_label(white_prop_q, "White"))
+if (!"hispanic_prop_q_label" %in% names(v6)) v6 <- v6 %>% mutate(hispanic_prop_q_label = get_quartile_label(hispanic_prop_q, "Hispanic/Latino"))
 
 # order x-axis by TA years that actually have enrollment
 year_levels <- v6 %>%
@@ -210,6 +215,16 @@ p4_categories_white <- create_category_rate_plot(
   black_students_data, "white_prop_q_label", white_quartile_colors,
   "School White Student Proportion", "School % White Students"
 )
+
+# by Hispanic-enrollment quartiles
+p5_total_hispanic <- create_total_rate_plot(
+  black_students_data, "hispanic_prop_q_label", hispanic_quartile_colors,
+  "School Hispanic/Latino Student Proportion", "School % Hispanic/Latino Students"
+)
+p6_categories_hispanic <- create_category_rate_plot(
+  black_students_data, "hispanic_prop_q_label", hispanic_quartile_colors,
+  "School Hispanic/Latino Student Proportion", "School % Hispanic/Latino Students"
+)
 # Combine plots into a single layout 
 
 # ---- optional: drop "Unknown" quartiles from all plots ----------------------
@@ -218,11 +233,13 @@ p1_total_black    <- p1_total_black    |> drop_unknown()
 p2_categories_black <- p2_categories_black |> drop_unknown()
 p3_total_white    <- p3_total_white    |> drop_unknown()
 p4_categories_white <- p4_categories_white |> drop_unknown()
+p5_total_hispanic    <- p5_total_hispanic    |> drop_unknown()
+p6_categories_hispanic <- p6_categories_hispanic |> drop_unknown()
 
 # ---- combine with patchwork --------------------------------------------------
 # top row = total rates; bottom row = reason rates
-top_row    <- p1_total_black | p3_total_white
-bottom_row <- p2_categories_black | p4_categories_white
+top_row    <- p1_total_black | p3_total_white | p5_total_hispanic
+bottom_row <- p2_categories_black | p4_categories_white | p6_categories_hispanic
 
 final_grid <- (top_row / bottom_row) +
   plot_layout(
@@ -253,5 +270,11 @@ ggsave(here::here("outputs","02_black_by_whiteQuart_total.png"),
 ggsave(here::here("outputs","02_black_by_whiteQuart_reasons.png"),
        p4_categories_white, width = 12, height = 8, dpi = 300, bg = "white")
 
+ggsave(here::here("outputs","02_black_by_hispanicQuart_total.png"),
+       p5_total_hispanic, width = 10, height = 7, dpi = 300, bg = "white")
+
+ggsave(here::here("outputs","02_black_by_hispanicQuart_reasons.png"),
+       p6_categories_hispanic, width = 12, height = 8, dpi = 300, bg = "white")
+
 ggsave(here::here("outputs","02_black_rates_all_panels.png"),
-       final_grid, width = 16, height = 14, dpi = 300, bg = "white")
+       final_grid, width = 20, height = 14, dpi = 300, bg = "white")
