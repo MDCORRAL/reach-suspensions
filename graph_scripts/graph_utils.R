@@ -59,13 +59,17 @@ setting_palette <- c(
 
 safe_div <- function(n, d) ifelse(is.na(d) | d == 0, NA_real_, n / d)
 
-standardize_quartile_label <- function(x) {
+standardize_quartile_label <- function(x, group = "Black") {
   x <- as.character(x)
+  group <- as.character(group)
+  high_label <- glue::glue("Q4 (Highest % {group})")
+  low_label  <- glue::glue("Q1 (Lowest % {group})")
+
   dplyr::case_when(
-    stringr::str_detect(x, stringr::regex("^q1", ignore_case = TRUE)) ~ "Q1 (Lowest % Black)",
+    stringr::str_detect(x, stringr::regex("^q1", ignore_case = TRUE)) ~ low_label,
     stringr::str_detect(x, stringr::regex("^q2", ignore_case = TRUE)) ~ "Q2",
     stringr::str_detect(x, stringr::regex("^q3", ignore_case = TRUE)) ~ "Q3",
-    stringr::str_detect(x, stringr::regex("^q4", ignore_case = TRUE)) ~ "Q4 (Highest % Black)",
+    stringr::str_detect(x, stringr::regex("^q4", ignore_case = TRUE)) ~ high_label,
     TRUE ~ NA_character_
   )
 }
@@ -84,7 +88,11 @@ load_joined_data <- function() {
       school_level = as.character(school_level),
       school_type = as.character(school_type),
       black_prop_q = as.integer(black_prop_q),
-      black_prop_q_label = as.character(black_prop_q_label)
+      black_prop_q_label = as.character(black_prop_q_label),
+      white_prop_q = as.integer(white_prop_q),
+      white_prop_q_label = as.character(white_prop_q_label),
+      hispanic_prop_q = as.integer(hispanic_prop_q),
+      hispanic_prop_q_label = as.character(hispanic_prop_q_label)
     )
 
   feat <- arrow::read_parquet(FEAT_PATH) %>%
@@ -94,7 +102,11 @@ load_joined_data <- function() {
       academic_year = as.character(academic_year),
       is_traditional = !is.na(is_traditional) & is_traditional,
       feat_black_q = as.integer(black_prop_q),
-      feat_black_q_label = as.character(black_prop_q_label)
+      feat_black_q_label = as.character(black_prop_q_label),
+      feat_white_q = as.integer(white_prop_q),
+      feat_white_q_label = as.character(white_prop_q_label),
+      feat_hispanic_q = as.integer(hispanic_prop_q),
+      feat_hispanic_q_label = as.character(hispanic_prop_q_label)
     )
 
   susp %>%
@@ -103,9 +115,22 @@ load_joined_data <- function() {
       is_traditional = dplyr::coalesce(is_traditional, FALSE),
       black_prop_q = dplyr::coalesce(feat_black_q, black_prop_q),
       black_prop_q_label = dplyr::coalesce(feat_black_q_label, black_prop_q_label),
-      black_prop_q_label = standardize_quartile_label(black_prop_q_label)
+      black_prop_q_label = standardize_quartile_label(black_prop_q_label, "Black"),
+      white_prop_q = dplyr::coalesce(feat_white_q, white_prop_q),
+      white_prop_q_label = dplyr::coalesce(feat_white_q_label, white_prop_q_label),
+      white_prop_q_label = standardize_quartile_label(white_prop_q_label, "White"),
+      hispanic_prop_q = dplyr::coalesce(feat_hispanic_q, hispanic_prop_q),
+      hispanic_prop_q_label = dplyr::coalesce(feat_hispanic_q_label, hispanic_prop_q_label),
+      hispanic_prop_q_label = standardize_quartile_label(hispanic_prop_q_label, "Hispanic/Latino")
     ) %>%
-    dplyr::select(-feat_black_q, -feat_black_q_label)
+    dplyr::select(
+      -feat_black_q,
+      -feat_black_q_label,
+      -feat_white_q,
+      -feat_white_q_label,
+      -feat_hispanic_q,
+      -feat_hispanic_q_label
+    )
 }
 
 factorize_race <- function(x) forcats::fct_relevel(factor(x), race_levels)

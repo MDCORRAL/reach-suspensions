@@ -42,11 +42,12 @@ if (!any(v2$subgroup == "White", na.rm = TRUE)) {
 # --- 1) Pull Black, White, and Total enrollment at SCHOOL x YEAR --------
 rb_rw_ta <- v2 %>%
   filter(subgroup %in%
-           intersect(c("Black/African American", "White", "All Students"),
+           intersect(c("Black/African American", "White", "Hispanic/Latino", "All Students"),
                      ALLOWED_RACES)) %>%
   select(academic_year, cds_school, subgroup, cumulative_enrollment) %>%
   mutate(subgroup = dplyr::recode(subgroup,
                                   "Black/African American" = "Black",
+                                  "Hispanic/Latino" = "Hispanic",
                                   "All Students" = "All")) %>%
   group_by(academic_year, cds_school, subgroup) %>%
   summarise(enroll = first_non_na_num(cumulative_enrollment), .groups="drop") %>%
@@ -59,7 +60,9 @@ rb_rw_ta <- rb_rw_ta %>%
     prop_black = if_else(!is.na(enroll_All) & enroll_All > 0 & !is.na(enroll_Black),
                          enroll_Black / enroll_All, NA_real_),
     prop_white = if_else(!is.na(enroll_All) & enroll_All > 0 & !is.na(enroll_White),
-                         enroll_White / enroll_All, NA_real_)
+                         enroll_White / enroll_All, NA_real_),
+    prop_hispanic = if_else(!is.na(enroll_All) & enroll_All > 0 & !is.na(enroll_Hispanic),
+                            enroll_Hispanic / enroll_All, NA_real_)
   )
 
 # --- 3) Year-specific quartiles on prop_black & prop_white -----------------
@@ -68,9 +71,11 @@ rbw_q <- rb_rw_ta %>%
   mutate(
     black_prop_q = if_else(!is.na(prop_black), safe_ntile(prop_black, 4L), NA_integer_),
     white_prop_q = if_else(!is.na(prop_white), safe_ntile(prop_white, 4L), NA_integer_),
+    hispanic_prop_q = if_else(!is.na(prop_hispanic), safe_ntile(prop_hispanic, 4L), NA_integer_),
 
     black_prop_q_label = get_quartile_label(black_prop_q, "Black"),
-    white_prop_q_label = get_quartile_label(white_prop_q, "White")
+    white_prop_q_label = get_quartile_label(white_prop_q, "White"),
+    hispanic_prop_q_label = get_quartile_label(hispanic_prop_q, "Hispanic/Latino")
   ) %>%
   ungroup()
 
@@ -83,6 +88,8 @@ v3$black_prop_q_label <- factor(v3$black_prop_q_label,
                                 levels = c(get_quartile_label(1:4, "Black"),"Unknown"))
 v3$white_prop_q_label <- factor(v3$white_prop_q_label,
                                 levels = c(get_quartile_label(1:4, "White"),"Unknown"))
+v3$hispanic_prop_q_label <- factor(v3$hispanic_prop_q_label,
+                                   levels = c(get_quartile_label(1:4, "Hispanic/Latino"),"Unknown"))
 
 # Quick ping that special codes aren’t present (campus-only should already handle this)
 stopifnot(!any(stringr::str_detect(v3$cds_school, "0000000$|0000001$")))
@@ -100,9 +107,9 @@ stopifnot(anyDuplicated(rb_rw_ta[c("academic_year","cds_school")]) == 0)
 
 # (B) Quartile counts per year (Black & White)
 v3 %>%
-  distinct(academic_year, cds_school, black_prop_q_label, white_prop_q_label) %>%
-  count(academic_year, black_prop_q_label, white_prop_q_label) %>%
-  arrange(academic_year, black_prop_q_label, white_prop_q_label) %>%
+  distinct(academic_year, cds_school, black_prop_q_label, white_prop_q_label, hispanic_prop_q_label) %>%
+  count(academic_year, black_prop_q_label, white_prop_q_label, hispanic_prop_q_label) %>%
+  arrange(academic_year, black_prop_q_label, white_prop_q_label, hispanic_prop_q_label) %>%
   print(n = 60)
 
 # (C) Why Unknown? (All missing/zero or subgroup missing)
@@ -117,10 +124,15 @@ v3 %>%
       is.na(prop_white) & (is.na(enroll_All) | enroll_All <= 0) ~ "All missing/zero",
       is.na(prop_white) &  is.na(enroll_White)                  ~ "White missing",
       TRUE                                                      ~ "Not unknown"
+    ),
+    unknown_hispanic_reason = case_when(
+      is.na(prop_hispanic) & (is.na(enroll_All) | enroll_All <= 0) ~ "All missing/zero",
+      is.na(prop_hispanic) &  is.na(enroll_Hispanic)               ~ "Hispanic missing",
+      TRUE                                                        ~ "Not unknown"
     )
   ) %>%
-  count(academic_year, unknown_black_reason, unknown_white_reason) %>%
-  arrange(academic_year, unknown_black_reason, unknown_white_reason) %>%
+  count(academic_year, unknown_black_reason, unknown_white_reason, unknown_hispanic_reason) %>%
+  arrange(academic_year, unknown_black_reason, unknown_white_reason, unknown_hispanic_reason) %>%
   print(n = 60)
 
 # (D) Bounds: proportions in [0,1], Black/White <= All
@@ -128,8 +140,10 @@ rb_rw_ta %>%
   summarise(
     any_black_oob = any(prop_black < 0 | prop_black > 1, na.rm = TRUE),
     any_white_oob = any(prop_white < 0 | prop_white > 1, na.rm = TRUE),
+    any_hispanic_oob = any(prop_hispanic < 0 | prop_hispanic > 1, na.rm = TRUE),
     any_Black_gt_All  = any(enroll_Black > enroll_All, na.rm = TRUE),
     any_White_gt_All  = any(enroll_White > enroll_All, na.rm = TRUE),
+    any_Hispanic_gt_All = any(enroll_Hispanic > enroll_All, na.rm = TRUE),
     .by = academic_year
   ) %>%
   print(n = 60) # All should be FALSE

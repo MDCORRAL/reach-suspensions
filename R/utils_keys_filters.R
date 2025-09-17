@@ -271,7 +271,7 @@ ALLOWED_RACES <- c(
 
 ###############
 # construct standardized quartile labels like "Q1 (Lowest % Black)"
-get_quartile_label <- function(q4, race = c("Black", "White")) {
+get_quartile_label <- function(q4, race = c("Black", "White", "Hispanic/Latino")) {
   race <- match.arg(race)
   dplyr::case_when(
     is.na(q4) ~ "Unknown",

@@ -98,6 +98,7 @@ v6_complete <- v6 %>%
     undup_suspensions = as.numeric(unduplicated_count_of_students_suspended_total),
     white_q = norm_quartile(white_prop_q_label),
     black_q = norm_quartile(black_prop_q_label),
+    hispanic_q = norm_quartile(hispanic_prop_q_label),
     school_level = school_level,
     grade_level = school_level
   ) %>%
@@ -130,11 +131,12 @@ analytic_data <- v6_complete %>%
     is_traditional = ifelse(is.na(is_traditional), TRUE, is_traditional),
     setting = ifelse(is_traditional, "Traditional", "Non-traditional")
   ) %>%
-  filter(!is.na(white_q), !is.na(black_q)) %>%
+  filter(!is.na(white_q), !is.na(black_q), !is.na(hispanic_q)) %>%
   mutate(
     year = order_year(year),
     black_q = order_quartile(black_q),
     white_q = order_quartile(white_q),
+    hispanic_q = order_quartile(hispanic_q),
     setting = factor(setting, levels = c("Traditional", "Non-traditional")),
     grade_level = factor(grade_level, levels = LEVEL_LABELS)
   )
@@ -186,8 +188,11 @@ rates_by_race_year <- calc_summary_stats(analytic_data, year, race_ethnicity)
 # 2. Rates by Black quartile
 rates_by_black_q <- calc_summary_stats(analytic_data, year, black_q, race_ethnicity)
 
-# 3. Rates by White quartile  
+# 3. Rates by White quartile
 rates_by_white_q <- calc_summary_stats(analytic_data, year, white_q, race_ethnicity)
+
+# 3b. Rates by Hispanic/Latino quartile
+rates_by_hispanic_q <- calc_summary_stats(analytic_data, year, hispanic_q, race_ethnicity)
 
 # 4. Rates by traditional/non-traditional setting
 rates_by_setting <- calc_summary_stats(analytic_data, year, setting, race_ethnicity)
@@ -197,14 +202,23 @@ rates_by_grade <- calc_summary_stats(analytic_data, year, grade_level, race_ethn
 
 # 6. Comprehensive cross-tabulation: All dimensions together
 rates_comprehensive <- calc_summary_stats(
-  analytic_data, 
-  year, race_ethnicity, black_q, white_q, setting, grade_level)
+  analytic_data,
+  year, race_ethnicity, black_q, white_q, hispanic_q, setting, grade_level)
 
 #6extra_Quartile disparity summary
 disparity_summary <- rates_by_black_q %>%
   filter(race_ethnicity %in% major_races) %>%
   select(year, race_ethnicity, black_q, pooled_rate) %>%
   pivot_wider(names_from = black_q, values_from = pooled_rate) %>%
+  mutate(
+    Q4_Q1_ratio = Q4/Q1,
+    Q4_Q1_diff = Q4 - Q1
+  )
+
+disparity_summary_hispanic <- rates_by_hispanic_q %>%
+  filter(race_ethnicity %in% major_races) %>%
+  select(year, race_ethnicity, hispanic_q, pooled_rate) %>%
+  pivot_wider(names_from = hispanic_q, values_from = pooled_rate) %>%
   mutate(
     Q4_Q1_ratio = Q4/Q1,
     Q4_Q1_diff = Q4 - Q1
@@ -219,7 +233,7 @@ rates_traditional_focus <- analytic_data %>%
     setting == "Traditional",
     race_ethnicity %in% key_races
   ) %>%
-  calc_summary_stats(year, black_q, white_q, race_ethnicity, grade_level)
+  calc_summary_stats(year, black_q, white_q, hispanic_q, race_ethnicity, grade_level)
 
 # -------------------------------------------------------------------------
 # Visualization Functions
@@ -317,13 +331,18 @@ p1_black_q <- rates_by_black_q %>%
   filter(race_ethnicity %in% major_races) %>%
   create_quartile_plot("black_q", "Black Enrollment Quartile")
 
-# Plot 2: Rates by White quartile  
+# Plot 2: Rates by White quartile
 p2_white_q <- rates_by_white_q %>%
   filter(race_ethnicity %in% major_races) %>%
   create_quartile_plot("white_q", "White Enrollment Quartile")
 
-# Plot 3: Traditional vs Non-traditional
-p3_setting <- rates_by_setting %>%
+# Plot 3: Rates by Hispanic/Latino quartile
+p3_hispanic_q <- rates_by_hispanic_q %>%
+  filter(race_ethnicity %in% major_races) %>%
+  create_quartile_plot("hispanic_q", "Hispanic/Latino Enrollment Quartile")
+
+# Plot 4: Traditional vs Non-traditional
+p4_setting <- rates_by_setting %>%
   filter(race_ethnicity %in% major_races) %>%
   create_setting_plot()
 
@@ -369,20 +388,22 @@ create_grade_level_plot <- function() {
     )
 }
 
-# Plot 4: Grade level comparison for Black students in Traditional schools
-p4_grade_black <- create_grade_level_plot()
+# Plot 5: Grade level comparison for Black students in Traditional schools
+p5_grade_black <- create_grade_level_plot()
 
 # Export Results
 # -------------------------------------------------------------------------
 
 # Save plots
-ggsave(file.path(OUT_DIR, "rates_by_black_quartile.png"), p1_black_q, 
+ggsave(file.path(OUT_DIR, "rates_by_black_quartile.png"), p1_black_q,
        width = 12, height = 8, dpi = 300)
-ggsave(file.path(OUT_DIR, "rates_by_white_quartile.png"), p2_white_q, 
-       width = 12, height = 8, dpi = 300)  
-ggsave(file.path(OUT_DIR, "rates_by_setting.png"), p3_setting,
+ggsave(file.path(OUT_DIR, "rates_by_white_quartile.png"), p2_white_q,
        width = 12, height = 8, dpi = 300)
-ggsave(file.path(OUT_DIR, "black_rates_by_grade_level.png"), p4_grade_black,
+ggsave(file.path(OUT_DIR, "rates_by_hispanic_quartile.png"), p3_hispanic_q,
+       width = 12, height = 8, dpi = 300)
+ggsave(file.path(OUT_DIR, "rates_by_setting.png"), p4_setting,
+       width = 12, height = 8, dpi = 300)
+ggsave(file.path(OUT_DIR, "black_rates_by_grade_level.png"), p5_grade_black,
        width = 12, height = 6, dpi = 300)
 
 # Create comprehensive Excel workbook
@@ -400,25 +421,38 @@ writeData(wb, "rates_by_black_quartile", rates_by_black_q)
 addWorksheet(wb, "rates_by_white_quartile")
 writeData(wb, "rates_by_white_quartile", rates_by_white_q)
 
-# Sheet 4: Rates by school setting
+# Sheet 4: Rates by Hispanic/Latino quartile
+addWorksheet(wb, "rates_by_hispanic_quartile")
+writeData(wb, "rates_by_hispanic_quartile", rates_by_hispanic_q)
+
+# Sheet 5: Rates by school setting
 addWorksheet(wb, "rates_by_setting")
 writeData(wb, "rates_by_setting", rates_by_setting)
 
-# Sheet 5: Rates by grade level
+# Sheet 6: Rates by grade level
 addWorksheet(wb, "rates_by_grade_level")
 writeData(wb, "rates_by_grade_level", rates_by_grade)
 
-# Sheet 6: Comprehensive cross-tab (filtered for major races to avoid huge file)
+# Sheet 7: Comprehensive cross-tab (filtered for major races to avoid huge file)
 addWorksheet(wb, "comprehensive_analysis")
 rates_comprehensive_filtered <- rates_comprehensive %>%
   filter(race_ethnicity %in% major_races, n_records >= 5) # minimum threshold for reliability
 writeData(wb, "comprehensive_analysis", rates_comprehensive_filtered)
 
-# Sheet 7: Traditional schools focus analysis
+# Sheet 8: Traditional schools focus analysis
 addWorksheet(wb, "traditional_schools_focus")
 writeData(wb, "traditional_schools_focus", rates_traditional_focus)
 
-# Sheet 8: Summary statistics
+# Sheet 9: Quartile gap summaries
+addWorksheet(wb, "quartile_disparities")
+writeData(wb, "quartile_disparities", "Black quartile gaps", startRow = 1, startCol = 1)
+writeData(wb, "quartile_disparities", disparity_summary, startRow = 2, startCol = 1)
+writeData(wb, "quartile_disparities", "Hispanic/Latino quartile gaps",
+         startRow = nrow(disparity_summary) + 4, startCol = 1)
+writeData(wb, "quartile_disparities", disparity_summary_hispanic,
+         startRow = nrow(disparity_summary) + 5, startCol = 1)
+
+# Sheet 10: Summary statistics
 summary_stats <- list(
   total_records = nrow(analytic_data),
   unique_schools = n_distinct(analytic_data$school_code),
@@ -426,17 +460,39 @@ summary_stats <- list(
   race_categories = length(unique(analytic_data$race_ethnicity)),
   black_q_schools = analytic_data %>% count(black_q, name = "n_schools"),
   white_q_schools = analytic_data %>% count(white_q, name = "n_schools"),
+  hispanic_q_schools = analytic_data %>% count(hispanic_q, name = "n_schools"),
   setting_schools = analytic_data %>% count(setting, name = "n_schools"),
   grade_schools = analytic_data %>% count(grade_level, name = "n_schools")
 )
 
 addWorksheet(wb, "summary_statistics")
-writeData(wb, "summary_statistics", 
+writeData(wb, "summary_statistics",
           data.frame(
             metric = names(summary_stats)[1:4],
-            value = c(summary_stats$total_records, summary_stats$unique_schools, 
+            value = c(summary_stats$total_records, summary_stats$unique_schools,
                       summary_stats$years_covered, summary_stats$race_categories)
           ), startRow = 1)
+
+row_cursor <- 6
+writeData(wb, "summary_statistics", "Black quartile counts", startRow = row_cursor, startCol = 1)
+row_cursor <- row_cursor + 1
+writeData(wb, "summary_statistics", summary_stats$black_q_schools, startRow = row_cursor, startCol = 1)
+row_cursor <- row_cursor + nrow(summary_stats$black_q_schools) + 1
+writeData(wb, "summary_statistics", "White quartile counts", startRow = row_cursor, startCol = 1)
+row_cursor <- row_cursor + 1
+writeData(wb, "summary_statistics", summary_stats$white_q_schools, startRow = row_cursor, startCol = 1)
+row_cursor <- row_cursor + nrow(summary_stats$white_q_schools) + 1
+writeData(wb, "summary_statistics", "Hispanic/Latino quartile counts", startRow = row_cursor, startCol = 1)
+row_cursor <- row_cursor + 1
+writeData(wb, "summary_statistics", summary_stats$hispanic_q_schools, startRow = row_cursor, startCol = 1)
+row_cursor <- row_cursor + nrow(summary_stats$hispanic_q_schools) + 1
+writeData(wb, "summary_statistics", "Setting counts", startRow = row_cursor, startCol = 1)
+row_cursor <- row_cursor + 1
+writeData(wb, "summary_statistics", summary_stats$setting_schools, startRow = row_cursor, startCol = 1)
+row_cursor <- row_cursor + nrow(summary_stats$setting_schools) + 1
+writeData(wb, "summary_statistics", "Grade level counts", startRow = row_cursor, startCol = 1)
+row_cursor <- row_cursor + 1
+writeData(wb, "summary_statistics", summary_stats$grade_schools, startRow = row_cursor, startCol = 1)
 
 # Save Excel file
 excel_path <- file.path(OUT_DIR, "comprehensive_suspension_rates_analysis.xlsx")
@@ -448,7 +504,8 @@ cat("===============================================\n\n")
 cat("Output directory:", OUT_DIR, "\n\n")
 cat("Files created:\n")
 cat("- rates_by_black_quartile.png\n")
-cat("- rates_by_white_quartile.png\n") 
+cat("- rates_by_white_quartile.png\n")
+cat("- rates_by_hispanic_quartile.png\n")
 cat("- rates_by_setting.png\n")
 cat("- black_rates_by_grade_level.png\n")
 cat("- comprehensive_suspension_rates_analysis.xlsx\n\n")
@@ -459,8 +516,10 @@ cat("- Years covered:", paste(sort(unique(analytic_data$year)), collapse = ", ")
 cat("- Race/ethnicity categories:", length(unique(analytic_data$race_ethnicity)), "\n")
 cat("- Black quartile distribution:\n")
 print(table(analytic_data$black_q, useNA = "always"))
-cat("- White quartile distribution:\n") 
+cat("- White quartile distribution:\n")
 print(table(analytic_data$white_q, useNA = "always"))
+cat("- Hispanic/Latino quartile distribution:\n")
+print(table(analytic_data$hispanic_q, useNA = "always"))
 cat("- Setting distribution:\n")
 print(table(analytic_data$setting, useNA = "always"))
 cat("- Grade level distribution:\n")

@@ -105,25 +105,43 @@ if (REBUILD_V6 || !file.exists(V6_FEAT_PARQ)) {
       summarise(across(everything(), ~dplyr::first(na.omit(.))), .groups = "drop")
   }
   # Quartile label cleanup
+  quartile_levels <- c("Q1","Q2","Q3","Q4","Unknown")
+
   v5_feats <- v5_core %>%
     mutate(
-      black_prop_q = as.integer(black_prop_q),
+      across(c(black_prop_q, white_prop_q, hispanic_prop_q), as.integer),
       black_prop_q_label = case_when(
         !is.na(black_prop_q_label) ~ str_replace(as.character(black_prop_q_label), "\\s*\\(.*\\)$", ""),
         !is.na(black_prop_q)      ~ paste0("Q", black_prop_q),
         TRUE ~ "Unknown"
       ),
-      black_prop_q_label = factor(black_prop_q_label,
-                                  levels = c("Q1","Q2","Q3","Q4","Unknown"),
-                                  ordered = TRUE)
+      white_prop_q_label = case_when(
+        !is.na(white_prop_q_label) ~ str_replace(as.character(white_prop_q_label), "\\s*\\(.*\\)$", ""),
+        !is.na(white_prop_q)      ~ paste0("Q", white_prop_q),
+        TRUE ~ "Unknown"
+      ),
+      hispanic_prop_q_label = case_when(
+        !is.na(hispanic_prop_q_label) ~ str_replace(as.character(hispanic_prop_q_label), "\\s*\\(.*\\)$", ""),
+        !is.na(hispanic_prop_q)      ~ paste0("Q", hispanic_prop_q),
+        TRUE ~ "Unknown"
+      ),
+      black_prop_q_label = factor(black_prop_q_label, levels = quartile_levels, ordered = TRUE),
+      white_prop_q_label = factor(white_prop_q_label, levels = quartile_levels, ordered = TRUE),
+      hispanic_prop_q_label = factor(hispanic_prop_q_label, levels = quartile_levels, ordered = TRUE)
     ) %>%
     select(
       school_code,
       academic_year,
       dplyr::any_of("cds_school"),
       black_share = prop_black,
+      white_share = prop_white,
+      hispanic_share = prop_hispanic,
       black_prop_q,
+      white_prop_q,
+      hispanic_prop_q,
       black_prop_q_label,
+      white_prop_q_label,
+      hispanic_prop_q_label,
       school_type
     )
 
