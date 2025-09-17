@@ -4,6 +4,7 @@
 
 suppressPackageStartupMessages({
   library(dplyr)
+  library(ggrepel)
   library(ggplot2)
   library(glue)
   library(here)
@@ -13,6 +14,13 @@ suppressPackageStartupMessages({
 })
 
 source(here::here("graph_scripts", "graph_utils.R"))
+
+quartile_palette <- c(
+  "Q1" = "#0B3954",
+  "Q2" = "#087E8B",
+  "Q3" = "#FF5A5F",
+  "Q4" = "#C81D25"
+)
 
 quartile_group_levels <- c(
   "Black Enrollment Quartile",
@@ -74,7 +82,11 @@ quartile_long <- quartile_base %>%
     ),
     quartile_short = factor(quartile_short, levels = c("Q1", "Q2", "Q3", "Q4"))
   ) %>%
-  dplyr::filter(!is.na(quartile), !is.na(label), !is.na(quartile_short))
+  dplyr::filter(!is.na(quartile), !is.na(label), !is.na(quartile_short)) %>%
+  dplyr::filter(
+    quartile == 4L |
+      stringr::str_detect(label, stringr::regex("^Q4 ", ignore_case = TRUE))
+  )
 
 if (nrow(quartile_long) == 0) {
   stop("No quartile-tagged observations available for the comparison chart.")
@@ -95,7 +107,9 @@ quartile_rates <- quartile_long %>%
     subgroup = factorize_race(subgroup),
     academic_year = factor(academic_year, levels = year_levels, ordered = TRUE)
   ) %>%
-  dplyr::arrange(subgroup, quartile_group, quartile_short, academic_year)
+
+  dplyr::arrange(subgroup, quartile_group, academic_year)
+
 
 quartile_q4_rates <- quartile_rates %>%
   dplyr::filter(quartile_short == "Q4") %>%
@@ -132,12 +146,14 @@ plot_rates <- ggplot(quartile_q4_rates,
                          group = subgroup)) +
   geom_line(linewidth = 0.7) +
   geom_point(size = 1.6) +
+
   scale_color_manual(
     values = race_palette,
     breaks = race_levels,
     limits = race_levels,
     name = "Student group"
   ) +
+
   scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
   labs(
     title = plot_title,
