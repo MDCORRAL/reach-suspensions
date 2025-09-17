@@ -9,7 +9,6 @@ suppressPackageStartupMessages({
   library(glue)
   library(here)
   library(scales)
-  library(stringr)
   library(tidyr)
 })
 
@@ -75,18 +74,10 @@ quartile_long <- quartile_base %>%
       hispanic = quartile_group_levels[3]
     ),
     quartile_group = factor(quartile_group, levels = quartile_group_levels, ordered = TRUE),
-    quartile = as.integer(quartile),
-    quartile_short = dplyr::case_when(
-      quartile %in% c(1L, 2L, 3L, 4L) ~ paste0("Q", quartile),
-      TRUE ~ NA_character_
-    ),
-    quartile_short = factor(quartile_short, levels = c("Q1", "Q2", "Q3", "Q4"))
+    quartile = as.integer(quartile)
   ) %>%
-  dplyr::filter(!is.na(quartile), !is.na(label), !is.na(quartile_short)) %>%
-  dplyr::filter(
-    quartile == 4L |
-      stringr::str_detect(label, stringr::regex("^Q4 ", ignore_case = TRUE))
-  )
+  dplyr::filter(!is.na(quartile), !is.na(label)) %>%
+  dplyr::filter(quartile == 4L)
 
 if (nrow(quartile_long) == 0) {
   stop("No quartile-tagged observations available for the comparison chart.")
@@ -95,7 +86,7 @@ if (nrow(quartile_long) == 0) {
 year_levels <- quartile_long$academic_year %>% unique() %>% sort()
 
 quartile_rates <- quartile_long %>%
-  dplyr::group_by(quartile_group, quartile_short, academic_year, subgroup) %>%
+  dplyr::group_by(quartile_group, academic_year, subgroup) %>%
   dplyr::summarise(
     suspensions = sum(total_suspensions, na.rm = TRUE),
     enrollment = sum(cumulative_enrollment, na.rm = TRUE),
@@ -110,9 +101,7 @@ quartile_rates <- quartile_long %>%
 
   dplyr::arrange(subgroup, quartile_group, academic_year)
 
-
 quartile_q4_rates <- quartile_rates %>%
-  dplyr::filter(quartile_short == "Q4") %>%
   dplyr::mutate(
     quartile_group = droplevels(quartile_group),
     quartile_facet = dplyr::case_when(
@@ -133,7 +122,7 @@ quartile_q4_rates <- quartile_rates %>%
   ) %>%
   dplyr::arrange(subgroup, quartile_facet, academic_year)
 
-plot_title <- "Suspension rates in highest-enrollment schools"
+plot_title <- "Suspension rates in highest-enrollment schools (Q4 cohort)"
 plot_subtitle <- glue::glue(
   "Traditional schools in Q4—the highest share of Black, White, or Hispanic/Latino enrollment\n",
   "Lines trace suspension rates for each student group across all reported years"
