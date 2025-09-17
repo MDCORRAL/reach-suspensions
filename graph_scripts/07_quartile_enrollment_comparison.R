@@ -164,7 +164,7 @@ plot_rates <- ggplot(quartile_q4_rates,
     y = "Suspension rate",
     caption = "Source: California statewide suspension data (susp_v5 + v6 features)"
   ) +
-  facet_wrap(~ quartile_group, nrow = 1) +
+  facet_wrap(~ quartile_group, ncol = 1) +
   theme_reach() +
   theme(
     legend.position = "bottom"
@@ -172,7 +172,7 @@ plot_rates <- ggplot(quartile_q4_rates,
 
 out_path <- file.path(OUTPUT_DIR, "quartile_enrollment_comparison.png")
 
-ggsave(out_path, plot_rates, width = 13, height = 14, dpi = 320)
+ggsave(out_path, plot_rates, width = 13, height = 18, dpi = 320)
 
 table_path <- file.path(OUTPUT_DIR, "quartile_enrollment_comparison.csv")
 
