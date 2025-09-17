@@ -136,6 +136,18 @@ plot_rates <- ggplot(quartile_q4_rates,
                          group = subgroup)) +
   geom_line(linewidth = 0.7) +
   geom_point(size = 1.6) +
+  ggrepel::geom_label_repel(
+    aes(label = scales::percent(rate, accuracy = 0.1)),
+    size = 3,
+    label.size = 0,
+    label.padding = grid::unit(0.12, "lines"),
+    label.r = grid::unit(0.2, "lines"),
+    fill = "white",
+    box.padding = grid::unit(0.3, "lines"),
+    point.padding = grid::unit(0.3, "lines"),
+    min.segment.length = 0,
+    max.overlaps = Inf
+  ) +
 
   scale_color_manual(
     values = race_palette,
