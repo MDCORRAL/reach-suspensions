@@ -1,4 +1,5 @@
 # large/sensitive data (don’t push)
+# Project data directories
 data/
 data-raw/
 data-stage/*.parquet
@@ -6,6 +7,9 @@ data-stage/*.parquet
 *.xlsx
 *.csv
 *.png
+# Allow committing the built dashboard data assets
+!dashboard/data/
+!dashboard/data/dashboard_data.json
 # macOS system files
 .DS_Store
 # R/RStudio
