@@ -433,7 +433,10 @@
         },
         {
           title: 'Students suspended',
-          value: totalStudentsSusp ? formatNumber(totalStudentsSusp, { maximumFractionDigits: 0 }) : '—',
+          value:
+            totalStudentsSusp != null
+              ? formatNumber(totalStudentsSusp, { maximumFractionDigits: 0 })
+              : '—',
           detail: studentRate != null ? `${formatNumber(studentRate)}% of students impacted.` : 'Share unavailable.',
         },
         {
