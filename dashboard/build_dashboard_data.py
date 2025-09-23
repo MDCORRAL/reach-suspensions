@@ -10,6 +10,24 @@ DATA_PATH = PROJECT_ROOT / "data-stage" / "susp_v6_long.parquet"
 OUTPUT_PATH = Path(__file__).resolve().parent / "data" / "dashboard_data.json"
 
 
+def sanitize_for_json(value):
+    """Recursively replace NaN-like values with ``None`` so JSON is valid."""
+
+    if isinstance(value, dict):
+        return {key: sanitize_for_json(item) for key, item in value.items()}
+
+    if isinstance(value, list):
+        return [sanitize_for_json(item) for item in value]
+
+    if value is pd.NA:
+        return None
+
+    if isinstance(value, (float, np.floating)) and np.isnan(value):
+        return None
+
+    return value
+
+
 def safe_rate(numerator: pd.Series, denominator: pd.Series) -> pd.Series:
     rate = numerator / denominator.replace({0: np.nan})
     return (rate * 100).round(3)
@@ -154,8 +172,8 @@ def summarize() -> dict:
 
 def main() -> None:
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    data = summarize()
-    OUTPUT_PATH.write_text(json.dumps(data, indent=2))
+    data = sanitize_for_json(summarize())
+    OUTPUT_PATH.write_text(json.dumps(data, indent=2, allow_nan=False))
     print(f"Wrote {OUTPUT_PATH.relative_to(PROJECT_ROOT)}")
 
 
