@@ -7,7 +7,7 @@ import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = PROJECT_ROOT / "data-stage" / "susp_v6_long.parquet"
-OUTPUT_PATH = PROJECT_ROOT / "data" / "dashboard_data.json"
+OUTPUT_PATH = PROJECT_ROOT / "dashboard" / "data" / "dashboard_data.json"
 
 
 def sanitize_for_json(value):
