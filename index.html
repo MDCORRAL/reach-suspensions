@@ -377,8 +377,12 @@
 
     function formatNumber(value, options = {}) {
       if (value == null || Number.isNaN(value)) return '—';
-      const { style = 'decimal', maximumFractionDigits = 1 } = options;
-      return new Intl.NumberFormat('en-US', { style, maximumFractionDigits }).format(value);
+      const { style = 'decimal', maximumFractionDigits = 1, minimumFractionDigits } = options;
+      const formatterOptions = { style, maximumFractionDigits };
+      if (minimumFractionDigits != null) {
+        formatterOptions.minimumFractionDigits = minimumFractionDigits;
+      }
+      return new Intl.NumberFormat('en-US', formatterOptions).format(value);
     }
 
     function weightedAverage(records, valueKey, weightKey) {
@@ -566,13 +570,14 @@
       }
       const top = categories[0];
       const bottom = categories[categories.length - 1];
-      if (!top.rate || !bottom.rate) {
+      if (top.rate == null || bottom.rate == null) {
         narrative.textContent = 'Suspension rates are suppressed for the selected student groups.';
         return;
       }
       const gap = top.rate - bottom.rate;
-      narrative.innerHTML = `<strong>${top.group}</strong> students face the highest suspension rates at <strong>${formatNumber(top.rate)}%</strong>,
-        compared with <strong>${formatNumber(bottom.rate)}%</strong> among ${bottom.group} students — a difference of ${formatNumber(gap)} points.`;
+      const rateFormatOptions = { minimumFractionDigits: 1, maximumFractionDigits: 1 };
+      narrative.innerHTML = `<strong>${top.group}</strong> students face the highest suspension rates at <strong>${formatNumber(top.rate, rateFormatOptions)}%</strong>,
+        compared with <strong>${formatNumber(bottom.rate, rateFormatOptions)}%</strong> among ${bottom.group} students — a difference of ${formatNumber(gap, rateFormatOptions)} points.`;
     }
 
     function drawTrendChart(records) {
