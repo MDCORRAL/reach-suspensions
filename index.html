@@ -9,15 +9,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #f7f7fb;
+      --bg: #daebfe;
       --surface: #ffffff;
-      --border: #e0e4ef;
-      --primary: #1b4d89;
-      --accent: #f19953;
-      --muted: #6f7a92;
-      --success: #2f9c95;
-      --warning: #f5c156;
-      --danger: #c75146;
+      --border: #8bb8e8;
+      --primary: #2774ae;
+      --accent: #ffb81c;
+      --muted: #005587;
+      --success: #003b5c;
+      --warning: #ffc72c;
+      --danger: #005587;
     }
 
     * {
@@ -28,16 +28,16 @@
       margin: 0;
       font-family: 'Inter', sans-serif;
       background: var(--bg);
-      color: #1a1c26;
+      color: #003b5c;
       line-height: 1.6;
     }
 
     header {
-      background: linear-gradient(135deg, var(--primary), #0b2c52);
+      background: linear-gradient(135deg, var(--primary), #003b5c);
       color: #fff;
       padding: 3.5rem 1.5rem 2.5rem;
       text-align: center;
-      box-shadow: 0 10px 25px rgba(16, 42, 87, 0.25);
+      box-shadow: 0 10px 25px rgba(0, 59, 92, 0.25);
     }
 
     header h1 {
@@ -68,7 +68,7 @@
       background: var(--surface);
       border-radius: 16px;
       padding: 1.75rem;
-      box-shadow: 0 12px 30px rgba(22, 40, 74, 0.08);
+      box-shadow: 0 12px 30px rgba(0, 59, 92, 0.12);
       border: 1px solid var(--border);
     }
 
@@ -128,7 +128,7 @@
     }
 
     .option-pill.active {
-      background: rgba(27, 77, 137, 0.12);
+      background: rgba(39, 116, 174, 0.16);
       color: var(--primary);
       border-color: var(--primary);
       font-weight: 600;
@@ -142,10 +142,10 @@
     }
 
     .summary-card {
-      background: linear-gradient(145deg, rgba(27, 77, 137, 0.08), rgba(255, 255, 255, 0.95));
+      background: linear-gradient(145deg, rgba(39, 116, 174, 0.12), rgba(255, 255, 255, 0.95));
       border-radius: 14px;
       padding: 1.25rem 1.5rem;
-      border: 1px solid rgba(27, 77, 137, 0.15);
+      border: 1px solid rgba(39, 116, 174, 0.18);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
 
@@ -307,7 +307,7 @@
 
   <script src="https://cdn.plot.ly/plotly-2.27.1.min.js"></script>
   <script>
-    const palette = ['#1b4d89', '#f19953', '#1496bb', '#0b7189', '#c75146', '#b0a1ba'];
+    const palette = ['#003b5c', '#ffb81c', '#2774ae', '#ffc72c', '#005587', '#ffd100'];
     let dashboardData = null;
 
     const filterConfig = [
