@@ -1,6 +1,9 @@
 # large/sensitive data (don’t push)
 # Project data directories
 data/
+!data/
+data/*
+!data/dashboard_data.json
 data-raw/
 data-stage/*.parquet
 *.duckdb
