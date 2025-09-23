@@ -711,7 +711,7 @@
       drawReasonChart(reasons);
     }
 
-    fetch('dashboard_data.json')
+    fetch('/dashboard/data/dashboard_data.json')
       .then((response) => response.json())
       .then((data) => {
         dashboardData = data;
