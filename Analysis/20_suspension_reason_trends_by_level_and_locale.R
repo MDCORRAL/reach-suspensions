@@ -77,6 +77,7 @@ v6 <- v6 %>%
   mutate(academic_year = factor(academic_year, levels = year_levels))
 
 v6_all <- v6 %>%
+
   filter(subgroup == "All Students")
 
 # --- helpers ------------------------------------------------------------------
@@ -206,6 +207,7 @@ ggsave(file.path(out_dir, "20_overall_reason_rates.png"), p_overall_reason,
        width = 10, height = 6, dpi = 300)
 
 # --- 3a) By school setting ---------------------------------------------------
+
 setting_rates <- summarise_reason_rates(
   v6_all %>% filter(!is.na(setting)),
   c("academic_year", "setting")
@@ -264,6 +266,7 @@ grade_setting_rates <- summarise_reason_rates(
   by_grade %>% filter(!is.na(setting)),
   c("academic_year", "school_level", "setting")
 ) %>%
+
   mutate(reason_lab = factor(reason_lab, levels = names(pal_reason)))
 save_table(grade_setting_rates, "20_grade_setting_reason_rates.csv")
 save_table(
@@ -327,6 +330,7 @@ p_locale_reason <- plot_reason_area(locale_rates, "locale_simple",
 
 ggsave(file.path(out_dir, "20_locale_reason_rates.png"), p_locale_reason,
        width = 12, height = 8, dpi = 300)
+
 
 locale_setting_rates <- summarise_reason_rates(
   by_locale %>% filter(!is.na(setting)),
