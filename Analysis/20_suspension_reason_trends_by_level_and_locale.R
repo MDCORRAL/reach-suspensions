@@ -54,15 +54,16 @@ features <- arrow::read_parquet(
     school_code,
     academic_year,
     is_traditional
-  ) %>%
-  mutate(
-    is_traditional = dplyr::coalesce(is_traditional, FALSE),
-    setting = if_else(is_traditional, "Traditional", "Non-traditional")
   )
 
 v6 <- v6 %>%
   left_join(features, by = c("school_code", "academic_year")) %>%
   mutate(
+    setting = case_when(
+      is_traditional ~ "Traditional",
+      is_traditional == FALSE ~ "Non-traditional",
+      TRUE ~ NA_character_
+    ),
     setting = factor(setting, levels = names(pal_setting)),
     across(ends_with("_prop_q_label"), ~ as.character(as.factor(.x)))
   ) %>%
