@@ -43,7 +43,18 @@ def share_within_group(series: pd.Series) -> pd.Series:
 
 
 def summarize() -> dict:
-    df = pd.read_parquet(DATA_PATH)
+    columns = [
+        "academic_year",
+        "school_level_final",
+        "reporting_category_description",
+        "black_prop_q_label",
+        "school_code",
+        "reason_lab",
+        "total_suspensions",
+        "unduplicated_count_of_students_suspended_total",
+        "cumulative_enrollment",
+    ]
+    df = pd.read_parquet(DATA_PATH, columns=columns)
 
     # Normalize labels for filtering
     for col in [
@@ -57,13 +68,12 @@ def summarize() -> dict:
     df["academic_year"] = df["academic_year"].astype("string")
     df["school_code"] = df["school_code"].astype("string")
 
-    # Replace missing counts with zeros to avoid propagation of NaNs
-    count_cols = [
-        "total_suspensions",
-        "unduplicated_count_of_students_suspended_total",
-        "cumulative_enrollment",
-    ]
-    df[count_cols] = df[count_cols].fillna(0)
+    # Replace missing counts with zeros so suppressed rows do not inflate totals
+    df["total_suspensions"] = df["total_suspensions"].fillna(0)
+    df["unduplicated_count_of_students_suspended_total"] = df[
+        "unduplicated_count_of_students_suspended_total"
+    ].fillna(0)
+    df["cumulative_enrollment"] = df["cumulative_enrollment"].fillna(0)
 
     filter_cols = [
         "academic_year",
@@ -77,13 +87,7 @@ def summarize() -> dict:
     # Collapse to one record per school to avoid reason-level duplication
     per_school_reason = (
         df.groupby(per_school_cols + ["reason_lab"], dropna=False)
-        .agg(
-            total_suspensions=("total_suspensions", "sum"),
-            students_suspended=(
-                "unduplicated_count_of_students_suspended_total", "max"
-            ),
-            enrollment=("cumulative_enrollment", "max"),
-        )
+        .agg(total_suspensions=("total_suspensions", "sum"))
         .reset_index()
     )
 
@@ -98,38 +102,6 @@ def summarize() -> dict:
         )
         .reset_index()
     )
-
-    # Reason level summaries aggregated across schools
-    reason_summary = (
-        per_school_reason.groupby(filter_cols + ["reason_lab"], dropna=False)
-        .agg(
-            total_suspensions=("total_suspensions", "sum"),
-            students_suspended=("students_suspended", "sum"),
-            enrollment=("enrollment", "sum"),
-        )
-        .reset_index()
-    )
-
-    reason_summary["suspension_rate"] = safe_rate(
-        reason_summary["total_suspensions"], reason_summary["enrollment"]
-    )
-    reason_summary["student_rate"] = safe_rate(
-        reason_summary["students_suspended"], reason_summary["enrollment"]
-    )
-    reason_summary["share_of_total"] = reason_summary.groupby(filter_cols)[
-        "total_suspensions"
-    ].transform(share_within_group)
-
-    reason_summary = reason_summary[
-        filter_cols
-        + [
-            "reason_lab",
-            "total_suspensions",
-            "suspension_rate",
-            "student_rate",
-            "share_of_total",
-        ]
-    ]
 
     # Aggregate across reasons for overall totals
     overall = (
@@ -147,6 +119,44 @@ def summarize() -> dict:
     overall["student_rate"] = safe_rate(
         overall["students_suspended"], overall["enrollment"]
     )
+
+    # Reason level summaries aggregated across schools using overall denominators
+    reason_summary = (
+        per_school_reason.groupby(filter_cols + ["reason_lab"], dropna=False)
+        .agg(total_suspensions=("total_suspensions", "sum"))
+        .reset_index()
+    )
+
+    reason_summary = reason_summary.merge(
+        overall[filter_cols + ["total_suspensions", "enrollment"]],
+        on=filter_cols,
+        how="left",
+        suffixes=("", "_overall"),
+    )
+    reason_summary = reason_summary.rename(
+        columns={"enrollment": "enrollment_overall"}
+    )
+    reason_summary["share_of_total"] = (
+        reason_summary["total_suspensions"]
+        / reason_summary["total_suspensions_overall"].replace({0: np.nan})
+    ).round(4)
+    reason_summary["suspension_rate"] = safe_rate(
+        reason_summary["total_suspensions"], reason_summary["enrollment_overall"]
+    )
+    reason_summary = reason_summary[
+        filter_cols
+        + [
+            "reason_lab",
+            "total_suspensions",
+            "suspension_rate",
+            "share_of_total",
+        ]
+    ]
+
+    # Consistent ordering for deterministic JSON output
+    sort_keys = filter_cols + ["reason_lab"]
+    reason_summary = reason_summary.sort_values(sort_keys).reset_index(drop=True)
+    overall = overall.sort_values(filter_cols).reset_index(drop=True)
 
     # Disparities relative to White students and all students (Total)
     white_baseline = (
