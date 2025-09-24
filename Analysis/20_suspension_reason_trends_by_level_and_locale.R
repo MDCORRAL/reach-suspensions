@@ -53,19 +53,21 @@ features <- arrow::read_parquet(
   select(
     school_code,
     academic_year,
-    is_traditional,
-    black_prop_q_label,
-    hispanic_prop_q_label,
-    white_prop_q_label
-  ) %>%
-  mutate(
-    is_traditional = dplyr::coalesce(is_traditional, FALSE),
-    setting = if_else(is_traditional, "Traditional", "Non-traditional"),
-    across(ends_with("_prop_q_label"), as.character)
+    is_traditional
   )
 
 v6 <- v6 %>%
-  left_join(features, by = c("school_code", "academic_year"))
+  left_join(features, by = c("school_code", "academic_year")) %>%
+  mutate(
+    setting = case_when(
+      is_traditional ~ "Traditional",
+      is_traditional == FALSE ~ "Non-traditional",
+      TRUE ~ NA_character_
+    ),
+    setting = factor(setting, levels = names(pal_setting)),
+    across(ends_with("_prop_q_label"), ~ as.character(as.factor(.x)))
+  ) %>%
+  select(-is_traditional)
 
 # academic year order (lexical sort works for "2017-18" style)
 year_levels <- v6 %>%
@@ -76,8 +78,8 @@ v6 <- v6 %>%
   mutate(academic_year = factor(academic_year, levels = year_levels))
 
 v6_all <- v6 %>%
-  filter(subgroup == "All Students") %>%
-  mutate(setting = factor(setting, levels = names(pal_setting)))
+
+  filter(subgroup == "All Students")
 
 # --- helpers ------------------------------------------------------------------
 # compute suspension reason rates for arbitrary grouping columns
@@ -206,7 +208,11 @@ ggsave(file.path(out_dir, "20_overall_reason_rates.png"), p_overall_reason,
        width = 10, height = 6, dpi = 300)
 
 # --- 3a) By school setting ---------------------------------------------------
-setting_rates <- summarise_reason_rates(v6_all, c("academic_year", "setting")) %>%
+
+setting_rates <- summarise_reason_rates(
+  v6_all %>% filter(!is.na(setting)),
+  c("academic_year", "setting")
+) %>%
   mutate(reason_lab = factor(reason_lab, levels = names(pal_reason)))
 save_table(setting_rates, "20_setting_reason_rates.csv")
 save_table(
@@ -257,7 +263,11 @@ p_grade_reason <- plot_reason_area(grade_rates, "school_level",
 ggsave(file.path(out_dir, "20_grade_reason_rates.png"), p_grade_reason,
        width = 12, height = 8, dpi = 300)
 
-grade_setting_rates <- summarise_reason_rates(by_grade, c("academic_year", "school_level", "setting")) %>%
+grade_setting_rates <- summarise_reason_rates(
+  by_grade %>% filter(!is.na(setting)),
+  c("academic_year", "school_level", "setting")
+) %>%
+
   mutate(reason_lab = factor(reason_lab, levels = names(pal_reason)))
 save_table(grade_setting_rates, "20_grade_setting_reason_rates.csv")
 save_table(
@@ -322,7 +332,11 @@ p_locale_reason <- plot_reason_area(locale_rates, "locale_simple",
 ggsave(file.path(out_dir, "20_locale_reason_rates.png"), p_locale_reason,
        width = 12, height = 8, dpi = 300)
 
-locale_setting_rates <- summarise_reason_rates(by_locale, c("academic_year", "locale_simple", "setting")) %>%
+
+locale_setting_rates <- summarise_reason_rates(
+  by_locale %>% filter(!is.na(setting)),
+  c("academic_year", "locale_simple", "setting")
+) %>%
   mutate(reason_lab = factor(reason_lab, levels = names(pal_reason)))
 save_table(locale_setting_rates, "20_locale_setting_reason_rates.csv")
 save_table(
@@ -373,17 +387,16 @@ race_quartile_map <- tibble::tibble(
 race_quartile_data <- v6 %>%
   filter(subgroup %in% race_quartile_map$subgroup) %>%
   left_join(race_quartile_map, by = "subgroup") %>%
+  rowwise() %>%
   mutate(
-    enrollment_quartile = case_when(
-      quartile_col == "black_prop_q_label" ~ black_prop_q_label,
-      quartile_col == "hispanic_prop_q_label" ~ hispanic_prop_q_label,
-      quartile_col == "white_prop_q_label" ~ white_prop_q_label,
-      TRUE ~ NA_character_
-    ),
-    enrollment_quartile = factor(enrollment_quartile, levels = quartile_levels)
+    enrollment_quartile = .data[[quartile_col]]
   ) %>%
-  filter(!is.na(enrollment_quartile)) %>%
-  mutate(setting = factor(setting, levels = names(pal_setting)))
+  ungroup() %>%
+  mutate(
+    enrollment_quartile = factor(as.character(enrollment_quartile), levels = quartile_levels),
+    setting = factor(setting, levels = names(pal_setting))
+  ) %>%
+  filter(!is.na(enrollment_quartile), !is.na(setting))
 
 quartile_rates <- summarise_reason_rates(
   race_quartile_data,
