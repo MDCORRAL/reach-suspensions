@@ -53,6 +53,7 @@ features <- arrow::read_parquet(
   select(
     school_code,
     academic_year,
+
     is_traditional,
     ends_with("_prop_q_label")
   ) %>%
@@ -62,13 +63,16 @@ features <- arrow::read_parquet(
       isFALSE(is_traditional) ~ "Non-traditional",
       TRUE                    ~ NA_character_
     )
+
   )
 
 v6 <- v6 %>%
   left_join(features, by = c("school_code", "academic_year")) %>%
   mutate(
+
     setting = factor(setting, levels = names(pal_setting)),
     across(ends_with("_prop_q_label"), ~ as.character(.x))
+
   ) %>%
   select(-is_traditional)
 
@@ -81,6 +85,7 @@ v6 <- v6 %>%
   mutate(academic_year = factor(academic_year, levels = year_levels))
 
 v6_all <- v6 %>%
+
   filter(subgroup == "All Students")
 
 # --- helpers ------------------------------------------------------------------
@@ -210,6 +215,7 @@ ggsave(file.path(out_dir, "20_overall_reason_rates.png"), p_overall_reason,
        width = 10, height = 6, dpi = 300)
 
 # --- 3a) By school setting ---------------------------------------------------
+
 setting_rates <- summarise_reason_rates(
   v6_all %>% filter(!is.na(setting)),
   c("academic_year", "setting")
@@ -268,6 +274,7 @@ grade_setting_rates <- summarise_reason_rates(
   by_grade %>% filter(!is.na(setting)),
   c("academic_year", "school_level", "setting")
 ) %>%
+
   mutate(reason_lab = factor(reason_lab, levels = names(pal_reason)))
 save_table(grade_setting_rates, "20_grade_setting_reason_rates.csv")
 save_table(
@@ -378,6 +385,7 @@ purrr::walk(names(locale_setting_groups), function(setting_name) {
 
 # --- 6) Reason trends by race quartile ---------------------------------------
 quartile_levels <- names(pal_quartile)
+
 race_quartile_data <- v6 %>%
   filter(subgroup %in% c("Black/African American", "Hispanic/Latino", "White")) %>%
   mutate(
