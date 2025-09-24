@@ -53,19 +53,26 @@ features <- arrow::read_parquet(
   select(
     school_code,
     academic_year,
-    is_traditional
+
+    is_traditional,
+    ends_with("_prop_q_label")
+  ) %>%
+  mutate(
+    setting = case_when(
+      isTRUE(is_traditional)  ~ "Traditional",
+      isFALSE(is_traditional) ~ "Non-traditional",
+      TRUE                    ~ NA_character_
+    )
+
   )
 
 v6 <- v6 %>%
   left_join(features, by = c("school_code", "academic_year")) %>%
   mutate(
-    setting = case_when(
-      is_traditional ~ "Traditional",
-      is_traditional == FALSE ~ "Non-traditional",
-      TRUE ~ NA_character_
-    ),
+
     setting = factor(setting, levels = names(pal_setting)),
-    across(ends_with("_prop_q_label"), ~ as.character(as.factor(.x)))
+    across(ends_with("_prop_q_label"), ~ as.character(.x))
+
   ) %>%
   select(-is_traditional)
 
@@ -332,7 +339,6 @@ p_locale_reason <- plot_reason_area(locale_rates, "locale_simple",
 ggsave(file.path(out_dir, "20_locale_reason_rates.png"), p_locale_reason,
        width = 12, height = 8, dpi = 300)
 
-
 locale_setting_rates <- summarise_reason_rates(
   by_locale %>% filter(!is.na(setting)),
   c("academic_year", "locale_simple", "setting")
@@ -379,20 +385,16 @@ purrr::walk(names(locale_setting_groups), function(setting_name) {
 
 # --- 6) Reason trends by race quartile ---------------------------------------
 quartile_levels <- names(pal_quartile)
-race_quartile_map <- tibble::tibble(
-  subgroup = c("Black/African American", "Hispanic/Latino", "White"),
-  quartile_col = c("black_prop_q_label", "hispanic_prop_q_label", "white_prop_q_label")
-)
 
 race_quartile_data <- v6 %>%
-  filter(subgroup %in% race_quartile_map$subgroup) %>%
-  left_join(race_quartile_map, by = "subgroup") %>%
-  rowwise() %>%
+  filter(subgroup %in% c("Black/African American", "Hispanic/Latino", "White")) %>%
   mutate(
-    enrollment_quartile = .data[[quartile_col]]
-  ) %>%
-  ungroup() %>%
-  mutate(
+    enrollment_quartile = case_when(
+      subgroup == "Black/African American" ~ black_prop_q_label,
+      subgroup == "Hispanic/Latino"        ~ hispanic_prop_q_label,
+      subgroup == "White"                  ~ white_prop_q_label,
+      TRUE                                  ~ NA_character_
+    ),
     enrollment_quartile = factor(as.character(enrollment_quartile), levels = quartile_levels),
     setting = factor(setting, levels = names(pal_setting))
   ) %>%
