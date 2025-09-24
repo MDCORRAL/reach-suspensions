@@ -55,6 +55,7 @@ def summarize() -> dict:
 
     df["reason_lab"] = df["reason_lab"].astype("string")
     df["academic_year"] = df["academic_year"].astype("string")
+    df["school_code"] = df["school_code"].astype("string")
 
     # Replace missing counts with zeros to avoid propagation of NaNs
     count_cols = [
@@ -71,15 +72,40 @@ def summarize() -> dict:
         "black_prop_q_label",
     ]
 
-    # Reason level summaries
-    reason_summary = (
-        df.groupby(filter_cols + ["reason_lab"], dropna=False)
+    per_school_cols = filter_cols + ["school_code"]
+
+    # Collapse to one record per school to avoid reason-level duplication
+    per_school_reason = (
+        df.groupby(per_school_cols + ["reason_lab"], dropna=False)
         .agg(
             total_suspensions=("total_suspensions", "sum"),
             students_suspended=(
                 "unduplicated_count_of_students_suspended_total", "max"
             ),
             enrollment=("cumulative_enrollment", "max"),
+        )
+        .reset_index()
+    )
+
+    per_school_overall = (
+        df.groupby(per_school_cols, dropna=False)
+        .agg(
+            total_suspensions=("total_suspensions", "sum"),
+            students_suspended=(
+                "unduplicated_count_of_students_suspended_total", "max"
+            ),
+            enrollment=("cumulative_enrollment", "max"),
+        )
+        .reset_index()
+    )
+
+    # Reason level summaries aggregated across schools
+    reason_summary = (
+        per_school_reason.groupby(filter_cols + ["reason_lab"], dropna=False)
+        .agg(
+            total_suspensions=("total_suspensions", "sum"),
+            students_suspended=("students_suspended", "sum"),
+            enrollment=("enrollment", "sum"),
         )
         .reset_index()
     )
@@ -94,23 +120,24 @@ def summarize() -> dict:
         "total_suspensions"
     ].transform(share_within_group)
 
-    reason_summary = reason_summary[filter_cols + [
-        "reason_lab",
-        "total_suspensions",
-        "suspension_rate",
-        "student_rate",
-        "share_of_total",
-    ]]
+    reason_summary = reason_summary[
+        filter_cols
+        + [
+            "reason_lab",
+            "total_suspensions",
+            "suspension_rate",
+            "student_rate",
+            "share_of_total",
+        ]
+    ]
 
     # Aggregate across reasons for overall totals
     overall = (
-        df.groupby(filter_cols, dropna=False)
+        per_school_overall.groupby(filter_cols, dropna=False)
         .agg(
             total_suspensions=("total_suspensions", "sum"),
-            students_suspended=(
-                "unduplicated_count_of_students_suspended_total", "max"
-            ),
-            enrollment=("cumulative_enrollment", "max"),
+            students_suspended=("students_suspended", "sum"),
+            enrollment=("enrollment", "sum"),
         )
         .reset_index()
     )
