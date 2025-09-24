@@ -48,20 +48,34 @@ prevent front-end errors.
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass
+import os
 from pathlib import Path
-from typing import Iterable, Sequence
 
-import numpy as np
-import pandas as pd
+# -------- Robust project root resolution --------------------------------------
+def resolve_project_root() -> Path:
+    """
+    Order of precedence:
+      1) REACH_PROJECT_ROOT environment variable (if set)
+      2) Directory of this file (when __file__ exists)
+      3) Current working directory (interactive shells / reticulate)
+    """
+    env_root = os.getenv("REACH_PROJECT_ROOT")
+    if env_root:
+        return Path(env_root).expanduser().resolve()
+    try:
+        return Path(__file__).resolve().parent
+    except NameError:
+        # __file__ is undefined in REPL / notebooks / some reticulate calls
+        return Path.cwd().resolve()
 
-# Paths relative to project root.  These mirror the original structure.
-PROJECT_ROOT = Path(__file__).resolve().parents[0]  # this file lives at the root
-DATA_STAGE = PROJECT_ROOT / "data-stage"
-LONG_PATH = DATA_STAGE / "susp_v6_long.parquet"
-FEATURES_PATH = DATA_STAGE / "susp_v6_features.parquet"
-OUTPUT_PATH = PROJECT_ROOT / "dashboard" / "data" / "dashboard_data.json"
+PROJECT_ROOT = resolve_project_root()
+
+# -------- Standardized paths ---------------------------------------------------
+DATA_STAGE   = PROJECT_ROOT / "data-stage"
+LONG_PATH    = DATA_STAGE / "susp_v6_long.parquet"
+FEATURES_PATH= DATA_STAGE / "susp_v6_features.parquet"
+OUTPUT_PATH  = PROJECT_ROOT / "dashboard" / "data" / "dashboard_data.json"
+
 
 # Dimension columns now include additional quartile labels and locale.
 # The front end uses these to generate filter controls.
