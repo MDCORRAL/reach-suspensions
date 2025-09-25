@@ -216,6 +216,7 @@ plot_total_rate <- function(df, title_txt, color_col = NULL, palette = NULL) {
         warning("No overlapping values between palette and data; returning placeholder plot.")
         return(placeholder_plot(title_txt))
       }
+
       p <- p + scale_color_manual(
         values = palette,
         breaks = names(palette),
@@ -237,6 +238,7 @@ plot_total_rate <- function(df, title_txt, color_col = NULL, palette = NULL) {
 }
 
 plot_reason_area <- function(df, facet_col = NULL, title_txt) {
+
   if (!"reason_lab" %in% names(df)) {
     stop("`reason_lab` column is required to plot suspension reasons.")
   }
@@ -279,6 +281,7 @@ plot_reason_area <- function(df, facet_col = NULL, title_txt) {
         name = "Reason for Suspension",
         drop = FALSE
       ) +
+
       scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
       labs(title = title_txt, x = "Academic Year", y = "Suspension Rate") +
       theme_minimal(base_size = 14) +
@@ -308,6 +311,7 @@ plot_reason_area <- function(df, facet_col = NULL, title_txt) {
         name = "Reason for Suspension",
         drop = FALSE
       ) +
+
       scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
       labs(title = title_txt, x = "Academic Year", y = "Suspension Rate") +
       theme_minimal(base_size = 14) +
