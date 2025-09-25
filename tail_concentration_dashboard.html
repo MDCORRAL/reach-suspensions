@@ -648,8 +648,21 @@
     function renderGradeTable(rows = []) {
       latestRenderedRows = [];
 
+      const summaryEl = document.getElementById('grade-summary');
+      const tableWrapper = document.getElementById('grade-table-wrapper');
+
+      if (summaryEl) summaryEl.textContent = '';
+      if (tableWrapper) tableWrapper.innerHTML = '';
+
       if (!Array.isArray(rows) || rows.length === 0) {
         updateDownloadButton(false);
+        if (summaryEl) summaryEl.textContent = 'No grade-setting statements match the current filters.';
+        if (tableWrapper) {
+          const empty = document.createElement('p');
+          empty.className = 'empty';
+          empty.textContent = 'No prepared statements are available for the selected year, grade level, and school type.';
+          tableWrapper.appendChild(empty);
+        }
         return;
       }
 
@@ -663,6 +676,84 @@
 
       latestRenderedRows = sortedRows;
       updateDownloadButton(true);
+
+      const grouped = Array.from(sortedRows.reduce((map, row) => {
+        if (!row) return map;
+        const yearNum = row.year_num ?? null;
+        const level = row.level || 'All';
+        const setting = row.setting || 'All';
+        const key = `${yearNum ?? 'All'}|${level}|${setting}`;
+        if (!map.has(key)) {
+          map.set(key, {
+            yearNum,
+            level,
+            setting,
+            totalSchools: 0,
+          });
+        }
+        const entry = map.get(key);
+        const total = Number(row.total_schools);
+        if (!Number.isNaN(total)) {
+          entry.totalSchools = Math.max(entry.totalSchools, total);
+        }
+        return map;
+      }, new Map()).values())
+        .sort((a, b) => {
+          if ((a.yearNum ?? 0) !== (b.yearNum ?? 0)) {
+            return (a.yearNum ?? 0) - (b.yearNum ?? 0);
+          }
+          if (a.level !== b.level) return a.level.localeCompare(b.level);
+          return a.setting.localeCompare(b.setting);
+        });
+
+      const totalSchoolsCount = grouped.reduce((sum, entry) => sum + (entry.totalSchools || 0), 0);
+
+      if (summaryEl) {
+        const groupLabel = grouped.length === 1 ? 'group' : 'groups';
+        summaryEl.textContent = `Current filters cover ${formatters.integer(totalSchoolsCount)} schools across ${grouped.length} ${groupLabel}.`;
+      }
+
+      if (!tableWrapper) return;
+
+      const table = document.createElement('table');
+      table.className = 'summary-table';
+
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      ['Academic year', 'Grade level', 'School type', 'Total schools'].forEach((heading) => {
+        const th = document.createElement('th');
+        th.scope = 'col';
+        th.textContent = heading;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      grouped.forEach((entry) => {
+        const rowEl = document.createElement('tr');
+
+        const yearCell = document.createElement('td');
+        yearCell.textContent = entry.yearNum == null ? 'All' : formatters.toAcademicYear(entry.yearNum);
+        rowEl.appendChild(yearCell);
+
+        const levelCell = document.createElement('td');
+        levelCell.textContent = entry.level || 'All';
+        rowEl.appendChild(levelCell);
+
+        const settingCell = document.createElement('td');
+        settingCell.textContent = entry.setting || 'All';
+        rowEl.appendChild(settingCell);
+
+        const totalCell = document.createElement('td');
+        totalCell.textContent = formatters.integer(entry.totalSchools || 0);
+        rowEl.appendChild(totalCell);
+
+        tbody.appendChild(rowEl);
+      });
+
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
     }
 
     function render() {
