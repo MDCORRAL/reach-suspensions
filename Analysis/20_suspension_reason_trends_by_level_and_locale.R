@@ -53,7 +53,6 @@ features <- arrow::read_parquet(
   select(
     school_code,
     academic_year,
-
     is_traditional,
     ends_with("_prop_q_label")
   ) %>%
@@ -63,18 +62,42 @@ features <- arrow::read_parquet(
       isFALSE(is_traditional) ~ "Non-traditional",
       TRUE                    ~ NA_character_
     )
-
   )
 
+quartile_cols <- intersect(
+  c("black_prop_q_label", "hispanic_prop_q_label", "white_prop_q_label"),
+  union(names(v6), names(features))
+)
+
 v6 <- v6 %>%
-  left_join(features, by = c("school_code", "academic_year")) %>%
+  left_join(features, by = c("school_code", "academic_year"), suffix = c("", "_feat")) %>%
   mutate(
+    across(any_of(c(quartile_cols, paste0(quartile_cols, "_feat"))), ~ as.character(.x))
+  )
 
-    setting = factor(setting, levels = names(pal_setting)),
-    across(ends_with("_prop_q_label"), ~ as.character(.x))
+for (col in quartile_cols) {
+  feat_col <- paste0(col, "_feat")
+  if (col %in% names(v6) && feat_col %in% names(v6)) {
+    v6[[col]] <- coalesce(v6[[col]], v6[[feat_col]])
+  }
+}
 
-  ) %>%
-  select(-is_traditional)
+v6 <- v6 %>%
+  select(-is_traditional, -any_of(paste0(quartile_cols, "_feat")))
+
+valid_settings <- sort(unique(stats::na.omit(v6$setting)))
+unexpected_settings <- setdiff(valid_settings, names(pal_setting))
+if (length(unexpected_settings) > 0) {
+  stop(
+    sprintf(
+      "Unexpected school setting values: %s",
+      paste(unexpected_settings, collapse = ", ")
+    )
+  )
+}
+
+v6 <- v6 %>%
+  mutate(setting = factor(as.character(setting), levels = names(pal_setting)))
 
 # academic year order (lexical sort works for "2017-18" style)
 year_levels <- v6 %>%
@@ -112,7 +135,7 @@ summarise_reason_rates <- function(df, group_cols) {
     ) %>%
     add_reason_label("reason") %>%
     mutate(
-      reason_lab = factor(reason_lab, levels = names(pal_reason)),
+      reason_lab = factor(as.character(reason_lab), levels = names(pal_reason)),
       reason_rate = if_else(enrollment > 0, count / enrollment, NA_real_)
     )
 }
@@ -142,7 +165,12 @@ plot_total_rate <- function(df, title_txt, color_col = NULL, palette = NULL) {
 
   if (!is.null(color_col)) {
     if (!is.null(palette)) {
-      p <- p + scale_color_manual(values = palette)
+      p <- p + scale_color_manual(
+        values = palette,
+        breaks = names(palette),
+        limits = names(palette),
+        drop = FALSE
+      )
     } else {
       p <- p + scale_color_discrete()
     }
@@ -156,6 +184,25 @@ plot_total_rate <- function(df, title_txt, color_col = NULL, palette = NULL) {
 }
 
 plot_reason_area <- function(df, facet_col = NULL, title_txt) {
+  if (!"reason_lab" %in% names(df)) {
+    stop("`reason_lab` column is required to plot suspension reasons.")
+  }
+
+  df <- df %>%
+    mutate(reason_lab = factor(as.character(reason_lab), levels = names(pal_reason))) %>%
+    filter(!is.na(reason_lab))
+
+  if (nrow(df) == 0) {
+    warning("No data available to plot for the requested grouping; returning placeholder plot.")
+    return(
+      ggplot() +
+        annotate("text", x = 0.5, y = 0.5, label = "No data available", fontface = "bold") +
+        labs(title = title_txt, x = NULL, y = NULL) +
+        theme_void() +
+        theme(plot.title = element_text(face = "bold", hjust = 0.5))
+    )
+  }
+
   if (is.null(facet_col)) {
     labels <- df %>% group_by(academic_year) %>%
       summarise(total_rate = first(total_rate), .groups = "drop")
@@ -166,6 +213,7 @@ plot_reason_area <- function(df, facet_col = NULL, title_txt) {
                 vjust = -0.5, fontface = "bold", inherit.aes = FALSE) +
       scale_fill_manual(values = pal_reason,
                         breaks = names(pal_reason),
+                        limits = names(pal_reason),
                         name = "Reason for Suspension",
                         drop = FALSE) +
       scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
@@ -185,6 +233,7 @@ plot_reason_area <- function(df, facet_col = NULL, title_txt) {
       facet_wrap(as.formula(paste0("~", facet_col)), ncol = 2) +
       scale_fill_manual(values = pal_reason,
                         breaks = names(pal_reason),
+                        limits = names(pal_reason),
                         name = "Reason for Suspension",
                         drop = FALSE) +
       scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
