@@ -140,6 +140,12 @@
       text-align: left;
     }
 
+    td.statement {
+      max-width: 28rem;
+      white-space: normal;
+      line-height: 1.35;
+    }
+
     tbody tr:last-child td {
       border-bottom: none;
     }
@@ -300,14 +306,11 @@
           <th>Academic year</th>
           <th>Level</th>
           <th>School type</th>
-          <th>Schools</th>
-          <th>Total enrollment</th>
-          <th>Total suspensions</th>
-          <th>Overall rate</th>
-          <th>Mean rate</th>
-          <th>Median rate</th>
-          <th>75th percentile rate</th>
-          <th>90th percentile rate</th>
+          <th>Top group</th>
+          <th>Schools in group</th>
+          <th>Total schools</th>
+          <th>Share of suspensions</th>
+          <th>Statement</th>
         </tr>`;
       table.appendChild(thead);
       const tbody = document.createElement('tbody');
@@ -330,13 +333,14 @@
         return;
       }
 
-      summary.textContent = `Showing ${rows.length} prepared rows summarising ${formatters.integer(rows.reduce((sum, r) => sum + r.n_schools, 0))} schools.`;
+      summary.textContent = `Showing ${rows.length} slide-ready statements from the prepared CSV export.`;
 
       rows
         .sort((a, b) => {
           if (a.year_num !== b.year_num) return a.year_num - b.year_num;
           if (a.level !== b.level) return a.level.localeCompare(b.level);
-          return a.setting.localeCompare(b.setting);
+          if (a.setting !== b.setting) return a.setting.localeCompare(b.setting);
+          return (a.top_pct || 0) - (b.top_pct || 0);
         })
         .forEach((row) => {
           const tr = document.createElement('tr');
@@ -344,14 +348,11 @@
             <td>${formatters.toAcademicYear(row.year_num)}</td>
             <td>${row.level}</td>
             <td>${row.setting}</td>
-            <td>${formatters.integer(row.n_schools)}</td>
-            <td>${formatters.integer(row.total_enrollment)}</td>
-            <td>${formatters.integer(row.total_suspensions)}</td>
-            <td>${formatters.rate(row.overall_rate)}</td>
-            <td>${formatters.rate(row.mean_rate)}</td>
-            <td>${formatters.rate(row.median_rate)}</td>
-            <td>${formatters.rate(row.q75_rate)}</td>
-            <td>${formatters.rate(row.q90_rate)}</td>`;
+            <td>${row.top_label || ''}</td>
+            <td>${formatters.integer(row.top_schools || 0)}</td>
+            <td>${formatters.integer(row.total_schools || 0)}</td>
+            <td>${row.share_pct || ''}</td>
+            <td class="statement">${row.slide_text || ''}</td>`;
           tbody.appendChild(tr);
         });
 
