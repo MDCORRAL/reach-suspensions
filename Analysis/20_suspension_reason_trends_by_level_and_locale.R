@@ -58,9 +58,9 @@ features <- arrow::read_parquet(
   ) %>%
   mutate(
     setting = case_when(
-      isTRUE(is_traditional)  ~ "Traditional",
-      isFALSE(is_traditional) ~ "Non-traditional",
-      TRUE                    ~ NA_character_
+      is_traditional %in% TRUE  ~ "Traditional",
+      is_traditional %in% FALSE ~ "Non-traditional",
+      TRUE                      ~ NA_character_
     )
   )
 
