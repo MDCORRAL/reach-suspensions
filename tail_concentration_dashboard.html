@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -176,6 +177,60 @@
       color: #ffffff;
     }
 
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      align-items: stretch;
+    }
+
+    .chart-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      box-shadow: 0 8px 24px rgba(0, 59, 92, 0.12);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .chart-container h3 {
+      font-size: 1.2rem;
+      color: var(--text);
+      border-bottom: 3px solid var(--highlight);
+      padding-bottom: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .chart-description {
+      font-size: 0.92rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .chart-wrapper {
+      position: relative;
+      height: 320px;
+      margin: 0.5rem 0 0;
+    }
+
+    .chart-empty {
+      margin: 0;
+      padding: 1rem;
+      background: rgba(218, 235, 254, 0.6);
+      border-radius: 12px;
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .table-card {
+      grid-column: 1 / -1;
+    }
+
     #loading {
       text-align: center;
       padding: 4rem 1rem;
@@ -206,10 +261,35 @@
         </p>
       </div>
 
-      <section class="card" id="grade-setting-section">
-        <h2>Grade level × school type summary</h2>
-        <p class="summary" id="grade-summary"></p>
-        <div id="grade-table-wrapper"></div>
+      <section class="dashboard" aria-label="Tail concentration visuals">
+        <article class="chart-container">
+          <h3>Suspension share captured by top cohorts</h3>
+          <p class="chart-description">
+            Compare how much of the suspension count is concentrated among the top cohorts selected in the prepared
+            grade-setting analysis.
+          </p>
+          <div class="chart-wrapper">
+            <canvas id="top-share-chart" aria-label="Chart showing suspension share captured by top groups" role="img"></canvas>
+          </div>
+          <p class="chart-empty" data-chart-empty hidden>No chart data available for these filters.</p>
+        </article>
+        <article class="chart-container">
+          <h3>Share of schools included in each cohort</h3>
+          <p class="chart-description">
+            Review the proportion of schools that form each highlighted cohort to understand how broad or concentrated the
+            focus groups are.
+          </p>
+          <div class="chart-wrapper">
+            <canvas id="cohort-size-chart" aria-label="Chart showing percent of schools included in each cohort" role="img"></canvas>
+          </div>
+          <p class="chart-empty" data-chart-empty hidden>No chart data available for these filters.</p>
+        </article>
+
+        <section class="card table-card" id="grade-setting-section">
+          <h2>Grade level × school type summary</h2>
+          <p class="summary" id="grade-summary"></p>
+          <div id="grade-table-wrapper"></div>
+        </section>
       </section>
     </section>
   </main>
@@ -296,7 +376,39 @@
       });
     }
 
-    function renderGradeTable() {
+    const charts = {
+      topShare: null,
+      cohortShare: null,
+    };
+
+    let chartDefaultsConfigured = false;
+
+    function configureChartDefaults() {
+      if (chartDefaultsConfigured || typeof Chart === 'undefined') return;
+      const styles = getComputedStyle(document.documentElement);
+      Chart.defaults.font.family = styles.getPropertyValue('font-family') || "'Inter', system-ui";
+      Chart.defaults.color = styles.getPropertyValue('--muted') || '#003b5c';
+      Chart.defaults.borderColor = styles.getPropertyValue('--accent-soft') || '#8bb8e8';
+      Chart.defaults.plugins.legend.labels.usePointStyle = true;
+      chartDefaultsConfigured = true;
+    }
+
+    function getFilteredRows() {
+      let rows = cache.gradeSetting.slice();
+      const selectedYearNum = formatters.toYearNumber(state.academicYear);
+      if (selectedYearNum) {
+        rows = rows.filter((row) => row.year_num === selectedYearNum);
+      }
+      if (state.gradeLevel !== 'All') {
+        rows = rows.filter((row) => row.level === state.gradeLevel);
+      }
+      if (state.schoolType !== 'All') {
+        rows = rows.filter((row) => row.setting === state.schoolType);
+      }
+      return rows;
+    }
+
+    function renderGradeTable(rows) {
       const wrapper = document.getElementById('grade-table-wrapper');
       wrapper.innerHTML = '';
       const table = document.createElement('table');
@@ -314,17 +426,6 @@
         </tr>`;
       table.appendChild(thead);
       const tbody = document.createElement('tbody');
-      let rows = cache.gradeSetting.slice();
-      const selectedYearNum = formatters.toYearNumber(state.academicYear);
-      if (selectedYearNum) {
-        rows = rows.filter((row) => row.year_num === selectedYearNum);
-      }
-      if (state.gradeLevel !== 'All') {
-        rows = rows.filter((row) => row.level === state.gradeLevel);
-      }
-      if (state.schoolType !== 'All') {
-        rows = rows.filter((row) => row.setting === state.schoolType);
-      }
 
       const summary = document.getElementById('grade-summary');
       if (!rows.length) {
@@ -361,7 +462,191 @@
     }
 
     function render() {
-      renderGradeTable();
+      const rows = getFilteredRows();
+      renderGradeTable(rows);
+      renderCharts(rows);
+    }
+
+    function renderCharts(rows) {
+      if (typeof Chart === 'undefined') return;
+      configureChartDefaults();
+      const emptyStates = document.querySelectorAll('[data-chart-empty]');
+      const hasData = Array.isArray(rows) && rows.length > 0;
+      emptyStates.forEach((el) => {
+        el.hidden = hasData;
+      });
+
+      const aggregated = Array.from(
+        rows.reduce((map, row) => {
+          if (!row || !row.top_label) return map;
+          const key = row.top_label;
+          if (!map.has(key)) {
+            map.set(key, {
+              label: key,
+              pct: row.top_pct ?? 0,
+              shares: [],
+              topSchools: [],
+              totalSchools: [],
+            });
+          }
+          const group = map.get(key);
+          if (typeof row.top_pct === 'number') {
+            group.pct = row.top_pct;
+          }
+          if (typeof row.top_share === 'number') {
+            group.shares.push(row.top_share);
+          }
+          if (typeof row.top_schools === 'number') {
+            group.topSchools.push(row.top_schools);
+          }
+          if (typeof row.total_schools === 'number') {
+            group.totalSchools.push(row.total_schools);
+          }
+          return map;
+        }, new Map()).values()
+      )
+        .map((group) => {
+          const avg = (arr) => (arr.length ? arr.reduce((sum, value) => sum + value, 0) / arr.length : 0);
+          const avgTopSchools = avg(group.topSchools);
+          const avgTotalSchools = avg(group.totalSchools);
+          return {
+            label: group.label,
+            pct: group.pct ?? 0,
+            share: avg(group.shares) * 100,
+            schoolShare: avgTotalSchools > 0 ? (avgTopSchools / avgTotalSchools) * 100 : 0,
+          };
+        })
+        .sort((a, b) => (a.pct || 0) - (b.pct || 0));
+
+      const labels = aggregated.map((item) => item.label);
+      const suspensionShare = aggregated.map((item) => Number(item.share.toFixed(1)));
+      const schoolShare = aggregated.map((item) => Number(item.schoolShare.toFixed(1)));
+
+      const palette = {
+        primary: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2774ae',
+        highlight: getComputedStyle(document.documentElement).getPropertyValue('--highlight').trim() || '#ffb81c',
+        soft: getComputedStyle(document.documentElement).getPropertyValue('--accent-soft').trim() || '#8bb8e8',
+      };
+
+      const topShareContext = document.getElementById('top-share-chart').getContext('2d');
+      const topShareConfig = {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Suspension share',
+              data: suspensionShare,
+              backgroundColor: palette.primary,
+              hoverBackgroundColor: palette.highlight,
+              borderRadius: 8,
+              borderSkipped: false,
+            },
+          ],
+        },
+        options: {
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              ticks: {
+                callback: (value) => `${value}%`,
+              },
+              grid: {
+                color: 'rgba(39, 116, 174, 0.15)',
+              },
+            },
+            x: {
+              grid: {
+                display: false,
+              },
+            },
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (context) => `${context.dataset.label}: ${context.parsed.y}%`,
+              },
+            },
+            legend: {
+              display: false,
+            },
+          },
+        },
+      };
+
+      if (charts.topShare) {
+        charts.topShare.data.labels = labels;
+        charts.topShare.data.datasets[0].data = suspensionShare;
+        charts.topShare.update();
+      } else {
+        charts.topShare = new Chart(topShareContext, topShareConfig);
+      }
+
+      const cohortContext = document.getElementById('cohort-size-chart').getContext('2d');
+      const cohortConfig = {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Percent of schools in cohort',
+              data: schoolShare,
+              backgroundColor: palette.highlight,
+              hoverBackgroundColor: palette.primary,
+              borderRadius: 10,
+              borderSkipped: false,
+            },
+          ],
+        },
+        options: {
+          indexAxis: 'y',
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              ticks: {
+                callback: (value) => `${value}%`,
+              },
+              grid: {
+                color: 'rgba(39, 116, 174, 0.15)',
+              },
+              suggestedMax: Math.max(100, Math.ceil(Math.max(...schoolShare, 0) / 10) * 10),
+            },
+            y: {
+              grid: {
+                display: false,
+              },
+            },
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (context) => `${context.parsed.x}% of schools`,
+              },
+            },
+            legend: {
+              display: false,
+            },
+          },
+        },
+      };
+
+      if (charts.cohortShare) {
+        charts.cohortShare.data.labels = labels;
+        charts.cohortShare.data.datasets[0].data = schoolShare;
+        charts.cohortShare.options.scales.x.suggestedMax = Math.max(100, Math.ceil(Math.max(...schoolShare, 0) / 10) * 10);
+        charts.cohortShare.update();
+      } else {
+        charts.cohortShare = new Chart(cohortContext, cohortConfig);
+      }
+
+      if (!hasData) {
+        charts.topShare.data.labels = [];
+        charts.topShare.data.datasets[0].data = [];
+        charts.topShare.update('none');
+        charts.cohortShare.data.labels = [];
+        charts.cohortShare.data.datasets[0].data = [];
+        charts.cohortShare.update('none');
+      }
     }
 
     function buildMetaFromData() {
