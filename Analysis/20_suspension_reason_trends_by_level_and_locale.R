@@ -53,7 +53,6 @@ features <- arrow::read_parquet(
   select(
     school_code,
     academic_year,
-
     is_traditional,
     ends_with("_prop_q_label")
   ) %>%
@@ -63,18 +62,42 @@ features <- arrow::read_parquet(
       isFALSE(is_traditional) ~ "Non-traditional",
       TRUE                    ~ NA_character_
     )
-
   )
 
+quartile_cols <- intersect(
+  c("black_prop_q_label", "hispanic_prop_q_label", "white_prop_q_label"),
+  union(names(v6), names(features))
+)
+
 v6 <- v6 %>%
-  left_join(features, by = c("school_code", "academic_year")) %>%
+  left_join(features, by = c("school_code", "academic_year"), suffix = c("", "_feat")) %>%
   mutate(
+    across(any_of(c(quartile_cols, paste0(quartile_cols, "_feat"))), ~ as.character(.x))
+  )
 
-    setting = factor(setting, levels = names(pal_setting)),
-    across(ends_with("_prop_q_label"), ~ as.character(.x))
+for (col in quartile_cols) {
+  feat_col <- paste0(col, "_feat")
+  if (col %in% names(v6) && feat_col %in% names(v6)) {
+    v6[[col]] <- coalesce(v6[[col]], v6[[feat_col]])
+  }
+}
 
-  ) %>%
-  select(-is_traditional)
+v6 <- v6 %>%
+  select(-is_traditional, -any_of(paste0(quartile_cols, "_feat")))
+
+valid_settings <- sort(unique(stats::na.omit(v6$setting)))
+unexpected_settings <- setdiff(valid_settings, names(pal_setting))
+if (length(unexpected_settings) > 0) {
+  stop(
+    sprintf(
+      "Unexpected school setting values: %s",
+      paste(unexpected_settings, collapse = ", ")
+    )
+  )
+}
+
+v6 <- v6 %>%
+  mutate(setting = factor(as.character(setting), levels = names(pal_setting)))
 
 # academic year order (lexical sort works for "2017-18" style)
 year_levels <- v6 %>%
@@ -112,7 +135,7 @@ summarise_reason_rates <- function(df, group_cols) {
     ) %>%
     add_reason_label("reason") %>%
     mutate(
-      reason_lab = factor(reason_lab, levels = names(pal_reason)),
+      reason_lab = factor(as.character(reason_lab), levels = names(pal_reason)),
       reason_rate = if_else(enrollment > 0, count / enrollment, NA_real_)
     )
 }
@@ -123,13 +146,59 @@ save_table <- function(df, filename) {
 }
 
 # plotting helpers -------------------------------------------------------------
+placeholder_plot <- function(title_txt) {
+  ggplot() +
+    annotate("text", x = 0.5, y = 0.5, label = "No data available", fontface = "bold") +
+    labs(title = title_txt, x = NULL, y = NULL) +
+    theme_void() +
+    theme(plot.title = element_text(face = "bold", hjust = 0.5))
+}
+
 plot_total_rate <- function(df, title_txt, color_col = NULL, palette = NULL) {
-  if (is.null(color_col)) {
-    p <- ggplot(df, aes(x = academic_year, y = total_rate, group = 1))
-  } else {
-    p <- ggplot(df, aes(x = academic_year, y = total_rate, group = !!sym(color_col), color = !!sym(color_col)))
+  if (nrow(df) == 0) {
+    warning("No data available to plot for the requested grouping; returning placeholder plot.")
+    return(placeholder_plot(title_txt))
   }
-  p <- p +
+
+  if (!is.null(color_col)) {
+    if (!color_col %in% names(df)) {
+      stop(sprintf("Column '%s' not found in data supplied to plot_total_rate().", color_col))
+    }
+
+    df <- df[!is.na(df[[color_col]]), , drop = FALSE]
+
+    if (nrow(df) == 0) {
+      warning("All rows were removed after filtering missing grouping values; returning placeholder plot.")
+      return(placeholder_plot(title_txt))
+    }
+
+    if (!is.null(palette)) {
+      color_values <- as.character(df[[color_col]])
+      unknown_colors <- setdiff(unique(color_values), names(palette))
+      if (length(unknown_colors) > 0) {
+        stop(
+          sprintf(
+            "Values '%s' in column '%s' are not present in the provided palette.",
+            paste(unknown_colors, collapse = ", "),
+            color_col
+          )
+        )
+      }
+      df[[color_col]] <- factor(color_values, levels = names(palette))
+    }
+  }
+
+  mapping <- aes(x = academic_year, y = total_rate, group = 1)
+  if (!is.null(color_col)) {
+    mapping <- aes(
+      x = academic_year,
+      y = total_rate,
+      group = !!rlang::sym(color_col),
+      color = !!rlang::sym(color_col)
+    )
+  }
+
+  p <- ggplot(df, mapping) +
     geom_line(linewidth = 1.2) +
     geom_point(size = 2.5) +
     ggrepel::geom_text_repel(
@@ -142,7 +211,17 @@ plot_total_rate <- function(df, title_txt, color_col = NULL, palette = NULL) {
 
   if (!is.null(color_col)) {
     if (!is.null(palette)) {
-      p <- p + scale_color_manual(values = palette)
+      shared_levels <- intersect(levels(df[[color_col]]), names(palette))
+      if (length(shared_levels) == 0) {
+        warning("No overlapping values between palette and data; returning placeholder plot.")
+        return(placeholder_plot(title_txt))
+      }
+      p <- p + scale_color_manual(
+        values = palette,
+        breaks = names(palette),
+        limits = names(palette),
+        drop = FALSE
+      )
     } else {
       p <- p + scale_color_discrete()
     }
@@ -151,48 +230,92 @@ plot_total_rate <- function(df, title_txt, color_col = NULL, palette = NULL) {
   p +
     labs(title = title_txt, x = "Academic Year", y = "Suspension Rate", color = NULL) +
     theme_minimal(base_size = 14) +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1),
-          plot.title = element_text(face = "bold"))
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      plot.title = element_text(face = "bold")
+    )
 }
 
 plot_reason_area <- function(df, facet_col = NULL, title_txt) {
+  if (!"reason_lab" %in% names(df)) {
+    stop("`reason_lab` column is required to plot suspension reasons.")
+  }
+
+  df <- df %>%
+    mutate(reason_lab = factor(as.character(reason_lab), levels = names(pal_reason))) %>%
+    filter(!is.na(reason_lab))
+
+  if (!is.null(facet_col)) {
+    if (!facet_col %in% names(df)) {
+      stop(sprintf("Column '%s' not found in data supplied to plot_reason_area().", facet_col))
+    }
+    df <- df[!is.na(df[[facet_col]]), , drop = FALSE]
+  }
+
+  if (nrow(df) == 0) {
+    warning("No data available to plot for the requested grouping; returning placeholder plot.")
+    return(placeholder_plot(title_txt))
+  }
+
+  df$reason_lab <- droplevels(df$reason_lab)
+
   if (is.null(facet_col)) {
-    labels <- df %>% group_by(academic_year) %>%
+    labels <- df %>%
+      group_by(academic_year) %>%
       summarise(total_rate = first(total_rate), .groups = "drop")
     ggplot(df, aes(x = academic_year, y = reason_rate, fill = reason_lab)) +
       geom_area(position = "stack") +
-      geom_text(data = labels,
-                aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),
-                vjust = -0.5, fontface = "bold", inherit.aes = FALSE) +
-      scale_fill_manual(values = pal_reason,
-                        breaks = names(pal_reason),
-                        name = "Reason for Suspension",
-                        drop = FALSE) +
+      geom_text(
+        data = labels,
+        aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),
+        vjust = -0.5,
+        fontface = "bold",
+        inherit.aes = FALSE
+      ) +
+      scale_fill_manual(
+        values = pal_reason,
+        breaks = names(pal_reason),
+        limits = names(pal_reason),
+        name = "Reason for Suspension",
+        drop = FALSE
+      ) +
       scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
       labs(title = title_txt, x = "Academic Year", y = "Suspension Rate") +
       theme_minimal(base_size = 14) +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1),
-            plot.title = element_text(face = "bold"),
-            legend.position = "bottom")
+      theme(
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(face = "bold"),
+        legend.position = "bottom"
+      )
   } else {
-    labels <- df %>% group_by(across(all_of(c("academic_year", facet_col)))) %>%
+    labels <- df %>%
+      group_by(across(all_of(c("academic_year", facet_col)))) %>%
       summarise(total_rate = first(total_rate), .groups = "drop")
     ggplot(df, aes(x = academic_year, y = reason_rate, fill = reason_lab)) +
       geom_area(position = "stack") +
-      geom_text(data = labels,
-                aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),
-                vjust = -0.5, fontface = "bold", inherit.aes = FALSE) +
+      geom_text(
+        data = labels,
+        aes(x = academic_year, y = total_rate, label = percent(total_rate, accuracy = 0.1)),
+        vjust = -0.5,
+        fontface = "bold",
+        inherit.aes = FALSE
+      ) +
       facet_wrap(as.formula(paste0("~", facet_col)), ncol = 2) +
-      scale_fill_manual(values = pal_reason,
-                        breaks = names(pal_reason),
-                        name = "Reason for Suspension",
-                        drop = FALSE) +
+      scale_fill_manual(
+        values = pal_reason,
+        breaks = names(pal_reason),
+        limits = names(pal_reason),
+        name = "Reason for Suspension",
+        drop = FALSE
+      ) +
       scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
       labs(title = title_txt, x = "Academic Year", y = "Suspension Rate") +
       theme_minimal(base_size = 14) +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1),
-            plot.title = element_text(face = "bold"),
-            legend.position = "bottom")
+      theme(
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(face = "bold"),
+        legend.position = "bottom"
+      )
   }
 }
 
@@ -412,29 +535,56 @@ quartile_total_rates <- quartile_rates %>%
   distinct(academic_year, subgroup, setting, enrollment_quartile, total_rate)
 save_table(quartile_total_rates, "20_race_quartile_total_rates.csv")
 
-p_quartile_total <- ggplot(quartile_total_rates,
-                           aes(x = academic_year, y = total_rate,
-                               color = enrollment_quartile,
-                               group = enrollment_quartile)) +
-  geom_line(linewidth = 1.1) +
-  geom_point(size = 2.5) +
-  scale_color_manual(values = pal_quartile, drop = FALSE) +
-  scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
-  facet_grid(setting ~ subgroup) +
-  labs(
-    title = "Suspension Rates by Enrollment Quartile and Race/Ethnicity",
-    x = "Academic Year",
-    y = "Suspension Rate",
-    color = "Enrollment Quartile"
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    plot.title = element_text(face = "bold")
-  )
+p_quartile_total <- if (nrow(quartile_total_rates) == 0) {
+  warning("No race quartile totals available; saving placeholder plot instead.")
+  placeholder_plot("Suspension Rates by Enrollment Quartile and Race/Ethnicity")
+} else {
+  quartile_total_rates <- quartile_total_rates %>%
+    mutate(
+      enrollment_quartile = factor(as.character(enrollment_quartile), levels = names(pal_quartile)),
+      setting = factor(setting, levels = names(pal_setting))
+    ) %>%
+    filter(!is.na(enrollment_quartile), !is.na(setting))
 
-ggsave(file.path(out_dir, "20_race_quartile_total_rates.png"), p_quartile_total,
-       width = 14, height = 8, dpi = 300)
+  if (nrow(quartile_total_rates) == 0) {
+    warning("Race quartile totals only contained missing groups; saving placeholder plot instead.")
+    placeholder_plot("Suspension Rates by Enrollment Quartile and Race/Ethnicity")
+  } else {
+    ggplot(
+      quartile_total_rates,
+      aes(
+        x = academic_year,
+        y = total_rate,
+        color = enrollment_quartile,
+        group = enrollment_quartile
+      )
+    ) +
+      geom_line(linewidth = 1.1) +
+      geom_point(size = 2.5) +
+      scale_color_manual(values = pal_quartile, drop = FALSE) +
+      scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, NA)) +
+      facet_grid(setting ~ subgroup) +
+      labs(
+        title = "Suspension Rates by Enrollment Quartile and Race/Ethnicity",
+        x = "Academic Year",
+        y = "Suspension Rate",
+        color = "Enrollment Quartile"
+      ) +
+      theme_minimal(base_size = 14) +
+      theme(
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(face = "bold")
+      )
+  }
+}
+
+ggsave(
+  file.path(out_dir, "20_race_quartile_total_rates.png"),
+  p_quartile_total,
+  width = 14,
+  height = 8,
+  dpi = 300
+)
 
 quartile_plot_groups <- quartile_rates %>% distinct(setting, subgroup)
 purrr::pwalk(quartile_plot_groups, function(setting, subgroup) {
