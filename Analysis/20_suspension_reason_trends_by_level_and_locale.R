@@ -175,6 +175,7 @@ plot_reason_area <- function(df, facet_col = NULL, title_txt) {
   df <- df %>% filter(!is.na(reason_lab))
 
   if (nrow(df) == 0) {
+
     warning("No data available to plot for the requested grouping; returning placeholder plot.")
     return(
       ggplot() +
@@ -183,6 +184,7 @@ plot_reason_area <- function(df, facet_col = NULL, title_txt) {
         theme_void() +
         theme(plot.title = element_text(face = "bold", hjust = 0.5))
     )
+
   }
 
   if (is.null(facet_col)) {

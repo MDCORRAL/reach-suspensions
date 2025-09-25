@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>California School Suspension Analysis | UCLA Education</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #003B5C 0%, #2774AE 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem 0;
+            box-shadow: 0 4px 20px rgba(0, 59, 92, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .header h1 {
+            color: #003B5C;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #2774AE;
+            font-size: 1.2rem;
+            max-width: 800px;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 59, 92, 0.1);
+        }
+
+        .controls h3 {
+            color: #003B5C;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #2774AE;
+            min-width: 120px;
+        }
+
+        select, button {
+            padding: 0.75rem 1rem;
+            border: 2px solid #8BB8E8;
+            border-radius: 8px;
+            background: white;
+            color: #003B5C;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select:focus, button:focus {
+            outline: none;
+            border-color: #2774AE;
+            box-shadow: 0 0 0 3px rgba(39, 116, 174, 0.1);
+        }
+
+        button {
+            background: #2774AE;
+            color: white;
+            border-color: #2774AE;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #005587;
+            border-color: #005587;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 59, 92, 0.1);
+        }
+
+        .chart-container.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .chart-container h3 {
+            color: #003B5C;
+            margin-bottom: 1rem;
+            font-size: 1.4rem;
+            border-bottom: 3px solid #FFD100;
+            padding-bottom: 0.5rem;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            margin: 1rem 0;
+        }
+
+        .narrative {
+            background: rgba(218, 235, 254, 0.3);
+            padding: 1.5rem;
+            border-left: 5px solid #FFD100;
+            margin-top: 1rem;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .narrative h4 {
+            color: #003B5C;
+            margin-bottom: 0.5rem;
+        }
+
+        .narrative p {
+            color: #005587;
+            line-height: 1.6;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #8BB8E8 0%, #DAEBFE 100%);
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            color: #003B5C;
+        }
+
+        .stat-card h4 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card p {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .highlight {
+            background: linear-gradient(90deg, #FFD100, #FFC72C);
+            color: #003B5C;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .filter-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #2774AE;
+            font-size: 1.1rem;
+        }
+
+        .insight-box {
+            background: rgba(255, 184, 28, 0.1);
+            border: 2px solid #FFD100;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .insight-box h5 {
+            color: #003B5C;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .metric {
+            display: inline-block;
+            background: #2774AE;
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin: 0.2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>California School Suspension Analysis</h1>
+            <p>Examining disciplinary disparities and trends across traditional and non-traditional educational settings from 2017-2023</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <h3>Data Filters & Controls</h3>
+            <div class="filter-group">
+                <label for="yearSelect">Academic Year:</label>
+                <select id="yearSelect">
+                    <option value="all">All Years</option>
+                    <option value="2017">2017</option>
+                    <option value="2018">2018</option>
+                    <option value="2019">2019</option>
+                    <option value="2021">2021</option>
+                    <option value="2022">2022</option>
+                    <option value="2023">2023</option>
+                </select>
+                
+                <label for="levelSelect">School Level:</label>
+                <select id="levelSelect">
+                    <option value="all">All Levels</option>
+                    <option value="Elementary">Elementary</option>
+                    <option value="Middle">Middle</option>
+                    <option value="High">High School</option>
+                </select>
+                
+                <button id="updateCharts">Update Analysis</button>
+            </div>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats will be populated here -->
+        </div>
+
+        <div class="dashboard">
+            <div class="chart-container">
+                <h3>Suspension Rate Trends Over Time</h3>
+                <div class="chart-wrapper">
+                    <canvas id="trendsChart"></canvas>
+                </div>
+                <div class="narrative">
+                    <h4>Key Finding: COVID-19 Impact</h4>
+                    <p>Suspension rates dropped dramatically from <span class="highlight">5.3% to 3.5%</span> in 2019, reflecting COVID-19's impact on school operations. Rates have since recovered but remain below pre-pandemic levels, suggesting potential lasting changes in disciplinary practices.</p>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3>Traditional vs Non-Traditional Schools</h3>
+                <div class="chart-wrapper">
+                    <canvas id="comparisonChart"></canvas>
+                </div>
+                <div class="narrative">
+                    <h4>Critical Disparity (2023)</h4>
+                    <p>Non-traditional schools show significantly higher suspension rates. High schools show the most dramatic gap: <span class="highlight">9.8%</span> non-traditional vs <span class="highlight">4.6%</span> traditional schools - a 2.1x difference that represents a critical equity issue.</p>
+                </div>
+            </div>
+
+            <div class="chart-container full-width">
+                <h3>School Concentration Analysis (Pareto Effect)</h3>
+                <div class="chart-wrapper">
+                    <canvas id="paretoChart"></canvas>
+                </div>
+                <div class="insight-box">
+                    <h5>Concentration Pattern:</h5>
+                    <p>The data reveals significant concentration where <span class="metric">top 5% of schools</span> account for disproportionate suspension rates, indicating systemic issues in specific institutional settings.</p>
+                </div>
+            </div>
+
+            <div class="chart-container full-width">
+                <h3>Grade Level and Setting Breakdown</h3>
+                <div class="chart-wrapper">
+                    <canvas id="gradeSettingChart"></canvas>
+                </div>
+                <div class="narrative">
+                    <h4>Setting-Based Disparities</h4>
+                    <p>Alternative and non-traditional settings show dramatically higher rates across all grade levels. Elementary traditional schools maintain the lowest rates at <span class="highlight">1.6-1.7%</span>, while alternative high schools reach concerning levels above <span class="highlight">15%</span>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // UCLA Brand Colors
+        const colors = {
+            primary: '#2774AE',
+            darkest: '#003B5C',
+            darker: '#005587',
+            lighter: '#8BB8E8',
+            lightest: '#DAEBFE',
+            gold: '#FFD100',
+            darkGold: '#FFC72C',
+            white: '#FFFFFF'
+        };
+
+        // Embedded data - processed from CSV files
+        const EMBEDDED_DATA = {
+            summary: [
+                {"year_num":2017,"n_schools":9947,"total_enrollment":6870997,"total_suspensions":363203,"mean_rate":0.06437792925707775,"median_rate":0.022336769759450172,"overall_rate":0.05286030542583558,"mean_rate_pct":"6.4%","median_rate_pct":"2.2%","overall_rate_pct":"5.3%"},
+                {"year_num":2018,"n_schools":9961,"total_enrollment":6774236,"total_suspensions":353546,"mean_rate":0.06335139656570532,"median_rate":0.021341463414634148,"overall_rate":0.052189796753464156,"mean_rate_pct":"6.3%","median_rate_pct":"2.1%","overall_rate_pct":"5.2%"},
+                {"year_num":2019,"n_schools":10064,"total_enrollment":6703797,"total_suspensions":232824,"mean_rate":0.043471881829916736,"median_rate":0.01194386490486635,"overall_rate":0.03473016858953217,"mean_rate_pct":"4.3%","median_rate_pct":"1.2%","overall_rate_pct":"3.5%"},
+                {"year_num":2021,"n_schools":10013,"total_enrollment":6515687,"total_suspensions":291907,"mean_rate":0.047435482456641385,"median_rate":0.014957264957264958,"overall_rate":0.044800648036039795,"mean_rate_pct":"4.7%","median_rate_pct":"1.5%","overall_rate_pct":"4.5%"},
+                {"year_num":2022,"n_schools":10024,"total_enrollment":6407616,"total_suspensions":336902,"mean_rate":0.05645076887164804,"median_rate":0.019801980198019802,"overall_rate":0.05257836924060368,"mean_rate_pct":"5.6%","median_rate_pct":"2.0%","overall_rate_pct":"5.3%"},
+                {"year_num":2023,"n_schools":10002,"total_enrollment":6404542,"total_suspensions":307095,"mean_rate":0.05301101602749898,"median_rate":0.020041757147459635,"overall_rate":0.0479495645434131,"mean_rate_pct":"5.3%","median_rate_pct":"2.0%","overall_rate_pct":"4.8%"}
+            ],
+            gradeSetting: [
+                {"year_num":2017,"level":"Elementary","setting":"Traditional","n_schools":1724,"total_enrollment":982913,"total_suspensions":16525,"overall_rate":0.01681227127935026},
+                {"year_num":2017,"level":"Elementary","setting":"Non-traditional","n_schools":2,"total_enrollment":211,"total_suspensions":3,"overall_rate":0.014218009478672985},
+                {"year_num":2017,"level":"High","setting":"Traditional","n_schools":966,"total_enrollment":1329560,"total_suspensions":69397,"overall_rate":0.05219546316074491},
+                {"year_num":2017,"level":"High","setting":"Non-traditional","n_schools":127,"total_enrollment":33247,"total_suspensions":4079,"overall_rate":0.12268776130177159},
+                {"year_num":2017,"level":"Middle","setting":"Traditional","n_schools":2393,"total_enrollment":2270896,"total_suspensions":132239,"overall_rate":0.05824395844504021},
+                {"year_num":2017,"level":"Middle","setting":"Non-traditional","n_schools":107,"total_enrollment":18684,"total_suspensions":695,"overall_rate":0.037192118226600544},
+                {"year_num":2018,"level":"Elementary","setting":"Traditional","n_schools":1723,"total_enrollment":967646,"total_suspensions":15808,"overall_rate":0.016340917696768673},
+                {"year_num":2018,"level":"Elementary","setting":"Non-traditional","n_schools":2,"total_enrollment":182,"total_suspensions":2,"overall_rate":0.010989010989010988},
+                {"year_num":2018,"level":"High","setting":"Traditional","n_schools":982,"total_enrollment":1309751,"total_suspensions":70430,"overall_rate":0.05378113879003363},
+                {"year_num":2018,"level":"High","setting":"Non-traditional","n_schools":130,"total_enrollment":33038,"total_suspensions":3768,"overall_rate":0.11403508771929825},
+                {"year_num":2018,"level":"Middle","setting":"Traditional","n_schools":2414,"total_enrollment":2235717,"total_suspensions":126246,"overall_rate":0.05646413882505583},
+                {"year_num":2018,"level":"Middle","setting":"Non-traditional","n_schools":112,"total_enrollment":18442,"total_suspensions":706,"overall_rate":0.038284163894833264},
+                {"year_num":2019,"level":"Elementary","setting":"Traditional","n_schools":1740,"total_enrollment":976577,"total_suspensions":10647,"overall_rate":0.010903473945409081},
+                {"year_num":2019,"level":"Elementary","setting":"Non-traditional","n_schools":2,"total_enrollment":159,"total_suspensions":1,"overall_rate":0.006289308176100629},
+                {"year_num":2019,"level":"High","setting":"Traditional","n_schools":996,"total_enrollment":1310053,"total_suspensions":47520,"overall_rate":0.036279159235668385},
+                {"year_num":2019,"level":"High","setting":"Non-traditional","n_schools":134,"total_enrollment":32937,"total_suspensions":2568,"overall_rate":0.07795982142857143},
+                {"year_num":2019,"level":"Middle","setting":"Traditional","n_schools":2437,"total_enrollment":2207525,"total_suspensions":83699,"overall_rate":0.0379156804733728},
+                {"year_num":2019,"level":"Middle","setting":"Non-traditional","n_schools":115,"total_enrollment":18023,"total_suspensions":436,"overall_rate":0.024201396648044693},
+                {"year_num":2021,"level":"Elementary","setting":"Traditional","n_schools":1724,"total_enrollment":950932,"total_suspensions":12689,"overall_rate":0.013347329473684211},
+                {"year_num":2021,"level":"Elementary","setting":"Non-traditional","n_schools":2,"total_enrollment":223,"total_suspensions":2,"overall_rate":0.008968609865470852},
+                {"year_num":2021,"level":"High","setting":"Traditional","n_schools":1009,"total_enrollment":1280537,"total_suspensions":53512,"overall_rate":0.04177015686274509},
+                {"year_num":2021,"level":"High","setting":"Non-traditional","n_schools":139,"total_enrollment":33004,"total_suspensions":3007,"overall_rate":0.09110559013474576},
+                {"year_num":2021,"level":"Middle","setting":"Traditional","n_schools":2420,"total_enrollment":2148036,"total_suspensions":94865,"overall_rate":0.044167364016736403},
+                {"year_num":2021,"level":"Middle","setting":"Non-traditional","n_schools":119,"total_enrollment":17735,"total_suspensions":498,"overall_rate":0.028082191780821918},
+                {"year_num":2022,"level":"Elementary","setting":"Traditional","n_schools":1722,"total_enrollment":933175,"total_suspensions":15131,"overall_rate":0.01621295681063123},
+                {"year_num":2022,"level":"Elementary","setting":"Non-traditional","n_schools":2,"total_enrollment":216,"total_suspensions":3,"overall_rate":0.013888888888888888},
+                {"year_num":2022,"level":"High","setting":"Traditional","n_schools":1021,"total_enrollment":1267633,"total_suspensions":63783,"overall_rate":0.050312143459915904},
+                {"year_num":2022,"level":"High","setting":"Non-traditional","n_schools":139,"total_enrollment":32547,"total_suspensions":3510,"overall_rate":0.10786516853932584},
+                {"year_num":2022,"level":"Middle","setting":"Traditional","n_schools":2420,"total_enrollment":2105045,"total_suspensions":109788,"overall_rate":0.05216216216216216},
+                {"year_num":2022,"level":"Middle","setting":"Non-traditional","n_schools":120,"total_enrollment":17550,"total_suspensions":574,"overall_rate":0.032706766917293232},
+                {"year_num":2023,"level":"Elementary","setting":"Traditional","n_schools":1724,"total_enrollment":929542,"total_suspensions":13691,"overall_rate":0.014728260869565218},
+                {"year_num":2023,"level":"Elementary","setting":"Non-traditional","n_schools":2,"total_enrollment":182,"total_suspensions":2,"overall_rate":0.010989010989010988},
+                {"year_num":2023,"level":"High","setting":"Traditional","n_schools":1018,"total_enrollment":1257879,"total_suspensions":57717,"overall_rate":0.045863874345549736},
+                {"year_num":2023,"level":"High","setting":"Non-traditional","n_schools":140,"total_enrollment":32063,"total_suspensions":3139,"overall_rate":0.09790026246719161},
+                {"year_num":2023,"level":"Middle","setting":"Traditional","n_schools":2398,"total_enrollment":2093026,"total_suspensions":97995,"overall_rate":0.046817182711198004},
+                {"year_num":2023,"level":"Middle","setting":"Non-traditional","n_schools":120,"total_enrollment":17318,"total_suspensions":525,"overall_rate":0.03031645569620253}
+            ],
+            comparison: [
+                {"year_num":2017,"level":"Elementary","n_schools_Non-traditional":2,"n_schools_Traditional":1724,"overall_rate_pct_Non-traditional":"1.4%","overall_rate_pct_Traditional":"1.7%","mean_rate_pct_Non-traditional":"1.9%","mean_rate_pct_Traditional":"1.7%","median_rate_pct_Non-traditional":"1.9%","median_rate_pct_Traditional":"0.6%"},
+                {"year_num":2017,"level":"High","n_schools_Non-traditional":127,"n_schools_Traditional":966,"overall_rate_pct_Non-traditional":"12.3%","overall_rate_pct_Traditional":"5.2%","mean_rate_pct_Non-traditional":"19.7%","mean_rate_pct_Traditional":"5.5%","median_rate_pct_Non-traditional":"4.3%","median_rate_pct_Traditional":"3.8%"},
+                {"year_num":2017,"level":"Middle","n_schools_Non-traditional":107,"n_schools_Traditional":2393,"overall_rate_pct_Non-traditional":"3.7%","overall_rate_pct_Traditional":"5.8%","mean_rate_pct_Non-traditional":"6.1%","mean_rate_pct_Traditional":"5.5%","median_rate_pct_Non-traditional":"1.1%","median_rate_pct_Traditional":"2.6%"},
+                {"year_num":2018,"level":"Elementary","n_schools_Non-traditional":2,"n_schools_Traditional":1723,"overall_rate_pct_Non-traditional":"1.1%","overall_rate_pct_Traditional":"1.6%","mean_rate_pct_Non-traditional":"0.7%","mean_rate_pct_Traditional":"1.6%","median_rate_pct_Non-traditional":"0.7%","median_rate_pct_Traditional":"0.5%"},
+                {"year_num":2018,"level":"High","n_schools_Non-traditional":130,"n_schools_Traditional":982,"overall_rate_pct_Non-traditional":"11.4%","overall_rate_pct_Traditional":"5.4%","mean_rate_pct_Non-traditional":"18.1%","mean_rate_pct_Traditional":"5.8%","median_rate_pct_Non-traditional":"3.0%","median_rate_pct_Traditional":"3.6%"},
+                {"year_num":2018,"level":"Middle","n_schools_Non-traditional":112,"n_schools_Traditional":2414,"overall_rate_pct_Non-traditional":"3.8%","overall_rate_pct_Traditional":"5.6%","mean_rate_pct_Non-traditional":"5.8%","mean_rate_pct_Traditional":"5.3%","median_rate_pct_Non-traditional":"1.0%","median_rate_pct_Traditional":"2.5%"},
+                {"year_num":2019,"level":"Elementary","n_schools_Non-traditional":2,"n_schools_Traditional":1740,"overall_rate_pct_Non-traditional":"0.6%","overall_rate_pct_Traditional":"1.1%","mean_rate_pct_Non-traditional":"0.5%","mean_rate_pct_Traditional":"1.1%","median_rate_pct_Non-traditional":"0.5%","median_rate_pct_Traditional":"0.3%"},
+                {"year_num":2019,"level":"High","n_schools_Non-traditional":134,"n_schools_Traditional":996,"overall_rate_pct_Non-traditional":"7.8%","overall_rate_pct_Traditional":"3.6%","mean_rate_pct_Non-traditional":"11.8%","mean_rate_pct_Traditional":"3.8%","median_rate_pct_Non-traditional":"1.8%","median_rate_pct_Traditional":"2.4%"},
+                {"year_num":2019,"level":"Middle","n_schools_Non-traditional":115,"n_schools_Traditional":2437,"overall_rate_pct_Non-traditional":"2.4%","overall_rate_pct_Traditional":"3.8%","mean_rate_pct_Non-traditional":"3.6%","mean_rate_pct_Traditional":"3.6%","median_rate_pct_Non-traditional":"0.6%","median_rate_pct_Traditional":"1.7%"},
+                {"year_num":2021,"level":"Elementary","n_schools_Non-traditional":2,"n_schools_Traditional":1724,"overall_rate_pct_Non-traditional":"0.9%","overall_rate_pct_Traditional":"1.3%","mean_rate_pct_Non-traditional":"0.8%","mean_rate_pct_Traditional":"1.3%","median_rate_pct_Non-traditional":"0.8%","median_rate_pct_Traditional":"0.4%"},
+                {"year_num":2021,"level":"High","n_schools_Non-traditional":139,"n_schools_Traditional":1009,"overall_rate_pct_Non-traditional":"9.1%","overall_rate_pct_Traditional":"4.2%","mean_rate_pct_Non-traditional":"13.7%","mean_rate_pct_Traditional":"4.4%","median_rate_pct_Non-traditional":"2.1%","median_rate_pct_Traditional":"2.7%"},
+                {"year_num":2021,"level":"Middle","n_schools_Non-traditional":119,"n_schools_Traditional":2420,"overall_rate_pct_Non-traditional":"2.8%","overall_rate_pct_Traditional":"4.4%","mean_rate_pct_Non-traditional":"4.2%","mean_rate_pct_Traditional":"4.2%","median_rate_pct_Non-traditional":"0.8%","median_rate_pct_Traditional":"2.1%"},
+                {"year_num":2022,"level":"Elementary","n_schools_Non-traditional":2,"n_schools_Traditional":1722,"overall_rate_pct_Non-traditional":"1.4%","overall_rate_pct_Traditional":"1.6%","mean_rate_pct_Non-traditional":"1.2%","mean_rate_pct_Traditional":"1.6%","median_rate_pct_Non-traditional":"1.2%","median_rate_pct_Traditional":"0.5%"},
+                {"year_num":2022,"level":"High","n_schools_Non-traditional":139,"n_schools_Traditional":1021,"overall_rate_pct_Non-traditional":"10.8%","overall_rate_pct_Traditional":"5.0%","mean_rate_pct_Non-traditional":"16.3%","mean_rate_pct_Traditional":"5.3%","median_rate_pct_Non-traditional":"2.5%","median_rate_pct_Traditional":"3.2%"},
+                {"year_num":2022,"level":"Middle","n_schools_Non-traditional":120,"n_schools_Traditional":2420,"overall_rate_pct_Non-traditional":"3.3%","overall_rate_pct_Traditional":"5.2%","mean_rate_pct_Non-traditional":"5.0%","mean_rate_pct_Traditional":"5.0%","median_rate_pct_Non-traditional":"1.0%","median_rate_pct_Traditional":"2.5%"},
+                {"year_num":2023,"level":"Elementary","n_schools_Non-traditional":2,"n_schools_Traditional":1724,"overall_rate_pct_Non-traditional":"1.1%","overall_rate_pct_Traditional":"1.5%","mean_rate_pct_Non-traditional":"0.9%","mean_rate_pct_Traditional":"1.5%","median_rate_pct_Non-traditional":"0.9%","median_rate_pct_Traditional":"0.5%"},
+                {"year_num":2023,"level":"High","n_schools_Non-traditional":140,"n_schools_Traditional":1018,"overall_rate_pct_Non-traditional":"9.8%","overall_rate_pct_Traditional":"4.6%","mean_rate_pct_Non-traditional":"14.6%","mean_rate_pct_Traditional":"4.9%","median_rate_pct_Non-traditional":"2.2%","median_rate_pct_Traditional":"2.9%"},
+                {"year_num":2023,"level":"Middle","n_schools_Non-traditional":120,"n_schools_Traditional":2398,"overall_rate_pct_Non-traditional":"3.0%","overall_rate_pct_Traditional":"4.7%","mean_rate_pct_Non-traditional":"4.5%","mean_rate_pct_Traditional":"4.5%","median_rate_pct_Non-traditional":"0.9%","median_rate_pct_Traditional":"2.3%"}
+            ],
+            pareto: [
+                {"year_num":2017,"top_label":"Top 5%","share_pct":"35.3%","top_schools":497,"total_schools":9947,"measure_type":"total_susp"},
+                {"year_num":2017,"top_label":"Top 10%","share_pct":"53.1%","top_schools":994,"total_schools":9947,"measure_type":"total_susp"},
+                {"year_num":2017,"top_label":"Top 20%","share_pct":"73.9%","top_schools":1989,"total_schools":9947,"measure_type":"total_susp"},
+                {"year_num":2018,"top_label":"Top 5%","share_pct":"35.5%","top_schools":498,"total_schools":9961,"measure_type":"total_susp"},
+                {"year_num":2018,"top_label":"Top 10%","share_pct":"54.3%","top_schools":996,"total_schools":9961,"measure_type":"total_susp"},
+                {"year_num":2018,"top_label":"Top 20%","share_pct":"74.9%","top_schools":1992,"total_schools":9961,"measure_type":"total_susp"},
+                {"year_num":2019,"top_label":"Top 5%","share_pct":"36.5%","top_schools":503,"total_schools":10064,"measure_type":"total_susp"},
+                {"year_num":2019,"top_label":"Top 10%","share_pct":"55.8%","top_schools":1006,"total_schools":10064,"measure_type":"total_susp"},
+                {"year_num":2019,"top_label":"Top 20%","share_pct":"76.4%","top_schools":2013,"total_schools":10064,"measure_type":"total_susp"},
+                {"year_num":2021,"top_label":"Top 5%","share_pct":"36.1%","top_schools":501,"total_schools":10013,"measure_type":"total_susp"},
+                {"year_num":2021,"top_label":"Top 10%","share_pct":"55.0%","top_schools":1001,"total_schools":10013,"measure_type":"total_susp"},
+                {"year_num":2021,"top_label":"Top 20%","share_pct":"75.7%","top_schools":2003,"total_schools":10013,"measure_type":"total_susp"},
+                {"year_num":2022,"top_label":"Top 5%","share_pct":"35.7%","top_schools":501,"total_schools":10024,"measure_type":"total_susp"},
+                {"year_num":2022,"top_label":"Top 10%","share_pct":"54.6%","top_schools":1002,"total_schools":10024,"measure_type":"total_susp"},
+                {"year_num":2022,"top_label":"Top 20%","share_pct":"75.3%","top_schools":2005,"total_schools":10024,"measure_type":"total_susp"},
+                {"year_num":2023,"top_label":"Top 5%","share_pct":"36.2%","top_schools":500,"total_schools":10002,"measure_type":"total_susp"},
+                {"year_num":2023,"top_label":"Top 10%","share_pct":"55.4%","top_schools":1000,"total_schools":10002,"measure_type":"total_susp"},
+                {"year_num":2023,"top_label":"Top 20%","share_pct":"76.1%","top_schools":2000,"total_schools":10002,"measure_type":"total_susp"}
+            ]
+        };
+
+        // Global chart storage
+        let allCharts = {};
+        let currentFilters = { year: 'all', level: 'all' };
+
+        // Initialize the dashboard
+        function initDashboard() {
+            createStatCards();
+            createCharts();
+            setupEventListeners();
+        }
+
+        // Create statistical overview cards
+        function createStatCards() {
+            const statsGrid = document.getElementById('statsGrid');
+            const latestYear = EMBEDDED_DATA.summary[EMBEDDED_DATA.summary.length - 1];
+            
+            if (!latestYear) return;
+
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <h4>${latestYear.n_schools?.toLocaleString() || 'N/A'}</h4>
+                    <p>Total Schools (2023)</p>
+                </div>
+                <div class="stat-card">
+                    <h4>${latestYear.total_enrollment?.toLocaleString() || 'N/A'}</h4>
+                    <p>Students Enrolled</p>
+                </div>
+                <div class="stat-card">
+                    <h4>${latestYear.total_suspensions?.toLocaleString() || 'N/A'}</h4>
+                    <p>Total Suspensions</p>
+                </div>
+                <div class="stat-card">
+                    <h4>${latestYear.overall_rate_pct || 'N/A'}</h4>
+                    <p>Overall Suspension Rate</p>
+                </div>
+            `;
+        }
+
+        // Create all charts
+        function createCharts() {
+            createTrendsChart();
+            createComparisonChart();
+            createParetoChart();
+            createGradeSettingChart();
+        }
+
+        // Trends chart
+        function createTrendsChart() {
+            updateTrendsChart('all'); // Start with all levels
+        }
+
+        function updateTrendsChart(selectedLevel = 'all') {
+            const ctx = document.getElementById('trendsChart').getContext('2d');
+            
+            let data;
+            if (selectedLevel === 'all') {
+                // Use overall summary data
+                data = EMBEDDED_DATA.summary.map(d => ({
+                    year: d.year_num,
+                    overall: d.overall_rate * 100,
+                    mean: d.mean_rate * 100,
+                    median: d.median_rate * 100
+                }));
+            } else {
+                // Calculate aggregate stats for the selected level
+                const years = [...new Set(EMBEDDED_DATA.gradeSetting.map(d => d.year_num))].sort();
+                data = years.map(year => {
+                    const yearLevelData = EMBEDDED_DATA.gradeSetting.filter(d => 
+                        d.year_num === year && d.level === selectedLevel
+                    );
+                    
+                    if (yearLevelData.length === 0) return null;
+                    
+                    // Calculate weighted overall rate
+                    const totalEnrollment = yearLevelData.reduce((sum, d) => sum + d.total_enrollment, 0);
+                    const totalSuspensions = yearLevelData.reduce((sum, d) => sum + d.total_suspensions, 0);
+                    const overallRate = totalEnrollment > 0 ? (totalSuspensions / totalEnrollment) * 100 : 0;
+                    
+                    // Calculate weighted mean and median approximation
+                    // For mean: weight by enrollment, for median: use middle value weighted by schools
+                    const meanRate = yearLevelData.reduce((sum, d) => sum + (d.overall_rate * d.total_enrollment), 0) / totalEnrollment * 100;
+                    
+                    // For median approximation, sort by rate and find middle weighted by enrollment
+                    const sortedByRate = yearLevelData.sort((a, b) => a.overall_rate - b.overall_rate);
+                    let cumulativeEnrollment = 0;
+                    let medianRate = 0;
+                    const halfEnrollment = totalEnrollment / 2;
+                    
+                    for (const record of sortedByRate) {
+                        cumulativeEnrollment += record.total_enrollment;
+                        if (cumulativeEnrollment >= halfEnrollment) {
+                            medianRate = record.overall_rate * 100;
+                            break;
+                        }
+                    }
+                    
+                    return {
+                        year: year,
+                        overall: overallRate,
+                        mean: meanRate,
+                        median: medianRate
+                    };
+                }).filter(d => d !== null);
+            }
+
+            if (allCharts.trends) {
+                allCharts.trends.destroy();
+            }
+
+            allCharts.trends = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.year),
+                    datasets: [{
+                        label: selectedLevel === 'all' ? 'Overall Rate' : `${selectedLevel} Overall Rate`,
+                        data: data.map(d => d.overall),
+                        borderColor: colors.primary,
+                        backgroundColor: colors.lightest,
+                        borderWidth: 4,
+                        tension: 0.4,
+                        pointBackgroundColor: colors.primary,
+                        pointBorderColor: colors.white,
+                        pointBorderWidth: 3,
+                        pointRadius: 8
+                    }, {
+                        label: selectedLevel === 'all' ? 'Mean Rate' : `${selectedLevel} Mean Rate`,
+                        data: data.map(d => d.mean),
+                        borderColor: colors.gold,
+                        backgroundColor: 'rgba(255, 209, 0, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        pointBackgroundColor: colors.gold,
+                        pointBorderColor: colors.white,
+                        pointBorderWidth: 2,
+                        pointRadius: 6
+                    }, {
+                        label: selectedLevel === 'all' ? 'Median Rate' : `${selectedLevel} Median Rate`,
+                        data: data.map(d => d.median),
+                        borderColor: colors.darker,
+                        backgroundColor: 'rgba(0, 85, 135, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        pointBackgroundColor: colors.darker,
+                        pointBorderColor: colors.white,
+                        pointBorderWidth: 2,
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                font: { size: 12, weight: 'bold' }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Suspension Rate (%)', font: { size: 14, weight: 'bold' } },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(1) + '%';
+                                }
+                            }
+                        },
+                        x: {
+                            title: { display: true, text: 'Academic Year', font: { size: 14, weight: 'bold' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Comparison chart between traditional and non-traditional schools
+        function createComparisonChart() {
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            
+            // Use 2023 data for comparison (most recent)
+            const data = EMBEDDED_DATA.comparison
+                .filter(d => d.year_num === 2023)
+                .map(d => ({
+                    level: d.level,
+                    traditional: parseFloat(d.overall_rate_pct_Traditional?.replace('%', '') || '0'),
+                    nonTraditional: parseFloat(d['overall_rate_pct_Non-traditional']?.replace('%', '') || '0')
+                }));
+
+            console.log('Comparison chart data for 2023:', data);
+
+            allCharts.comparison = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.level),
+                    datasets: [{
+                        label: 'Traditional Schools',
+                        data: data.map(d => d.traditional),
+                        backgroundColor: colors.primary,
+                        borderColor: colors.darkest,
+                        borderWidth: 2
+                    }, {
+                        label: 'Non-Traditional Schools',
+                        data: data.map(d => d.nonTraditional),
+                        backgroundColor: colors.gold,
+                        borderColor: colors.darkGold,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                padding: 20,
+                                font: { size: 12, weight: 'bold' }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Suspension Rate (%)', font: { size: 14, weight: 'bold' } },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Pareto chart showing concentration
+        function createParetoChart() {
+            updateParetoChart(2023); // Start with 2023 data
+        }
+
+        function updateParetoChart(selectedYear = 2023) {
+            const ctx = document.getElementById('paretoChart').getContext('2d');
+            
+            const data = EMBEDDED_DATA.pareto
+                .filter(d => d.year_num === selectedYear)
+                .map(d => ({
+                    label: d.top_label,
+                    share: parseFloat(d.share_pct.replace('%', '')),
+                    schools: d.top_schools,
+                    total: d.total_schools
+                }));
+
+            if (allCharts.pareto) {
+                allCharts.pareto.destroy();
+            }
+
+            allCharts.pareto = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(d => d.label),
+                    datasets: [{
+                        data: data.map(d => d.share),
+                        backgroundColor: [
+                            colors.darkest,
+                            colors.primary,
+                            colors.gold
+                        ],
+                        borderColor: colors.white,
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 20,
+                                font: { size: 12 },
+                                generateLabels: function(chart) {
+                                    const chartData = chart.data;
+                                    return chartData.labels.map((label, i) => ({
+                                        text: `${label}: ${chartData.datasets[0].data[i]}%`,
+                                        fillStyle: chartData.datasets[0].backgroundColor[i],
+                                        index: i
+                                    }));
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const item = data[context.dataIndex];
+                                    return `${context.label}: ${context.parsed}% of suspensions (${item.schools} schools)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Update the insight box
+            const insightBox = document.querySelector('.chart-container:nth-child(3) .insight-box');
+            const topFivePercent = data.find(d => d.label === 'Top 5%');
+            if (topFivePercent && insightBox) {
+                insightBox.innerHTML = `
+                    <h5>Concentration Pattern (${selectedYear}):</h5>
+                    <p>The data reveals significant concentration where <span class="metric">top 5% of schools</span> account for <span class="metric">${topFivePercent.share}%</span> of all suspensions, indicating systemic issues in specific institutional settings.</p>
+                `;
+            }
+        }
+
+        // Grade setting chart
+        function createGradeSettingChart() {
+            updateGradeSettingChart(2023, 'all'); // Start with 2023, all levels
+        }
+
+        function updateGradeSettingChart(selectedYear = 2023, selectedLevel = 'all') {
+            const ctx = document.getElementById('gradeSettingChart').getContext('2d');
+            
+            let filteredData = EMBEDDED_DATA.gradeSetting.filter(d => d.year_num === selectedYear);
+            
+            if (selectedLevel !== 'all') {
+                filteredData = filteredData.filter(d => d.level === selectedLevel);
+            } else {
+                // Show all levels but filter out Alternative and Other/Unknown for clarity
+                filteredData = filteredData.filter(d => ['Elementary', 'Middle', 'High'].includes(d.level));
+            }
+
+            // Prepare data for chart
+            const chartData = filteredData.map(d => ({
+                label: `${d.level} (${d.setting})`,
+                rate: d.overall_rate * 100,
+                setting: d.setting,
+                level: d.level,
+                schools: d.n_schools
+            })).sort((a, b) => {
+                // Sort by level first, then by setting (Traditional first)
+                if (a.level !== b.level) {
+                    const levelOrder = {'Elementary': 0, 'Middle': 1, 'High': 2};
+                    return levelOrder[a.level] - levelOrder[b.level];
+                }
+                return a.setting === 'Traditional' ? -1 : 1;
+            });
+
+            if (allCharts.gradeSetting) {
+                allCharts.gradeSetting.destroy();
+            }
+
+            allCharts.gradeSetting = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.map(d => d.label),
+                    datasets: [{
+                        label: 'Suspension Rate (%)',
+                        data: chartData.map(d => d.rate),
+                        backgroundColor: chartData.map(d => 
+                            d.setting === 'Non-traditional' ? colors.gold : colors.primary
+                        ),
+                        borderColor: colors.darkest,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const item = chartData[context.dataIndex];
+                                    return `${context.parsed.x.toFixed(1)}% (${item.schools} schools)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Suspension Rate (%)', font: { size: 14, weight: 'bold' } },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        },
+                        y: {
+                            title: { display: true, text: 'School Type', font: { size: 14, weight: 'bold' } }
+                        }
+                    }
+                }
+            });
+
+            // Update narrative
+            updateGradeSettingNarrative(selectedYear, chartData);
+        }
+
+        function updateGradeSettingNarrative(year, data) {
+            const narrative = document.querySelector('.chart-container:nth-child(4) .narrative');
+            const highestRate = Math.max(...data.map(d => d.rate));
+            const lowestRate = Math.min(...data.map(d => d.rate));
+            const highestItem = data.find(d => d.rate === highestRate);
+            const lowestItem = data.find(d => d.rate === lowestRate);
+
+            narrative.innerHTML = `
+                <h4>Setting-Based Disparities (${year})</h4>
+                <p>Significant variation exists across school types and settings. The highest rate is <span class="highlight">${highestRate.toFixed(1)}%</span> in ${highestItem.label}, while the lowest is <span class="highlight">${lowestRate.toFixed(1)}%</span> in ${lowestItem.label} - a ${Math.round(highestRate / lowestRate * 10) / 10}x difference.</p>
+            `;
+        }
+
+        // Update charts based on filters
+        function updateCharts() {
+            try {
+                currentFilters.year = document.getElementById('yearSelect').value;
+                currentFilters.level = document.getElementById('levelSelect').value;
+                
+                console.log('Updating all charts for year:', currentFilters.year, 'level:', currentFilters.level);
+                
+                const year = currentFilters.year === 'all' ? 2023 : parseInt(currentFilters.year);
+                const level = currentFilters.level;
+                
+                // Update trends chart with level filter
+                console.log('1. Updating trends chart...');
+                updateTrendsChart(level);
+                
+                // Update chart title to show active filter
+                const trendsTitle = document.querySelector('.chart-container:nth-child(1) h3');
+                if (trendsTitle) {
+                    if (level === 'all') {
+                        trendsTitle.textContent = 'Suspension Rate Trends Over Time';
+                    } else {
+                        trendsTitle.textContent = `${level} School Suspension Rate Trends Over Time`;
+                    }
+                }
+                
+                // Update comparison chart with year filter
+                console.log('2. Updating comparison chart for year:', year);
+                updateComparisonChart(year);
+                
+                // Update chart title to show active year
+                const comparisonTitle = document.querySelector('.chart-container:nth-child(2) h3');
+                if (comparisonTitle) {
+                    if (currentFilters.year !== 'all') {
+                        comparisonTitle.textContent = `Traditional vs Non-Traditional Schools (${year})`;
+                    } else {
+                        comparisonTitle.textContent = 'Traditional vs Non-Traditional Schools (2023)';
+                    }
+                }
+                
+                // Update pareto chart with year filter
+                console.log('3. Updating pareto chart for year:', year);
+                updateParetoChart(year);
+                
+                // Update chart title to show active year
+                const paretoTitle = document.querySelector('.chart-container:nth-child(3) h3');
+                if (paretoTitle) {
+                    paretoTitle.textContent = `School Concentration Analysis - ${year} (Pareto Effect)`;
+                }
+                
+                // Update grade setting chart with both filters
+                console.log('4. Updating grade setting chart for year:', year, 'level:', level);
+                updateGradeSettingChart(year, level);
+                
+                // Update chart title to show active filters
+                const gradeTitle = document.querySelector('.chart-container:nth-child(4) h3');
+                if (gradeTitle) {
+                    let titleText = `Grade Level and Setting Breakdown (${year})`;
+                    if (level !== 'all') {
+                        titleText = `${level} Schools by Setting (${year})`;
+                    }
+                    gradeTitle.textContent = titleText;
+                }
+                
+                // Update trend narrative based on level
+                console.log('5. Updating trend narrative...');
+                updateTrendsNarrative(level);
+                
+                console.log('All chart updates completed successfully');
+                
+            } catch (error) {
+                console.error('Error updating charts:', error);
+            }
+        }
+
+        // Update trends narrative based on current filter
+        function updateTrendsNarrative(selectedLevel) {
+            const narrative = document.querySelector('.chart-container:nth-child(1) .narrative');
+            let narrativeText = '';
+            
+            if (selectedLevel === 'all') {
+                narrativeText = `
+                    <h4>Key Finding: COVID-19 Impact</h4>
+                    <p>Suspension rates dropped dramatically from <span class="highlight">5.3% to 3.5%</span> in 2019, reflecting COVID-19's impact on school operations. Rates have since recovered but remain below pre-pandemic levels, suggesting potential lasting changes in disciplinary practices.</p>
+                `;
+            } else {
+                // Get trend data for the specific level
+                const years = [2017, 2018, 2019, 2021, 2022, 2023];
+                const levelData = years.map(year => {
+                    const yearData = EMBEDDED_DATA.gradeSetting.filter(d => 
+                        d.year_num === year && d.level === selectedLevel
+                    );
+                    const totalEnrollment = yearData.reduce((sum, d) => sum + d.total_enrollment, 0);
+                    const totalSuspensions = yearData.reduce((sum, d) => sum + d.total_suspensions, 0);
+                    return totalEnrollment > 0 ? (totalSuspensions / totalEnrollment) * 100 : 0;
+                });
+                
+                const pre2019 = levelData[1]; // 2018
+                const pandemic = levelData[2]; // 2019
+                const latest = levelData[5]; // 2023
+                
+                narrativeText = `
+                    <h4>${selectedLevel} Schools: COVID-19 Impact</h4>
+                    <p>${selectedLevel} schools saw rates change from <span class="highlight">${pre2019.toFixed(1)}%</span> (2018) to <span class="highlight">${pandemic.toFixed(1)}%</span> (2019), with current rates at <span class="highlight">${latest.toFixed(1)}%</span> (2023).</p>
+                `;
+            }
+            
+            if (narrative) {
+                narrative.innerHTML = narrativeText;
+            }
+        }
+
+        // Update comparison chart with specific year
+        function updateComparisonChart(year) {
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            
+            const data = EMBEDDED_DATA.comparison
+                .filter(d => d.year_num === year)
+                .map(d => ({
+                    level: d.level,
+                    traditional: parseFloat(d.overall_rate_pct_Traditional?.replace('%', '') || '0'),
+                    nonTraditional: parseFloat(d['overall_rate_pct_Non-traditional']?.replace('%', '') || '0')
+                }));
+
+            console.log('Comparison chart data for', year, ':', JSON.stringify(data, null, 2));
+
+            if (allCharts.comparison) {
+                allCharts.comparison.destroy();
+            }
+
+            allCharts.comparison = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.level),
+                    datasets: [{
+                        label: 'Traditional Schools',
+                        data: data.map(d => d.traditional),
+                        backgroundColor: colors.primary,
+                        borderColor: colors.darkest,
+                        borderWidth: 2
+                    }, {
+                        label: 'Non-Traditional Schools',
+                        data: data.map(d => d.nonTraditional),
+                        backgroundColor: colors.gold,
+                        borderColor: colors.darkGold,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                padding: 20,
+                                font: { size: 12, weight: 'bold' }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Suspension Rate (%)', font: { size: 14, weight: 'bold' } },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Update narrative
+            if (data.length > 0) {
+                updateComparisonNarrative(year, data);
+            }
+        }
+
+        // Update comparison chart with specific year
+        function updateComparisonChart(year) {
+            updateComparisonChartDisplay(year);
+            
+            // Update narrative
+            const data = EMBEDDED_DATA.comparison
+                .filter(d => d.year_num === year)
+                .map(d => ({
+                    level: d.level,
+                    traditional: parseFloat(d.overall_rate_pct_Traditional?.replace('%', '') || '0'),
+                    nonTraditional: parseFloat(d['overall_rate_pct_Non-traditional']?.replace('%', '') || '0')
+                }));
+            
+            if (data.length > 0) {
+                updateComparisonNarrative(year, data);
+            }
+        }
+
+        // Update narrative text based on current data
+        function updateComparisonNarrative(year, data) {
+            const highSchoolData = data.find(d => d.level === 'High');
+            if (highSchoolData) {
+                const narrative = document.querySelector('.chart-container:nth-child(2) .narrative');
+                narrative.innerHTML = `
+                    <h4>Critical Disparity (${year})</h4>
+                    <p>Non-traditional schools show significantly higher suspension rates. High schools show the most dramatic gap: <span class="highlight">${highSchoolData.nonTraditional}%</span> non-traditional vs <span class="highlight">${highSchoolData.traditional}%</span> traditional schools - a ${Math.round(highSchoolData.nonTraditional / highSchoolData.traditional * 10) / 10}x difference.</p>
+                `;
+            }
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('updateCharts').addEventListener('click', updateCharts);
+        }
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
+</body>
+</html>
