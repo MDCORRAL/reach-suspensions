@@ -510,6 +510,11 @@
       schoolType: 'All',
     };
 
+    const charts = {
+      topShare: null,
+      cohortShare: null,
+    };
+
     const formatters = {
       toAcademicYear(yearNum) {
         if (Number.isNaN(yearNum)) return '';
@@ -518,7 +523,7 @@
       },
       toYearNumber(acYear) {
         if (!acYear || acYear === 'All') return null;
-        const match = acYear.match(/^(\\d{4})/);
+        const match = acYear.match(/^(\d{4})/);
         return match ? Number(match[1]) : null;
       },
       rate(value) {
@@ -576,6 +581,7 @@
         select.id = `${id}-select`;
         select.name = id;
         select.appendChild(buildOptions(options));
+        select.value = state[id];
         select.addEventListener('change', (event) => {
           state[id] = event.target.value;
           render();
@@ -741,7 +747,38 @@
       }
     });
   
-    function renderGradeTable() {
+    function getFilteredRows() {
+      if (!Array.isArray(cache.gradeSetting)) {
+        return [];
+      }
+
+      const yearFilter = formatters.toYearNumber(state.academicYear);
+      const gradeFilter = state.gradeLevel;
+      const schoolFilter = state.schoolType;
+
+      return cache.gradeSetting.filter((row) => {
+        if (!row) return false;
+        const matchesYear = yearFilter == null || row.year_num === yearFilter;
+        const matchesGrade = gradeFilter === 'All' || row.level === gradeFilter;
+        const matchesSchool = schoolFilter === 'All' || row.setting === schoolFilter;
+        return matchesYear && matchesGrade && matchesSchool;
+      });
+    }
+
+    function configureChartDefaults() {
+      if (typeof Chart === 'undefined' || !Chart.defaults) return;
+      const styles = getComputedStyle(document.documentElement);
+      const fontFamily = styles.getPropertyValue('font-family') ||
+        "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+      const textColor = styles.getPropertyValue('--text') || '#003b5c';
+
+      Chart.defaults.font.family = fontFamily.trim();
+      Chart.defaults.color = textColor.trim();
+      Chart.defaults.plugins.legend.labels.usePointStyle = true;
+      Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 59, 92, 0.9)';
+    }
+
+    function renderGradeTable(rows = []) {
       const wrapper = document.getElementById('grade-table-wrapper');
       wrapper.innerHTML = '';
       const table = document.createElement('table');
@@ -772,7 +809,7 @@
 
       summary.textContent = `Showing ${rows.length} slide-ready statements from the prepared CSV export.`;
 
-      const sortedRows = rows
+      const sortedRows = [...rows]
         .sort((a, b) => {
           if (a.year_num !== b.year_num) return a.year_num - b.year_num;
           if (a.level !== b.level) return a.level.localeCompare(b.level);
@@ -980,12 +1017,16 @@
       }
 
       if (!hasData) {
-        charts.topShare.data.labels = [];
-        charts.topShare.data.datasets[0].data = [];
-        charts.topShare.update('none');
-        charts.cohortShare.data.labels = [];
-        charts.cohortShare.data.datasets[0].data = [];
-        charts.cohortShare.update('none');
+        if (charts.topShare) {
+          charts.topShare.data.labels = [];
+          charts.topShare.data.datasets[0].data = [];
+          charts.topShare.update('none');
+        }
+        if (charts.cohortShare) {
+          charts.cohortShare.data.labels = [];
+          charts.cohortShare.data.datasets[0].data = [];
+          charts.cohortShare.update('none');
+        }
       }
     }
 
