@@ -772,6 +772,10 @@
         soft: getComputedStyle(document.documentElement).getPropertyValue('--accent-soft').trim() || '#8bb8e8',
       };
 
+      const uclaSuspensionColors = ['#2774AE', '#FFB81C', '#8BB8E8', '#005587', '#FFC72C'];
+      const suspensionColors = labels.map((_, index) => uclaSuspensionColors[index % uclaSuspensionColors.length]);
+      const suspensionHoverColors = suspensionColors.slice();
+
       const topShareContext = document.getElementById('top-share-chart').getContext('2d');
       const topShareConfig = {
         type: 'bar',
@@ -781,8 +785,8 @@
             {
               label: 'Suspension share',
               data: suspensionShare,
-              backgroundColor: palette.primary,
-              hoverBackgroundColor: palette.highlight,
+              backgroundColor: suspensionColors,
+              hoverBackgroundColor: suspensionHoverColors,
               borderRadius: 8,
               borderSkipped: false,
             },
@@ -821,6 +825,8 @@
       if (charts.topShare) {
         charts.topShare.data.labels = labels;
         charts.topShare.data.datasets[0].data = suspensionShare;
+        charts.topShare.data.datasets[0].backgroundColor = suspensionColors;
+        charts.topShare.data.datasets[0].hoverBackgroundColor = suspensionHoverColors;
         charts.topShare.update();
       } else {
         charts.topShare = new Chart(topShareContext, topShareConfig);
