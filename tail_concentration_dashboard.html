@@ -379,6 +379,37 @@
         </p>
       </div>
 
+      <section class="dashboard" aria-label="Tail concentration visuals">
+        <article class="chart-container">
+          <h3>Suspension share captured by top cohorts</h3>
+          <p class="chart-description">
+            Compare how much of the suspension count is concentrated among the top cohorts selected in the prepared
+            grade-setting analysis.
+          </p>
+          <div class="chart-wrapper">
+            <canvas id="top-share-chart" aria-label="Chart showing suspension share captured by top groups" role="img"></canvas>
+          </div>
+          <p class="chart-empty" data-chart-empty hidden>No chart data available for these filters.</p>
+        </article>
+        <article class="chart-container">
+          <h3>Share of schools included in each cohort</h3>
+          <p class="chart-description">
+            Review the proportion of schools that form each highlighted cohort to understand how broad or concentrated the
+            focus groups are.
+          </p>
+          <div class="chart-wrapper">
+            <canvas id="cohort-size-chart" aria-label="Chart showing percent of schools included in each cohort" role="img"></canvas>
+          </div>
+          <p class="chart-empty" data-chart-empty hidden>No chart data available for these filters.</p>
+        </article>
+
+        <section class="card table-card" id="grade-setting-section">
+          <h2>Grade level × school type summary</h2>
+          <p class="summary" id="grade-summary"></p>
+          <div id="grade-table-wrapper"></div>
+        </section>
+      </section>
+
       <section class="card info-card" id="methodology-and-filters" aria-labelledby="methodology-title">
         <h2 id="methodology-title">Methodology &amp; filters</h2>
         <section aria-labelledby="data-sources-heading">
@@ -410,39 +441,6 @@
           <a href="Analysis/data_processing_overview.md" target="_blank" rel="noopener">Read the data processing overview</a>
           <a href="Analysis/README_tail_concentration_by_level.md" target="_blank" rel="noopener">Read the tail concentration methodology</a>
         </div>
-      </section>
-
-      <section class="dashboard" aria-label="Tail concentration visuals">
-        <article class="chart-container">
-          <h3>Suspension share captured by top cohorts</h3>
-          <p class="chart-description">
-            Compare how much of the suspension count is concentrated among the top cohorts selected in the prepared
-            grade-setting analysis.
-          </p>
-          <div class="chart-wrapper">
-            <canvas id="top-share-chart" aria-label="Chart showing suspension share captured by top groups" role="img"></canvas>
-          </div>
-          <p class="chart-empty" data-chart-empty hidden>No chart data available for these filters.</p>
-        </article>
-        <article class="chart-container">
-          <h3>Share of schools included in each cohort</h3>
-          <p class="chart-description">
-            Review the proportion of schools that form each highlighted cohort to understand how broad or concentrated the
-            focus groups are.
-          </p>
-          <div class="chart-wrapper">
-            <canvas id="cohort-size-chart" aria-label="Chart showing percent of schools included in each cohort" role="img"></canvas>
-          </div>
-          <p class="chart-empty" data-chart-empty hidden>No chart data available for these filters.</p>
-        </article>
-
-        <!--
-        <section class="card table-card" id="grade-setting-section">
-          <h2>Grade level × school type summary</h2>
-          <p class="summary" id="grade-summary"></p>
-          <div id="grade-table-wrapper"></div>
-        </section>
-        -->
       </section>
     </section>
   </main>
