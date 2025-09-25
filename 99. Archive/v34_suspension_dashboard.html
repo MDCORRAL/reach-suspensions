@@ -235,13 +235,6 @@
     </style>
 </head>
 <body>
-
-  <div style="padding:1rem; text-align:right;">
-  <a href="index.html" style="color:white; font-weight:600; text-decoration:underline;">
-    ← Back to Main Dashboard
-  </a>
-</div>
-
     <div class="header">
         <div class="container">
             <h1>California School Suspension Analysis</h1>
@@ -675,84 +668,75 @@
         }
 
         function updateParetoChart(selectedYear = 2023) {
-            try {
-                const ctx = document.getElementById('paretoChart').getContext('2d');
-                
-                const data = EMBEDDED_DATA.pareto
-                    .filter(d => d.year_num === selectedYear)
-                    .map(d => ({
-                        label: d.top_label,
-                        share: parseFloat(d.share_pct.replace('%', '')),
-                        schools: d.top_schools,
-                        total: d.total_schools
-                    }));
+            const ctx = document.getElementById('paretoChart').getContext('2d');
+            
+            const data = EMBEDDED_DATA.pareto
+                .filter(d => d.year_num === selectedYear)
+                .map(d => ({
+                    label: d.top_label,
+                    share: parseFloat(d.share_pct.replace('%', '')),
+                    schools: d.top_schools,
+                    total: d.total_schools
+                }));
 
-                console.log('Building pareto chart for year:', selectedYear);
+            if (allCharts.pareto) {
+                allCharts.pareto.destroy();
+            }
 
-                if (allCharts.pareto) {
-                    allCharts.pareto.destroy();
-                }
-
-                allCharts.pareto = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: data.map(d => d.label),
-                        datasets: [{
-                            data: data.map(d => d.share),
-                            backgroundColor: [
-                                colors.darkest,
-                                colors.primary,
-                                colors.gold
-                            ],
-                            borderColor: colors.white,
-                            borderWidth: 3
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'right',
-                                labels: {
-                                    padding: 20,
-                                    font: { size: 12 },
-                                    generateLabels: function(chart) {
-                                        const chartData = chart.data;
-                                        return chartData.labels.map((label, i) => ({
-                                            text: `${label}: ${chartData.datasets[0].data[i]}%`,
-                                            fillStyle: chartData.datasets[0].backgroundColor[i],
-                                            index: i
-                                        }));
-                                    }
+            allCharts.pareto = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(d => d.label),
+                    datasets: [{
+                        data: data.map(d => d.share),
+                        backgroundColor: [
+                            colors.darkest,
+                            colors.primary,
+                            colors.gold
+                        ],
+                        borderColor: colors.white,
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 20,
+                                font: { size: 12 },
+                                generateLabels: function(chart) {
+                                    const chartData = chart.data;
+                                    return chartData.labels.map((label, i) => ({
+                                        text: `${label}: ${chartData.datasets[0].data[i]}%`,
+                                        fillStyle: chartData.datasets[0].backgroundColor[i],
+                                        index: i
+                                    }));
                                 }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const item = data[context.dataIndex];
-                                        return `${context.label}: ${context.parsed}% of suspensions (${item.schools} schools)`;
-                                    }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const item = data[context.dataIndex];
+                                    return `${context.label}: ${context.parsed}% of suspensions (${item.schools} schools)`;
                                 }
                             }
                         }
                     }
-                });
-
-                console.log('Pareto chart created successfully');
-
-                // Update the insight box
-                const insightBox = document.querySelector('.chart-container:nth-child(3) .insight-box');
-                const topFivePercent = data.find(d => d.label === 'Top 5%');
-                if (topFivePercent && insightBox) {
-                    insightBox.innerHTML = `
-                        <h5>Concentration Pattern (${selectedYear}):</h5>
-                        <p>The data reveals significant concentration where <span class="metric">top 5% of schools</span> account for <span class="metric">${topFivePercent.share}%</span> of all suspensions, indicating systemic issues in specific institutional settings.</p>
-                    `;
                 }
-                
-            } catch (error) {
-                console.error('Error in updateParetoChart:', error);
+            });
+
+            // Update the insight box
+            const insightBox = document.querySelector('.chart-container:nth-child(3) .insight-box');
+            const topFivePercent = data.find(d => d.label === 'Top 5%');
+            if (topFivePercent && insightBox) {
+                insightBox.innerHTML = `
+                    <h5>Concentration Pattern (${selectedYear}):</h5>
+                    <p>The data reveals significant concentration where <span class="metric">top 5% of schools</span> account for <span class="metric">${topFivePercent.share}%</span> of all suspensions, indicating systemic issues in specific institutional settings.</p>
+                `;
             }
         }
 
@@ -762,129 +746,105 @@
         }
 
         function updateGradeSettingChart(selectedYear = 2023, selectedLevel = 'all') {
-            try {
-                const ctx = document.getElementById('gradeSettingChart').getContext('2d');
-                
-                let filteredData = EMBEDDED_DATA.gradeSetting.filter(d => d.year_num === selectedYear);
-                
-                if (selectedLevel !== 'all') {
-                    filteredData = filteredData.filter(d => d.level === selectedLevel);
-                } else {
-                    // Show all levels but filter out Alternative and Other/Unknown for clarity
-                    filteredData = filteredData.filter(d => ['Elementary', 'Middle', 'High'].includes(d.level));
+            const ctx = document.getElementById('gradeSettingChart').getContext('2d');
+            
+            let filteredData = EMBEDDED_DATA.gradeSetting.filter(d => d.year_num === selectedYear);
+            
+            if (selectedLevel !== 'all') {
+                filteredData = filteredData.filter(d => d.level === selectedLevel);
+            } else {
+                // Show all levels but filter out Alternative and Other/Unknown for clarity
+                filteredData = filteredData.filter(d => ['Elementary', 'Middle', 'High'].includes(d.level));
+            }
+
+            // Prepare data for chart
+            const chartData = filteredData.map(d => ({
+                label: `${d.level} (${d.setting})`,
+                rate: d.overall_rate * 100,
+                setting: d.setting,
+                level: d.level,
+                schools: d.n_schools
+            })).sort((a, b) => {
+                // Sort by level first, then by setting (Traditional first)
+                if (a.level !== b.level) {
+                    const levelOrder = {'Elementary': 0, 'Middle': 1, 'High': 2};
+                    return levelOrder[a.level] - levelOrder[b.level];
                 }
+                return a.setting === 'Traditional' ? -1 : 1;
+            });
 
-                // Prepare data for chart
-                const chartData = filteredData.map(d => ({
-                    label: `${d.level} (${d.setting})`,
-                    rate: d.overall_rate * 100,
-                    setting: d.setting,
-                    level: d.level,
-                    schools: d.n_schools
-                })).sort((a, b) => {
-                    // Sort by level first, then by setting (Traditional first)
-                    if (a.level !== b.level) {
-                        const levelOrder = {'Elementary': 0, 'Middle': 1, 'High': 2};
-                        return levelOrder[a.level] - levelOrder[b.level];
-                    }
-                    return a.setting === 'Traditional' ? -1 : 1;
-                });
+            if (allCharts.gradeSetting) {
+                allCharts.gradeSetting.destroy();
+            }
 
-                console.log('Building grade setting chart for year:', selectedYear, 'level:', selectedLevel);
-
-                if (allCharts.gradeSetting) {
-                    allCharts.gradeSetting.destroy();
-                }
-
-                allCharts.gradeSetting = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: chartData.map(d => d.label),
-                        datasets: [{
-                            label: 'Suspension Rate (%)',
-                            data: chartData.map(d => d.rate),
-                            backgroundColor: chartData.map(d => 
-                                d.setting === 'Non-traditional' ? colors.gold : colors.primary
-                            ),
-                            borderColor: colors.darkest,
-                            borderWidth: 1
-                        }]
+            allCharts.gradeSetting = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.map(d => d.label),
+                    datasets: [{
+                        label: 'Suspension Rate (%)',
+                        data: chartData.map(d => d.rate),
+                        backgroundColor: chartData.map(d => 
+                            d.setting === 'Non-traditional' ? colors.gold : colors.primary
+                        ),
+                        borderColor: colors.darkest,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const item = chartData[context.dataIndex];
+                                    return `${context.parsed.x.toFixed(1)}% (${item.schools} schools)`;
+                                }
+                            }
+                        }
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        indexAxis: 'y',
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const item = chartData[context.dataIndex];
-                                        return `${context.parsed.x.toFixed(1)}% (${item.schools} schools)`;
-                                    }
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Suspension Rate (%)', font: { size: 14, weight: 'bold' } },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
                                 }
                             }
                         },
-                        scales: {
-                            x: {
-                                beginAtZero: true,
-                                title: { display: true, text: 'Suspension Rate (%)', font: { size: 14, weight: 'bold' } },
-                                ticks: {
-                                    callback: function(value) {
-                                        return value + '%';
-                                    }
-                                }
-                            },
-                            y: {
-                                title: { display: true, text: 'School Type', font: { size: 14, weight: 'bold' } }
-                            }
+                        y: {
+                            title: { display: true, text: 'School Type', font: { size: 14, weight: 'bold' } }
                         }
                     }
-                });
+                }
+            });
 
-                console.log('Grade setting chart created successfully');
-
-                // Update narrative
-                updateGradeSettingNarrative(selectedYear, chartData);
-                
-            } catch (error) {
-                console.error('Error in updateGradeSettingChart:', error);
-            }
+            // Update narrative
+            updateGradeSettingNarrative(selectedYear, chartData);
         }
 
         function updateGradeSettingNarrative(year, data) {
-            try {
-                const narrative = document.querySelector('.chart-container:nth-child(4) .narrative');
-                if (narrative && data.length > 0) {
-                    const highestRate = Math.max(...data.map(d => d.rate));
-                    const lowestRate = Math.min(...data.map(d => d.rate));
-                    const highestItem = data.find(d => d.rate === highestRate);
-                    const lowestItem = data.find(d => d.rate === lowestRate);
-                    const ratio = Math.round(highestRate / lowestRate * 10) / 10;
+            const narrative = document.querySelector('.chart-container:nth-child(4) .narrative');
+            const highestRate = Math.max(...data.map(d => d.rate));
+            const lowestRate = Math.min(...data.map(d => d.rate));
+            const highestItem = data.find(d => d.rate === highestRate);
+            const lowestItem = data.find(d => d.rate === lowestRate);
 
-                    narrative.innerHTML = `
-                        <h4>Setting-Based Disparities (${year})</h4>
-                        <p>Significant variation exists across school types and settings. The highest rate is <span class="highlight">${highestRate.toFixed(1)}%</span> in ${highestItem.label}, while the lowest is <span class="highlight">${lowestRate.toFixed(1)}%</span> in ${lowestItem.label} - a ${ratio}x difference.</p>
-                    `;
-                }
-            } catch (error) {
-                console.error('Error in updateGradeSettingNarrative:', error);
-            }
+            narrative.innerHTML = `
+                <h4>Setting-Based Disparities (${year})</h4>
+                <p>Significant variation exists across school types and settings. The highest rate is <span class="highlight">${highestRate.toFixed(1)}%</span> in ${highestItem.label}, while the lowest is <span class="highlight">${lowestRate.toFixed(1)}%</span> in ${lowestItem.label} - a ${Math.round(highestRate / lowestRate * 10) / 10}x difference.</p>
+            `;
         }
 
         // Update charts based on filters
         function updateCharts() {
             try {
-                // Debug function availability
-                console.log('Function check:');
-                console.log('updateTrendsChart available:', typeof updateTrendsChart);
-                console.log('refreshComparisonChart available:', typeof refreshComparisonChart);
-                console.log('updateParetoChart available:', typeof updateParetoChart);
-                console.log('updateGradeSettingChart available:', typeof updateGradeSettingChart);
-                console.log('updateComparisonChartDisplay available:', typeof updateComparisonChartDisplay);
-                
                 currentFilters.year = document.getElementById('yearSelect').value;
                 currentFilters.level = document.getElementById('levelSelect').value;
                 
@@ -895,11 +855,7 @@
                 
                 // Update trends chart with level filter
                 console.log('1. Updating trends chart...');
-                if (typeof updateTrendsChart === 'function') {
-                    updateTrendsChart(level);
-                } else {
-                    console.error('updateTrendsChart is not a function');
-                }
+                updateTrendsChart(level);
                 
                 // Update chart title to show active filter
                 const trendsTitle = document.querySelector('.chart-container:nth-child(1) h3');
@@ -913,89 +869,7 @@
                 
                 // Update comparison chart with year filter
                 console.log('2. Updating comparison chart for year:', year);
-                
-                // Direct inline function call - no separate function reference
-                try {
-                    const ctx = document.getElementById('comparisonChart').getContext('2d');
-                    
-                    const chartData = EMBEDDED_DATA.comparison
-                        .filter(d => d.year_num === year)
-                        .map(d => ({
-                            level: d.level,
-                            traditional: parseFloat(d.overall_rate_pct_Traditional?.replace('%', '') || '0'),
-                            nonTraditional: parseFloat(d['overall_rate_pct_Non-traditional']?.replace('%', '') || '0')
-                        }));
-
-                    console.log('Inline building comparison chart for year:', year, 'with', chartData.length, 'records');
-
-                    // Destroy old chart
-                    if (allCharts.comparison) {
-                        allCharts.comparison.destroy();
-                    }
-
-                    // Build new chart
-                    allCharts.comparison = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: chartData.map(d => d.level),
-                            datasets: [{
-                                label: 'Traditional Schools',
-                                data: chartData.map(d => d.traditional),
-                                backgroundColor: colors.primary,
-                                borderColor: colors.darkest,
-                                borderWidth: 2
-                            }, {
-                                label: 'Non-Traditional Schools',
-                                data: chartData.map(d => d.nonTraditional),
-                                backgroundColor: colors.gold,
-                                borderColor: colors.darkGold,
-                                borderWidth: 2
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    position: 'top',
-                                    labels: {
-                                        padding: 20,
-                                        font: { size: 12, weight: 'bold' }
-                                    }
-                                }
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    title: { display: true, text: 'Suspension Rate (%)', font: { size: 14, weight: 'bold' } },
-                                    ticks: {
-                                        callback: function(value) {
-                                            return value + '%';
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                    
-                    console.log('Inline comparison chart created successfully');
-                    
-                    // Update narrative inline
-                    const highData = chartData.find(d => d.level === 'High');
-                    if (highData) {
-                        const narrative = document.querySelector('.chart-container:nth-child(2) .narrative');
-                        if (narrative) {
-                            const ratio = Math.round(highData.nonTraditional / highData.traditional * 10) / 10;
-                            narrative.innerHTML = `
-                                <h4>Critical Disparity (${year})</h4>
-                                <p>Non-traditional schools show significantly higher suspension rates. High schools show the most dramatic gap: <span class="highlight">${highData.nonTraditional}%</span> non-traditional vs <span class="highlight">${highData.traditional}%</span> traditional schools - a ${ratio}x difference.</p>
-                            `;
-                        }
-                    }
-                    
-                } catch (comparisonError) {
-                    console.error('Error in inline comparison chart update:', comparisonError);
-                }
+                updateComparisonChart(year);
                 
                 // Update chart title to show active year
                 const comparisonTitle = document.querySelector('.chart-container:nth-child(2) h3');
@@ -1009,11 +883,7 @@
                 
                 // Update pareto chart with year filter
                 console.log('3. Updating pareto chart for year:', year);
-                if (typeof updateParetoChart === 'function') {
-                    updateParetoChart(year);
-                } else {
-                    console.error('updateParetoChart is not a function');
-                }
+                updateParetoChart(year);
                 
                 // Update chart title to show active year
                 const paretoTitle = document.querySelector('.chart-container:nth-child(3) h3');
@@ -1023,11 +893,7 @@
                 
                 // Update grade setting chart with both filters
                 console.log('4. Updating grade setting chart for year:', year, 'level:', level);
-                if (typeof updateGradeSettingChart === 'function') {
-                    updateGradeSettingChart(year, level);
-                } else {
-                    console.error('updateGradeSettingChart is not a function');
-                }
+                updateGradeSettingChart(year, level);
                 
                 // Update chart title to show active filters
                 const gradeTitle = document.querySelector('.chart-container:nth-child(4) h3');
@@ -1041,135 +907,117 @@
                 
                 // Update trend narrative based on level
                 console.log('5. Updating trend narrative...');
-                if (typeof updateTrendsNarrative === 'function') {
-                    updateTrendsNarrative(level);
-                } else {
-                    console.error('updateTrendsNarrative is not a function');
-                }
+                updateTrendsNarrative(level);
                 
                 console.log('All chart updates completed successfully');
                 
             } catch (error) {
                 console.error('Error updating charts:', error);
-                console.error('Error stack:', error.stack);
             }
         }
 
         // Update trends narrative based on current filter
         function updateTrendsNarrative(selectedLevel) {
-            try {
-                const narrative = document.querySelector('.chart-container:nth-child(1) .narrative');
-                let narrativeText = '';
+            const narrative = document.querySelector('.chart-container:nth-child(1) .narrative');
+            let narrativeText = '';
+            
+            if (selectedLevel === 'all') {
+                narrativeText = `
+                    <h4>Key Finding: COVID-19 Impact</h4>
+                    <p>Suspension rates dropped dramatically from <span class="highlight">5.3% to 3.5%</span> in 2019, reflecting COVID-19's impact on school operations. Rates have since recovered but remain below pre-pandemic levels, suggesting potential lasting changes in disciplinary practices.</p>
+                `;
+            } else {
+                // Get trend data for the specific level
+                const years = [2017, 2018, 2019, 2021, 2022, 2023];
+                const levelData = years.map(year => {
+                    const yearData = EMBEDDED_DATA.gradeSetting.filter(d => 
+                        d.year_num === year && d.level === selectedLevel
+                    );
+                    const totalEnrollment = yearData.reduce((sum, d) => sum + d.total_enrollment, 0);
+                    const totalSuspensions = yearData.reduce((sum, d) => sum + d.total_suspensions, 0);
+                    return totalEnrollment > 0 ? (totalSuspensions / totalEnrollment) * 100 : 0;
+                });
                 
-                if (selectedLevel === 'all') {
-                    narrativeText = `
-                        <h4>Key Finding: COVID-19 Impact</h4>
-                        <p>Suspension rates dropped dramatically from <span class="highlight">5.3% to 3.5%</span> in 2019, reflecting COVID-19's impact on school operations. Rates have since recovered but remain below pre-pandemic levels, suggesting potential lasting changes in disciplinary practices.</p>
-                    `;
-                } else {
-                    // Get trend data for the specific level
-                    const years = [2017, 2018, 2019, 2021, 2022, 2023];
-                    const levelData = years.map(year => {
-                        const yearData = EMBEDDED_DATA.gradeSetting.filter(d => 
-                            d.year_num === year && d.level === selectedLevel
-                        );
-                        const totalEnrollment = yearData.reduce((sum, d) => sum + d.total_enrollment, 0);
-                        const totalSuspensions = yearData.reduce((sum, d) => sum + d.total_suspensions, 0);
-                        return totalEnrollment > 0 ? (totalSuspensions / totalEnrollment) * 100 : 0;
-                    });
-                    
-                    const pre2019 = levelData[1]; // 2018
-                    const pandemic = levelData[2]; // 2019
-                    const latest = levelData[5]; // 2023
-                    
-                    narrativeText = `
-                        <h4>${selectedLevel} Schools: COVID-19 Impact</h4>
-                        <p>${selectedLevel} schools saw rates change from <span class="highlight">${pre2019.toFixed(1)}%</span> (2018) to <span class="highlight">${pandemic.toFixed(1)}%</span> (2019), with current rates at <span class="highlight">${latest.toFixed(1)}%</span> (2023).</p>
-                    `;
-                }
+                const pre2019 = levelData[1]; // 2018
+                const pandemic = levelData[2]; // 2019
+                const latest = levelData[5]; // 2023
                 
-                if (narrative) {
-                    narrative.innerHTML = narrativeText;
-                }
-            } catch (error) {
-                console.error('Error in updateTrendsNarrative:', error);
+                narrativeText = `
+                    <h4>${selectedLevel} Schools: COVID-19 Impact</h4>
+                    <p>${selectedLevel} schools saw rates change from <span class="highlight">${pre2019.toFixed(1)}%</span> (2018) to <span class="highlight">${pandemic.toFixed(1)}%</span> (2019), with current rates at <span class="highlight">${latest.toFixed(1)}%</span> (2023).</p>
+                `;
+            }
+            
+            if (narrative) {
+                narrative.innerHTML = narrativeText;
             }
         }
 
         // Update comparison chart with specific year
         function updateComparisonChart(year) {
-            try {
-                const ctx = document.getElementById('comparisonChart').getContext('2d');
-                
-                const data = EMBEDDED_DATA.comparison
-                    .filter(d => d.year_num === year)
-                    .map(d => ({
-                        level: d.level,
-                        traditional: parseFloat(d.overall_rate_pct_Traditional?.replace('%', '') || '0'),
-                        nonTraditional: parseFloat(d['overall_rate_pct_Non-traditional']?.replace('%', '') || '0')
-                    }));
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            
+            const data = EMBEDDED_DATA.comparison
+                .filter(d => d.year_num === year)
+                .map(d => ({
+                    level: d.level,
+                    traditional: parseFloat(d.overall_rate_pct_Traditional?.replace('%', '') || '0'),
+                    nonTraditional: parseFloat(d['overall_rate_pct_Non-traditional']?.replace('%', '') || '0')
+                }));
 
-                console.log('Building comparison chart for year:', year);
-                console.log('Data found:', data.length, 'records');
+            console.log('Comparison chart data for', year, ':', JSON.stringify(data, null, 2));
 
-                if (allCharts.comparison) {
-                    allCharts.comparison.destroy();
-                }
+            if (allCharts.comparison) {
+                allCharts.comparison.destroy();
+            }
 
-                allCharts.comparison = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: data.map(d => d.level),
-                        datasets: [{
-                            label: 'Traditional Schools',
-                            data: data.map(d => d.traditional),
-                            backgroundColor: colors.primary,
-                            borderColor: colors.darkest,
-                            borderWidth: 2
-                        }, {
-                            label: 'Non-Traditional Schools',
-                            data: data.map(d => d.nonTraditional),
-                            backgroundColor: colors.gold,
-                            borderColor: colors.darkGold,
-                            borderWidth: 2
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                                labels: {
-                                    padding: 20,
-                                    font: { size: 12, weight: 'bold' }
-                                }
+            allCharts.comparison = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.level),
+                    datasets: [{
+                        label: 'Traditional Schools',
+                        data: data.map(d => d.traditional),
+                        backgroundColor: colors.primary,
+                        borderColor: colors.darkest,
+                        borderWidth: 2
+                    }, {
+                        label: 'Non-Traditional Schools',
+                        data: data.map(d => d.nonTraditional),
+                        backgroundColor: colors.gold,
+                        borderColor: colors.darkGold,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                padding: 20,
+                                font: { size: 12, weight: 'bold' }
                             }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: { display: true, text: 'Suspension Rate (%)', font: { size: 14, weight: 'bold' } },
-                                ticks: {
-                                    callback: function(value) {
-                                        return value + '%';
-                                    }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Suspension Rate (%)', font: { size: 14, weight: 'bold' } },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
                                 }
                             }
                         }
                     }
-                });
-                
-                console.log('Comparison chart created successfully');
-                
-                // Update narrative
-                if (data.length > 0) {
-                    updateComparisonNarrative(year, data);
                 }
-                
-            } catch (error) {
-                console.error('Error in updateComparisonChart:', error);
-                console.error('Error stack in updateComparisonChart:', error.stack);
+            });
+            
+            // Update narrative
+            if (data.length > 0) {
+                updateComparisonNarrative(year, data);
             }
         }
 
@@ -1193,20 +1041,13 @@
 
         // Update narrative text based on current data
         function updateComparisonNarrative(year, data) {
-            try {
-                const highSchoolData = data.find(d => d.level === 'High');
-                if (highSchoolData) {
-                    const narrative = document.querySelector('.chart-container:nth-child(2) .narrative');
-                    if (narrative) {
-                        const ratio = Math.round(highSchoolData.nonTraditional / highSchoolData.traditional * 10) / 10;
-                        narrative.innerHTML = `
-                            <h4>Critical Disparity (${year})</h4>
-                            <p>Non-traditional schools show significantly higher suspension rates. High schools show the most dramatic gap: <span class="highlight">${highSchoolData.nonTraditional}%</span> non-traditional vs <span class="highlight">${highSchoolData.traditional}%</span> traditional schools - a ${ratio}x difference.</p>
-                        `;
-                    }
-                }
-            } catch (error) {
-                console.error('Error in updateComparisonNarrative:', error);
+            const highSchoolData = data.find(d => d.level === 'High');
+            if (highSchoolData) {
+                const narrative = document.querySelector('.chart-container:nth-child(2) .narrative');
+                narrative.innerHTML = `
+                    <h4>Critical Disparity (${year})</h4>
+                    <p>Non-traditional schools show significantly higher suspension rates. High schools show the most dramatic gap: <span class="highlight">${highSchoolData.nonTraditional}%</span> non-traditional vs <span class="highlight">${highSchoolData.traditional}%</span> traditional schools - a ${Math.round(highSchoolData.nonTraditional / highSchoolData.traditional * 10) / 10}x difference.</p>
+                `;
             }
         }
 
