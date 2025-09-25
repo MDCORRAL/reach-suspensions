@@ -436,11 +436,13 @@
           <p class="chart-empty" data-chart-empty hidden>No chart data available for these filters.</p>
         </article>
 
+        <!--
         <section class="card table-card" id="grade-setting-section">
           <h2>Grade level × school type summary</h2>
           <p class="summary" id="grade-summary"></p>
           <div id="grade-table-wrapper"></div>
         </section>
+        -->
       </section>
     </section>
   </main>
@@ -646,35 +648,12 @@
     }
 
     function renderGradeTable(rows = []) {
-      const wrapper = document.getElementById('grade-table-wrapper');
-      wrapper.innerHTML = '';
-      const table = document.createElement('table');
-      const thead = document.createElement('thead');
-      thead.innerHTML = `
-        <tr>
-          <th>Academic year</th>
-          <th>Level</th>
-          <th>School type</th>
-          <th>Top group</th>
-          <th>Schools in group</th>
-          <th>Total schools</th>
-          <th>Share of suspensions</th>
-          <th>Statement</th>
-        </tr>`;
-      table.appendChild(thead);
-      const tbody = document.createElement('tbody');
-
-      const summary = document.getElementById('grade-summary');
       latestRenderedRows = [];
 
-      if (!rows.length) {
-        summary.textContent = 'No grade level and school type records match the current filters.';
-        wrapper.innerHTML = '<div class="empty">No pre-computed rows available for these filters.</div>';
+      if (!Array.isArray(rows) || rows.length === 0) {
         updateDownloadButton(false);
         return;
       }
-
-      summary.textContent = `Showing ${rows.length} slide-ready statements from the prepared CSV export.`;
 
       const sortedRows = [...rows]
         .sort((a, b) => {
@@ -686,23 +665,6 @@
 
       latestRenderedRows = sortedRows;
       updateDownloadButton(true);
-
-      sortedRows.forEach((row) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${formatters.toAcademicYear(row.year_num)}</td>
-          <td>${row.level}</td>
-          <td>${row.setting}</td>
-          <td>${row.top_label || ''}</td>
-          <td>${formatters.integer(row.top_schools || 0)}</td>
-          <td>${formatters.integer(row.total_schools || 0)}</td>
-          <td>${row.share_pct || ''}</td>
-          <td class="statement">${row.slide_text || ''}</td>`;
-        tbody.appendChild(tr);
-      });
-
-      table.appendChild(tbody);
-      wrapper.appendChild(table);
     }
 
     function render() {
