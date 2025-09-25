@@ -497,35 +497,37 @@
                 // Calculate aggregate stats for the selected level
                 const years = [...new Set(EMBEDDED_DATA.gradeSetting.map(d => d.year_num))].sort();
                 data = years.map(year => {
-                    const yearLevelData = EMBEDDED_DATA.gradeSetting.filter(d => 
+                    const yearLevelData = EMBEDDED_DATA.gradeSetting.filter(d =>
                         d.year_num === year && d.level === selectedLevel
                     );
-                    
+
                     if (yearLevelData.length === 0) return null;
-                    
+
                     // Calculate weighted overall rate
-                    const totalEnrollment = yearLevelData.reduce((sum, d) => sum + d.total_enrollment, 0);
-                    const totalSuspensions = yearLevelData.reduce((sum, d) => sum + d.total_suspensions, 0);
+                    const totalEnrollment = yearLevelData.reduce((sum, d) => sum + (d.total_enrollment || 0), 0);
+                    const totalSuspensions = yearLevelData.reduce((sum, d) => sum + (d.total_suspensions || 0), 0);
                     const overallRate = totalEnrollment > 0 ? (totalSuspensions / totalEnrollment) * 100 : 0;
-                    
-                    // Calculate weighted mean and median approximation
-                    // For mean: weight by enrollment, for median: use middle value weighted by schools
-                    const meanRate = yearLevelData.reduce((sum, d) => sum + (d.overall_rate * d.total_enrollment), 0) / totalEnrollment * 100;
-                    
-                    // For median approximation, sort by rate and find middle weighted by enrollment
-                    const sortedByRate = yearLevelData.sort((a, b) => a.overall_rate - b.overall_rate);
-                    let cumulativeEnrollment = 0;
+
+                    // Calculate mean rate approximated by weighting each school's rate equally via school counts
+                    const totalSchools = yearLevelData.reduce((sum, d) => sum + (d.n_schools || 0), 0);
+                    const meanRate = totalSchools > 0
+                        ? yearLevelData.reduce((sum, d) => sum + ((d.overall_rate || 0) * (d.n_schools || 0)), 0) / totalSchools * 100
+                        : 0;
+
+                    // Approximate median using school counts to avoid overlapping with overall rate
+                    const sortedByRate = [...yearLevelData].sort((a, b) => (a.overall_rate || 0) - (b.overall_rate || 0));
+                    let cumulativeSchools = 0;
                     let medianRate = 0;
-                    const halfEnrollment = totalEnrollment / 2;
-                    
+                    const halfSchools = totalSchools / 2;
+
                     for (const record of sortedByRate) {
-                        cumulativeEnrollment += record.total_enrollment;
-                        if (cumulativeEnrollment >= halfEnrollment) {
-                            medianRate = record.overall_rate * 100;
+                        cumulativeSchools += record.n_schools || 0;
+                        if (cumulativeSchools >= halfSchools) {
+                            medianRate = (record.overall_rate || 0) * 100;
                             break;
                         }
                     }
-                    
+
                     return {
                         year: year,
                         overall: overallRate,
@@ -671,14 +673,14 @@
 
         // Pareto chart showing concentration
         function createParetoChart() {
-            updateParetoChart(2023); // Start with 2023 data
+            updateParetoChart(2023, 'all'); // Start with 2023 data
         }
 
-        function updateParetoChart(selectedYear = 2023) {
+        function updateParetoChart(selectedYear = 2023, selectedLevel = 'all') {
             try {
                 const ctx = document.getElementById('paretoChart').getContext('2d');
-                
-                const data = EMBEDDED_DATA.pareto
+
+                const buildOverallPareto = () => EMBEDDED_DATA.pareto
                     .filter(d => d.year_num === selectedYear)
                     .map(d => ({
                         label: d.top_label,
@@ -687,7 +689,74 @@
                         total: d.total_schools
                     }));
 
-                console.log('Building pareto chart for year:', selectedYear);
+                const buildLevelPareto = () => {
+                    const levelRecords = EMBEDDED_DATA.gradeSetting.filter(d =>
+                        d.year_num === selectedYear && d.level === selectedLevel
+                    );
+
+                    if (levelRecords.length === 0) {
+                        return [];
+                    }
+
+                    const totalSchools = levelRecords.reduce((sum, d) => sum + (d.n_schools || 0), 0);
+                    const totalSuspensions = levelRecords.reduce((sum, d) => sum + (d.total_suspensions || 0), 0);
+
+                    if (totalSchools === 0 || totalSuspensions === 0) {
+                        return [];
+                    }
+
+                    const grouped = levelRecords
+                        .map(d => ({
+                            label: d.setting,
+                            nSchools: d.n_schools || 0,
+                            totalSusp: d.total_suspensions || 0,
+                            suspPerSchool: (d.n_schools || 0) > 0
+                                ? (d.total_suspensions || 0) / d.n_schools
+                                : 0
+                        }))
+                        .sort((a, b) => b.suspPerSchool - a.suspPerSchool);
+
+                    const thresholds = [
+                        { label: 'Top 5%', fraction: 0.05 },
+                        { label: 'Top 10%', fraction: 0.10 },
+                        { label: 'Top 20%', fraction: 0.20 }
+                    ];
+
+                    return thresholds.map(threshold => {
+                        const targetSchools = Math.max(1, Math.round(totalSchools * threshold.fraction));
+                        let schoolsAccum = 0;
+                        let suspensionsAccum = 0;
+
+                        for (const group of grouped) {
+                            if (schoolsAccum >= targetSchools) break;
+
+                            const remaining = targetSchools - schoolsAccum;
+                            const takeSchools = Math.min(remaining, group.nSchools);
+
+                            if (group.nSchools > 0 && group.totalSusp > 0) {
+                                const proportion = takeSchools / group.nSchools;
+                                suspensionsAccum += group.totalSusp * proportion;
+                            }
+
+                            schoolsAccum += takeSchools;
+                        }
+
+                        const share = (suspensionsAccum / totalSuspensions) * 100;
+
+                        return {
+                            label: threshold.label,
+                            share: Math.round(share * 10) / 10,
+                            schools: targetSchools,
+                            total: totalSchools
+                        };
+                    });
+                };
+
+                const data = selectedLevel === 'all'
+                    ? buildOverallPareto()
+                    : buildLevelPareto();
+
+                console.log('Building pareto chart for year:', selectedYear, 'level:', selectedLevel);
 
                 if (allCharts.pareto) {
                     allCharts.pareto.destroy();
@@ -746,11 +815,16 @@
                 const topFivePercent = data.find(d => d.label === 'Top 5%');
                 if (topFivePercent && insightBox) {
                     insightBox.innerHTML = `
-                        <h5>Concentration Pattern (${selectedYear}):</h5>
+                        <h5>Concentration Pattern (${selectedYear}${selectedLevel !== 'all' ? ` • ${selectedLevel}` : ''}):</h5>
                         <p>The data reveals significant concentration where <span class="metric">top 5% of schools</span> account for <span class="metric">${topFivePercent.share}%</span> of all suspensions, indicating systemic issues in specific institutional settings.</p>
                     `;
+                } else if (insightBox) {
+                    insightBox.innerHTML = `
+                        <h5>Concentration Pattern (${selectedYear}${selectedLevel !== 'all' ? ` • ${selectedLevel}` : ''}):</h5>
+                        <p>Insufficient data is available to estimate concentration patterns for the selected filters.</p>
+                    `;
                 }
-                
+
             } catch (error) {
                 console.error('Error in updateParetoChart:', error);
             }
@@ -1008,17 +1082,21 @@
                 }
                 
                 // Update pareto chart with year filter
-                console.log('3. Updating pareto chart for year:', year);
+                console.log('3. Updating pareto chart for year:', year, 'level:', level);
                 if (typeof updateParetoChart === 'function') {
-                    updateParetoChart(year);
+                    updateParetoChart(year, level);
                 } else {
                     console.error('updateParetoChart is not a function');
                 }
-                
+
                 // Update chart title to show active year
                 const paretoTitle = document.querySelector('.chart-container:nth-child(3) h3');
                 if (paretoTitle) {
-                    paretoTitle.textContent = `School Concentration Analysis - ${year} (Pareto Effect)`;
+                    let paretoText = `School Concentration Analysis - ${year} (Pareto Effect)`;
+                    if (level !== 'all') {
+                        paretoText = `${level} School Concentration Analysis - ${year} (Pareto Effect)`;
+                    }
+                    paretoTitle.textContent = paretoText;
                 }
                 
                 // Update grade setting chart with both filters
