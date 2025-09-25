@@ -646,35 +646,12 @@
     }
 
     function renderGradeTable(rows = []) {
-      const wrapper = document.getElementById('grade-table-wrapper');
-      wrapper.innerHTML = '';
-      const table = document.createElement('table');
-      const thead = document.createElement('thead');
-      thead.innerHTML = `
-        <tr>
-          <th>Academic year</th>
-          <th>Level</th>
-          <th>School type</th>
-          <th>Top group</th>
-          <th>Schools in group</th>
-          <th>Total schools</th>
-          <th>Share of suspensions</th>
-          <th>Statement</th>
-        </tr>`;
-      table.appendChild(thead);
-      const tbody = document.createElement('tbody');
-
-      const summary = document.getElementById('grade-summary');
       latestRenderedRows = [];
 
-      if (!rows.length) {
-        summary.textContent = 'No grade level and school type records match the current filters.';
-        wrapper.innerHTML = '<div class="empty">No pre-computed rows available for these filters.</div>';
+      if (!Array.isArray(rows) || rows.length === 0) {
         updateDownloadButton(false);
         return;
       }
-
-      summary.textContent = `Showing ${rows.length} slide-ready statements from the prepared CSV export.`;
 
       const sortedRows = [...rows]
         .sort((a, b) => {
@@ -686,23 +663,6 @@
 
       latestRenderedRows = sortedRows;
       updateDownloadButton(true);
-
-      sortedRows.forEach((row) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${formatters.toAcademicYear(row.year_num)}</td>
-          <td>${row.level}</td>
-          <td>${row.setting}</td>
-          <td>${row.top_label || ''}</td>
-          <td>${formatters.integer(row.top_schools || 0)}</td>
-          <td>${formatters.integer(row.total_schools || 0)}</td>
-          <td>${row.share_pct || ''}</td>
-          <td class="statement">${row.slide_text || ''}</td>`;
-        tbody.appendChild(tr);
-      });
-
-      table.appendChild(tbody);
-      wrapper.appendChild(table);
     }
 
     function render() {
@@ -729,8 +689,7 @@
               label: key,
               pct: row.top_pct ?? 0,
               shares: [],
-              topSchools: [],
-              totalSchools: [],
+              cohortPercents: [],
             });
           }
           const group = map.get(key);
@@ -740,24 +699,19 @@
           if (typeof row.top_share === 'number') {
             group.shares.push(row.top_share);
           }
-          if (typeof row.top_schools === 'number') {
-            group.topSchools.push(row.top_schools);
-          }
-          if (typeof row.total_schools === 'number') {
-            group.totalSchools.push(row.total_schools);
+          if (typeof row.top_schools === 'number' && typeof row.total_schools === 'number' && row.total_schools > 0) {
+            group.cohortPercents.push((row.top_schools / row.total_schools) * 100);
           }
           return map;
         }, new Map()).values()
       )
         .map((group) => {
           const avg = (arr) => (arr.length ? arr.reduce((sum, value) => sum + value, 0) / arr.length : 0);
-          const avgTopSchools = avg(group.topSchools);
-          const avgTotalSchools = avg(group.totalSchools);
           return {
             label: group.label,
             pct: group.pct ?? 0,
             share: avg(group.shares) * 100,
-            schoolShare: avgTotalSchools > 0 ? (avgTopSchools / avgTotalSchools) * 100 : 0,
+            schoolShare: avg(group.cohortPercents),
           };
         })
         .sort((a, b) => (a.pct || 0) - (b.pct || 0));
@@ -772,6 +726,10 @@
         soft: getComputedStyle(document.documentElement).getPropertyValue('--accent-soft').trim() || '#8bb8e8',
       };
 
+      const uclaSuspensionColors = ['#2774AE', '#FFB81C', '#8BB8E8', '#005587', '#FFC72C'];
+      const suspensionColors = labels.map((_, index) => uclaSuspensionColors[index % uclaSuspensionColors.length]);
+      const suspensionHoverColors = suspensionColors.slice();
+
       const topShareContext = document.getElementById('top-share-chart').getContext('2d');
       const topShareConfig = {
         type: 'bar',
@@ -781,8 +739,8 @@
             {
               label: 'Suspension share',
               data: suspensionShare,
-              backgroundColor: palette.primary,
-              hoverBackgroundColor: palette.highlight,
+              backgroundColor: suspensionColors,
+              hoverBackgroundColor: suspensionHoverColors,
               borderRadius: 8,
               borderSkipped: false,
             },
@@ -821,6 +779,8 @@
       if (charts.topShare) {
         charts.topShare.data.labels = labels;
         charts.topShare.data.datasets[0].data = suspensionShare;
+        charts.topShare.data.datasets[0].backgroundColor = suspensionColors;
+        charts.topShare.data.datasets[0].hoverBackgroundColor = suspensionHoverColors;
         charts.topShare.update();
       } else {
         charts.topShare = new Chart(topShareContext, topShareConfig);
