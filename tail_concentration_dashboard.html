@@ -58,6 +58,7 @@
       border-radius: 999px;
       cursor: pointer;
       transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      text-decoration: none;
     }
 
     .methodology-button:hover {
@@ -288,91 +289,41 @@
       color: var(--muted);
     }
 
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 59, 92, 0.65);
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding: 3rem 1.25rem;
-      z-index: 999;
-    }
-
-    .modal-panel {
-      background: #ffffff;
-      border-radius: 18px;
-      border: 3px solid var(--accent-soft);
-      max-width: min(840px, 100%);
-      color: var(--text);
-      box-shadow: 0 18px 36px rgba(0, 59, 92, 0.3);
-      padding: 2rem clamp(1.25rem, 3vw, 2.25rem);
-      position: relative;
-    }
-
-    .modal-close {
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-      border: none;
-      background: transparent;
-      color: var(--accent-strong);
-      font-size: 1.5rem;
-      line-height: 1;
-      cursor: pointer;
-      padding: 0.25rem;
-      border-radius: 50%;
-    }
-
-    .modal-close:hover {
-      background: rgba(39, 116, 174, 0.12);
-    }
-
-    .modal-close:focus-visible {
-      outline: 2px solid var(--highlight);
-      outline-offset: 2px;
-      box-shadow: 0 0 0 4px rgba(255, 184, 28, 0.4);
-    }
-
-    .modal-panel h2 {
-      margin-top: 0;
-      font-size: clamp(1.4rem, 3vw, 1.75rem);
-      color: var(--accent-strong);
-    }
-
-    .modal-section + .modal-section {
-      margin-top: 1.5rem;
-      padding-top: 1.25rem;
-      border-top: 1px solid rgba(0, 59, 92, 0.15);
-    }
-
-    .modal-section h3 {
-      margin: 0 0 0.5rem;
-      font-size: 1.05rem;
+    .info-card h3 {
+      font-size: 1rem;
       color: var(--accent-strong);
       text-transform: uppercase;
       letter-spacing: 0.04em;
+      margin-bottom: 0.25rem;
     }
 
-    .modal-section p,
-    .modal-section ul {
-      margin: 0.35rem 0;
+    .info-card section + section {
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(0, 59, 92, 0.15);
+    }
+
+    .info-card ul {
+      margin: 0.35rem 0 0.75rem;
+      padding-left: 1.25rem;
       font-size: 0.95rem;
       line-height: 1.55;
     }
 
-    .modal-section ul {
-      padding-left: 1.25rem;
+    .info-card p {
+      font-size: 0.95rem;
+      line-height: 1.55;
+      margin: 0.35rem 0 0.75rem;
     }
 
-    .modal-links {
+    .info-links {
       display: flex;
       flex-wrap: wrap;
       gap: 0.75rem;
       margin-top: 1.5rem;
     }
 
-    .modal-links a {
+    .info-links a {
       display: inline-flex;
       align-items: center;
       gap: 0.35rem;
@@ -385,12 +336,12 @@
       transition: background 0.2s ease, transform 0.2s ease;
     }
 
-    .modal-links a:hover {
+    .info-links a:hover {
       background: var(--accent-strong);
       transform: translateY(-1px);
     }
 
-    .modal-links a:focus-visible {
+    .info-links a:focus-visible {
       outline: 2px solid var(--highlight);
       outline-offset: 3px;
       box-shadow: 0 0 0 4px rgba(255, 184, 28, 0.4);
@@ -401,9 +352,9 @@
   <header>
     <div class="header-top">
       <a class="back-link" href="index.html">← Back to dashboard home</a>
-      <button type="button" class="methodology-button" id="methodology-button" aria-haspopup="dialog">
+      <a class="methodology-button" href="#methodology-and-filters">
         Methodology &amp; filters
-      </button>
+      </a>
     </div>
     <h1>Tail Concentration Explorer</h1>
     <p>
@@ -427,6 +378,39 @@
           No additional analysis is performed when you make a selection.
         </p>
       </div>
+
+      <section class="card info-card" id="methodology-and-filters" aria-labelledby="methodology-title">
+        <h2 id="methodology-title">Methodology &amp; filters</h2>
+        <section aria-labelledby="data-sources-heading">
+          <h3 id="data-sources-heading">Data sources</h3>
+          <p>
+            Tail concentration metrics reuse the staged parquet files produced by the REACH pipeline. Suspension totals come
+            from <code>susp_v*.parquet</code> files that include school-level counts, while <code>susp_v6_features.parquet</code>
+            supplies school type and traditional vs. non-traditional tags used for grouping. Only records with valid
+            enrollment and suspension counts are included.
+          </p>
+        </section>
+        <section aria-labelledby="top-share-heading">
+          <h3 id="top-share-heading">Top-share definitions</h3>
+          <ul>
+            <li>Schools are sorted within each academic year × level × setting group by total suspensions.</li>
+            <li>The analysis reports what share of suspensions is captured by the top 5%, 10%, and 20% of schools in each group.</li>
+            <li>Slide-ready statements shown in the table mirror the prepared CSV export from the grade-setting workflow.</li>
+          </ul>
+        </section>
+        <section aria-labelledby="filter-behavior-heading">
+          <h3 id="filter-behavior-heading">Filter behavior</h3>
+          <ul>
+            <li>The dropdowns surface pre-computed results; switching filters does not rerun any analysis.</li>
+            <li>Academic year options are derived from the staged dataset and appear in ascending order.</li>
+            <li>Resetting filters returns all dropdowns to “All” and repopulates the full prepared statement list.</li>
+          </ul>
+        </section>
+        <div class="info-links" aria-label="Full documentation links">
+          <a href="Analysis/data_processing_overview.md" target="_blank" rel="noopener">Read the data processing overview</a>
+          <a href="Analysis/README_tail_concentration_by_level.md" target="_blank" rel="noopener">Read the tail concentration methodology</a>
+        </div>
+      </section>
 
       <section class="dashboard" aria-label="Tail concentration visuals">
         <article class="chart-container">
@@ -460,49 +444,6 @@
       </section>
     </section>
   </main>
-  <div class="modal-backdrop" id="methodology-modal" hidden>
-    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="methodology-title" tabindex="-1">
-      <button type="button" class="modal-close" id="methodology-close" aria-label="Close methodology and filters details">
-        ×
-      </button>
-      <h2 id="methodology-title">Methodology &amp; filters</h2>
-      <div class="modal-content">
-        <section class="modal-section" aria-labelledby="modal-data-sources-heading">
-          <h3 id="modal-data-sources-heading">Data sources</h3>
-          <p>
-            Tail concentration metrics reuse the staged parquet files produced by the REACH pipeline. Suspension totals come from
-            <code>susp_v*.parquet</code> files that include school-level counts, while <code>susp_v6_features.parquet</code>
-            supplies school type and traditional vs. non-traditional tags used for grouping. Only records with valid enrollment
-            and suspension counts are included.
-          </p>
-        </section>
-        <section class="modal-section" aria-labelledby="modal-top-share-heading">
-          <h3 id="modal-top-share-heading">Top-share definitions</h3>
-          <ul>
-            <li>Schools are sorted within each academic year × level × setting group by total suspensions.</li>
-            <li>The analysis reports what share of suspensions is captured by the top 5%, 10%, and 20% of schools in each group.</li>
-            <li>Slide-ready statements shown in the table mirror the prepared CSV export from the grade-setting workflow.</li>
-          </ul>
-        </section>
-        <section class="modal-section" aria-labelledby="modal-filters-heading">
-          <h3 id="modal-filters-heading">Filter behavior</h3>
-          <ul>
-            <li>The dropdowns surface pre-computed results; switching filters does not rerun any analysis.</li>
-            <li>Academic year options are derived from the staged dataset and appear in ascending order.</li>
-            <li>Resetting filters returns all dropdowns to “All” and repopulates the full prepared statement list.</li>
-          </ul>
-        </section>
-        <div class="modal-links" aria-label="Full documentation links">
-          <a href="Analysis/data_processing_overview.md" target="_blank" rel="noopener">
-            Read the data processing overview
-          </a>
-          <a href="Analysis/README_tail_concentration_by_level.md" target="_blank" rel="noopener">
-            Read the tail concentration methodology
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
   <script>
     const state = {
       academicYear: 'All',
@@ -673,80 +614,6 @@
 
     document.getElementById('download-csv').addEventListener('click', triggerCsvDownload);
 
-    const methodologyModal = document.getElementById('methodology-modal');
-    const methodologyButton = document.getElementById('methodology-button');
-    const methodologyClose = document.getElementById('methodology-close');
-    let lastFocusedElement = null;
-
-    function getFocusableElements(container) {
-      return Array.from(container.querySelectorAll(
-        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
-      )).filter((el) => !el.hasAttribute('hidden') && !el.closest('[hidden]'));
-    }
-
-    function closeMethodologyModal() {
-      if (methodologyModal.hasAttribute('hidden')) return;
-      methodologyModal.hidden = true;
-      methodologyModal.removeEventListener('keydown', trapFocus, true);
-      document.removeEventListener('keydown', onModalKeydown, true);
-      if (lastFocusedElement) {
-        lastFocusedElement.focus();
-      }
-    }
-
-    function trapFocus(event) {
-      if (event.key !== 'Tab') return;
-      const focusable = getFocusableElements(methodologyModal);
-      if (!focusable.length) {
-        event.preventDefault();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey) {
-        if (document.activeElement === first || document.activeElement === methodologyModal) {
-          event.preventDefault();
-          last.focus();
-        }
-      } else if (document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    function onModalKeydown(event) {
-      if (event.key === 'Escape') {
-        closeMethodologyModal();
-      }
-    }
-
-    function openMethodologyModal() {
-      if (!methodologyModal) return;
-      lastFocusedElement = document.activeElement;
-      methodologyModal.hidden = false;
-      document.addEventListener('keydown', onModalKeydown, true);
-      methodologyModal.addEventListener('keydown', trapFocus, true);
-      const focusable = getFocusableElements(methodologyModal);
-      const first = focusable[0] || methodologyModal;
-      requestAnimationFrame(() => first.focus());
-    }
-
-    methodologyButton?.addEventListener('click', openMethodologyModal);
-    methodologyButton?.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        openMethodologyModal();
-      }
-    });
-
-    methodologyClose?.addEventListener('click', closeMethodologyModal);
-
-    methodologyModal?.addEventListener('mousedown', (event) => {
-      if (event.target === methodologyModal) {
-        closeMethodologyModal();
-      }
-    });
-  
     function getFilteredRows() {
       if (!Array.isArray(cache.gradeSetting)) {
         return [];
