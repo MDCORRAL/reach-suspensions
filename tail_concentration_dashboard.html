@@ -392,13 +392,13 @@
           <p class="chart-empty" data-chart-empty hidden>No chart data available for these filters.</p>
         </article>
         <article class="chart-container">
-          <h3>Share of schools included in each cohort</h3>
+          <h3>Suspension concentration breakdown</h3>
           <p class="chart-description">
-            Review the proportion of schools that form each highlighted cohort to understand how broad or concentrated the
-            focus groups are.
+            Revisit how each cohort contributes to the total share of suspensions by reframing the same prepared values in
+            a complementary donut view.
           </p>
           <div class="chart-wrapper">
-            <canvas id="cohort-size-chart" aria-label="Chart showing percent of schools included in each cohort" role="img"></canvas>
+            <canvas id="cohort-size-chart" aria-label="Chart showing suspension share contributed by each cohort" role="img"></canvas>
           </div>
           <p class="chart-empty" data-chart-empty hidden>No chart data available for these filters.</p>
         </article>
@@ -453,7 +453,7 @@
 
     const charts = {
       topShare: null,
-      cohortShare: null,
+      concentrationBreakdown: null,
     };
 
     const formatters = {
@@ -648,8 +648,21 @@
     function renderGradeTable(rows = []) {
       latestRenderedRows = [];
 
+      const summaryEl = document.getElementById('grade-summary');
+      const tableWrapper = document.getElementById('grade-table-wrapper');
+
+      if (summaryEl) summaryEl.textContent = '';
+      if (tableWrapper) tableWrapper.innerHTML = '';
+
       if (!Array.isArray(rows) || rows.length === 0) {
         updateDownloadButton(false);
+        if (summaryEl) summaryEl.textContent = 'No grade-setting statements match the current filters.';
+        if (tableWrapper) {
+          const empty = document.createElement('p');
+          empty.className = 'empty';
+          empty.textContent = 'No prepared statements are available for the selected year, grade level, and school type.';
+          tableWrapper.appendChild(empty);
+        }
         return;
       }
 
@@ -663,6 +676,84 @@
 
       latestRenderedRows = sortedRows;
       updateDownloadButton(true);
+
+      const grouped = Array.from(sortedRows.reduce((map, row) => {
+        if (!row) return map;
+        const yearNum = row.year_num ?? null;
+        const level = row.level || 'All';
+        const setting = row.setting || 'All';
+        const key = `${yearNum ?? 'All'}|${level}|${setting}`;
+        if (!map.has(key)) {
+          map.set(key, {
+            yearNum,
+            level,
+            setting,
+            totalSchools: 0,
+          });
+        }
+        const entry = map.get(key);
+        const total = Number(row.total_schools);
+        if (!Number.isNaN(total)) {
+          entry.totalSchools = Math.max(entry.totalSchools, total);
+        }
+        return map;
+      }, new Map()).values())
+        .sort((a, b) => {
+          if ((a.yearNum ?? 0) !== (b.yearNum ?? 0)) {
+            return (a.yearNum ?? 0) - (b.yearNum ?? 0);
+          }
+          if (a.level !== b.level) return a.level.localeCompare(b.level);
+          return a.setting.localeCompare(b.setting);
+        });
+
+      const totalSchoolsCount = grouped.reduce((sum, entry) => sum + (entry.totalSchools || 0), 0);
+
+      if (summaryEl) {
+        const groupLabel = grouped.length === 1 ? 'group' : 'groups';
+        summaryEl.textContent = `Current filters cover ${formatters.integer(totalSchoolsCount)} schools across ${grouped.length} ${groupLabel}.`;
+      }
+
+      if (!tableWrapper) return;
+
+      const table = document.createElement('table');
+      table.className = 'summary-table';
+
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      ['Academic year', 'Grade level', 'School type', 'Total schools'].forEach((heading) => {
+        const th = document.createElement('th');
+        th.scope = 'col';
+        th.textContent = heading;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      grouped.forEach((entry) => {
+        const rowEl = document.createElement('tr');
+
+        const yearCell = document.createElement('td');
+        yearCell.textContent = entry.yearNum == null ? 'All' : formatters.toAcademicYear(entry.yearNum);
+        rowEl.appendChild(yearCell);
+
+        const levelCell = document.createElement('td');
+        levelCell.textContent = entry.level || 'All';
+        rowEl.appendChild(levelCell);
+
+        const settingCell = document.createElement('td');
+        settingCell.textContent = entry.setting || 'All';
+        rowEl.appendChild(settingCell);
+
+        const totalCell = document.createElement('td');
+        totalCell.textContent = formatters.integer(entry.totalSchools || 0);
+        rowEl.appendChild(totalCell);
+
+        tbody.appendChild(rowEl);
+      });
+
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
     }
 
     function render() {
@@ -689,7 +780,6 @@
               label: key,
               pct: row.top_pct ?? 0,
               shares: [],
-              cohortPercents: [],
             });
           }
           const group = map.get(key);
@@ -698,9 +788,6 @@
           }
           if (typeof row.top_share === 'number') {
             group.shares.push(row.top_share);
-          }
-          if (typeof row.top_schools === 'number' && typeof row.total_schools === 'number' && row.total_schools > 0) {
-            group.cohortPercents.push((row.top_schools / row.total_schools) * 100);
           }
           return map;
         }, new Map()).values()
@@ -711,20 +798,12 @@
             label: group.label,
             pct: group.pct ?? 0,
             share: avg(group.shares) * 100,
-            schoolShare: avg(group.cohortPercents),
           };
         })
         .sort((a, b) => (a.pct || 0) - (b.pct || 0));
 
       const labels = aggregated.map((item) => item.label);
       const suspensionShare = aggregated.map((item) => Number(item.share.toFixed(1)));
-      const schoolShare = aggregated.map((item) => Number(item.schoolShare.toFixed(1)));
-
-      const palette = {
-        primary: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2774ae',
-        highlight: getComputedStyle(document.documentElement).getPropertyValue('--highlight').trim() || '#ffb81c',
-        soft: getComputedStyle(document.documentElement).getPropertyValue('--accent-soft').trim() || '#8bb8e8',
-      };
 
       const uclaSuspensionColors = ['#2774AE', '#FFB81C', '#8BB8E8', '#005587', '#FFC72C'];
       const suspensionColors = labels.map((_, index) => uclaSuspensionColors[index % uclaSuspensionColors.length]);
@@ -788,59 +867,67 @@
 
       const cohortContext = document.getElementById('cohort-size-chart').getContext('2d');
       const cohortConfig = {
-        type: 'bar',
+        type: 'doughnut',
         data: {
           labels,
           datasets: [
             {
-              label: 'Percent of schools in cohort',
-              data: schoolShare,
-              backgroundColor: palette.highlight,
-              hoverBackgroundColor: palette.primary,
-              borderRadius: 10,
-              borderSkipped: false,
+              label: 'Suspension share',
+              data: suspensionShare,
+              backgroundColor: suspensionColors,
+              hoverBackgroundColor: suspensionHoverColors,
+              borderColor: '#ffffff',
+              borderWidth: 2,
             },
           ],
         },
         options: {
-          indexAxis: 'y',
           maintainAspectRatio: false,
-          scales: {
-            x: {
-              ticks: {
-                callback: (value) => `${value}%`,
-              },
-              grid: {
-                color: 'rgba(39, 116, 174, 0.15)',
-              },
-              suggestedMax: Math.max(100, Math.ceil(Math.max(...schoolShare, 0) / 10) * 10),
-            },
-            y: {
-              grid: {
-                display: false,
-              },
-            },
-          },
+          cutout: '55%',
           plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                padding: 18,
+                boxWidth: 18,
+                font: {
+                  size: 12,
+                },
+                generateLabels(chart) {
+                  const chartData = chart.data;
+                  return chartData.labels.map((label, index) => {
+                    const value = Number(chartData.datasets[0].data[index] ?? 0).toFixed(1);
+                    return {
+                      text: `${label}: ${value}%`,
+                      fillStyle: chartData.datasets[0].backgroundColor[index],
+                      strokeStyle: chartData.datasets[0].borderColor,
+                      lineWidth: chartData.datasets[0].borderWidth,
+                      index,
+                    };
+                  });
+                },
+              },
+            },
             tooltip: {
               callbacks: {
-                label: (context) => `${context.parsed.x}% of schools`,
+                label: (context) => {
+                  const value = Number(context.parsed ?? 0).toFixed(1);
+                  return `${context.label}: ${value}% of suspensions`;
+                },
               },
-            },
-            legend: {
-              display: false,
             },
           },
         },
       };
 
-      if (charts.cohortShare) {
-        charts.cohortShare.data.labels = labels;
-        charts.cohortShare.data.datasets[0].data = schoolShare;
-        charts.cohortShare.options.scales.x.suggestedMax = Math.max(100, Math.ceil(Math.max(...schoolShare, 0) / 10) * 10);
-        charts.cohortShare.update();
+      if (charts.concentrationBreakdown) {
+        charts.concentrationBreakdown.data.labels = labels;
+        charts.concentrationBreakdown.data.datasets[0].data = suspensionShare;
+        charts.concentrationBreakdown.data.datasets[0].backgroundColor = suspensionColors;
+        charts.concentrationBreakdown.data.datasets[0].hoverBackgroundColor = suspensionHoverColors;
+        charts.concentrationBreakdown.update();
       } else {
-        charts.cohortShare = new Chart(cohortContext, cohortConfig);
+        charts.concentrationBreakdown = new Chart(cohortContext, cohortConfig);
       }
 
       if (!hasData) {
@@ -849,10 +936,10 @@
           charts.topShare.data.datasets[0].data = [];
           charts.topShare.update('none');
         }
-        if (charts.cohortShare) {
-          charts.cohortShare.data.labels = [];
-          charts.cohortShare.data.datasets[0].data = [];
-          charts.cohortShare.update('none');
+        if (charts.concentrationBreakdown) {
+          charts.concentrationBreakdown.data.labels = [];
+          charts.concentrationBreakdown.data.datasets[0].data = [];
+          charts.concentrationBreakdown.update('none');
         }
       }
     }
