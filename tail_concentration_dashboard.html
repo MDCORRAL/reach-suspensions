@@ -729,8 +729,7 @@
               label: key,
               pct: row.top_pct ?? 0,
               shares: [],
-              topSchools: [],
-              totalSchools: [],
+              cohortPercents: [],
             });
           }
           const group = map.get(key);
@@ -740,24 +739,19 @@
           if (typeof row.top_share === 'number') {
             group.shares.push(row.top_share);
           }
-          if (typeof row.top_schools === 'number') {
-            group.topSchools.push(row.top_schools);
-          }
-          if (typeof row.total_schools === 'number') {
-            group.totalSchools.push(row.total_schools);
+          if (typeof row.top_schools === 'number' && typeof row.total_schools === 'number' && row.total_schools > 0) {
+            group.cohortPercents.push((row.top_schools / row.total_schools) * 100);
           }
           return map;
         }, new Map()).values()
       )
         .map((group) => {
           const avg = (arr) => (arr.length ? arr.reduce((sum, value) => sum + value, 0) / arr.length : 0);
-          const avgTopSchools = avg(group.topSchools);
-          const avgTotalSchools = avg(group.totalSchools);
           return {
             label: group.label,
             pct: group.pct ?? 0,
             share: avg(group.shares) * 100,
-            schoolShare: avgTotalSchools > 0 ? (avgTopSchools / avgTotalSchools) * 100 : 0,
+            schoolShare: avg(group.cohortPercents),
           };
         })
         .sort((a, b) => (a.pct || 0) - (b.pct || 0));
