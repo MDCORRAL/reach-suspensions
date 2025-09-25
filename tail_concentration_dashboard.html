@@ -37,6 +37,39 @@
       box-shadow: 0 4px 18px rgba(0, 59, 92, 0.35);
     }
 
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      margin-bottom: 1.5rem;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: rgba(218, 235, 254, 0.95);
+      text-decoration: none;
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      background: rgba(0, 59, 92, 0.35);
+      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+
+    .back-link:hover {
+      background: rgba(0, 59, 92, 0.55);
+      color: #ffffff;
+      transform: translateX(-2px);
+    }
+
+    .back-link:focus-visible {
+      outline: 2px solid var(--highlight);
+      outline-offset: 3px;
+      box-shadow: 0 0 0 4px rgba(255, 184, 28, 0.3);
+    }
+
     header h1 {
       margin: 0;
       font-size: clamp(1.8rem, 3vw, 2.4rem);
@@ -84,6 +117,17 @@
     @media (min-width: 768px) {
       #controls {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 600px) {
+      .header-top {
+        margin-bottom: 1.25rem;
+      }
+
+      .back-link {
+        font-size: 0.9rem;
+        padding: 0.4rem 0.75rem;
       }
     }
 
@@ -212,6 +256,9 @@
 </head>
 <body>
   <header>
+    <div class="header-top">
+      <a class="back-link" href="index.html">← Back to dashboard home</a>
+    </div>
     <h1>Tail Concentration Explorer</h1>
     <p>
       Use the controls below to surface the existing grade-setting outputs produced by the REACH suspension
