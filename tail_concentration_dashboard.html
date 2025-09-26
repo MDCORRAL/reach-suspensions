@@ -488,6 +488,52 @@
       gradeSetting: [],
     };
 
+    function resolveDashboardAsset(path) {
+      try {
+        return new URL(path, window.location.href).toString();
+      } catch (error) {
+        return path;
+      }
+    }
+
+    function loadPreparedData() {
+      const url = resolveDashboardAsset('dashboard/pareto_grade_setting_payload.json');
+
+      if (typeof fetch === 'function') {
+        return fetch(url, { cache: 'no-cache' }).then((response) => {
+          if (!response.ok) {
+            throw new Error(`Request for prepared data failed with status ${response.status}`);
+          }
+          return response.json();
+        });
+      }
+
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.responseType = 'json';
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            if (xhr.response != null) {
+              resolve(xhr.response);
+              return;
+            }
+            try {
+              resolve(JSON.parse(xhr.responseText));
+            } catch (parseError) {
+              reject(parseError);
+            }
+          } else {
+            reject(new Error(`Request for prepared data failed with status ${xhr.status}`));
+          }
+        };
+        xhr.onerror = () => {
+          reject(new Error('Network error while requesting prepared data.'));
+        };
+        xhr.send();
+      });
+    }
+
     function buildOptions(options, includeAll = true) {
       const frag = document.createDocumentFragment();
       if (includeAll) {
@@ -763,6 +809,8 @@
 
     function render() {
       const rows = getFilteredRows();
+      latestRenderedRows = rows;
+      updateDownloadButton(rows.length > 0);
       renderGradeTable(rows);
       renderCharts(rows);
     }
@@ -997,39 +1045,6 @@
         previousPct = pctValue;
       });
 
-      const remainderShare = Number(Math.max(0, 100 - previousShare).toFixed(1));
-      const remainderPct = Math.max(0, 1 - previousPct);
-      const hasRemainderSlice = remainderShare > 0;
-      if (hasRemainderSlice) {
-        doughnutSegments.push({
-          label: `Remaining ${formatters.percent(remainderPct)} of schools`,
-          legendText: `Remaining ${formatters.percent(remainderPct)} of schools: ${toShareString(remainderShare)} of suspensions`,
-          tooltipText: `Remaining ${formatters.percent(remainderPct)} of schools: ${toShareString(remainderShare)} of suspensions`,
-          value: remainderShare,
-          isRemainder: true,
-        });
-      }
-
-      const remainderColor = 'rgba(39, 116, 174, 0.18)';
-      const remainderHoverColor = 'rgba(39, 116, 174, 0.32)';
-
-      const doughnutLabels = doughnutSegments.map((segment) => segment.label);
-      const doughnutData = doughnutSegments.map((segment) => segment.value);
-      const doughnutColors = [];
-      const doughnutHoverColors = [];
-      let colorIndex = 0;
-      doughnutSegments.forEach((segment) => {
-        if (segment.isRemainder) {
-          doughnutColors.push(remainderColor);
-          doughnutHoverColors.push(remainderHoverColor);
-        } else {
-          const color = uclaSuspensionColors[colorIndex % uclaSuspensionColors.length];
-          doughnutColors.push(color);
-          doughnutHoverColors.push(color);
-          colorIndex += 1;
-        }
-      });
-
       const toShareString = (value) => `${value.toFixed(1)}%`;
 
       const doughnutSegments = [];
@@ -1262,8 +1277,8 @@
     }
 
     function init() {
-      fetch('dashboard/pareto_grade_setting_payload.json')
-        .then((response) => response.json())
+      const loadingEl = document.getElementById('loading');
+      loadPreparedData()
         .then((gradePayload) => {
           cache.gradeSetting = gradePayload.gradeSetting || [];
 
@@ -1273,7 +1288,6 @@
             resetButton.addEventListener('click', resetFilters);
           }
 
-          const loadingEl = document.getElementById('loading');
           if (loadingEl) {
             loadingEl.hidden = true;
           }
@@ -1286,9 +1300,10 @@
         })
         .catch((error) => {
           console.error('Failed to load prepared data', error);
-          const loadingEl = document.getElementById('loading');
           if (loadingEl) {
-            loadingEl.textContent = 'Unable to load the prepared grade-setting data.';
+            loadingEl.textContent = 'Unable to load the prepared grade-setting data. Please refresh the page or try again later.';
+            loadingEl.hidden = false;
+            
           }
         });
     }
