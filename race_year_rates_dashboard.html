@@ -392,6 +392,10 @@
 
   <script>
     const DATA_URL = 'dashboard/data/rates_by_race_year.json';
+    const PRELOADED_DATA =
+      typeof window !== 'undefined' && window.RATES_BY_RACE_YEAR_DATA
+        ? window.RATES_BY_RACE_YEAR_DATA
+        : null;
     if (window.Chart) {
       const zoomGlobal = window['chartjs-plugin-zoom'] || window.chartjsPluginZoom || window.ChartZoom;
       if (zoomGlobal) {
@@ -875,11 +879,18 @@
       buildBarChart(filtered, races);
     }
 
+    async function loadData() {
+      if (PRELOADED_DATA && Array.isArray(PRELOADED_DATA.rates_by_race_year)) {
+        return PRELOADED_DATA;
+      }
+      const response = await fetch(DATA_URL, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Unable to load dataset');
+      return response.json();
+    }
+
     async function initialise() {
       try {
-        const response = await fetch(DATA_URL);
-        if (!response.ok) throw new Error('Unable to load dataset');
-        const payload = await response.json();
+        const payload = await loadData();
         state.data = payload.rates_by_race_year || [];
         state.years = Array.from(new Set(state.data.map((row) => row.year))).sort();
         state.races = Array.from(new Set(state.data.map((row) => row.race_ethnicity))).sort();
@@ -913,7 +924,9 @@
         updateVisuals();
       } catch (error) {
         const loading = document.getElementById('loading');
-        loading.textContent = 'Failed to load pre-computed data. Please refresh to try again.';
+        loading.innerHTML =
+          'Failed to load pre-computed data. Please refresh to try again. ' +
+          'If the file is opened directly from disk, ensure the accompanying <code>dashboard/data/rates_by_race_year.js</code> file is present.';
         console.error(error);
       }
     }
