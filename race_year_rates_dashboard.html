@@ -439,10 +439,9 @@
       wrapper.classList.add('active');
 
       wrapper.addEventListener('click', (event) => {
-        if (event.target.tagName === 'INPUT') return;
-        input.checked = !input.checked;
-        wrapper.classList.toggle('active', input.checked);
-        wrapper.setAttribute('aria-checked', String(input.checked));
+        if (event.target === input) return;
+        event.preventDefault();
+        input.click();
       });
 
       input.addEventListener('change', () => {
