@@ -804,11 +804,13 @@
 
       const labels = aggregated.map((item) => item.label);
       const suspensionShare = aggregated.map((item) => Number(item.share.toFixed(1)));
+      const totalShare = aggregated.reduce((sum, item) => sum + (Number.isFinite(item.share) ? item.share : 0), 0);
+      const remainderShare = Number(Math.max(0, 100 - totalShare).toFixed(1));
+      const hasRemainderSlice = remainderShare > 0;
 
       const uclaSuspensionColors = ['#2774AE', '#FFB81C', '#8BB8E8', '#005587', '#FFC72C'];
       const suspensionColors = labels.map((_, index) => uclaSuspensionColors[index % uclaSuspensionColors.length]);
       const suspensionHoverColors = suspensionColors.slice();
-
       const toShareString = (value) => `${value.toFixed(1)}%`;
 
       const doughnutSegments = [];
