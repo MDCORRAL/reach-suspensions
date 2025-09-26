@@ -315,17 +315,6 @@
 
     let dashboardData = null;
     let dimensionConfig = {};
-
-    const rateFormatter = new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1
-    });
-
-    const gapFormatter = new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1
-    });
-
     const groupSelect = () => document.getElementById('groupSelect');
     const levelSelect = () => document.getElementById('levelSelect');
     const dimensionSelect = () => document.getElementById('dimensionSelect');
@@ -527,13 +516,11 @@
       const sorted = yearRows.filter((row) => row.rate != null).sort((a, b) => b.rate - a.rate);
       const highest = sorted[0];
       const lowest = sorted[sorted.length - 1];
-
       const gap = highest && lowest && highest.rate != null && lowest.rate != null
         ? highest.rate - lowest.rate
         : null;
 
       const orderedQuartiles = [...selectedQuartiles].sort((a, b) => getQuartileRank(a) - getQuartileRank(b));
-
       const cards = [
         {
           title: `${dimLabel} (highlight year)` ,
