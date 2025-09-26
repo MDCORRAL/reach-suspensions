@@ -612,7 +612,10 @@
       URL.revokeObjectURL(url);
     }
 
-    document.getElementById('download-csv').addEventListener('click', triggerCsvDownload);
+    const downloadButtonEl = document.getElementById('download-csv');
+    if (downloadButtonEl) {
+      downloadButtonEl.addEventListener('click', triggerCsvDownload);
+    }
 
     function getFilteredRows() {
       if (!Array.isArray(cache.gradeSetting)) {
@@ -809,6 +812,70 @@
       const suspensionColors = labels.map((_, index) => uclaSuspensionColors[index % uclaSuspensionColors.length]);
       const suspensionHoverColors = suspensionColors.slice();
 
+      const toShareString = (value) => `${value.toFixed(1)}%`;
+
+      const doughnutSegments = [];
+      let previousShare = 0;
+      let previousPct = 0;
+      aggregated.forEach((item, index) => {
+        const pctValue = typeof item.pct === 'number' ? Math.min(1, Math.max(0, item.pct)) : 0;
+        const cumulativeShare = Number(Math.max(0, Math.min(100, item.share)).toFixed(1));
+        const incrementalShare = Number(Math.max(0, cumulativeShare - previousShare).toFixed(1));
+        const additionalPct = Math.max(0, pctValue - previousPct);
+        const cohortLabel = index === 0
+          ? `${item.label} of schools`
+          : `Next ${formatters.percent(additionalPct)} of schools (${item.label})`;
+        const legendText = index === 0
+          ? `${item.label} of schools: ${toShareString(cumulativeShare)} of suspensions`
+          : `${cohortLabel}: ${toShareString(incrementalShare)} of suspensions (cumulative ${toShareString(cumulativeShare)})`;
+
+        doughnutSegments.push({
+          label: cohortLabel,
+          legendText,
+          tooltipText: index === 0
+            ? `${item.label} of schools: ${toShareString(incrementalShare)} of suspensions`
+            : `${cohortLabel}: ${toShareString(incrementalShare)} of suspensions (cumulative ${toShareString(cumulativeShare)})`,
+          value: incrementalShare,
+          isRemainder: false,
+        });
+
+        previousShare = cumulativeShare;
+        previousPct = pctValue;
+      });
+
+      const remainderShare = Number(Math.max(0, 100 - previousShare).toFixed(1));
+      const remainderPct = Math.max(0, 1 - previousPct);
+      const hasRemainderSlice = remainderShare > 0;
+      if (hasRemainderSlice) {
+        doughnutSegments.push({
+          label: `Remaining ${formatters.percent(remainderPct)} of schools`,
+          legendText: `Remaining ${formatters.percent(remainderPct)} of schools: ${toShareString(remainderShare)} of suspensions`,
+          tooltipText: `Remaining ${formatters.percent(remainderPct)} of schools: ${toShareString(remainderShare)} of suspensions`,
+          value: remainderShare,
+          isRemainder: true,
+        });
+      }
+
+      const remainderColor = 'rgba(39, 116, 174, 0.18)';
+      const remainderHoverColor = 'rgba(39, 116, 174, 0.32)';
+
+      const doughnutLabels = doughnutSegments.map((segment) => segment.label);
+      const doughnutData = doughnutSegments.map((segment) => segment.value);
+      const doughnutColors = [];
+      const doughnutHoverColors = [];
+      let colorIndex = 0;
+      doughnutSegments.forEach((segment) => {
+        if (segment.isRemainder) {
+          doughnutColors.push(remainderColor);
+          doughnutHoverColors.push(remainderHoverColor);
+        } else {
+          const color = uclaSuspensionColors[colorIndex % uclaSuspensionColors.length];
+          doughnutColors.push(color);
+          doughnutHoverColors.push(color);
+          colorIndex += 1;
+        }
+      });
+
       const topShareContext = document.getElementById('top-share-chart').getContext('2d');
       const topShareConfig = {
         type: 'bar',
@@ -869,13 +936,13 @@
       const cohortConfig = {
         type: 'doughnut',
         data: {
-          labels,
+          labels: doughnutLabels,
           datasets: [
             {
               label: 'Suspension share',
-              data: suspensionShare,
-              backgroundColor: suspensionColors,
-              hoverBackgroundColor: suspensionHoverColors,
+              data: doughnutData,
+              backgroundColor: doughnutColors,
+              hoverBackgroundColor: doughnutHoverColors,
               borderColor: '#ffffff',
               borderWidth: 2,
             },
@@ -893,26 +960,22 @@
                 font: {
                   size: 12,
                 },
-                generateLabels(chart) {
-                  const chartData = chart.data;
-                  return chartData.labels.map((label, index) => {
-                    const value = Number(chartData.datasets[0].data[index] ?? 0).toFixed(1);
-                    return {
-                      text: `${label}: ${value}%`,
-                      fillStyle: chartData.datasets[0].backgroundColor[index],
-                      strokeStyle: chartData.datasets[0].borderColor,
-                      lineWidth: chartData.datasets[0].borderWidth,
-                      index,
-                    };
-                  });
+                generateLabels() {
+                  return doughnutSegments.map((segment, index) => ({
+                    text: segment.legendText,
+                    fillStyle: doughnutColors[index],
+                    strokeStyle: '#ffffff',
+                    lineWidth: 2,
+                    index,
+                  }));
                 },
               },
             },
             tooltip: {
               callbacks: {
                 label: (context) => {
-                  const value = Number(context.parsed ?? 0).toFixed(1);
-                  return `${context.label}: ${value}% of suspensions`;
+                  const segment = doughnutSegments[context.dataIndex];
+                  return segment ? segment.tooltipText : context.label;
                 },
               },
             },
@@ -921,10 +984,22 @@
       };
 
       if (charts.concentrationBreakdown) {
-        charts.concentrationBreakdown.data.labels = labels;
-        charts.concentrationBreakdown.data.datasets[0].data = suspensionShare;
-        charts.concentrationBreakdown.data.datasets[0].backgroundColor = suspensionColors;
-        charts.concentrationBreakdown.data.datasets[0].hoverBackgroundColor = suspensionHoverColors;
+        charts.concentrationBreakdown.data.labels = doughnutLabels;
+        charts.concentrationBreakdown.data.datasets[0].data = doughnutData;
+        charts.concentrationBreakdown.data.datasets[0].backgroundColor = doughnutColors;
+        charts.concentrationBreakdown.data.datasets[0].hoverBackgroundColor = doughnutHoverColors;
+        charts.concentrationBreakdown.options.plugins.legend.labels.generateLabels = () =>
+          doughnutSegments.map((segment, index) => ({
+            text: segment.legendText,
+            fillStyle: doughnutColors[index],
+            strokeStyle: '#ffffff',
+            lineWidth: 2,
+            index,
+          }));
+        charts.concentrationBreakdown.options.plugins.tooltip.callbacks.label = (context) => {
+          const segment = doughnutSegments[context.dataIndex];
+          return segment ? segment.tooltipText : context.label;
+        };
         charts.concentrationBreakdown.update();
       } else {
         charts.concentrationBreakdown = new Chart(cohortContext, cohortConfig);
