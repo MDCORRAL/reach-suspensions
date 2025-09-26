@@ -25,33 +25,39 @@
 
     body {
       margin: 0;
-      background: var(--bg);
+      background: linear-gradient(135deg, #003B5C 0%, #2774AE 100%);
       color: var(--text);
       min-height: 100vh;
     }
 
-    header {
-      background: var(--accent-strong);
-      color: #ffffff;
-      padding: 2.5rem 1.5rem 2rem;
-      box-shadow: 0 4px 18px rgba(0, 59, 92, 0.35);
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 2.5rem 0 2rem;
+      box-shadow: 0 4px 20px rgba(0, 59, 92, 0.12);
+      margin-bottom: 2.5rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
     }
 
     .header-top {
       display: flex;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: space-between;
       gap: 1rem;
       margin-bottom: 1.5rem;
+      flex-wrap: wrap;
     }
 
     .methodology-button {
-      margin-left: auto;
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
       border: none;
-      background: var(--highlight);
+      background: linear-gradient(90deg, #FFD100, #FFC72C);
       color: var(--accent-strong);
       font-weight: 600;
       padding: 0.55rem 1.1rem;
@@ -59,18 +65,15 @@
       cursor: pointer;
       transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
       text-decoration: none;
+      box-shadow: 0 10px 24px rgba(0, 59, 92, 0.18);
     }
 
-    .methodology-button:hover {
-      background: #ffc85b;
-      box-shadow: 0 8px 18px rgba(0, 59, 92, 0.25);
-      transform: translateY(-1px);
-    }
-
+    .methodology-button:hover,
     .methodology-button:focus-visible {
-      outline: 2px solid #ffd277;
-      outline-offset: 3px;
-      box-shadow: 0 0 0 4px rgba(255, 184, 28, 0.35);
+      background: linear-gradient(90deg, #FFE066, #FFD54F);
+      box-shadow: 0 12px 28px rgba(0, 59, 92, 0.22);
+      outline: none;
+      transform: translateY(-1px);
     }
 
     .back-link {
@@ -79,37 +82,35 @@
       gap: 0.35rem;
       font-size: 0.95rem;
       font-weight: 600;
-      color: rgba(218, 235, 254, 0.95);
+      color: #005587;
       text-decoration: none;
       padding: 0.45rem 0.85rem;
       border-radius: 999px;
-      background: rgba(0, 59, 92, 0.35);
-      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+      background: rgba(39, 116, 174, 0.14);
+      border: 1px solid rgba(39, 116, 174, 0.28);
+      transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .back-link:hover {
-      background: rgba(0, 59, 92, 0.55);
-      color: #ffffff;
+    .back-link:hover,
+    .back-link:focus-visible {
+      background: rgba(39, 116, 174, 0.24);
+      box-shadow: 0 10px 24px rgba(0, 59, 92, 0.16);
+      outline: none;
       transform: translateX(-2px);
     }
 
-    .back-link:focus-visible {
-      outline: 2px solid var(--highlight);
-      outline-offset: 3px;
-      box-shadow: 0 0 0 4px rgba(255, 184, 28, 0.3);
-    }
-
-    header h1 {
+    .header h1 {
       margin: 0;
       font-size: clamp(1.8rem, 3vw, 2.4rem);
       letter-spacing: -0.01em;
+      color: #003B5C;
     }
 
-    header p {
+    .header p {
       margin: 0.75rem 0 0;
       max-width: 60rem;
       font-size: 1rem;
-      color: rgba(218, 235, 254, 0.85);
+      color: #2774AE;
     }
 
     main {
@@ -349,19 +350,21 @@
   </style>
 </head>
 <body>
-  <header>
-    <div class="header-top">
-      <a class="back-link" href="index.html">← Back to dashboard home</a>
-      <a class="methodology-button" href="#methodology-and-filters">
-        Methodology &amp; filters
-      </a>
+  <header class="header">
+    <div class="container">
+      <div class="header-top">
+        <a class="back-link" href="index.html">← Back to dashboard home</a>
+        <a class="methodology-button" href="#methodology-and-filters">
+          Methodology &amp; filters
+        </a>
+      </div>
+      <h1>Tail Concentration Explorer</h1>
+      <p>
+        Use the controls below to surface the existing grade-setting outputs produced by the REACH suspension
+        analyses. Toggle grade levels and school types to see the prepared results without running any new
+        computations.
+      </p>
     </div>
-    <h1>Tail Concentration Explorer</h1>
-    <p>
-      Use the controls below to surface the existing grade-setting outputs produced by the REACH suspension
-      analyses. Toggle grade levels and school types to see the prepared results without running any new
-      computations.
-    </p>
   </header>
   <main>
     <div id="loading">Loading pre-computed data…</div>
