@@ -390,6 +390,7 @@
       });
       if (years.length) {
         yearEl.value = years[years.length - 1];
+
       }
 
       renderQuartileOptions('black_prop_q_label');
@@ -450,10 +451,12 @@
             year,
             quartile,
             students: 0,
+
             enrollment: 0
           });
         }
         const entry = map.get(key);
+
         const students = Number(row.students_suspended);
         if (Number.isFinite(students)) {
           entry.students += students;
@@ -464,6 +467,7 @@
             entry.students += (rate / 100) * enrollment;
           }
         }
+
         entry.enrollment += Number(row.enrollment) || 0;
       });
 
@@ -471,6 +475,7 @@
         year: entry.year,
         quartile: entry.quartile,
         rate: entry.enrollment ? (entry.students / entry.enrollment) * 100 : null
+
       }));
     }
 
@@ -509,6 +514,7 @@
       const highest = sorted[0];
       const lowest = sorted[sorted.length - 1];
 
+
       const gap = highest && lowest && highest.rate != null && lowest.rate != null
         ? highest.rate - lowest.rate
         : null;
@@ -522,16 +528,19 @@
         highest ? {
           title: 'Highest rate',
           value: `${formatRate(highest.rate)} students per 100`,
+
           subtitle: highest.quartile
         } : null,
         lowest ? {
           title: 'Lowest rate',
           value: `${formatRate(lowest.rate)} students per 100`,
+
           subtitle: lowest.quartile
         } : null,
         gap != null ? {
           title: 'Gap (high - low)',
           value: `${formatGap(gap)} students per 100`,
+
           subtitle: 'Difference across selected quartiles'
         } : null
       ].filter(Boolean);
@@ -573,6 +582,7 @@
       Plotly.newPlot(container, traces, {
         margin: { t: 10, r: 20, b: 50, l: 60 },
         yaxis: { title: 'Students suspended per 100', zeroline: false },
+
         xaxis: { title: 'Academic year' },
         legend: { orientation: 'h', x: 0, y: -0.2 },
         hovermode: 'x unified',
@@ -595,6 +605,7 @@
         }
       } else {
         narrative.textContent = `Trends display suspension rates for selected ${dimLabel.toLowerCase()} quartiles across ${years[0]}–${years[years.length - 1]}.`;
+
       }
     }
 
@@ -620,6 +631,7 @@
       Plotly.newPlot(container, [trace], {
         margin: { t: 10, r: 20, b: 80, l: 60 },
         yaxis: { title: 'Students suspended per 100', zeroline: false },
+
         xaxis: { title: 'Quartile', tickangle: -20 }
       }, { responsive: true });
 
@@ -630,6 +642,7 @@
         const ratio = lowest.rate > 0 ? (highest.rate / lowest.rate) : null;
         const ratioText = ratio ? `${ratio.toFixed(1)}×` : '';
         narrative.textContent = `${yearFocus} shows ${highest.quartile} schools with ${formatRate(highest.rate)} students suspended per 100 versus ${formatRate(lowest.rate)} in ${lowest.quartile} schools${ratioText ? ` (${ratioText} the rate)` : ''}.`;
+
       } else {
         narrative.textContent = `${yearFocus} comparison shows available suspension rates for each selected quartile.`;
       }
@@ -650,6 +663,7 @@
       const years = Array.from(new Set(rows.map((row) => row.year))).sort();
       const earliestYear = years[0];
       const latestYear = years[years.length - 1];
+
       const highlightQuartile = selectedQuartiles.find((label) => /^Q4/.test(label)) || selectedQuartiles[0];
       const earlyHighlight = series.find((row) => row.year === earliestYear && row.quartile === highlightQuartile);
       const lateHighlight = series.find((row) => row.year === latestYear && row.quartile === highlightQuartile);
@@ -659,11 +673,13 @@
         const ratio = lowest.rate > 0 ? (highest.rate / lowest.rate) : null;
         const gap = highest.rate - lowest.rate;
         pieces.push(`In ${yearFocus}, ${group.toLowerCase()} students in ${highest.quartile} campuses averaged ${formatRate(highest.rate)} students suspended per 100, ${gap > 0 ? `${formatGap(gap)} higher` : 'roughly on par'} than ${lowest.quartile}${ratio ? ` (${ratio.toFixed(1)}× the rate)` : ''}.`);
+
       }
       if (earlyHighlight && lateHighlight && earlyHighlight.rate != null && lateHighlight.rate != null && earliestYear !== latestYear) {
         const change = lateHighlight.rate - earlyHighlight.rate;
         const direction = change > 0 ? 'climbed' : change < 0 ? 'declined' : 'held steady';
         pieces.push(`${highlightQuartile} campuses ${direction} from ${formatRate(earlyHighlight.rate)} to ${formatRate(lateHighlight.rate)} students suspended per 100 between ${earliestYear} and ${latestYear}.`);
+
       }
       pieces.push(`Use the controls to explore how ${dimLabel.toLowerCase()} quartiles intersect with race/ethnicity and school level to shape disciplinary exposure.`);
 
