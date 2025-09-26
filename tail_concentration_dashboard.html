@@ -804,10 +804,22 @@
 
       const labels = aggregated.map((item) => item.label);
       const suspensionShare = aggregated.map((item) => Number(item.share.toFixed(1)));
+      const totalShare = aggregated.reduce((sum, item) => sum + (Number.isFinite(item.share) ? item.share : 0), 0);
+      const remainderShare = Number(Math.max(0, 100 - totalShare).toFixed(1));
+      const hasRemainderSlice = remainderShare > 0;
 
       const uclaSuspensionColors = ['#2774AE', '#FFB81C', '#8BB8E8', '#005587', '#FFC72C'];
       const suspensionColors = labels.map((_, index) => uclaSuspensionColors[index % uclaSuspensionColors.length]);
       const suspensionHoverColors = suspensionColors.slice();
+
+      const remainderColor = 'rgba(39, 116, 174, 0.18)';
+      const remainderHoverColor = 'rgba(39, 116, 174, 0.32)';
+      const doughnutLabels = hasRemainderSlice ? [...labels, 'Remaining suspensions'] : labels.slice();
+      const doughnutData = hasRemainderSlice ? [...suspensionShare, remainderShare] : suspensionShare.slice();
+      const doughnutColors = hasRemainderSlice ? [...suspensionColors, remainderColor] : suspensionColors.slice();
+      const doughnutHoverColors = hasRemainderSlice
+        ? [...suspensionHoverColors, remainderHoverColor]
+        : suspensionHoverColors.slice();
 
       const topShareContext = document.getElementById('top-share-chart').getContext('2d');
       const topShareConfig = {
@@ -869,13 +881,13 @@
       const cohortConfig = {
         type: 'doughnut',
         data: {
-          labels,
+          labels: doughnutLabels,
           datasets: [
             {
               label: 'Suspension share',
-              data: suspensionShare,
-              backgroundColor: suspensionColors,
-              hoverBackgroundColor: suspensionHoverColors,
+              data: doughnutData,
+              backgroundColor: doughnutColors,
+              hoverBackgroundColor: doughnutHoverColors,
               borderColor: '#ffffff',
               borderWidth: 2,
             },
@@ -921,10 +933,10 @@
       };
 
       if (charts.concentrationBreakdown) {
-        charts.concentrationBreakdown.data.labels = labels;
-        charts.concentrationBreakdown.data.datasets[0].data = suspensionShare;
-        charts.concentrationBreakdown.data.datasets[0].backgroundColor = suspensionColors;
-        charts.concentrationBreakdown.data.datasets[0].hoverBackgroundColor = suspensionHoverColors;
+        charts.concentrationBreakdown.data.labels = doughnutLabels;
+        charts.concentrationBreakdown.data.datasets[0].data = doughnutData;
+        charts.concentrationBreakdown.data.datasets[0].backgroundColor = doughnutColors;
+        charts.concentrationBreakdown.data.datasets[0].hoverBackgroundColor = doughnutHoverColors;
         charts.concentrationBreakdown.update();
       } else {
         charts.concentrationBreakdown = new Chart(cohortContext, cohortConfig);
