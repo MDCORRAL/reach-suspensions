@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>REACH Suspension Insights Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #003B5C 0%, #2774AE 100%);
+  color: #333;
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+header {
+  background: rgba(255, 255, 255, 0.95);
+  color: #003B5C;
+  padding: 3.5rem 1.5rem 2.5rem;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 59, 92, 0.1);
+  margin-bottom: 2rem;
+}
+
+header h1 {
+  color: #003B5C;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+header p {
+  color: #2774AE;
+  font-size: 1.2rem;
+  max-width: 800px;
+  margin: 0.75rem auto 0;
+}
+
+main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+    section { margin-top: 2rem; }
+
+.panel {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 59, 92, 0.1);
+  margin-bottom: 2rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #003B5C;
+}
+
+h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: #003B5C;
+}
+
+.intro p { margin: 0; color: #005587; }
+
+.cta-button {
+  display: inline-block;
+  padding: 0.6rem 1.2rem;
+  background: #2774AE;
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cta-button:focus,
+.cta-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(39, 116, 174, 0.3);
+}
+
+.filter-group label.title {
+  min-width: 180px;
+  font-weight: 600;
+  color: #2774AE;
+}
+
+.option-pill {
+  border: 1px solid #8BB8E8;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #005587;
+  transition: all 0.2s ease;
+}
+
+.option-pill.active {
+  background: rgba(39, 116, 174, 0.16);
+  color: #2774AE;
+  border-color: #2774AE;
+  font-weight: 600;
+}
+
+.summary-card h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #003B5C;
+}
+
+.summary-card p {
+  margin: 0.4rem 0 0;
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: #003B5C;
+}
+
+.summary-card span {
+  display: block;
+  font-size: 0.85rem;
+  color: #005587;
+  margin-top: 0.35rem;
+}
+
+.footer-note {
+  margin-top: 1.5rem;
+  font-size: 0.85rem;
+  color: #005587;
+}
+
+.toggle-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  color: #005587;
+  font-size: 0.9rem;
+}
+
+select, button {
+  border: 2px solid #8BB8E8;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  background: white;
+  color: #003B5C;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+select:focus, button:focus {
+  outline: none;
+  border-color: #2774AE;
+  box-shadow: 0 0 0 3px rgba(39, 116, 174, 0.1);
+}
+
+button {
+  background: #2774AE;
+  color: white;
+  border-color: #2774AE;
+  font-weight: 600;
+}
+
+button:hover {
+  background: #005587;
+  border-color: #005587;
+}
+.intro { 
+  display: grid; 
+  gap: 1.5rem; 
+}
+
+.filters { 
+  display: grid; 
+  gap: 1.5rem; 
+}
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.cta-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.summary-card {
+  background: linear-gradient(135deg, #8BB8E8 0%, #DAEBFE 100%);
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  color: #003B5C;
+}
+
+.charts { 
+  display: grid; 
+  gap: 1.5rem; 
+}
+
+.chart { 
+  min-height: 360px; 
+}
+
+.definition-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #005587;
+}
+    @media (max-width: 768px) {
+      header { padding: 2.5rem 1rem 2rem; }
+      header h1 { font-size: 2.1rem; }
+
+      .filter-group { flex-direction: column; align-items: stretch; }
+      .filter-group label.title { min-width: auto; }
+    }
+    .highlight {
+  background: linear-gradient(90deg, #FFD100, #FFC72C);
+  color: #003B5C;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.narrative {
+  display: grid;
+  gap: 1rem;
+  background: rgba(218, 235, 254, 0.3);
+  padding: 1.5rem;
+  border-left: 5px solid #FFD100;
+  margin-top: 1rem;
+  border-radius: 0 8px 8px 0;
+  color: #005587;
+}
+
+.narrative strong { 
+  color: #003B5C; 
+}
+
+.narrative h4 {
+  color: #003B5C;
+  margin-bottom: 0.5rem;
+}
+
+.narrative p {
+  color: #005587;
+  line-height: 1.6;
+}
+
+.insight-box {
+  background: rgba(255, 184, 28, 0.1);
+  border: 2px solid #FFD100;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.insight-box h5 {
+  color: #003B5C;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.metric {
+  display: inline-block;
+  background: #2774AE;
+  color: white;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: 0.2rem;
+}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>REACH Suspension Insights Dashboard</h1>
+    <p>
+      Explore California school suspension patterns through an equity lens. Filter the data to surface disparities by student group,
+      school setting, and the racial composition of campuses to guide strategic interventions.
+    </p>
+  </header>
+
+  <main>
+    <section class="panel intro">
+      <div class="cta-links">
+        <a class="cta-button" href="suspension_dashboard.html">
+          View Suspension Dashboard
+        </a>
+        <a class="cta-button" href="tail_concentration_dashboard.html">
+          View Tail Concentration Dashboard
+        </a>
+        <a class="cta-button" href="quartile_suspension_dashboard.html">
+          View Quartile Comparison Dashboard
+        </a>
+        <a class="cta-button" href="race_year_rates_dashboard.html">
+          View Race × Year Rates Explorer
+        </a>
+      </div>
+      <h2>Why this dashboard matters</h2>
+      <p>
+        This interactive view distills the REACH suspension dataset to highlight the systemic patterns that shape students' experiences.
+        Use the filters to hone in on student groups, grade spans, and enrollment quartiles, then review the narratives for quick takeaways.
+      </p>
+    </section>
+
+
+    <section class="panel">
+      <h2>Focus your analysis</h2>
+      <div class="filters">
+        <div class="filter-group" id="filter-year">
+          <label class="title">Academic year</label>
+          <div class="options"></div>
+        </div>
+        <div class="filter-group" id="filter-level">
+          <label class="title">School setting</label>
+          <div class="options"></div>
+        </div>
+        <div class="filter-group" id="filter-group">
+          <label class="title">Student group</label>
+          <div class="options"></div>
+        </div>
+        <div class="filter-group" id="filter-quartile">
+          <label class="title">Black enrollment quartile</label>
+          <div class="options"></div>
+        </div>
+        <!-- New: additional quartile and locale filters -->
+        <div class="filter-group" id="filter-white-quartile">
+          <label class="title">White enrollment quartile</label>
+          <div class="options"></div>
+        </div>
+        <div class="filter-group" id="filter-hispanic-quartile">
+          <label class="title">Hispanic enrollment quartile</label>
+          <div class="options"></div>
+        </div>
+        <div class="filter-group" id="filter-locale">
+          <label class="title">Locale</label>
+          <div class="options"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Key indicators</h2>
+      <div class="summary-grid" id="summary-cards"></div>
+    </section>
+
+    <section class="panel charts">
+      <div>
+        <h2>Quartile comparison</h2>
+        <div class="toggle-row">
+          <label for="quartile-dimension">Quartile dimension:</label>
+          <select id="quartile-dimension" title="Choose which quartile labeling to use">
+            <option value="black_prop_q_label" selected>Black</option>
+            <option value="white_prop_q_label">White</option>
+            <option value="hispanic_prop_q_label">Hispanic</option>
+          </select>
+        </div>
+        <p class="narrative" id="quartile-narrative"></p>
+        <div id="quartile-chart" class="chart"></div>
+      </div>
+      <div>
+        <h2>Student group disparities</h2>
+        <p class="narrative" id="group-narrative"></p>
+        <div id="group-chart" class="chart"></div>
+      </div>
+      <div>
+        <h2>Suspension trends over time</h2>
+        <p class="narrative" id="trend-narrative"></p>
+        <div id="trend-chart" class="chart"></div>
+      </div>
+      <div>
+        <h2>Reasons for suspensions</h2>
+        <div class="toggle-row">
+          <span>Y-axis:</span>
+          <label><input type="radio" name="reason-mode" value="rate" checked /> Rate per 100</label>
+          <label><input type="radio" name="reason-mode" value="share" /> Share of total</label>
+        </div>
+        <p class="narrative" id="reason-narrative"></p>
+        <div id="reason-chart" class="chart"></div>
+      </div>
+    </section>
+
+    <!-- New Pareto panel -->
+    <section class="panel">
+      <h2>Tail concentration (Pareto)</h2>
+      <p class="narrative" id="pareto-narrative"></p>
+      <div id="pareto-chart" class="chart"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Definitions & methodology</h2>
+      <ul class="definition-list">
+        <li><strong>Suspension rate</strong> reflects total suspensions divided by cumulative enrollment for the selected group.</li>
+        <li><strong>Students suspended</strong> captures unduplicated counts. The student suspension rate highlights how many unique students experienced at least one suspension.</li>
+        <li><strong>Black/White/Hispanic enrollment quartiles</strong> categorize campuses by the share of students in the given group. Quartile 4 represents the highest concentration.</li>
+        <li><strong>Gap vs. White / overall</strong> compares the suspension rate for the selected group to either White students or all students within the same filters. Positive values signal higher rates.</li>
+        <li><strong>Reason categories</strong> align with state reporting: violent incidents (with or without injury), weapons, illicit drugs, willful defiance, and other reasons.</li>
+      </ul>
+      <p class="footer-note">
+        Data source: REACH suspensions longitudinal dataset, 2017-18 through 2022-23. Aggregations use weighted calculations based on enrollment counts to avoid overstating small-campus trends.
+      </p>
+    </section>
+  </main>
+
+  <script src="https://cdn.plot.ly/plotly-2.27.1.min.js"></script>
+  <script>
+    const palette = ['#003b5c', '#ffb81c', '#2774ae', '#ffc72c', '#005587', '#ffd100'];
+    let dashboardData = null;
+
+    // Filters to render (DOM id + data key)
+    const filterConfig = [
+      { id: 'filter-year', key: 'academic_year', labelPrefix: 'Year: ' },
+      { id: 'filter-level', key: 'school_level_final', labelPrefix: 'Level: ' },
+      { id: 'filter-group', key: 'reporting_category_description', labelPrefix: 'Group: ' },
+      { id: 'filter-quartile', key: 'black_prop_q_label', labelPrefix: 'Quartile: ' },
+      { id: 'filter-white-quartile', key: 'white_prop_q_label', labelPrefix: 'White Q: ' },
+      { id: 'filter-hispanic-quartile', key: 'hispanic_prop_q_label', labelPrefix: 'Hispanic Q: ' },
+      { id: 'filter-locale', key: 'locale_simple', labelPrefix: 'Locale: ' },
+    ];
+
+    // UI helpers
+    function createOption(container, value, checked = true) {
+      const pill = document.createElement('label');
+      pill.className = 'option-pill' + (checked ? ' active' : '');
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.value = value;
+      input.checked = checked;
+      input.addEventListener('change', () => {
+        pill.classList.toggle('active', input.checked);
+        updateDashboard();
+      });
+      const span = document.createElement('span');
+      span.textContent = value;
+      pill.appendChild(input);
+      pill.appendChild(span);
+      container.appendChild(pill);
+    }
+
+    function buildFilters(meta) {
+      const metaMap = {
+        academic_year: meta.academic_years,
+        school_level_final: meta.school_levels,
+        reporting_category_description: meta.student_groups,
+        black_prop_q_label: meta.black_quartiles,
+        white_prop_q_label: meta.white_quartiles,
+        hispanic_prop_q_label: meta.hispanic_quartiles,
+        locale_simple: meta.locales,
+      };
+
+      filterConfig.forEach(({ id, key }) => {
+        const wrapper = document.querySelector(`#${id} .options`);
+        if (!wrapper) return;
+        wrapper.innerHTML = '';
+        (metaMap[key] || []).forEach((value) => createOption(wrapper, value, true));
+      });
+    }
+
+    function getSelectedValues(id) {
+      const container = document.querySelector(`#${id}`);
+      if (!container) return [];
+      return Array.from(container.querySelectorAll('input[type="checkbox"]'))
+        .filter((input) => input.checked)
+        .map((input) => input.value);
+    }
+
+    function filterRecords() {
+      const selected = {
+        academic_year: getSelectedValues('filter-year'),
+        school_level_final: getSelectedValues('filter-level'),
+        reporting_category_description: getSelectedValues('filter-group'),
+        black_prop_q_label: getSelectedValues('filter-quartile'),
+        white_prop_q_label: getSelectedValues('filter-white-quartile'),
+        hispanic_prop_q_label: getSelectedValues('filter-hispanic-quartile'),
+        locale_simple: getSelectedValues('filter-locale'),
+      };
+
+      const overall = dashboardData.overall.filter((row) =>
+        Object.entries(selected).every(([key, values]) =>
+          !values.length || values.includes(row[key])
+        )
+      );
+      const reasons = dashboardData.reasons.filter((row) =>
+        Object.entries(selected).every(([key, values]) =>
+          !values.length || values.includes(row[key])
+        )
+      );
+
+      return { selected, overall, reasons };
+    }
+
+    function formatNumber(value, options = {}) {
+      if (value == null || Number.isNaN(value)) return '—';
+      const { style = 'decimal', maximumFractionDigits = 1, minimumFractionDigits } = options;
+      const formatterOptions = { style, maximumFractionDigits };
+      if (minimumFractionDigits != null) formatterOptions.minimumFractionDigits = minimumFractionDigits;
+      return new Intl.NumberFormat('en-US', formatterOptions).format(value);
+    }
+
+    function weightedAverage(records, valueKey, weightKey) {
+      const totals = records.reduce(
+        (acc, row) => {
+          const weight = row[weightKey] || 0;
+          const value = row[valueKey];
+          if (!Number.isFinite(weight) || weight <= 0 || value == null) return acc;
+          acc.weight += weight;
+          acc.total += value * weight;
+          return acc;
+        },
+        { weight: 0, total: 0 }
+      );
+      return totals.weight ? totals.total / totals.weight : null;
+    }
+
+    function sum(records, key) {
+      return records.reduce((acc, row) => acc + (row[key] || 0), 0);
+    }
+
+    // ===== Summary cards =====
+    function updateSummary(records) {
+      const container = document.getElementById('summary-cards');
+      container.innerHTML = '';
+
+      if (!records.length) {
+        container.innerHTML = '<p>No data matches the selected filters.</p>';
+        return;
+      }
+
+      const totalEnrollment = sum(records, 'enrollment');
+      const totalSuspensions = sum(records, 'total_suspensions');
+      const totalStudentsSusp = sum(records, 'students_suspended');
+
+      const suspensionRate = totalEnrollment ? (totalSuspensions / totalEnrollment) * 100 : null;
+      const studentRate = totalEnrollment ? (totalStudentsSusp / totalEnrollment) * 100 : null;
+      const gapWhite = weightedAverage(records, 'gap_vs_white', 'enrollment');
+      const gapOverall = weightedAverage(records, 'gap_vs_overall', 'enrollment');
+
+      const cards = [
+        { title: 'Suspension rate', value: formatNumber(suspensionRate, { maximumFractionDigits: 2 }), suffix: 'per 100 students' },
+        { title: 'Student suspension rate', value: formatNumber(studentRate, { maximumFractionDigits: 2 }), suffix: 'per 100 students' },
+        { title: 'Gap vs. White', value: formatNumber(gapWhite, { maximumFractionDigits: 2 }), suffix: 'rate difference' },
+        { title: 'Gap vs. overall', value: formatNumber(gapOverall, { maximumFractionDigits: 2 }), suffix: 'rate difference' },
+      ];
+
+      for (const c of cards) {
+        const el = document.createElement('div');
+        el.className = 'summary-card';
+        el.innerHTML = `<h4>${c.title}</h4><p>${c.value}</p><span>${c.suffix}</span>`;
+        container.appendChild(el);
+      }
+    }
+
+    // ===== Quartile comparison =====
+    function updateQuartileChart(records) {
+      const dimSelect = document.getElementById('quartile-dimension');
+      const qKey = dimSelect.value; // black_prop_q_label | white_prop_q_label | hispanic_prop_q_label
+
+      const yearList = [...new Set(records.map(r => r.academic_year))].sort();
+      const latest = yearList.at(-1);
+      const latestRows = records.filter(r => r.academic_year === latest);
+
+      const quartiles = [...new Set(latestRows.map(r => r[qKey]))].filter(Boolean).sort();
+      const rates = quartiles.map(q =>
+        weightedAverage(latestRows.filter(r => r[qKey] === q), 'suspension_rate', 'enrollment')
+      );
+
+      const trace = {
+        type: 'bar',
+        x: quartiles,
+        y: rates,
+        marker: { color: palette[2] },
+      };
+
+      Plotly.newPlot('quartile-chart', [trace], {
+        title: '',
+        yaxis: { title: 'Suspensions per 100 students' },
+        xaxis: { title: 'Quartile' },
+        margin: { t: 10, r: 10, b: 60, l: 60 }
+      });
+
+      const narrative = document.getElementById('quartile-narrative');
+      narrative.textContent = `Latest year (${latest}) suspension rates by ${qKey.replace('_prop_q_label','')} quartile.`;
+    }
+
+    // ===== Group disparities =====
+    function updateGroupChart(records) {
+      const yearList = [...new Set(records.map(r => r.academic_year))].sort();
+      const latest = yearList.at(-1);
+      const latestRows = records.filter(r => r.academic_year === latest);
+
+      const groups = [...new Set(latestRows.map(r => r.reporting_category_description))];
+      const rates = groups.map(g =>
+        weightedAverage(latestRows.filter(r => r.reporting_category_description === g), 'suspension_rate', 'enrollment')
+      );
+
+      const trace = { type: 'bar', x: groups, y: rates, marker: { color: palette[0] } };
+      Plotly.newPlot('group-chart', [trace], {
+        yaxis: { title: 'Suspensions per 100 students' },
+        xaxis: { title: 'Student group' },
+        margin: { t: 10, r: 10, b: 90, l: 60 }
+      });
+
+      const narrative = document.getElementById('group-narrative');
+      narrative.textContent = `Group comparison for ${latest}. Bars show average suspension rate per 100 students.`;
+    }
+
+    // ===== Trends over time =====
+    function updateTrendChart(records) {
+      // Show overall trend for currently selected group(s); aggregate across quartiles/locale/levels
+      const byYear = {};
+      for (const r of records) {
+        byYear[r.academic_year] ||= [];
+        byYear[r.academic_year].push(r);
+      }
+
+      const xs = Object.keys(byYear).sort();
+      const ys = xs.map(y => weightedAverage(byYear[y], 'suspension_rate', 'enrollment'));
+
+      Plotly.newPlot('trend-chart', [{
+        type: 'scatter',
+        mode: 'lines+markers',
+        x: xs, y: ys, line: { shape: 'spline' }, marker: { color: palette[1] }
+      }], {
+        yaxis: { title: 'Suspensions per 100 students' },
+        xaxis: { title: 'Academic year' },
+        margin: { t: 10, r: 10, b: 60, l: 60 }
+      });
+
+      const narrative = document.getElementById('trend-narrative');
+      narrative.textContent = `Weighted statewide trend across the current selections.`;
+    }
+
+    // ===== Reasons =====
+    let reasonMode = 'rate'; // 'rate' | 'share'
+    function updateReasonChart(records, reasons) {
+      const yearList = [...new Set(records.map(r => r.academic_year))].sort();
+      const latest = yearList.at(-1);
+      const latestReasonRows = reasons.filter(r => r.academic_year === latest);
+
+      const reasonLabels = [...new Set(latestReasonRows.map(r => r.reason_lab))];
+      const yKey = (reasonMode === 'rate') ? 'suspension_rate' : 'share_of_total';
+      const yVals = reasonLabels.map(lab =>
+        weightedAverage(latestReasonRows.filter(r => r.reason_lab === lab), yKey, 'overall_enrollment')
+      );
+
+      const trace = { type: 'bar', x: reasonLabels, y: yVals, marker: { color: palette[3] } };
+      Plotly.newPlot('reason-chart', [trace], {
+        yaxis: { title: reasonMode === 'rate' ? 'Suspensions per 100 students' : 'Share of total' },
+        xaxis: { title: 'Reason category' },
+        margin: { t: 10, r: 10, b: 100, l: 60 }
+      });
+
+      const narrative = document.getElementById('reason-narrative');
+      narrative.textContent = `For ${latest}, bars show ${reasonMode === 'rate' ? 'rate per 100' : 'share of total'} by reason category.`;
+    }
+
+    // ===== Pareto (tail concentration) =====
+    function updatePareto(selected) {
+      const tails = dashboardData.tail_concentrations || [];
+      if (!tails.length) {
+        document.getElementById('pareto-narrative').textContent = 'No tail data available.';
+        Plotly.purge('pareto-chart');
+        return;
+      }
+
+      // Choose the latest selected year (or latest available)
+      const selYears = selected.academic_year && selected.academic_year.length ? selected.academic_year : null;
+      const years = [...new Set(tails.map(d => d.academic_year))].sort();
+      const year = selYears ? selYears.sort().at(-1) : years.at(-1);
+
+      // If groups are filtered, use those; else show a core set
+      const selGroups = selected.reporting_category_description && selected.reporting_category_description.length
+        ? selected.reporting_category_description
+        : [...new Set(tails.map(d => d.student_group))];
+
+      const subset = tails.filter(d => d.academic_year === year && selGroups.includes(d.student_group));
+      const thresholds = [...new Set(subset.map(d => d.threshold))].sort((a,b)=>a-b);
+      const groups = [...new Set(subset.map(d => d.student_group))];
+
+      const traces = thresholds.map((thr, i) => ({
+        type: 'bar',
+        name: `Top ${Math.round(thr*100)}%`,
+        x: groups,
+        y: groups.map(g => {
+          const row = subset.find(d => d.student_group === g && d.threshold === thr);
+          return row && row.share != null ? row.share * 100 : null;
+        }),
+        marker: { color: palette[(i+2) % palette.length] }
+      }));
+
+      Plotly.newPlot('pareto-chart', traces, {
+        barmode: 'group',
+        yaxis: { title: '% of suspensions' },
+        xaxis: { title: 'Student group' },
+        margin: { t: 10, r: 10, b: 90, l: 60 },
+        legend: { orientation: 'h' }
+      });
+
+      const p = document.getElementById('pareto-narrative');
+      p.textContent = `In ${year}, a small share of schools accounts for a large share of suspensions. Bars show the % from the top 5%, 10%, and 20% of schools (ranked by incidents) for the selected groups.`;
+    }
+
+    // ===== Master update =====
+    function updateDashboard() {
+      const { selected, overall, reasons } = filterRecords();
+
+      updateSummary(overall);
+      updateQuartileChart(overall);
+      updateGroupChart(overall);
+      updateTrendChart(overall);
+      updateReasonChart(overall, reasons);
+      updatePareto(selected);
+    }
+
+    function init() {
+      buildFilters(dashboardData.meta);
+      // listeners
+      document.getElementById('quartile-dimension')
+        .addEventListener('change', updateDashboard);
+      document.querySelectorAll('input[name="reason-mode"]').forEach(r => {
+        r.addEventListener('change', (e) => {
+          reasonMode = e.target.value;
+          updateDashboard();
+        });
+      });
+      updateDashboard();
+    }
+
+    // Cache-busting data fetch
+    const DATA_URL = `dashboard/data/dashboard_data.json?v=${Date.now()}`;
+    fetch(DATA_URL)
+      .then((response) => response.json())
+      .then((data) => {
+        dashboardData = data;
+        init();
+      })
+      .catch((error) => {
+        console.error('Failed to load dashboard data', error);
+        document.querySelector('main').innerHTML = '<p>Unable to load dashboard data.</p>';
+      });
+  </script>
+</body>
+</html>
