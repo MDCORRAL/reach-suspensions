@@ -685,14 +685,6 @@
       ));
     }
 
-    function hasAllSelections({ years, races, levels, settings, includeAllLevels, includeAllSettings }) {
-      const allYears = years.length === state.years.length;
-      const allRaces = races.length === state.races.length;
-      const allLevels = includeAllLevels || levels.length === state.levels.length;
-      const allSettings = includeAllSettings || settings.length === state.settings.length;
-      return allYears && allRaces && allLevels && allSettings;
-    }
-
     function updateSummary(filtered) {
       const totalSchools = filtered.reduce((sum, row) => sum + Number(row.n_schools || 0), 0);
       const totalRecords = filtered.reduce((sum, row) => sum + Number(row.n_records || 0), 0);
@@ -722,14 +714,11 @@
     function renderTable(filtered) {
       const wrapper = document.getElementById('table-wrapper');
       wrapper.innerHTML = '';
-      const allSelected = hasAllSelections(state.selections);
 
-      if (!state.tableUnlocked || !allSelected) {
+      if (!state.tableUnlocked) {
         const guidance = document.createElement('div');
         guidance.className = 'empty-state';
-        guidance.innerHTML = state.tableUnlocked
-          ? 'Full race × year details appear when every filter option is selected.'
-          : 'Select every filter option and press <strong>Update analysis</strong> to load the full race × year table.';
+        guidance.innerHTML = 'Choose any combination of filters and press <strong>Update analysis</strong> to load the race × year table.';
         wrapper.appendChild(guidance);
         return;
       }
@@ -737,7 +726,7 @@
       if (filtered.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
-        empty.textContent = 'No data available for the current selection.';
+        empty.textContent = 'No data available for the current selection. Adjust your filters and press Update analysis to try again.';
         wrapper.appendChild(empty);
         return;
       }
@@ -1013,10 +1002,9 @@
       const selections = getSelections();
       state.selections = selections;
       const filtered = filterData(selections);
-      const allSelected = hasAllSelections(selections);
 
       if (allowTableUnlock) {
-        state.tableUnlocked = allSelected;
+        state.tableUnlocked = true;
       }
 
       updateSummary(filtered);
