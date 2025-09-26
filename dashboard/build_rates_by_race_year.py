@@ -30,6 +30,9 @@ SPECIAL_SCHOOL_CODES = {"0000000", "0000001"}
 class RateRecord:
     year: str
     race_ethnicity: str
+
+    school_level: str
+    setting: str
     n_schools: int
     n_records: int
     total_enrollment: float
@@ -197,8 +200,12 @@ def attach_traditional(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def summarise_rates(df: pd.DataFrame) -> list[RateRecord]:
+
+    df = df.copy()
+    df["school_level"] = df["school_level"].fillna("Unknown")
+    df["setting"] = df["setting"].fillna("Traditional")
     grouped = (
-        df.groupby(["year", "race_ethnicity"], dropna=False)
+        df.groupby(["year", "race_ethnicity", "school_level", "setting"], dropna=False)
         .agg(
             n_schools=("school_code", pd.Series.nunique),
             n_records=("school_code", "size"),
@@ -208,7 +215,7 @@ def summarise_rates(df: pd.DataFrame) -> list[RateRecord]:
             median_rate=("suspension_rate", "median"),
         )
         .reset_index()
-        .sort_values(["year", "race_ethnicity"])
+        .sort_values(["year", "race_ethnicity", "school_level", "setting"])
     )
     grouped["pooled_rate"] = safe_div(grouped["total_suspensions"], grouped["total_enrollment"])
     records: list[RateRecord] = []
@@ -217,6 +224,8 @@ def summarise_rates(df: pd.DataFrame) -> list[RateRecord]:
             RateRecord(
                 year=row.year,
                 race_ethnicity=row.race_ethnicity,
+                school_level=row.school_level,
+                setting=row.setting,
                 n_schools=int(row.n_schools),
                 n_records=int(row.n_records),
                 total_enrollment=row.total_enrollment,
