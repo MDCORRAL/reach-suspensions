@@ -629,12 +629,14 @@
         Chart.defaults.color = textColor.trim();
         Chart.defaults.plugins.legend.labels.usePointStyle = true;
         Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 59, 92, 0.9)';
+
       }
 
       function buildMetadata(rows) {
         const years = new Set();
         const grades = new Set();
         const settings = new Set();
+
 
         rows.forEach((row) => {
           if (row && Number.isFinite(row.year_num)) years.add(row.year_num);
@@ -707,6 +709,7 @@
           toFileSegment(state.gradeLevel),
           toFileSegment(state.schoolType),
         ].join('_') + '.csv';
+
       }
 
       function formatRowsForExport(rows) {
@@ -969,6 +972,7 @@
             charts.topShare.data.labels = [];
             charts.topShare.data.datasets[0].data = [];
             charts.topShare.update('none');
+
           }
           if (charts.concentration) {
             charts.concentration.data.labels = [];
@@ -1084,6 +1088,7 @@
               tooltip: {
                 callbacks: {
                   label: (context) => segments[context.dataIndex]?.tooltipText || context.label,
+
                 },
               },
             },
@@ -1106,6 +1111,7 @@
           charts.concentration.data.datasets[0].backgroundColor = doughnutColors;
           charts.concentration.data.datasets[0].hoverBackgroundColor = doughnutHover;
           charts.concentration.options.plugins.legend.labels.generateLabels = () => segments.map((segment, index) => ({
+
             text: segment.legendText,
             fillStyle: doughnutColors[index],
             strokeStyle: '#ffffff',
@@ -1118,6 +1124,7 @@
           charts.concentration = new Chart(doughnutContext, doughnutConfig);
         }
       }
+
 
       function applyFilters() {
         store.filtered = filterRows(store.rows);
@@ -1157,6 +1164,7 @@
             DOM.content.hidden = false;
           }
 
+
           applyFilters();
         } catch (error) {
           console.error('Failed to initialize tail concentration dashboard:', error);
@@ -1173,6 +1181,7 @@
         init();
       }
     })();
+
   </script>
 
 
