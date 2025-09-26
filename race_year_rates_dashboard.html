@@ -384,6 +384,10 @@
 
   <script>
     const DATA_URL = 'dashboard/data/rates_by_race_year.json';
+
+    if (window.Chart && window['chartjs-plugin-zoom']) {
+      Chart.register(window['chartjs-plugin-zoom']);
+    }
     const RACE_COLORS = {
       'All Students': '#000000',
       'Asian': '#1f77b4',
@@ -551,7 +555,10 @@
     }
 
     function buildLineChart(filtered, years, races) {
-      const ctx = document.getElementById('line-chart');
+
+      const canvas = document.getElementById('line-chart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
       const sortedYears = [...years].sort();
       const datasets = races.map((race) => {
         const color = RACE_COLORS[race] || '#2774ae';
@@ -623,7 +630,10 @@
     }
 
     function buildBarChart(filtered, races) {
-      const ctx = document.getElementById('bar-chart');
+
+      const canvas = document.getElementById('bar-chart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
       const totalsByRace = races.map((race) => {
         const subset = filtered.filter((row) => row.race_ethnicity === race);
         const totalSusp = subset.reduce((sum, row) => sum + row.total_suspensions, 0);
