@@ -9,7 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
   <script src="dashboard/vendor/chart.umd.js"></script>
   <script src="dashboard/vendor/chartjs-plugin-zoom.min.js"></script>
-  <script src="dashboard/data/rates_by_race_year.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -248,12 +247,10 @@
       padding: 1.25rem;
       background: var(--card-bg);
       box-shadow: 0 8px 18px rgba(0, 59, 92, 0.12);
-      position: relative;
     }
 
     .chart-card canvas {
       width: 100%;
-      max-height: 360px;
     }
 
     table {
@@ -439,7 +436,6 @@
     const ALL_SETTING_VALUE = '__all_settings__';
     const LEVEL_ORDER = ['Elementary', 'Middle', 'High', 'Alternative', 'Other', 'Unknown'];
     const SETTING_ORDER = ['Traditional', 'Non-traditional'];
-
     const state = {
       data: [],
       years: [],
@@ -989,6 +985,7 @@
 
     document.getElementById('update-analysis').addEventListener('click', () => {
       updateVisuals({ allowTableUnlock: true });
+
     });
 
     initialise();
