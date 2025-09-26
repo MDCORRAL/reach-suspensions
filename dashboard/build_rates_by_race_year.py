@@ -30,6 +30,7 @@ SPECIAL_SCHOOL_CODES = {"0000000", "0000001"}
 class RateRecord:
     year: str
     race_ethnicity: str
+
     school_level: str
     setting: str
     n_schools: int
@@ -199,6 +200,7 @@ def attach_traditional(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def summarise_rates(df: pd.DataFrame) -> list[RateRecord]:
+
     df = df.copy()
     df["school_level"] = df["school_level"].fillna("Unknown")
     df["setting"] = df["setting"].fillna("Traditional")

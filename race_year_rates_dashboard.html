@@ -413,7 +413,6 @@
     const ALL_SETTING_VALUE = '__all_settings__';
     const LEVEL_ORDER = ['Elementary', 'Middle', 'High', 'Alternative', 'Other', 'Unknown'];
     const SETTING_ORDER = ['Traditional', 'Non-traditional'];
-
     const state = {
       data: [],
       years: [],
@@ -495,6 +494,7 @@
       input.name = groupId;
       input.value = value;
       input.checked = checked;
+
 
       const span = document.createElement('span');
       span.textContent = label;
