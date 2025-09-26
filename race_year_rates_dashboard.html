@@ -384,6 +384,7 @@
 
   <script>
     const DATA_URL = 'dashboard/data/rates_by_race_year.json';
+
     if (window.Chart && window['chartjs-plugin-zoom']) {
       Chart.register(window['chartjs-plugin-zoom']);
     }
@@ -554,6 +555,7 @@
     }
 
     function buildLineChart(filtered, years, races) {
+
       const canvas = document.getElementById('line-chart');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
@@ -628,6 +630,7 @@
     }
 
     function buildBarChart(filtered, races) {
+
       const canvas = document.getElementById('bar-chart');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
