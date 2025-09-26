@@ -879,10 +879,171 @@
 
       const labels = aggregated.map((item) => item.label);
       const suspensionShare = aggregated.map((item) => Number(item.share.toFixed(1)));
+      const totalShare = aggregated.reduce((sum, item) => sum + (Number.isFinite(item.share) ? item.share : 0), 0);
+      const remainderShare = Number(Math.max(0, 100 - totalShare).toFixed(1));
+      const hasRemainderSlice = remainderShare > 0;
 
       const uclaSuspensionColors = ['#2774AE', '#FFB81C', '#8BB8E8', '#005587', '#FFC72C'];
       const suspensionColors = labels.map((_, index) => uclaSuspensionColors[index % uclaSuspensionColors.length]);
       const suspensionHoverColors = suspensionColors.slice();
+      const toShareString = (value) => `${value.toFixed(1)}%`;
+
+      const doughnutSegments = [];
+      let previousShare = 0;
+      let previousPct = 0;
+      aggregated.forEach((item, index) => {
+        const pctValue = typeof item.pct === 'number' ? Math.min(1, Math.max(0, item.pct)) : 0;
+        const cumulativeShare = Number(Math.max(0, Math.min(100, item.share)).toFixed(1));
+        const incrementalShare = Number(Math.max(0, cumulativeShare - previousShare).toFixed(1));
+        const additionalPct = Math.max(0, pctValue - previousPct);
+        const cohortLabel = index === 0
+          ? `${item.label} of schools`
+          : `Next ${formatters.percent(additionalPct)} of schools (${item.label})`;
+        const legendText = index === 0
+          ? `${item.label} of schools: ${toShareString(cumulativeShare)} of suspensions`
+          : `${cohortLabel}: ${toShareString(incrementalShare)} of suspensions (cumulative ${toShareString(cumulativeShare)})`;
+
+        doughnutSegments.push({
+          label: cohortLabel,
+          legendText,
+          tooltipText: index === 0
+            ? `${item.label} of schools: ${toShareString(incrementalShare)} of suspensions`
+            : `${cohortLabel}: ${toShareString(incrementalShare)} of suspensions (cumulative ${toShareString(cumulativeShare)})`,
+          value: incrementalShare,
+          isRemainder: false,
+        });
+
+        previousShare = cumulativeShare;
+        previousPct = pctValue;
+      });
+
+      const remainderShare = Number(Math.max(0, 100 - previousShare).toFixed(1));
+      const remainderPct = Math.max(0, 1 - previousPct);
+      const hasRemainderSlice = remainderShare > 0;
+      if (hasRemainderSlice) {
+        doughnutSegments.push({
+          label: `Remaining ${formatters.percent(remainderPct)} of schools`,
+          legendText: `Remaining ${formatters.percent(remainderPct)} of schools: ${toShareString(remainderShare)} of suspensions`,
+          tooltipText: `Remaining ${formatters.percent(remainderPct)} of schools: ${toShareString(remainderShare)} of suspensions`,
+          value: remainderShare,
+          isRemainder: true,
+        });
+      }
+
+      const remainderColor = 'rgba(39, 116, 174, 0.18)';
+      const remainderHoverColor = 'rgba(39, 116, 174, 0.32)';
+
+      const doughnutLabels = doughnutSegments.map((segment) => segment.label);
+      const doughnutData = doughnutSegments.map((segment) => segment.value);
+      const doughnutColors = [];
+      const doughnutHoverColors = [];
+      let colorIndex = 0;
+      doughnutSegments.forEach((segment) => {
+        if (segment.isRemainder) {
+          doughnutColors.push(remainderColor);
+          doughnutHoverColors.push(remainderHoverColor);
+        } else {
+          const color = uclaSuspensionColors[colorIndex % uclaSuspensionColors.length];
+          doughnutColors.push(color);
+          doughnutHoverColors.push(color);
+          colorIndex += 1;
+        }
+      });
+
+      const toShareString = (value) => `${value.toFixed(1)}%`;
+
+      const doughnutSegments = [];
+      let previousShare = 0;
+      let previousPct = 0;
+      aggregated.forEach((item, index) => {
+        const pctValue = typeof item.pct === 'number' ? Math.min(1, Math.max(0, item.pct)) : 0;
+        const cumulativeShare = Number(Math.max(0, Math.min(100, item.share)).toFixed(1));
+        const incrementalShare = Number(Math.max(0, cumulativeShare - previousShare).toFixed(1));
+        const additionalPct = Math.max(0, pctValue - previousPct);
+        const cohortLabel = index === 0
+          ? `${item.label} of schools`
+          : `Next ${formatters.percent(additionalPct)} of schools (${item.label})`;
+        const legendText = index === 0
+          ? `${item.label} of schools: ${toShareString(cumulativeShare)} of suspensions`
+          : `${cohortLabel}: ${toShareString(incrementalShare)} of suspensions (cumulative ${toShareString(cumulativeShare)})`;
+
+        doughnutSegments.push({
+          label: cohortLabel,
+          legendText,
+          tooltipText: index === 0
+            ? `${item.label} of schools: ${toShareString(incrementalShare)} of suspensions`
+            : `${cohortLabel}: ${toShareString(incrementalShare)} of suspensions (cumulative ${toShareString(cumulativeShare)})`,
+          value: incrementalShare,
+          isRemainder: false,
+        });
+
+        previousShare = cumulativeShare;
+        previousPct = pctValue;
+      });
+
+      const remainderShare = Number(Math.max(0, 100 - previousShare).toFixed(1));
+      const remainderPct = Math.max(0, 1 - previousPct);
+      const hasRemainderSlice = remainderShare > 0;
+      if (hasRemainderSlice) {
+        doughnutSegments.push({
+          label: `Remaining ${formatters.percent(remainderPct)} of schools`,
+          legendText: `Remaining ${formatters.percent(remainderPct)} of schools: ${toShareString(remainderShare)} of suspensions`,
+          tooltipText: `Remaining ${formatters.percent(remainderPct)} of schools: ${toShareString(remainderShare)} of suspensions`,
+          value: remainderShare,
+          isRemainder: true,
+        });
+      }
+
+      const remainderColor = 'rgba(39, 116, 174, 0.18)';
+      const remainderHoverColor = 'rgba(39, 116, 174, 0.32)';
+
+      const doughnutLabels = doughnutSegments.map((segment) => segment.label);
+      const doughnutData = doughnutSegments.map((segment) => segment.value);
+      const doughnutColors = [];
+      const doughnutHoverColors = [];
+      let colorIndex = 0;
+      doughnutSegments.forEach((segment) => {
+        if (segment.isRemainder) {
+          doughnutColors.push(remainderColor);
+          doughnutHoverColors.push(remainderHoverColor);
+        } else {
+          const color = uclaSuspensionColors[colorIndex % uclaSuspensionColors.length];
+          doughnutColors.push(color);
+          doughnutHoverColors.push(color);
+          colorIndex += 1;
+        }
+      });
+
+      const toShareString = (value) => `${value.toFixed(1)}%`;
+
+      const doughnutSegments = [];
+      let previousShare = 0;
+      let previousPct = 0;
+      aggregated.forEach((item, index) => {
+        const pctValue = typeof item.pct === 'number' ? Math.min(1, Math.max(0, item.pct)) : 0;
+        const cumulativeShare = Number(Math.max(0, Math.min(100, item.share)).toFixed(1));
+        const incrementalShare = Number(Math.max(0, cumulativeShare - previousShare).toFixed(1));
+        const additionalPct = Math.max(0, pctValue - previousPct);
+        const cohortLabel = index === 0
+          ? `${item.label} of schools`
+          : `Next ${formatters.percent(additionalPct)} of schools (${item.label})`;
+        const legendText = index === 0
+          ? `${item.label} of schools: ${toShareString(cumulativeShare)} of suspensions`
+          : `${cohortLabel}: ${toShareString(incrementalShare)} of suspensions (cumulative ${toShareString(cumulativeShare)})`;
+
+        doughnutSegments.push({
+          label: cohortLabel,
+          legendText,
+          tooltipText: index === 0
+            ? `${item.label} of schools: ${toShareString(incrementalShare)} of suspensions`
+            : `${cohortLabel}: ${toShareString(incrementalShare)} of suspensions (cumulative ${toShareString(cumulativeShare)})`,
+          value: incrementalShare,
+          isRemainder: false,
+        });
+
+        previousShare = cumulativeShare;
+        previousPct = pctValue;
+      });
 
       const toShareString = (value) => `${value.toFixed(1)}%`;
 
@@ -1142,6 +1303,7 @@
           if (loadingEl) {
             loadingEl.textContent = 'Unable to load the prepared grade-setting data. Please refresh the page or try again later.';
             loadingEl.hidden = false;
+            
           }
         });
     }
