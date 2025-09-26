@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Race × Year Suspension Explorer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="dashboard/vendor/chart.umd.js"></script>
+  <script src="dashboard/vendor/chartjs-plugin-zoom.min.js"></script>
+  <script src="dashboard/data/rates_by_race_year.js" data-rates-bundle="true"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --bg: #daebfe;
+      --card-bg: #ffffff;
+      --border: #8bb8e8;
+      --text: #003b5c;
+      --muted: rgba(0, 59, 92, 0.8);
+      --accent: #2774ae;
+      --accent-strong: #005587;
+      --accent-soft: #8bb8e8;
+      --highlight: #ffb81c;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--accent-strong);
+      color: #ffffff;
+      padding: 2.75rem 1.5rem 2rem;
+      box-shadow: 0 4px 18px rgba(0, 59, 92, 0.35);
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: rgba(218, 235, 254, 0.95);
+      text-decoration: none;
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      background: rgba(0, 59, 92, 0.35);
+      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+
+    .back-link:hover {
+      background: rgba(0, 59, 92, 0.55);
+      color: #ffffff;
+      transform: translateX(-2px);
+    }
+
+    .back-link:focus-visible {
+      outline: 2px solid var(--highlight);
+      outline-offset: 3px;
+      box-shadow: 0 0 0 4px rgba(255, 184, 28, 0.3);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 3vw, 2.5rem);
+      letter-spacing: -0.01em;
+    }
+
+    header p {
+      margin: 0.75rem 0 0;
+      max-width: 60rem;
+      font-size: 1rem;
+      color: rgba(218, 235, 254, 0.85);
+    }
+
+    main {
+      padding: 1.75rem 1.5rem 3rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 10px 22px rgba(0, 59, 92, 0.1);
+    }
+
+    h2 {
+      margin: 0 0 1rem;
+      font-size: 1.35rem;
+    }
+
+    h3 {
+      margin-top: 0;
+      font-size: 1.1rem;
+      color: var(--muted);
+    }
+
+    #controls {
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    .filter-group {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .filter-group legend {
+      font-weight: 600;
+      color: var(--accent-strong);
+    }
+
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.4rem 0.8rem;
+      background: rgba(255, 255, 255, 0.95);
+      cursor: pointer;
+      font-size: 0.92rem;
+      color: var(--muted);
+      transition: all 0.2s ease;
+    }
+
+    .pill input { display: none; }
+
+    .pill.active {
+      border-color: var(--accent);
+      background: rgba(39, 116, 174, 0.18);
+      color: var(--accent-strong);
+      font-weight: 600;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .actions button {
+      border-radius: 999px;
+      border: none;
+      padding: 0.55rem 1.15rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+
+    #update-analysis {
+      background: var(--highlight);
+      color: var(--accent-strong);
+    }
+
+    #update-analysis:hover {
+      background: #ffc85b;
+      transform: translateY(-1px);
+    }
+
+    #download-csv {
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    #download-csv:hover:not(:disabled) {
+      background: var(--accent-strong);
+    }
+
+    #download-csv:disabled {
+      background: var(--border);
+      color: var(--muted);
+      cursor: not-allowed;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+
+    .summary-card {
+      border: 1px solid rgba(39, 116, 174, 0.25);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      background: linear-gradient(135deg, rgba(39, 116, 174, 0.12), rgba(255, 255, 255, 0.95));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    }
+
+    .summary-card h4 {
+      margin: 0;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .summary-card p {
+      margin: 0.3rem 0 0;
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: var(--accent-strong);
+    }
+
+    .summary-card span {
+      display: block;
+      margin-top: 0.2rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .charts {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    @media (min-width: 900px) {
+      .charts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    .chart-card {
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      padding: 1.25rem;
+      background: var(--card-bg);
+      box-shadow: 0 8px 18px rgba(0, 59, 92, 0.12);
+      position: relative;
+    }
+
+    .chart-card canvas {
+      width: 100%;
+      max-height: 360px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+
+    thead {
+      background: rgba(39, 116, 174, 0.12);
+      color: var(--accent-strong);
+    }
+
+    th, td {
+      padding: 0.65rem;
+      border-bottom: 1px solid rgba(0, 59, 92, 0.12);
+      text-align: left;
+    }
+
+    tbody tr:hover {
+      background: rgba(39, 116, 174, 0.08);
+    }
+
+    .empty-state {
+      padding: 1rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    #loading {
+      text-align: center;
+      padding: 4rem 1rem;
+      font-size: 1.05rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-top">
+      <a class="back-link" href="index.html">← Back to dashboard home</a>
+    </div>
+    <h1>Race × Year Suspension Explorer</h1>
+    <p>
+      Explore pre-computed suspension metrics from the comprehensive rates analysis. Select any
+      combination of academic years and race/ethnicity groups, then update the charts and summary to
+      review total suspensions and rate comparisons.
+    </p>
+  </header>
+  <main>
+    <div id="loading">Loading pre-computed data…</div>
+    <section id="content" hidden>
+      <article class="card" aria-labelledby="filters-heading">
+        <h2 id="filters-heading">Filters</h2>
+        <form id="controls">
+          <fieldset class="filter-group" id="year-filter" aria-labelledby="years-label">
+            <legend id="years-label">Academic years</legend>
+            <div class="pill-list" role="group" aria-label="Select academic years"></div>
+          </fieldset>
+          <fieldset class="filter-group" id="race-filter" aria-labelledby="races-label">
+            <legend id="races-label">Race and ethnicity</legend>
+            <div class="pill-list" role="group" aria-label="Select race and ethnicity groups"></div>
+          </fieldset>
+          <fieldset class="filter-group" id="level-filter" aria-labelledby="levels-label">
+            <legend id="levels-label">School level</legend>
+            <div class="pill-list" role="group" aria-label="Select school levels"></div>
+          </fieldset>
+          <fieldset class="filter-group" id="setting-filter" aria-labelledby="settings-label">
+            <legend id="settings-label">School type</legend>
+            <div class="pill-list" role="group" aria-label="Select school types"></div>
+          </fieldset>
+        </form>
+        <div class="actions">
+          <button type="button" id="update-analysis">Update analysis</button>
+          <button type="button" id="download-csv" disabled>Download CSV</button>
+        </div>
+      </article>
+
+      <section class="card" aria-labelledby="summary-heading">
+        <h2 id="summary-heading">Summary of selected data</h2>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <h4>Total schools (grouped)</h4>
+            <p id="summary-schools">0</p>
+            <span>Sum of distinct schools represented across selected year × race combinations.</span>
+          </div>
+          <div class="summary-card">
+            <h4>Records</h4>
+            <p id="summary-records">0</p>
+            <span>Number of race-year observations powering the analysis.</span>
+          </div>
+          <div class="summary-card">
+            <h4>Total enrollment</h4>
+            <p id="summary-enrollment">0</p>
+            <span>Students represented in the selected combinations.</span>
+          </div>
+          <div class="summary-card">
+            <h4>Total suspensions</h4>
+            <p id="summary-suspensions">0</p>
+            <span>Suspension incidents summed across the selection.</span>
+          </div>
+          <div class="summary-card">
+            <h4>Weighted mean rate</h4>
+            <p id="summary-mean-rate">0%</p>
+            <span>Average suspension rate across schools (weighted by records).</span>
+          </div>
+          <div class="summary-card">
+            <h4>Median of medians</h4>
+            <p id="summary-median-rate">0%</p>
+            <span>Median of the race-year median rates.</span>
+          </div>
+          <div class="summary-card">
+            <h4>Overall pooled rate</h4>
+            <p id="summary-pooled-rate">0%</p>
+            <span>Total suspensions divided by total enrollment.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="charts" aria-label="Visual summaries">
+        <article class="chart-card">
+          <h3>Suspension rate trends</h3>
+          <canvas id="line-chart" aria-label="Suspension rate trends by race and year" role="img"></canvas>
+        </article>
+        <article class="chart-card">
+          <h3>Total suspensions by race</h3>
+          <canvas id="bar-chart" aria-label="Total suspensions by race across selected years" role="img"></canvas>
+        </article>
+      </section>
+
+      <section class="card" aria-labelledby="table-heading">
+        <h2 id="table-heading">Race × year detail</h2>
+        <div id="table-wrapper" role="region" aria-live="polite"></div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const DATA_URL = 'dashboard/data/rates_by_race_year.json';
+    const DATA_BUNDLE_SRC = 'dashboard/data/rates_by_race_year.js';
+
+    function getPreloadedData() {
+      if (typeof window === 'undefined') return null;
+      const payload = window.RATES_BY_RACE_YEAR_DATA;
+      if (payload && Array.isArray(payload.rates_by_race_year)) {
+        return payload;
+      }
+      return null;
+    }
+
+    function ensureDataBundleLoaded() {
+      if (typeof window === 'undefined') {
+        return Promise.resolve(null);
+      }
+      const existingData = getPreloadedData();
+      if (existingData) {
+        return Promise.resolve(existingData);
+      }
+
+      return new Promise((resolve, reject) => {
+        const scriptSelector = 'script[data-rates-bundle]';
+        let script = document.querySelector(scriptSelector);
+
+        const handleLoad = () => {
+          const payload = getPreloadedData();
+          if (payload) {
+            resolve(payload);
+          } else {
+            reject(new Error('Bundle loaded but data missing'));
+          }
+        };
+
+        const handleError = () => {
+          reject(new Error('Failed to load precomputed data bundle'));
+        };
+
+        if (script) {
+          script.addEventListener('load', handleLoad, { once: true });
+          script.addEventListener('error', handleError, { once: true });
+          return;
+        }
+
+        script = document.createElement('script');
+        script.src = DATA_BUNDLE_SRC;
+        script.dataset.ratesBundle = 'true';
+        script.addEventListener('load', handleLoad, { once: true });
+        script.addEventListener('error', handleError, { once: true });
+        document.head.appendChild(script);
+      });
+    }
+    if (window.Chart) {
+      const zoomGlobal = window['chartjs-plugin-zoom'] || window.chartjsPluginZoom || window.ChartZoom;
+      if (zoomGlobal) {
+        const zoomPlugin = zoomGlobal.default || zoomGlobal;
+        Chart.register(zoomPlugin);
+      }
+    }
+    const UCLA_PALETTE = [
+      '#2774AE',
+      '#005587',
+      '#003B5C',
+      '#8BB8E8',
+      '#FFB81C',
+      '#FFC72C',
+      '#FFD100'
+    ];
+
+    const raceColorCache = new Map();
+
+    function hexToRgba(hex, alpha = 1) {
+      const sanitized = hex.replace('#', '');
+      const bigint = parseInt(sanitized, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function getRaceColor(race, alpha = 1) {
+      if (!raceColorCache.has(race)) {
+        const nextColor = UCLA_PALETTE[raceColorCache.size % UCLA_PALETTE.length];
+        raceColorCache.set(race, nextColor);
+      }
+      const baseColor = raceColorCache.get(race);
+      return alpha === 1 ? baseColor : hexToRgba(baseColor, alpha);
+    }
+
+    const ALL_LEVEL_VALUE = '__all_levels__';
+    const ALL_SETTING_VALUE = '__all_settings__';
+    const LEVEL_ORDER = ['Elementary', 'Middle', 'High', 'Alternative', 'Other', 'Unknown'];
+    const SETTING_ORDER = ['Traditional', 'Non-traditional'];
+
+    const state = {
+      data: [],
+      years: [],
+      races: [],
+      levels: [],
+      settings: [],
+      selections: {
+        years: [],
+        races: [],
+        levels: [],
+        settings: [],
+        includeAllLevels: true,
+        includeAllSettings: true
+      },
+      charts: { line: null, bar: null },
+      tableUnlocked: false
+    };
+
+    function formatNumber(value, decimals = 0) {
+      if (!Number.isFinite(value)) return '0';
+      return value.toLocaleString('en-US', { maximumFractionDigits: decimals, minimumFractionDigits: decimals });
+    }
+
+    function formatPercent(value, decimals = 1) {
+      if (!Number.isFinite(value)) return '0%';
+      return (value * 100).toLocaleString('en-US', {
+        maximumFractionDigits: decimals,
+        minimumFractionDigits: decimals
+      }) + '%';
+    }
+
+    function slugify(value) {
+      return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+
+    function setChecked(input, checked) {
+      if (input.checked === checked) return;
+      input.checked = checked;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function configureAllToggle(groupSelector, allValue) {
+      const allInput = document.querySelector(`${groupSelector} input[value="${allValue}"]`);
+      if (!allInput) return;
+      const otherInputs = Array.from(document.querySelectorAll(`${groupSelector} input`)).filter((input) => input.value !== allValue);
+
+      allInput.addEventListener('change', () => {
+        if (allInput.checked) {
+          otherInputs.forEach((input) => {
+            if (input.checked) {
+              setChecked(input, false);
+            }
+          });
+        } else if (!otherInputs.some((input) => input.checked)) {
+          setChecked(allInput, true);
+        }
+      });
+
+      otherInputs.forEach((input) => {
+        input.addEventListener('change', () => {
+          if (input.checked && allInput.checked) {
+            setChecked(allInput, false);
+          } else if (!input.checked && !otherInputs.some((item) => item.checked)) {
+            setChecked(allInput, true);
+          }
+        });
+      });
+    }
+
+    function createPill(label, value, groupId, options = {}) {
+      const { checked = true } = options;
+      const wrapper = document.createElement('label');
+      wrapper.className = 'pill';
+      wrapper.dataset.value = value;
+      wrapper.setAttribute('role', 'checkbox');
+      wrapper.setAttribute('aria-checked', String(checked));
+
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.name = groupId;
+      input.value = value;
+      input.checked = checked;
+
+      const span = document.createElement('span');
+      span.textContent = label;
+
+      wrapper.append(input, span);
+      if (checked) {
+        wrapper.classList.add('active');
+      }
+
+      wrapper.addEventListener('click', (event) => {
+        if (event.target === input) return;
+        event.preventDefault();
+        input.click();
+      });
+
+      input.addEventListener('change', () => {
+        wrapper.classList.toggle('active', input.checked);
+        wrapper.setAttribute('aria-checked', String(input.checked));
+      });
+
+      return wrapper;
+    }
+
+    function buildFilters() {
+      const yearList = document.querySelector('#year-filter .pill-list');
+      const raceList = document.querySelector('#race-filter .pill-list');
+      const levelList = document.querySelector('#level-filter .pill-list');
+      const settingList = document.querySelector('#setting-filter .pill-list');
+      yearList.innerHTML = '';
+      raceList.innerHTML = '';
+      levelList.innerHTML = '';
+      settingList.innerHTML = '';
+      state.years.forEach((year) => yearList.appendChild(createPill(year, year, 'years')));
+      state.races.forEach((race) => raceList.appendChild(createPill(race, race, 'races')));
+      levelList.appendChild(createPill('All school levels', ALL_LEVEL_VALUE, 'levels', { checked: true }));
+      state.levels.forEach((level) => levelList.appendChild(createPill(level, level, 'levels', { checked: false })));
+      settingList.appendChild(createPill('All school types', ALL_SETTING_VALUE, 'settings', { checked: true }));
+      state.settings.forEach((setting) => settingList.appendChild(createPill(setting, setting, 'settings', { checked: false })));
+      configureAllToggle('#level-filter', ALL_LEVEL_VALUE);
+      configureAllToggle('#setting-filter', ALL_SETTING_VALUE);
+    }
+
+    function getSelections() {
+      const years = Array.from(document.querySelectorAll('#year-filter input:checked')).map((input) => input.value);
+      const races = Array.from(document.querySelectorAll('#race-filter input:checked')).map((input) => input.value);
+      const levelInputs = Array.from(document.querySelectorAll('#level-filter input'));
+      const includeAllLevels = levelInputs.find((input) => input.value === ALL_LEVEL_VALUE)?.checked ?? true;
+      const levels = levelInputs
+        .filter((input) => input.checked && input.value !== ALL_LEVEL_VALUE)
+        .map((input) => input.value);
+      const settingInputs = Array.from(document.querySelectorAll('#setting-filter input'));
+      const includeAllSettings = settingInputs.find((input) => input.value === ALL_SETTING_VALUE)?.checked ?? true;
+      const settings = settingInputs
+        .filter((input) => input.checked && input.value !== ALL_SETTING_VALUE)
+        .map((input) => input.value);
+      return { years, races, levels, settings, includeAllLevels, includeAllSettings };
+    }
+
+    function filterData({ years, races, levels, settings, includeAllLevels, includeAllSettings }) {
+      return state.data.filter((row) => (
+        (years.length === 0 || years.includes(row.year)) &&
+        (races.length === 0 || races.includes(row.race_ethnicity)) &&
+        (includeAllLevels || levels.length === 0 || levels.includes(row.school_level)) &&
+        (includeAllSettings || settings.length === 0 || settings.includes(row.setting))
+      ));
+    }
+
+    function hasAllSelections({ years, races, levels, settings, includeAllLevels, includeAllSettings }) {
+      const allYears = years.length === state.years.length;
+      const allRaces = races.length === state.races.length;
+      const allLevels = includeAllLevels || levels.length === state.levels.length;
+      const allSettings = includeAllSettings || settings.length === state.settings.length;
+      return allYears && allRaces && allLevels && allSettings;
+    }
+
+    function updateSummary(filtered) {
+      const totalSchools = filtered.reduce((sum, row) => sum + Number(row.n_schools || 0), 0);
+      const totalRecords = filtered.reduce((sum, row) => sum + Number(row.n_records || 0), 0);
+      const totalEnrollment = filtered.reduce((sum, row) => sum + Number(row.total_enrollment || 0), 0);
+      const totalSuspensions = filtered.reduce((sum, row) => sum + Number(row.total_suspensions || 0), 0);
+      const weightedMeanRate = filtered.reduce((sum, row) => sum + Number(row.mean_rate || 0) * Number(row.n_records || 0), 0) /
+        (totalRecords || 1);
+      const pooledRate = totalEnrollment > 0 ? totalSuspensions / totalEnrollment : 0;
+      let medianOfMedians = 0;
+      if (filtered.length > 0) {
+        const medians = filtered.map((row) => Number(row.median_rate || 0)).sort((a, b) => a - b);
+        const mid = medians.length / 2;
+        medianOfMedians = medians.length % 2 === 0
+          ? (medians[mid - 1] + medians[mid]) / 2
+          : medians[Math.floor(mid)];
+      }
+
+      document.getElementById('summary-schools').textContent = formatNumber(totalSchools);
+      document.getElementById('summary-records').textContent = formatNumber(totalRecords);
+      document.getElementById('summary-enrollment').textContent = formatNumber(totalEnrollment);
+      document.getElementById('summary-suspensions').textContent = formatNumber(totalSuspensions);
+      document.getElementById('summary-mean-rate').textContent = formatPercent(weightedMeanRate, 2);
+      document.getElementById('summary-median-rate').textContent = formatPercent(medianOfMedians, 2);
+      document.getElementById('summary-pooled-rate').textContent = formatPercent(pooledRate, 2);
+    }
+
+    function renderTable(filtered) {
+      const wrapper = document.getElementById('table-wrapper');
+      wrapper.innerHTML = '';
+      const allSelected = hasAllSelections(state.selections);
+
+      if (!state.tableUnlocked || !allSelected) {
+        const guidance = document.createElement('div');
+        guidance.className = 'empty-state';
+        guidance.innerHTML = state.tableUnlocked
+          ? 'Full race × year details appear when every filter option is selected.'
+          : 'Select every filter option and press <strong>Update analysis</strong> to load the full race × year table.';
+        wrapper.appendChild(guidance);
+        return;
+      }
+
+      if (filtered.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'No data available for the current selection.';
+        wrapper.appendChild(empty);
+        return;
+      }
+
+      const table = document.createElement('table');
+      const thead = document.createElement('thead');
+      thead.innerHTML = `
+        <tr>
+          <th>Academic year</th>
+          <th>Race / ethnicity</th>
+          <th>School level</th>
+          <th>School type</th>
+          <th>Schools</th>
+          <th>Records</th>
+          <th>Total enrollment</th>
+          <th>Total suspensions</th>
+          <th>Mean rate</th>
+          <th>Median rate</th>
+          <th>Pooled rate</th>
+        </tr>
+      `;
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      filtered
+        .sort((a, b) => {
+          if (a.year !== b.year) return a.year.localeCompare(b.year);
+          if (a.race_ethnicity !== b.race_ethnicity) return a.race_ethnicity.localeCompare(b.race_ethnicity);
+          if (a.school_level !== b.school_level) return a.school_level.localeCompare(b.school_level);
+          return a.setting.localeCompare(b.setting);
+        })
+        .forEach((row) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${row.year}</td>
+            <td>${row.race_ethnicity}</td>
+            <td>${row.school_level}</td>
+            <td>${row.setting}</td>
+            <td>${formatNumber(row.n_schools)}</td>
+            <td>${formatNumber(row.n_records)}</td>
+            <td>${formatNumber(row.total_enrollment)}</td>
+            <td>${formatNumber(row.total_suspensions)}</td>
+            <td>${formatPercent(row.mean_rate, 2)}</td>
+            <td>${formatPercent(row.median_rate, 2)}</td>
+            <td>${formatPercent(row.pooled_rate, 2)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      table.appendChild(tbody);
+      wrapper.appendChild(table);
+    }
+
+    function buildLineChart(filtered, years, races) {
+      const canvas = document.getElementById('line-chart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const sortedYears = [...years].sort();
+      const aggregated = new Map();
+
+      filtered.forEach((row) => {
+        const key = `${row.year}||${row.race_ethnicity}`;
+        if (!aggregated.has(key)) {
+          aggregated.set(key, { totalSuspensions: 0, totalEnrollment: 0 });
+        }
+        const entry = aggregated.get(key);
+        entry.totalSuspensions += Number(row.total_suspensions || 0);
+        entry.totalEnrollment += Number(row.total_enrollment || 0);
+      });
+
+      const datasets = races.map((race) => {
+        const color = getRaceColor(race);
+        const data = sortedYears.map((year) => {
+          const entry = aggregated.get(`${year}||${race}`);
+          if (!entry || entry.totalEnrollment <= 0) return null;
+          const rate = entry.totalSuspensions / entry.totalEnrollment;
+          return Number(rate.toFixed(6));
+        });
+        return {
+          label: race,
+          data,
+          borderColor: color,
+          backgroundColor: getRaceColor(race, 0.18),
+          spanGaps: true,
+          tension: 0.25,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointHitRadius: 12,
+          pointBackgroundColor: color,
+          pointBorderWidth: 1.5
+        };
+      }).filter((dataset) => dataset.data.some((value) => value !== null));
+
+      if (state.charts.line) {
+        if (state.charts.line.resetZoom) {
+          state.charts.line.resetZoom();
+        }
+        state.charts.line.data.labels = sortedYears;
+        state.charts.line.data.datasets = datasets;
+        state.charts.line.update();
+        return;
+      }
+
+      state.charts.line = new Chart(ctx, {
+        type: 'line',
+        data: { labels: sortedYears, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 2.2,
+          interaction: { mode: 'nearest', intersect: false },
+          plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: (context) => `${context.dataset.label}: ${formatPercent(context.parsed.y, 2)}`
+              }
+            },
+            zoom: {
+              zoom: {
+                wheel: { enabled: true },
+                pinch: { enabled: true },
+                mode: 'xy'
+              },
+              pan: { enabled: true, mode: 'xy' }
+            }
+          },
+          scales: {
+            y: {
+              title: { display: true, text: 'Pooled suspension rate' },
+              ticks: {
+                callback: (value) => formatPercent(value, 1)
+              }
+            },
+            x: {
+              title: { display: true, text: 'Academic year' }
+            }
+          }
+        }
+      });
+    }
+
+    function buildBarChart(filtered, races) {
+      const canvas = document.getElementById('bar-chart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const totalsByRace = races.map((race) => {
+        const subset = filtered.filter((row) => row.race_ethnicity === race);
+        const totalSusp = subset.reduce((sum, row) => sum + Number(row.total_suspensions || 0), 0);
+        return { race, totalSusp };
+      }).filter((entry) => entry.totalSusp > 0);
+
+      const labels = totalsByRace.map((entry) => entry.race);
+      const data = totalsByRace.map((entry) => Number(entry.totalSusp.toFixed(2)));
+      const backgroundColors = labels.map((race) => getRaceColor(race, 0.8));
+      const borderColors = labels.map((race) => getRaceColor(race));
+
+      if (state.charts.bar) {
+        if (state.charts.bar.resetZoom) {
+          state.charts.bar.resetZoom();
+        }
+        state.charts.bar.data.labels = labels;
+        state.charts.bar.data.datasets[0].data = data;
+        state.charts.bar.data.datasets[0].backgroundColor = backgroundColors;
+        state.charts.bar.data.datasets[0].borderColor = borderColors;
+        state.charts.bar.data.datasets[0].borderWidth = 1;
+        state.charts.bar.update();
+        return;
+      }
+
+      state.charts.bar = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Total suspensions',
+              data,
+              backgroundColor: backgroundColors,
+              borderColor: borderColors,
+              borderWidth: 1,
+              borderRadius: 8
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 2.1,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) => `${context.dataset.label}: ${formatNumber(context.parsed.y)}`
+              }
+            },
+            zoom: {
+              zoom: {
+                wheel: { enabled: true },
+                pinch: { enabled: true },
+                mode: 'x'
+              },
+              pan: { enabled: true, mode: 'x' }
+            }
+          },
+          scales: {
+            y: {
+              title: { display: true, text: 'Suspension count' },
+              ticks: {
+                callback: (value) => formatNumber(value)
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateDownload(filtered) {
+      const button = document.getElementById('download-csv');
+      if (filtered.length === 0) {
+        button.disabled = true;
+        button.removeEventListener('click', triggerCsvDownload);
+        button.dataset.payload = '';
+        return;
+      }
+      button.disabled = false;
+      button.removeEventListener('click', triggerCsvDownload);
+      button.addEventListener('click', triggerCsvDownload);
+      button.dataset.payload = JSON.stringify(filtered);
+    }
+
+    function buildDownloadFilename() {
+      const {
+        years = [],
+        races = [],
+        levels = [],
+        settings = [],
+        includeAllLevels = true,
+        includeAllSettings = true
+      } = state.selections;
+      const yearsPart = years.length === 0 || years.length === state.years.length
+        ? 'all-years'
+        : years.map(slugify).join('_');
+      const racesPart = races.length === 0 || races.length === state.races.length
+        ? 'all-races'
+        : races.map(slugify).join('_');
+      const levelsPart = includeAllLevels || levels.length === 0 || levels.length === state.levels.length
+        ? 'all-levels'
+        : levels.map(slugify).join('_');
+      const settingsPart = includeAllSettings || settings.length === 0 || settings.length === state.settings.length
+        ? 'all-settings'
+        : settings.map(slugify).join('_');
+      return `rates-by-race-year_${yearsPart}_${racesPart}_${levelsPart}_${settingsPart}.csv`;
+    }
+
+    function triggerCsvDownload(event) {
+      const payload = JSON.parse(event.currentTarget.dataset.payload || '[]');
+      if (!payload.length) return;
+      const header = ['year','race_ethnicity','school_level','setting','n_schools','n_records','total_enrollment','total_suspensions','mean_rate','median_rate','pooled_rate'];
+      const rows = payload.map((row) => header.map((key) => row[key]));
+      const csv = [header.join(','), ...rows.map((row) => row.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = buildDownloadFilename();
+      document.body.appendChild(link);
+      link.click();
+      URL.revokeObjectURL(link.href);
+      link.remove();
+    }
+
+    function updateVisuals(options = {}) {
+      const { allowTableUnlock = false } = options;
+      const selections = getSelections();
+      state.selections = selections;
+      const filtered = filterData(selections);
+      const allSelected = hasAllSelections(selections);
+
+      if (allowTableUnlock) {
+        state.tableUnlocked = allSelected;
+      }
+
+      updateSummary(filtered);
+      renderTable(filtered);
+      updateDownload(filtered);
+
+      const races = selections.races.length ? selections.races : state.races;
+      const years = selections.years.length ? selections.years : state.years;
+      buildLineChart(filtered, years, races);
+      buildBarChart(filtered, races);
+    }
+
+    async function loadData() {
+      try {
+        const preloaded = getPreloadedData() || (await ensureDataBundleLoaded());
+        if (preloaded && Array.isArray(preloaded.rates_by_race_year)) {
+          return preloaded;
+        }
+      } catch (bundleError) {
+        console.warn(bundleError);
+      }
+
+      if (location.protocol === 'file:') {
+        throw new Error('Precomputed bundle unavailable when opened from disk.');
+      }
+
+      const response = await fetch(DATA_URL, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Unable to load dataset');
+      return response.json();
+    }
+
+    async function initialise() {
+      try {
+        const payload = await loadData();
+        state.data = payload.rates_by_race_year || [];
+        state.years = Array.from(new Set(state.data.map((row) => row.year))).sort();
+        state.races = Array.from(new Set(state.data.map((row) => row.race_ethnicity))).sort();
+        raceColorCache.clear();
+        state.races.forEach((race) => getRaceColor(race));
+        const levelSet = new Set();
+        const settingSet = new Set();
+        state.data.forEach((row) => {
+          if (row.school_level) levelSet.add(row.school_level);
+          if (row.setting) settingSet.add(row.setting);
+        });
+        const levelSort = (a, b) => {
+          const indexA = LEVEL_ORDER.indexOf(a);
+          const indexB = LEVEL_ORDER.indexOf(b);
+          const weightA = indexA === -1 ? LEVEL_ORDER.length : indexA;
+          const weightB = indexB === -1 ? LEVEL_ORDER.length : indexB;
+          if (weightA !== weightB) return weightA - weightB;
+          return a.localeCompare(b);
+        };
+        const settingSort = (a, b) => {
+          const indexA = SETTING_ORDER.indexOf(a);
+          const indexB = SETTING_ORDER.indexOf(b);
+          const weightA = indexA === -1 ? SETTING_ORDER.length : indexA;
+          const weightB = indexB === -1 ? SETTING_ORDER.length : indexB;
+          if (weightA !== weightB) return weightA - weightB;
+          return a.localeCompare(b);
+        };
+        state.levels = Array.from(levelSet).sort(levelSort);
+        state.settings = Array.from(settingSet).sort(settingSort);
+        buildFilters();
+        document.getElementById('loading').hidden = true;
+        document.getElementById('content').hidden = false;
+        updateVisuals();
+      } catch (error) {
+        const loading = document.getElementById('loading');
+        loading.innerHTML =
+          'Failed to load pre-computed data. Please refresh to try again. ' +
+          'If the file is opened directly from disk, ensure the accompanying <code>dashboard/data/rates_by_race_year.js</code> file is present.';
+        console.error(error);
+    }
+    }
+
+    document.getElementById('update-analysis').addEventListener('click', () => {
+      updateVisuals({ allowTableUnlock: true });
+    });
+
+    initialise();
+  </script>
+</body>
+</html>
