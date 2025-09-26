@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js" integrity="sha512-HTrE0kP7FpC18JNpDutLCRa14Q6gttxyPjdvVSxGInxjeRGna43EIBgzHuLlHotE5T7V6czS4QhIwTZYBFvToQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js" integrity="sha512-N1zsuZm+6TSGT+b/xHWEYT8BXUaOkB5xnPlU/eHVXwEn6OA0nxS8VFJGDhFY3aZD+4Z6+xuMOzLrxuOP9M5YnQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="dashboard/vendor/chart.umd.js"></script>
+  <script src="dashboard/vendor/chartjs-plugin-zoom.min.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -392,8 +392,12 @@
 
   <script>
     const DATA_URL = 'dashboard/data/rates_by_race_year.json';
-    if (window.Chart && window['chartjs-plugin-zoom']) {
-      Chart.register(window['chartjs-plugin-zoom']);
+    if (window.Chart) {
+      const zoomGlobal = window['chartjs-plugin-zoom'] || window.chartjsPluginZoom || window.ChartZoom;
+      if (zoomGlobal) {
+        const zoomPlugin = zoomGlobal.default || zoomGlobal;
+        Chart.register(zoomPlugin);
+      }
     }
     const RACE_COLORS = {
       'All Students': '#000000',
@@ -494,7 +498,6 @@
       input.name = groupId;
       input.value = value;
       input.checked = checked;
-
 
       const span = document.createElement('span');
       span.textContent = label;
