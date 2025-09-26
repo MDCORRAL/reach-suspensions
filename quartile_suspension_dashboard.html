@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quartile Suspension Comparison | REACH</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.27.1.min.js"></script>
+  <style>
+    :root {
+      --bg: #daebfe;
+      --surface: rgba(255, 255, 255, 0.95);
+      --border: #8bb8e8;
+      --primary: #2774ae;
+      --accent: #ffb81c;
+      --muted: #005587;
+      --deep: #003b5c;
+      --pill-bg: rgba(39, 116, 174, 0.12);
+      --shadow: 0 18px 40px rgba(0, 59, 92, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #003b5c 0%, #2774ae 100%);
+      color: var(--deep);
+      min-height: 100vh;
+    }
+
+    .top-nav {
+      padding: 1rem 2rem 0;
+      text-align: right;
+    }
+
+    .top-nav a,
+    .top-nav button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--deep);
+      text-decoration: none;
+      border-radius: 999px;
+      padding: 0.45rem 1.1rem;
+      font-weight: 600;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .top-nav a:hover,
+    .top-nav a:focus {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+    }
+
+    header {
+      text-align: center;
+      color: white;
+      padding: 3rem 1.5rem 2.5rem;
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.01em;
+    }
+
+    header p {
+      max-width: 820px;
+      margin: 0 auto;
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    main {
+      max-width: 1200px;
+      margin: -2.5rem auto 4rem;
+      padding: 0 1.5rem 3rem;
+    }
+
+    .panel {
+      background: var(--surface);
+      border-radius: 18px;
+      padding: 1.75rem 2rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+
+    .panel h2 {
+      font-size: 1.45rem;
+      margin: 0 0 0.75rem;
+      color: var(--deep);
+    }
+
+    .controls {
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    .control-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    label {
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    select {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.55rem 0.85rem;
+      font-size: 0.95rem;
+      color: var(--deep);
+      background: white;
+      min-width: 160px;
+      box-shadow: inset 0 1px 3px rgba(0, 59, 92, 0.08);
+    }
+
+    select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(39, 116, 174, 0.18);
+    }
+
+    .quartile-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+    }
+
+    .quartile-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.9rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--muted);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .quartile-pill input {
+      display: none;
+    }
+
+    .quartile-pill.active {
+      border-color: var(--primary);
+      background: var(--pill-bg);
+      color: var(--deep);
+      font-weight: 600;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+
+    .summary-card {
+      background: linear-gradient(145deg, rgba(39, 116, 174, 0.1), rgba(255, 255, 255, 0.95));
+      border-radius: 14px;
+      padding: 1.2rem 1.4rem;
+      border: 1px solid rgba(39, 116, 174, 0.16);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      color: var(--muted);
+    }
+
+    .summary-card h3 {
+      font-size: 0.9rem;
+      margin: 0 0 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .summary-card p {
+      margin: 0;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--deep);
+    }
+
+    .summary-card span {
+      display: block;
+      margin-top: 0.3rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .chart-wrapper {
+      position: relative;
+      min-height: 360px;
+    }
+
+    .narrative {
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 1rem;
+      font-size: 0.98rem;
+    }
+
+    .insight-box {
+      background: rgba(255, 184, 28, 0.12);
+      border-left: 4px solid var(--accent);
+      padding: 1.2rem 1.4rem;
+      border-radius: 12px;
+      color: var(--deep);
+      font-weight: 500;
+      line-height: 1.6;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      padding: 2rem 0;
+      font-weight: 500;
+    }
+
+    @media (max-width: 768px) {
+      header h1 { font-size: 2rem; }
+      .control-row { flex-direction: column; align-items: flex-start; }
+      select { width: 100%; }
+      .quartile-options { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-nav">
+    <a href="index.html">&#8592; Back to main dashboard</a>
+  </div>
+
+  <header>
+    <h1>Suspension Rates by Enrollment Quartiles</h1>
+    <p>
+      Compare how suspension rates shift across campuses with different racial/ethnic enrollment concentrations.
+      Select a student group, choose which quartiles to display, and see how the rates evolve over time and in the most recent year.
+    </p>
+  </header>
+
+  <main>
+    <section class="panel controls">
+      <h2>Configure the comparison</h2>
+      <div class="control-row">
+        <div>
+          <label for="groupSelect">Student group</label><br>
+          <select id="groupSelect"></select>
+        </div>
+        <div>
+          <label for="levelSelect">School level</label><br>
+          <select id="levelSelect">
+            <option value="all">All levels</option>
+          </select>
+        </div>
+        <div>
+          <label for="dimensionSelect">Quartile dimension</label><br>
+          <select id="dimensionSelect"></select>
+        </div>
+        <div>
+          <label for="yearSelect">Highlight year</label><br>
+          <select id="yearSelect"></select>
+        </div>
+      </div>
+      <div>
+        <label>Quartiles to compare</label>
+        <div id="quartileOptions" class="quartile-options"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Key takeaways</h2>
+      <div id="summaryCards" class="summary-grid"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Quartile trends over time</h2>
+      <p id="trendNarrative" class="narrative"></p>
+      <div id="trendChart" class="chart-wrapper"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Selected year comparison</h2>
+      <p id="yearNarrative" class="narrative"></p>
+      <div id="yearChart" class="chart-wrapper"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Interpretation</h2>
+      <div id="insightBox" class="insight-box"></div>
+    </section>
+  </main>
+
+  <script>
+    const quartilePalette = {
+      Q1: '#0B3954',
+      Q2: '#087E8B',
+      Q3: '#FF5A5F',
+      Q4: '#C81D25'
+    };
+
+    let dashboardData = null;
+    let dimensionConfig = {};
+
+    const groupSelect = () => document.getElementById('groupSelect');
+    const levelSelect = () => document.getElementById('levelSelect');
+    const dimensionSelect = () => document.getElementById('dimensionSelect');
+    const yearSelect = () => document.getElementById('yearSelect');
+    const quartileOptions = () => document.getElementById('quartileOptions');
+
+    function buildDimensionConfig(meta) {
+      dimensionConfig = {
+        black_prop_q_label: {
+          label: 'Black enrollment quartile',
+          options: meta.black_quartiles || []
+        },
+        white_prop_q_label: {
+          label: 'White enrollment quartile',
+          options: meta.white_quartiles || []
+        },
+        hispanic_prop_q_label: {
+          label: 'Hispanic/Latino enrollment quartile',
+          options: meta.hispanic_quartiles || []
+        }
+      };
+    }
+
+    function initControls(meta) {
+      buildDimensionConfig(meta);
+
+      // Student groups
+      const groupEl = groupSelect();
+      groupEl.innerHTML = '';
+      const groups = meta.student_groups || [];
+      groups.forEach((group) => {
+        const option = document.createElement('option');
+        option.value = group;
+        option.textContent = group;
+        groupEl.appendChild(option);
+      });
+      const defaultGroup = groups.includes('Total') ? 'Total' : groups[0] || '';
+      if (defaultGroup) {
+        groupEl.value = defaultGroup;
+      }
+
+      // School levels
+      const levelEl = levelSelect();
+      levelEl.innerHTML = '<option value="all">All levels</option>';
+      (meta.school_levels || []).forEach((level) => {
+        const opt = document.createElement('option');
+        opt.value = level;
+        opt.textContent = level;
+        levelEl.appendChild(opt);
+      });
+
+      // Quartile dimension
+      const dimensionEl = dimensionSelect();
+      dimensionEl.innerHTML = '';
+      Object.entries(dimensionConfig).forEach(([key, cfg]) => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = cfg.label;
+        dimensionEl.appendChild(opt);
+      });
+      dimensionEl.value = 'black_prop_q_label';
+
+      // Year focus
+      const yearEl = yearSelect();
+      yearEl.innerHTML = '';
+      const years = meta.academic_years || [];
+      years.forEach((year) => {
+        const opt = document.createElement('option');
+        opt.value = year;
+        opt.textContent = year;
+        yearEl.appendChild(opt);
+      });
+      if (years.length) {
+        yearEl.value = years.at(-1);
+      }
+
+      renderQuartileOptions('black_prop_q_label');
+
+      [groupEl, levelEl, dimensionEl, yearEl].forEach((el) => {
+        el.addEventListener('change', () => {
+          if (el === dimensionEl) {
+            renderQuartileOptions(dimensionEl.value);
+          }
+          updateDashboard();
+        });
+      });
+    }
+
+    function renderQuartileOptions(dimKey) {
+      const wrapper = quartileOptions();
+      wrapper.innerHTML = '';
+      const cfg = dimensionConfig[dimKey];
+      const options = (cfg?.options || []).filter((label) => label && !/Unknown/i.test(label));
+      options.forEach((label) => {
+        const pill = document.createElement('label');
+        pill.className = 'quartile-pill active';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.value = label;
+        input.checked = true;
+        input.addEventListener('change', () => {
+          const active = wrapper.querySelectorAll('input:checked').length;
+          if (active === 0) {
+            input.checked = true;
+            pill.classList.add('active');
+            return;
+          }
+          pill.classList.toggle('active', input.checked);
+          updateDashboard();
+        });
+        pill.appendChild(input);
+        const span = document.createElement('span');
+        span.textContent = label;
+        pill.appendChild(span);
+        wrapper.appendChild(pill);
+      });
+    }
+
+    function getSelectedQuartiles() {
+      return Array.from(quartileOptions().querySelectorAll('input:checked')).map((el) => el.value);
+    }
+
+    function aggregateByQuartile(records, qKey) {
+      const map = new Map();
+      records.forEach((row) => {
+        const quartile = row[qKey];
+        const year = row.academic_year;
+        if (!quartile || /Unknown/i.test(quartile) || !year) return;
+        const key = `${year}__${quartile}`;
+        if (!map.has(key)) {
+          map.set(key, {
+            year,
+            quartile,
+            students: 0,
+            enrollment: 0
+          });
+        }
+        const entry = map.get(key);
+        const students = Number(row.students_suspended);
+        if (Number.isFinite(students)) {
+          entry.students += students;
+        } else {
+          const rate = Number(row.student_rate);
+          const enrollment = Number(row.enrollment) || 0;
+          if (Number.isFinite(rate) && enrollment > 0) {
+            entry.students += (rate / 100) * enrollment;
+          }
+        }
+        entry.enrollment += Number(row.enrollment) || 0;
+      });
+
+      return Array.from(map.values()).map((entry) => ({
+        year: entry.year,
+        quartile: entry.quartile,
+        rate: entry.enrollment ? (entry.students / entry.enrollment) * 100 : null
+      }));
+    }
+
+    function formatRate(value) {
+      if (value == null || Number.isNaN(value)) return '—';
+      return `${value.toFixed(2)}`;
+    }
+
+    function formatGap(value) {
+      if (value == null || Number.isNaN(value)) return '—';
+      const sign = value > 0 ? '+' : '';
+      return `${sign}${value.toFixed(2)}`;
+    }
+
+    function getQuartileCode(label) {
+      const match = label?.match(/^Q[1-4]/);
+      return match ? match[0] : label;
+    }
+
+    function getQuartileColor(label) {
+      const code = getQuartileCode(label);
+      return quartilePalette[code] || '#2774AE';
+    }
+
+    function updateSummaryCards(series, selectedQuartiles, yearFocus, dimLabel) {
+      const container = document.getElementById('summaryCards');
+      container.innerHTML = '';
+
+      const yearRows = series.filter((row) => row.year === yearFocus && selectedQuartiles.includes(row.quartile));
+      if (!yearRows.length) {
+        container.innerHTML = '<div class="empty-state">No records for the selected year and quartiles.</div>';
+        return;
+      }
+
+      const sorted = yearRows.filter((row) => row.rate != null).sort((a, b) => b.rate - a.rate);
+      const highest = sorted[0];
+      const lowest = sorted.at(-1);
+
+      const gap = highest && lowest && highest.rate != null && lowest.rate != null
+        ? highest.rate - lowest.rate
+        : null;
+
+      const cards = [
+        {
+          title: `${dimLabel} (highlight year)` ,
+          value: yearFocus,
+          subtitle: selectedQuartiles.join(', ')
+        },
+        highest ? {
+          title: 'Highest rate',
+          value: `${formatRate(highest.rate)} students per 100`,
+          subtitle: highest.quartile
+        } : null,
+        lowest ? {
+          title: 'Lowest rate',
+          value: `${formatRate(lowest.rate)} students per 100`,
+          subtitle: lowest.quartile
+        } : null,
+        gap != null ? {
+          title: 'Gap (high - low)',
+          value: `${formatGap(gap)} students per 100`,
+          subtitle: 'Difference across selected quartiles'
+        } : null
+      ].filter(Boolean);
+
+      cards.forEach((card) => {
+        const div = document.createElement('div');
+        div.className = 'summary-card';
+        div.innerHTML = `<h3>${card.title}</h3><p>${card.value}</p><span>${card.subtitle || ''}</span>`;
+        container.appendChild(div);
+      });
+    }
+
+    function updateTrendChart(series, selectedQuartiles, dimLabel, group) {
+      const container = document.getElementById('trendChart');
+      Plotly.purge(container);
+      container.innerHTML = '';
+      const years = Array.from(new Set(series.map((row) => row.year))).sort();
+      if (!years.length || !selectedQuartiles.length) {
+        container.innerHTML = '<div class="empty-state">No data available for the selected filters.</div>';
+        return;
+      }
+
+      const traces = selectedQuartiles.map((quartile) => {
+        const points = years.map((year) => {
+          const row = series.find((item) => item.year === year && item.quartile === quartile);
+          return row ? row.rate : null;
+        });
+        return {
+          type: 'scatter',
+          mode: 'lines+markers',
+          name: quartile,
+          x: years,
+          y: points,
+          line: { color: getQuartileColor(quartile), width: 3 },
+          marker: { size: 8 }
+        };
+      });
+
+      Plotly.newPlot(container, traces, {
+        margin: { t: 10, r: 20, b: 50, l: 60 },
+        yaxis: { title: 'Students suspended per 100', zeroline: false },
+        xaxis: { title: 'Academic year' },
+        legend: { orientation: 'h', x: 0, y: -0.2 },
+        hovermode: 'x unified',
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
+      }, { responsive: true });
+
+      const narrative = document.getElementById('trendNarrative');
+      const highlightQuartile = selectedQuartiles.find((label) => /^Q4/.test(label)) || selectedQuartiles[0];
+      if (highlightQuartile) {
+        const start = series.find((row) => row.year === years[0] && row.quartile === highlightQuartile);
+        const end = series.find((row) => row.year === years.at(-1) && row.quartile === highlightQuartile);
+        if (start && end && start.rate != null && end.rate != null) {
+          const diff = end.rate - start.rate;
+          const direction = diff > 0 ? 'increased' : diff < 0 ? 'decreased' : 'held steady';
+          narrative.textContent = `${highlightQuartile} campuses serving ${group.toLowerCase()} students ${direction} from ${formatRate(start.rate)} to ${formatRate(end.rate)} students suspended per 100 between ${years[0]} and ${years.at(-1)}.`;
+        } else {
+          narrative.textContent = `Trends display suspension rates for selected ${dimLabel.toLowerCase()} quartiles across ${years[0]}–${years.at(-1)}.`;
+        }
+      } else {
+        narrative.textContent = `Trends display suspension rates for selected ${dimLabel.toLowerCase()} quartiles across ${years[0]}–${years.at(-1)}.`;
+      }
+    }
+
+    function updateYearChart(series, selectedQuartiles, yearFocus) {
+      const container = document.getElementById('yearChart');
+      Plotly.purge(container);
+      container.innerHTML = '';
+      const rows = series.filter((row) => row.year === yearFocus && selectedQuartiles.includes(row.quartile));
+      if (!rows.length) {
+        container.innerHTML = '<div class="empty-state">No data available for the selected year.</div>';
+        return;
+      }
+
+      const trace = {
+        type: 'bar',
+        x: rows.map((row) => row.quartile),
+        y: rows.map((row) => row.rate),
+        marker: {
+          color: rows.map((row) => getQuartileColor(row.quartile))
+        }
+      };
+
+      Plotly.newPlot(container, [trace], {
+        margin: { t: 10, r: 20, b: 80, l: 60 },
+        yaxis: { title: 'Students suspended per 100', zeroline: false },
+        xaxis: { title: 'Quartile', tickangle: -20 }
+      }, { responsive: true });
+
+      const highest = rows.filter((row) => row.rate != null).sort((a, b) => b.rate - a.rate)[0];
+      const lowest = rows.filter((row) => row.rate != null).sort((a, b) => a.rate - b.rate)[0];
+      const narrative = document.getElementById('yearNarrative');
+      if (highest && lowest) {
+        const ratio = lowest.rate > 0 ? (highest.rate / lowest.rate) : null;
+        const ratioText = ratio ? `${ratio.toFixed(1)}×` : '';
+        narrative.textContent = `${yearFocus} shows ${highest.quartile} schools with ${formatRate(highest.rate)} students suspended per 100 versus ${formatRate(lowest.rate)} in ${lowest.quartile} schools${ratioText ? ` (${ratioText} the rate)` : ''}.`;
+      } else {
+        narrative.textContent = `${yearFocus} comparison shows available suspension rates for each selected quartile.`;
+      }
+    }
+
+    function updateInsight(series, selectedQuartiles, yearFocus, dimLabel, group) {
+      const box = document.getElementById('insightBox');
+      const rows = series.filter((row) => selectedQuartiles.includes(row.quartile));
+      if (!rows.length) {
+        box.textContent = 'No insight available for the current filters.';
+        return;
+      }
+
+      const latestRows = series.filter((row) => row.year === yearFocus && selectedQuartiles.includes(row.quartile));
+      const highest = latestRows.filter((row) => row.rate != null).sort((a, b) => b.rate - a.rate)[0];
+      const lowest = latestRows.filter((row) => row.rate != null).sort((a, b) => a.rate - b.rate)[0];
+
+      const years = Array.from(new Set(rows.map((row) => row.year))).sort();
+      const earliestYear = years[0];
+      const latestYear = years.at(-1);
+      const highlightQuartile = selectedQuartiles.find((label) => /^Q4/.test(label)) || selectedQuartiles[0];
+      const earlyHighlight = series.find((row) => row.year === earliestYear && row.quartile === highlightQuartile);
+      const lateHighlight = series.find((row) => row.year === latestYear && row.quartile === highlightQuartile);
+
+      const pieces = [];
+      if (highest && lowest) {
+        const ratio = lowest.rate > 0 ? (highest.rate / lowest.rate) : null;
+        const gap = highest.rate - lowest.rate;
+        pieces.push(`In ${yearFocus}, ${group.toLowerCase()} students in ${highest.quartile} campuses averaged ${formatRate(highest.rate)} students suspended per 100, ${gap > 0 ? `${formatGap(gap)} higher` : 'roughly on par'} than ${lowest.quartile}${ratio ? ` (${ratio.toFixed(1)}× the rate)` : ''}.`);
+      }
+      if (earlyHighlight && lateHighlight && earlyHighlight.rate != null && lateHighlight.rate != null && earliestYear !== latestYear) {
+        const change = lateHighlight.rate - earlyHighlight.rate;
+        const direction = change > 0 ? 'climbed' : change < 0 ? 'declined' : 'held steady';
+        pieces.push(`${highlightQuartile} campuses ${direction} from ${formatRate(earlyHighlight.rate)} to ${formatRate(lateHighlight.rate)} students suspended per 100 between ${earliestYear} and ${latestYear}.`);
+      }
+      pieces.push(`Use the controls to explore how ${dimLabel.toLowerCase()} quartiles intersect with race/ethnicity and school level to shape disciplinary exposure.`);
+
+      box.textContent = pieces.join(' ');
+    }
+
+    function updateDashboard() {
+      if (!dashboardData) return;
+      const dimKey = dimensionSelect().value;
+      const dimLabel = dimensionConfig[dimKey]?.label || 'Enrollment quartile';
+      const group = groupSelect().value;
+      const level = levelSelect().value;
+      const yearFocus = yearSelect().value;
+
+      const records = (dashboardData.overall || []).filter((row) => {
+        if (row.reporting_category_description !== group) return false;
+        if (level !== 'all' && row.school_level_final !== level) return false;
+        return Boolean(row[dimKey]) && !/Unknown/i.test(row[dimKey]);
+      });
+
+      const series = aggregateByQuartile(records, dimKey);
+      const selectedQuartiles = getSelectedQuartiles().filter((label) =>
+        records.some((row) => row[dimKey] === label)
+      );
+
+      if (!selectedQuartiles.length && records.length) {
+        const available = Array.from(new Set(records.map((row) => row[dimKey])));
+        const wrapper = quartileOptions();
+        wrapper.querySelectorAll('input').forEach((input) => {
+          input.checked = available.includes(input.value);
+          input.parentElement.classList.toggle('active', input.checked);
+        });
+        updateDashboard();
+        return;
+      }
+
+      updateSummaryCards(series, selectedQuartiles, yearFocus, dimLabel);
+      updateTrendChart(series, selectedQuartiles, dimLabel, group);
+      updateYearChart(series, selectedQuartiles, yearFocus);
+      updateInsight(series, selectedQuartiles, yearFocus, dimLabel, group);
+    }
+
+    const DATA_URL = `dashboard/data/dashboard_data.json?v=${Date.now()}`;
+    fetch(DATA_URL)
+      .then((response) => response.json())
+      .then((data) => {
+        dashboardData = data;
+        initControls(data.meta || {});
+        updateDashboard();
+      })
+      .catch((error) => {
+        console.error('Failed to load data', error);
+        document.querySelector('main').innerHTML = '<div class="panel"><p>Unable to load quartile comparison data. Please refresh.</p></div>';
+      });
+  </script>
+</body>
+</html>
