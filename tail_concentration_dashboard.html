@@ -445,558 +445,736 @@
     </section>
   </main>
   <script>
-    const state = {
-      academicYear: 'All',
-      gradeLevel: 'All',
-      schoolType: 'All',
-    };
+    (function () {
+      'use strict';
 
-    const charts = {
-      topShare: null,
-      concentrationBreakdown: null,
-    };
+      const DATA_URL = 'dashboard/pareto_grade_setting_payload.json';
+      const DATA_BUNDLE_URL = 'dashboard/data/pareto_grade_setting_payload.js';
 
-    const formatters = {
-      toAcademicYear(yearNum) {
-        if (Number.isNaN(yearNum)) return '';
-        const next = String((yearNum + 1)).slice(-2);
-        return `${yearNum}-${next}`;
-      },
-      toYearNumber(acYear) {
-        if (!acYear || acYear === 'All') return null;
-        const match = acYear.match(/^(\d{4})/);
-        return match ? Number(match[1]) : null;
-      },
-      rate(value) {
-        return value == null ? '—' : `${(value * 100).toFixed(1)} per 100`;
-      },
-      percent(value) {
-        return value == null ? '—' : `${(value * 100).toFixed(1)}%`;
-      },
-      integer(value) {
-        return value == null ? '—' : value.toLocaleString();
+      const state = {
+        academicYear: 'All',
+        gradeLevel: 'All',
+        schoolType: 'All',
+      };
+
+      const store = {
+        rows: [],
+        filtered: [],
+        latestExport: [],
+      };
+
+      const charts = {
+        topShare: null,
+        concentration: null,
+      };
+
+      const DOM = {
+        loading: document.getElementById('loading'),
+        content: document.getElementById('content'),
+        controls: document.getElementById('controls'),
+        summary: document.getElementById('grade-summary'),
+        tableWrapper: document.getElementById('grade-table-wrapper'),
+        download: document.getElementById('download-csv'),
+        reset: document.getElementById('reset-filters'),
+      };
+
+      const COLORS = ['#2774AE', '#FFB81C', '#8BB8E8', '#005587', '#FFC72C'];
+      const REMAINDER_COLOR = 'rgba(39, 116, 174, 0.18)';
+      const REMAINDER_HOVER = 'rgba(39, 116, 174, 0.32)';
+
+      const formatters = {
+        toAcademicYear(year) {
+          if (typeof year !== 'number' || Number.isNaN(year)) return '';
+          const next = String(year + 1).slice(-2);
+          return `${year}-${next}`;
+        },
+        toYearNumber(label) {
+          if (!label || label === 'All') return null;
+          const match = String(label).match(/^(\d{4})/);
+          return match ? Number(match[1]) : null;
+        },
+        integer(value) {
+          return Number.isFinite(value) ? Math.round(value).toLocaleString() : '—';
+        },
+        percent(value) {
+          return Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : '—';
+        },
+        share(value) {
+          return Number.isFinite(value) ? `${value.toFixed(1)}%` : '—';
+        },
+      };
+
+      function getPreloadedData() {
+        if (typeof window === 'undefined') return null;
+        const payload = window.TAIL_CONCENTRATION_DATA;
+        if (payload && Array.isArray(payload.gradeSetting)) {
+          return payload;
+        }
+        return null;
       }
-    };
 
-    const controls = [
-      { id: 'academicYear', label: 'Academic year', options: [] },
-      { id: 'gradeLevel', label: 'Grade level', options: [] },
-      { id: 'schoolType', label: 'School type', options: [] },
-    ];
+      async function requestJson(url) {
+        if (typeof fetch === 'function') {
+          const response = await fetch(url, { cache: 'no-store' });
+          if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+          }
+          return response.json();
+        }
 
-    const cache = {
-      gradeSetting: [],
-    };
-
-    function buildOptions(options, includeAll = true) {
-      const frag = document.createDocumentFragment();
-      if (includeAll) {
-        const opt = document.createElement('option');
-        opt.value = 'All';
-        opt.textContent = 'All';
-        frag.appendChild(opt);
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('GET', url, true);
+          xhr.responseType = 'json';
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(xhr.response);
+            } else {
+              reject(new Error(`XHR request failed with status ${xhr.status}`));
+            }
+          };
+          xhr.onerror = () => reject(new Error('XHR network error'));
+          xhr.send();
+        });
       }
-      options.forEach((value) => {
-        const opt = document.createElement('option');
-        opt.value = value;
-        opt.textContent = value;
-        frag.appendChild(opt);
-      });
-      return frag;
-    }
 
-    function populateControls(meta) {
-      const controlsContainer = document.getElementById('controls');
-      controlsContainer.innerHTML = '';
+      function ensureBundleLoaded() {
+        const preloaded = getPreloadedData();
+        if (preloaded) {
+          return Promise.resolve(preloaded);
+        }
 
-      controls.find((c) => c.id === 'academicYear').options = meta.academicYears;
-      controls.find((c) => c.id === 'gradeLevel').options = meta.gradeLevels;
-      controls.find((c) => c.id === 'schoolType').options = meta.schoolTypes;
+        return new Promise((resolve, reject) => {
+          const selector = 'script[data-tail-concentration-bundle]';
+          let script = document.querySelector(selector);
 
-      controls.forEach(({ id, label, options }) => {
+          const resolveWithPayload = () => {
+            const payload = getPreloadedData();
+            if (payload) {
+              resolve(payload);
+            } else {
+              reject(new Error('Fallback bundle loaded without payload.'));
+            }
+          };
+
+          const handleError = () => {
+            if (script && script.dataset) {
+              script.dataset.bundleState = 'error';
+            }
+            reject(new Error('Failed to load fallback data bundle.'));
+          };
+
+          if (script) {
+            const stateAttr = script.dataset ? script.dataset.bundleState : undefined;
+            if (stateAttr === 'loaded') {
+              resolveWithPayload();
+              return;
+            }
+            if (stateAttr === 'error') {
+              handleError();
+              return;
+            }
+            script.addEventListener('load', resolveWithPayload, { once: true });
+            script.addEventListener('error', handleError, { once: true });
+            return;
+          }
+
+          script = document.createElement('script');
+          script.src = DATA_BUNDLE_URL;
+          script.dataset.tailConcentrationBundle = 'true';
+          script.dataset.bundleState = 'loading';
+          script.addEventListener('load', () => {
+            script.dataset.bundleState = 'loaded';
+            resolveWithPayload();
+          }, { once: true });
+          script.addEventListener('error', handleError, { once: true });
+          document.head.appendChild(script);
+        });
+      }
+
+      async function loadPreparedData() {
+        const preloaded = getPreloadedData();
+        if (preloaded) {
+          return preloaded;
+        }
+
+        const resolvedUrl = (() => {
+          try {
+            return new URL(DATA_URL, window.location.href).toString();
+          } catch (error) {
+            return DATA_URL;
+          }
+        })();
+
+        try {
+          const payload = await requestJson(resolvedUrl);
+          if (payload && Array.isArray(payload.gradeSetting)) {
+            return payload;
+          }
+          console.warn('Prepared payload missing expected gradeSetting array.');
+        } catch (error) {
+          console.warn('Direct JSON request for prepared data failed:', error);
+        }
+
+        return ensureBundleLoaded();
+      }
+
+      function configureChartDefaults() {
+        if (typeof Chart === 'undefined' || !Chart.defaults) return;
+        const styles = getComputedStyle(document.documentElement);
+        const fontFamily = styles.getPropertyValue('font-family')
+          || "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+        const textColor = styles.getPropertyValue('--text') || '#003b5c';
+        Chart.defaults.font.family = fontFamily.trim();
+        Chart.defaults.color = textColor.trim();
+        Chart.defaults.plugins.legend.labels.usePointStyle = true;
+        Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 59, 92, 0.9)';
+      }
+
+      function buildMetadata(rows) {
+        const years = new Set();
+        const grades = new Set();
+        const settings = new Set();
+
+        rows.forEach((row) => {
+          if (row && Number.isFinite(row.year_num)) years.add(row.year_num);
+          if (row && row.level) grades.add(row.level);
+          if (row && row.setting) settings.add(row.setting);
+        });
+
+        return {
+          years: Array.from(years).sort((a, b) => a - b).map((year) => formatters.toAcademicYear(year)),
+          grades: Array.from(grades).sort((a, b) => a.localeCompare(b)),
+          settings: Array.from(settings).sort((a, b) => a.localeCompare(b)),
+        };
+      }
+
+      function createSelect(id, labelText, options) {
         const wrapper = document.createElement('label');
-        wrapper.setAttribute('for', `${id}-select`);
-        wrapper.textContent = label;
+        wrapper.setAttribute('for', id);
+        wrapper.textContent = labelText;
 
         const select = document.createElement('select');
-        select.id = `${id}-select`;
+        select.id = id;
         select.name = id;
-        select.appendChild(buildOptions(options));
-        select.value = state[id];
+
+        const allOption = document.createElement('option');
+        allOption.value = 'All';
+        allOption.textContent = 'All';
+        select.appendChild(allOption);
+
+        options.forEach((optionValue) => {
+          const option = document.createElement('option');
+          option.value = optionValue;
+          option.textContent = optionValue;
+          select.appendChild(option);
+        });
+
+        select.value = state[id] || 'All';
         select.addEventListener('change', (event) => {
           state[id] = event.target.value;
-          render();
+          applyFilters();
         });
 
         wrapper.appendChild(select);
-        controlsContainer.appendChild(wrapper);
-      });
-    }
-
-    let latestRenderedRows = [];
-
-    function updateDownloadButton(hasRows) {
-      const button = document.getElementById('download-csv');
-      if (!button) return;
-      button.disabled = !hasRows;
-      button.title = hasRows ? '' : 'No data available for the current filters';
-    }
-
-    function formatRowsForExport(rows) {
-      return rows.map((row) => ([
-        formatters.toAcademicYear(row.year_num),
-        row.level || '',
-        row.setting || '',
-        row.top_label || '',
-        formatters.integer(row.top_schools || 0),
-        formatters.integer(row.total_schools || 0),
-        row.share_pct || '',
-        row.slide_text || '',
-      ]));
-    }
-
-    function escapeCsvValue(value) {
-      const stringValue = value == null ? '' : String(value);
-      if (/[",\n]/.test(stringValue)) {
-        return `"${stringValue.replace(/"/g, '""')}"`;
-      }
-      return stringValue;
-    }
-
-    function rowsToCsv(rows) {
-      const headers = [
-        'Academic year',
-        'Level',
-        'School type',
-        'Top group',
-        'Schools in group',
-        'Total schools',
-        'Share of suspensions',
-        'Statement',
-      ];
-      const lines = formatRowsForExport(rows).map((row) => row.map(escapeCsvValue).join(','));
-      return [headers.map(escapeCsvValue).join(','), ...lines].join('\n');
-    }
-
-    function toFileSegment(value) {
-      if (!value || value === 'All') return 'all';
-      const slug = value
-        .toString()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-');
-      const trimmed = slug.replace(/^-+|-+$/g, '');
-      return trimmed || 'all';
-    }
-
-    function buildDownloadFilename() {
-      const parts = [
-        'tail_concentration',
-        toFileSegment(state.academicYear),
-        toFileSegment(state.gradeLevel),
-        toFileSegment(state.schoolType),
-      ];
-      return `${parts.join('_')}.csv`;
-    }
-
-    function triggerCsvDownload() {
-      if (!latestRenderedRows.length) return;
-      const csvText = rowsToCsv(latestRenderedRows);
-      const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = buildDownloadFilename();
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }
-
-    document.getElementById('download-csv').addEventListener('click', triggerCsvDownload);
-
-    function getFilteredRows() {
-      if (!Array.isArray(cache.gradeSetting)) {
-        return [];
+        return wrapper;
       }
 
-      const yearFilter = formatters.toYearNumber(state.academicYear);
-      const gradeFilter = state.gradeLevel;
-      const schoolFilter = state.schoolType;
+      function populateControls(meta) {
+        if (!DOM.controls) return;
+        DOM.controls.innerHTML = '';
 
-      return cache.gradeSetting.filter((row) => {
-        if (!row) return false;
-        const matchesYear = yearFilter == null || row.year_num === yearFilter;
-        const matchesGrade = gradeFilter === 'All' || row.level === gradeFilter;
-        const matchesSchool = schoolFilter === 'All' || row.setting === schoolFilter;
-        return matchesYear && matchesGrade && matchesSchool;
-      });
-    }
+        const controls = [
+          { id: 'academicYear', label: 'Academic year', values: meta.years },
+          { id: 'gradeLevel', label: 'Grade level', values: meta.grades },
+          { id: 'schoolType', label: 'School type', values: meta.settings },
+        ];
 
-    function configureChartDefaults() {
-      if (typeof Chart === 'undefined' || !Chart.defaults) return;
-      const styles = getComputedStyle(document.documentElement);
-      const fontFamily = styles.getPropertyValue('font-family') ||
-        "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-      const textColor = styles.getPropertyValue('--text') || '#003b5c';
+        controls.forEach((control) => {
+          DOM.controls.appendChild(createSelect(control.id, control.label, control.values));
+        });
+      }
 
-      Chart.defaults.font.family = fontFamily.trim();
-      Chart.defaults.color = textColor.trim();
-      Chart.defaults.plugins.legend.labels.usePointStyle = true;
-      Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 59, 92, 0.9)';
-    }
+      function toFileSegment(value) {
+        if (!value || value === 'All') return 'all';
+        return value.toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'all';
+      }
 
-    function renderGradeTable(rows = []) {
-      latestRenderedRows = [];
+      function buildDownloadFilename() {
+        return [
+          'tail_concentration',
+          toFileSegment(state.academicYear),
+          toFileSegment(state.gradeLevel),
+          toFileSegment(state.schoolType),
+        ].join('_') + '.csv';
+      }
 
-      const summaryEl = document.getElementById('grade-summary');
-      const tableWrapper = document.getElementById('grade-table-wrapper');
+      function formatRowsForExport(rows) {
+        return rows.map((row) => ([
+          formatters.toAcademicYear(row.year_num),
+          row.level || '',
+          row.setting || '',
+          row.top_label || '',
+          formatters.integer(row.top_schools ?? 0),
+          formatters.integer(row.total_schools ?? 0),
+          row.share_pct || formatters.share((row.top_share ?? 0) * 100),
+          row.slide_text || '',
+        ]));
+      }
 
-      if (summaryEl) summaryEl.textContent = '';
-      if (tableWrapper) tableWrapper.innerHTML = '';
+      function escapeCsv(value) {
+        const stringValue = value == null ? '' : String(value);
+        return /[",\n]/.test(stringValue) ? `"${stringValue.replace(/"/g, '""')}"` : stringValue;
+      }
 
-      if (!Array.isArray(rows) || rows.length === 0) {
-        updateDownloadButton(false);
-        if (summaryEl) summaryEl.textContent = 'No grade-setting statements match the current filters.';
-        if (tableWrapper) {
-          const empty = document.createElement('p');
-          empty.className = 'empty';
-          empty.textContent = 'No prepared statements are available for the selected year, grade level, and school type.';
-          tableWrapper.appendChild(empty);
+      function rowsToCsv(rows) {
+        const headers = [
+          'Academic year',
+          'Grade level',
+          'School type',
+          'Top group',
+          'Schools in group',
+          'Total schools',
+          'Share of suspensions',
+          'Statement',
+        ];
+        const lines = formatRowsForExport(rows).map((row) => row.map(escapeCsv).join(','));
+        return [headers.map(escapeCsv).join(','), ...lines].join('\n');
+      }
+
+      function updateDownloadState(rows) {
+        if (!DOM.download) return;
+        const hasRows = rows.length > 0;
+        DOM.download.disabled = !hasRows;
+        DOM.download.title = hasRows ? '' : 'No data available for the current filters';
+      }
+
+      function handleDownloadClick() {
+        if (!store.latestExport.length) return;
+        const csv = rowsToCsv(store.latestExport);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = buildDownloadFilename();
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+
+      function filterRows(rows) {
+        const yearFilter = formatters.toYearNumber(state.academicYear);
+        return rows.filter((row) => {
+          if (!row) return false;
+          const matchesYear = yearFilter == null || row.year_num === yearFilter;
+          const matchesGrade = state.gradeLevel === 'All' || row.level === state.gradeLevel;
+          const matchesSetting = state.schoolType === 'All' || row.setting === state.schoolType;
+          return matchesYear && matchesGrade && matchesSetting;
+        });
+      }
+
+      function renderSummaryAndTable(rows) {
+        store.latestExport = rows.slice();
+        updateDownloadState(rows);
+
+        if (DOM.summary) DOM.summary.textContent = '';
+        if (DOM.tableWrapper) DOM.tableWrapper.innerHTML = '';
+
+        if (!rows.length) {
+          if (DOM.summary) DOM.summary.textContent = 'No grade-setting statements match the current filters.';
+          if (DOM.tableWrapper) {
+            const empty = document.createElement('p');
+            empty.className = 'empty';
+            empty.textContent = 'No prepared statements are available for the selected year, grade level, and school type.';
+            DOM.tableWrapper.appendChild(empty);
+          }
+          return;
         }
-        return;
-      }
 
-      const sortedRows = [...rows]
-        .sort((a, b) => {
+        const sorted = rows.slice().sort((a, b) => {
           if (a.year_num !== b.year_num) return a.year_num - b.year_num;
           if (a.level !== b.level) return a.level.localeCompare(b.level);
           if (a.setting !== b.setting) return a.setting.localeCompare(b.setting);
           return (a.top_pct || 0) - (b.top_pct || 0);
         });
 
-      latestRenderedRows = sortedRows;
-      updateDownloadButton(true);
+        store.latestExport = sorted;
 
-      const grouped = Array.from(sortedRows.reduce((map, row) => {
-        if (!row) return map;
-        const yearNum = row.year_num ?? null;
-        const level = row.level || 'All';
-        const setting = row.setting || 'All';
-        const key = `${yearNum ?? 'All'}|${level}|${setting}`;
-        if (!map.has(key)) {
-          map.set(key, {
-            yearNum,
-            level,
-            setting,
-            totalSchools: 0,
-          });
-        }
-        const entry = map.get(key);
-        const total = Number(row.total_schools);
-        if (!Number.isNaN(total)) {
-          entry.totalSchools = Math.max(entry.totalSchools, total);
-        }
-        return map;
-      }, new Map()).values())
-        .sort((a, b) => {
-          if ((a.yearNum ?? 0) !== (b.yearNum ?? 0)) {
-            return (a.yearNum ?? 0) - (b.yearNum ?? 0);
+        const grouped = Array.from(sorted.reduce((map, row) => {
+          const key = `${row.year_num}|${row.level}|${row.setting}`;
+          if (!map.has(key)) {
+            map.set(key, {
+              year: row.year_num,
+              level: row.level,
+              setting: row.setting,
+              totalSchools: 0,
+            });
           }
+          const entry = map.get(key);
+          const total = Number(row.total_schools);
+          if (Number.isFinite(total)) {
+            entry.totalSchools = Math.max(entry.totalSchools, total);
+          }
+          return map;
+        }, new Map()).values()).sort((a, b) => {
+          if (a.year !== b.year) return a.year - b.year;
           if (a.level !== b.level) return a.level.localeCompare(b.level);
           return a.setting.localeCompare(b.setting);
         });
 
-      const totalSchoolsCount = grouped.reduce((sum, entry) => sum + (entry.totalSchools || 0), 0);
+        const totalSchools = grouped.reduce((sum, entry) => sum + (entry.totalSchools || 0), 0);
+        if (DOM.summary) {
+          const groupLabel = grouped.length === 1 ? 'group' : 'groups';
+          DOM.summary.textContent = `Current filters cover ${formatters.integer(totalSchools)} schools across ${grouped.length} ${groupLabel}.`;
+        }
 
-      if (summaryEl) {
-        const groupLabel = grouped.length === 1 ? 'group' : 'groups';
-        summaryEl.textContent = `Current filters cover ${formatters.integer(totalSchoolsCount)} schools across ${grouped.length} ${groupLabel}.`;
+        if (!DOM.tableWrapper) return;
+        const table = document.createElement('table');
+        table.className = 'summary-table';
+
+        const thead = document.createElement('thead');
+        const headRow = document.createElement('tr');
+        ['Academic year', 'Grade level', 'School type', 'Total schools'].forEach((heading) => {
+          const th = document.createElement('th');
+          th.scope = 'col';
+          th.textContent = heading;
+          headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        grouped.forEach((entry) => {
+          const rowEl = document.createElement('tr');
+
+          const yearCell = document.createElement('td');
+          yearCell.textContent = entry.year == null ? 'All' : formatters.toAcademicYear(entry.year);
+          rowEl.appendChild(yearCell);
+
+          const levelCell = document.createElement('td');
+          levelCell.textContent = entry.level || 'All';
+          rowEl.appendChild(levelCell);
+
+          const settingCell = document.createElement('td');
+          settingCell.textContent = entry.setting || 'All';
+          rowEl.appendChild(settingCell);
+
+          const totalCell = document.createElement('td');
+          totalCell.textContent = formatters.integer(entry.totalSchools || 0);
+          rowEl.appendChild(totalCell);
+
+          tbody.appendChild(rowEl);
+        });
+
+        table.appendChild(tbody);
+        DOM.tableWrapper.appendChild(table);
       }
 
-      if (!tableWrapper) return;
-
-      const table = document.createElement('table');
-      table.className = 'summary-table';
-
-      const thead = document.createElement('thead');
-      const headRow = document.createElement('tr');
-      ['Academic year', 'Grade level', 'School type', 'Total schools'].forEach((heading) => {
-        const th = document.createElement('th');
-        th.scope = 'col';
-        th.textContent = heading;
-        headRow.appendChild(th);
-      });
-      thead.appendChild(headRow);
-      table.appendChild(thead);
-
-      const tbody = document.createElement('tbody');
-      grouped.forEach((entry) => {
-        const rowEl = document.createElement('tr');
-
-        const yearCell = document.createElement('td');
-        yearCell.textContent = entry.yearNum == null ? 'All' : formatters.toAcademicYear(entry.yearNum);
-        rowEl.appendChild(yearCell);
-
-        const levelCell = document.createElement('td');
-        levelCell.textContent = entry.level || 'All';
-        rowEl.appendChild(levelCell);
-
-        const settingCell = document.createElement('td');
-        settingCell.textContent = entry.setting || 'All';
-        rowEl.appendChild(settingCell);
-
-        const totalCell = document.createElement('td');
-        totalCell.textContent = formatters.integer(entry.totalSchools || 0);
-        rowEl.appendChild(totalCell);
-
-        tbody.appendChild(rowEl);
-      });
-
-      table.appendChild(tbody);
-      tableWrapper.appendChild(table);
-    }
-
-    function render() {
-      const rows = getFilteredRows();
-      renderGradeTable(rows);
-      renderCharts(rows);
-    }
-
-    function renderCharts(rows) {
-      if (typeof Chart === 'undefined') return;
-      configureChartDefaults();
-      const emptyStates = document.querySelectorAll('[data-chart-empty]');
-      const hasData = Array.isArray(rows) && rows.length > 0;
-      emptyStates.forEach((el) => {
-        el.hidden = hasData;
-      });
-
-      const aggregated = Array.from(
-        rows.reduce((map, row) => {
-          if (!row || !row.top_label) return map;
-          const key = row.top_label;
-          if (!map.has(key)) {
-            map.set(key, {
-              label: key,
-              pct: row.top_pct ?? 0,
+      function aggregateTopShares(rows) {
+        const groups = new Map();
+        rows.forEach((row) => {
+          if (!row || typeof row.top_pct !== 'number') return;
+          const key = row.top_pct;
+          if (!groups.has(key)) {
+            groups.set(key, {
+              pct: row.top_pct,
+              label: row.top_label || `Top ${Math.round(row.top_pct * 100)}%`,
               shares: [],
             });
           }
-          const group = map.get(key);
-          if (typeof row.top_pct === 'number') {
-            group.pct = row.top_pct;
-          }
+          const entry = groups.get(key);
           if (typeof row.top_share === 'number') {
-            group.shares.push(row.top_share);
+            entry.shares.push(row.top_share * 100);
+          } else if (typeof row.share_pct === 'string') {
+            const numeric = Number(row.share_pct.replace(/[^\d.\-]/g, ''));
+            if (!Number.isNaN(numeric)) entry.shares.push(numeric);
           }
-          return map;
-        }, new Map()).values()
-      )
-        .map((group) => {
-          const avg = (arr) => (arr.length ? arr.reduce((sum, value) => sum + value, 0) / arr.length : 0);
+        });
+
+        return Array.from(groups.values()).map((entry) => {
+          const total = entry.shares.reduce((sum, value) => sum + value, 0);
+          const average = entry.shares.length ? total / entry.shares.length : 0;
           return {
-            label: group.label,
-            pct: group.pct ?? 0,
-            share: avg(group.shares) * 100,
+            pct: entry.pct,
+            label: entry.label,
+            share: Math.max(0, Math.min(100, Number(average.toFixed(1)))),
           };
-        })
-        .sort((a, b) => (a.pct || 0) - (b.pct || 0));
+        }).sort((a, b) => a.pct - b.pct);
+      }
 
-      const labels = aggregated.map((item) => item.label);
-      const suspensionShare = aggregated.map((item) => Number(item.share.toFixed(1)));
+      function buildDoughnutSegments(aggregated) {
+        const segments = [];
+        let previousShare = 0;
+        let previousPct = 0;
 
-      const uclaSuspensionColors = ['#2774AE', '#FFB81C', '#8BB8E8', '#005587', '#FFC72C'];
-      const suspensionColors = labels.map((_, index) => uclaSuspensionColors[index % uclaSuspensionColors.length]);
-      const suspensionHoverColors = suspensionColors.slice();
+        aggregated.forEach((entry, index) => {
+          const pct = Math.max(0, Math.min(1, entry.pct));
+          const cumulativeShare = Math.max(0, Math.min(100, entry.share));
+          const incrementalShare = Number(Math.max(0, cumulativeShare - previousShare).toFixed(1));
+          const additionalPct = Math.max(0, pct - previousPct);
+          const cohortLabel = index === 0
+            ? `${entry.label} of schools`
+            : `Next ${(additionalPct * 100).toFixed(1)}% of schools`;
+          const legendText = index === 0
+            ? `${entry.label} of schools: ${incrementalShare.toFixed(1)}% of suspensions`
+            : `${cohortLabel}: ${incrementalShare.toFixed(1)}% of suspensions (cumulative ${cumulativeShare.toFixed(1)}%)`;
 
-      const topShareContext = document.getElementById('top-share-chart').getContext('2d');
-      const topShareConfig = {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [
-            {
+          segments.push({
+            label: cohortLabel,
+            legendText,
+            tooltipText: legendText,
+            value: incrementalShare,
+            isRemainder: false,
+          });
+
+          previousShare = cumulativeShare;
+          previousPct = pct;
+        });
+
+        const remainderShare = Number(Math.max(0, 100 - previousShare).toFixed(1));
+        const remainderPct = Math.max(0, 1 - previousPct);
+
+        if (remainderShare > 0.05) {
+          const label = `Remaining ${(remainderPct * 100).toFixed(1)}% of schools`;
+          const legendText = `${label}: ${remainderShare.toFixed(1)}% of suspensions`;
+          segments.push({
+            label,
+            legendText,
+            tooltipText: legendText,
+            value: remainderShare,
+            isRemainder: true,
+          });
+        }
+
+        return segments;
+      }
+
+      function renderCharts(rows) {
+        if (typeof Chart === 'undefined') return;
+        configureChartDefaults();
+
+        const validRows = rows.filter((row) => row && typeof row.top_pct === 'number'
+          && (typeof row.top_share === 'number' || typeof row.share_pct === 'string'));
+
+        const aggregated = aggregateTopShares(validRows);
+        const hasData = aggregated.length > 0;
+
+        document.querySelectorAll('[data-chart-empty]').forEach((el) => {
+          el.hidden = hasData;
+        });
+
+        if (!hasData) {
+          if (charts.topShare) {
+            charts.topShare.data.labels = [];
+            charts.topShare.data.datasets[0].data = [];
+            charts.topShare.update('none');
+          }
+          if (charts.concentration) {
+            charts.concentration.data.labels = [];
+            charts.concentration.data.datasets[0].data = [];
+            charts.concentration.update('none');
+          }
+          return;
+        }
+
+        const barLabels = aggregated.map((entry) => entry.label);
+        const barData = aggregated.map((entry) => entry.share);
+        const barColors = aggregated.map((_, index) => COLORS[index % COLORS.length]);
+
+        const segments = buildDoughnutSegments(aggregated);
+        const doughnutLabels = segments.map((segment) => segment.label);
+        const doughnutData = segments.map((segment) => segment.value);
+        const doughnutColors = [];
+        const doughnutHover = [];
+        let colorIndex = 0;
+
+        segments.forEach((segment) => {
+          if (segment.isRemainder) {
+            doughnutColors.push(REMAINDER_COLOR);
+            doughnutHover.push(REMAINDER_HOVER);
+          } else {
+            const color = COLORS[colorIndex % COLORS.length];
+            doughnutColors.push(color);
+            doughnutHover.push(color);
+            colorIndex += 1;
+          }
+        });
+
+        const barCanvas = document.getElementById('top-share-chart');
+        const doughnutCanvas = document.getElementById('cohort-size-chart');
+        if (!barCanvas || !doughnutCanvas) return;
+
+        const barContext = barCanvas.getContext('2d');
+        const doughnutContext = doughnutCanvas.getContext('2d');
+        if (!barContext || !doughnutContext) return;
+
+        const barConfig = {
+          type: 'bar',
+          data: {
+            labels: barLabels,
+            datasets: [{
               label: 'Suspension share',
-              data: suspensionShare,
-              backgroundColor: suspensionColors,
-              hoverBackgroundColor: suspensionHoverColors,
+              data: barData,
+              backgroundColor: barColors,
+              hoverBackgroundColor: barColors,
               borderRadius: 8,
               borderSkipped: false,
-            },
-          ],
-        },
-        options: {
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              ticks: {
-                callback: (value) => `${value}%`,
+            }],
+          },
+          options: {
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: (value) => `${value}%`,
+                },
+                grid: { color: 'rgba(39, 116, 174, 0.15)' },
               },
-              grid: {
-                color: 'rgba(39, 116, 174, 0.15)',
+              x: {
+                grid: { display: false },
               },
             },
-            x: {
-              grid: {
-                display: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`,
+                },
               },
             },
           },
-          plugins: {
-            tooltip: {
-              callbacks: {
-                label: (context) => `${context.dataset.label}: ${context.parsed.y}%`,
-              },
-            },
-            legend: {
-              display: false,
-            },
-          },
-        },
-      };
+        };
 
-      if (charts.topShare) {
-        charts.topShare.data.labels = labels;
-        charts.topShare.data.datasets[0].data = suspensionShare;
-        charts.topShare.data.datasets[0].backgroundColor = suspensionColors;
-        charts.topShare.data.datasets[0].hoverBackgroundColor = suspensionHoverColors;
-        charts.topShare.update();
-      } else {
-        charts.topShare = new Chart(topShareContext, topShareConfig);
-      }
-
-      const cohortContext = document.getElementById('cohort-size-chart').getContext('2d');
-      const cohortConfig = {
-        type: 'doughnut',
-        data: {
-          labels,
-          datasets: [
-            {
+        const doughnutConfig = {
+          type: 'doughnut',
+          data: {
+            labels: doughnutLabels,
+            datasets: [{
               label: 'Suspension share',
-              data: suspensionShare,
-              backgroundColor: suspensionColors,
-              hoverBackgroundColor: suspensionHoverColors,
+              data: doughnutData,
+              backgroundColor: doughnutColors,
+              hoverBackgroundColor: doughnutHover,
               borderColor: '#ffffff',
               borderWidth: 2,
-            },
-          ],
-        },
-        options: {
-          maintainAspectRatio: false,
-          cutout: '55%',
-          plugins: {
-            legend: {
-              position: 'right',
-              labels: {
-                padding: 18,
-                boxWidth: 18,
-                font: {
-                  size: 12,
-                },
-                generateLabels(chart) {
-                  const chartData = chart.data;
-                  return chartData.labels.map((label, index) => {
-                    const value = Number(chartData.datasets[0].data[index] ?? 0).toFixed(1);
-                    return {
-                      text: `${label}: ${value}%`,
-                      fillStyle: chartData.datasets[0].backgroundColor[index],
-                      strokeStyle: chartData.datasets[0].borderColor,
-                      lineWidth: chartData.datasets[0].borderWidth,
+            }],
+          },
+          options: {
+            maintainAspectRatio: false,
+            cutout: '55%',
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: {
+                  padding: 18,
+                  boxWidth: 18,
+                  font: { size: 12 },
+                  generateLabels() {
+                    return segments.map((segment, index) => ({
+                      text: segment.legendText,
+                      fillStyle: doughnutColors[index],
+                      strokeStyle: '#ffffff',
+                      lineWidth: 2,
                       index,
-                    };
-                  });
+                    }));
+                  },
                 },
               },
-            },
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  const value = Number(context.parsed ?? 0).toFixed(1);
-                  return `${context.label}: ${value}% of suspensions`;
+              tooltip: {
+                callbacks: {
+                  label: (context) => segments[context.dataIndex]?.tooltipText || context.label,
                 },
               },
             },
           },
-        },
-      };
+        };
 
-      if (charts.concentrationBreakdown) {
-        charts.concentrationBreakdown.data.labels = labels;
-        charts.concentrationBreakdown.data.datasets[0].data = suspensionShare;
-        charts.concentrationBreakdown.data.datasets[0].backgroundColor = suspensionColors;
-        charts.concentrationBreakdown.data.datasets[0].hoverBackgroundColor = suspensionHoverColors;
-        charts.concentrationBreakdown.update();
-      } else {
-        charts.concentrationBreakdown = new Chart(cohortContext, cohortConfig);
-      }
-
-      if (!hasData) {
         if (charts.topShare) {
-          charts.topShare.data.labels = [];
-          charts.topShare.data.datasets[0].data = [];
-          charts.topShare.update('none');
+          charts.topShare.data.labels = barLabels;
+          charts.topShare.data.datasets[0].data = barData;
+          charts.topShare.data.datasets[0].backgroundColor = barColors;
+          charts.topShare.data.datasets[0].hoverBackgroundColor = barColors;
+          charts.topShare.update();
+        } else {
+          charts.topShare = new Chart(barContext, barConfig);
         }
-        if (charts.concentrationBreakdown) {
-          charts.concentrationBreakdown.data.labels = [];
-          charts.concentrationBreakdown.data.datasets[0].data = [];
-          charts.concentrationBreakdown.update('none');
+
+        if (charts.concentration) {
+          charts.concentration.data.labels = doughnutLabels;
+          charts.concentration.data.datasets[0].data = doughnutData;
+          charts.concentration.data.datasets[0].backgroundColor = doughnutColors;
+          charts.concentration.data.datasets[0].hoverBackgroundColor = doughnutHover;
+          charts.concentration.options.plugins.legend.labels.generateLabels = () => segments.map((segment, index) => ({
+            text: segment.legendText,
+            fillStyle: doughnutColors[index],
+            strokeStyle: '#ffffff',
+            lineWidth: 2,
+            index,
+          }));
+          charts.concentration.options.plugins.tooltip.callbacks.label = (context) => segments[context.dataIndex]?.tooltipText || context.label;
+          charts.concentration.update();
+        } else {
+          charts.concentration = new Chart(doughnutContext, doughnutConfig);
         }
       }
-    }
 
-    function buildMetaFromData() {
-      const academicYears = Array.from(new Set(cache.gradeSetting.map((row) => row.year_num)))
-        .filter((value) => value != null && !Number.isNaN(value))
-        .sort((a, b) => a - b)
-        .map((value) => formatters.toAcademicYear(value));
+      function applyFilters() {
+        store.filtered = filterRows(store.rows);
+        renderSummaryAndTable(store.filtered);
+        renderCharts(store.filtered);
+      }
 
-      const gradeLevels = Array.from(new Set(cache.gradeSetting.map((row) => row.level)))
-        .filter(Boolean)
-        .sort();
+      function resetFilters() {
+        state.academicYear = 'All';
+        state.gradeLevel = 'All';
+        state.schoolType = 'All';
+        if (DOM.controls) {
+          DOM.controls.querySelectorAll('select').forEach((select) => {
+            select.value = 'All';
+          });
+        }
+        applyFilters();
+      }
 
-      const schoolTypes = Array.from(new Set(cache.gradeSetting.map((row) => row.setting))).sort();
+      async function init() {
+        try {
+          const payload = await loadPreparedData();
+          store.rows = Array.isArray(payload.gradeSetting) ? payload.gradeSetting.filter((row) => row) : [];
 
-      return {
-        academicYears,
-        gradeLevels,
-        schoolTypes,
-      };
-    }
+          populateControls(buildMetadata(store.rows));
+          if (DOM.reset) {
+            DOM.reset.addEventListener('click', resetFilters);
+          }
+          if (DOM.download) {
+            DOM.download.addEventListener('click', handleDownloadClick);
+          }
 
-    function resetFilters() {
-      Object.assign(state, {
-        academicYear: 'All',
-        gradeLevel: 'All',
-        schoolType: 'All',
-      });
-      document.querySelectorAll('#controls select').forEach((select) => {
-        select.value = 'All';
-      });
-      render();
-    }
+          if (DOM.loading) {
+            DOM.loading.hidden = true;
+          }
+          if (DOM.content) {
+            DOM.content.hidden = false;
+          }
 
-    function init() {
-      fetch('dashboard/pareto_grade_setting_payload.json')
-        .then((response) => response.json())
-        .then((gradePayload) => {
-          cache.gradeSetting = gradePayload.gradeSetting || [];
+          applyFilters();
+        } catch (error) {
+          console.error('Failed to initialize tail concentration dashboard:', error);
+          if (DOM.loading) {
+            DOM.loading.hidden = false;
+            DOM.loading.textContent = 'Unable to load the prepared grade-setting data. Please refresh the page or try again later.';
+          }
+        }
+      }
 
-          populateControls(buildMetaFromData());
-          document.getElementById('reset-filters').addEventListener('click', resetFilters);
-
-          document.getElementById('loading').hidden = true;
-          document.getElementById('content').hidden = false;
-          render();
-        })
-        .catch((error) => {
-          console.error('Failed to load prepared data', error);
-          document.getElementById('loading').textContent = 'Unable to load the prepared grade-setting data.';
-        });
-    }
-
-    updateDownloadButton(false);
-
-    document.addEventListener('DOMContentLoaded', init);
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
   </script>
+
+
 </body>
 </html>
