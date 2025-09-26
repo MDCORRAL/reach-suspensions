@@ -24,21 +24,30 @@
     body {
       margin: 0;
       font-family: 'Inter', sans-serif;
-      background: linear-gradient(135deg, #003b5c 0%, #2774ae 100%);
+      background: linear-gradient(135deg, #003B5C 0%, #2774AE 100%);
       color: var(--text);
       line-height: 1.6;
       min-height: 100vh;
     }
 
-    header {
-      background: var(--surface);
-      padding: 2.75rem 1.5rem 2.25rem;
-      text-align: center;
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 2.75rem 0 2.25rem;
       box-shadow: 0 4px 20px rgba(0, 59, 92, 0.12);
       margin-bottom: 2.5rem;
     }
 
-    header h1 {
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+
+    .header .container {
+      text-align: center;
+    }
+
+    .header h1 {
       margin: 0;
       font-size: 2.5rem;
       letter-spacing: 0.02em;
@@ -46,7 +55,7 @@
       color: var(--primary-dark);
     }
 
-    header p {
+    .header p {
       margin: 0.75rem auto 0;
       max-width: 760px;
       font-size: 1.05rem;
@@ -275,12 +284,14 @@
   </style>
 </head>
 <body>
-  <header>
-    <h1>REACH Suspension Insights Dashboard</h1>
-    <p>
-      Explore California school suspension patterns through an equity lens. Filter the data to surface disparities by student group,
-      school setting, and the racial composition of campuses to guide strategic interventions.
-    </p>
+  <header class="header">
+    <div class="container">
+      <h1>REACH Suspension Insights Dashboard</h1>
+      <p>
+        Explore California school suspension patterns through an equity lens. Filter the data to surface disparities by student
+        group, school setting, and the racial composition of campuses to guide strategic interventions.
+      </p>
+    </div>
   </header>
 
   <main>
