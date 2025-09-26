@@ -389,7 +389,8 @@
         yearEl.appendChild(opt);
       });
       if (years.length) {
-        yearEl.value = years.at(-1);
+        yearEl.value = years[years.length - 1];
+
       }
 
       renderQuartileOptions('black_prop_q_label');
@@ -449,14 +450,13 @@
           map.set(key, {
             year,
             quartile,
-
             students: 0,
 
             enrollment: 0
           });
         }
         const entry = map.get(key);
-<<<
+
         const students = Number(row.students_suspended);
         if (Number.isFinite(students)) {
           entry.students += students;
@@ -512,7 +512,8 @@
 
       const sorted = yearRows.filter((row) => row.rate != null).sort((a, b) => b.rate - a.rate);
       const highest = sorted[0];
-      const lowest = sorted.at(-1);
+      const lowest = sorted[sorted.length - 1];
+
 
       const gap = highest && lowest && highest.rate != null && lowest.rate != null
         ? highest.rate - lowest.rate
@@ -532,7 +533,6 @@
         } : null,
         lowest ? {
           title: 'Lowest rate',
-
           value: `${formatRate(lowest.rate)} students per 100`,
 
           subtitle: lowest.quartile
@@ -594,17 +594,18 @@
       const highlightQuartile = selectedQuartiles.find((label) => /^Q4/.test(label)) || selectedQuartiles[0];
       if (highlightQuartile) {
         const start = series.find((row) => row.year === years[0] && row.quartile === highlightQuartile);
-        const end = series.find((row) => row.year === years.at(-1) && row.quartile === highlightQuartile);
+        const endYear = years[years.length - 1];
+        const end = series.find((row) => row.year === endYear && row.quartile === highlightQuartile);
         if (start && end && start.rate != null && end.rate != null) {
           const diff = end.rate - start.rate;
           const direction = diff > 0 ? 'increased' : diff < 0 ? 'decreased' : 'held steady';
-          narrative.textContent = `${highlightQuartile} campuses serving ${group.toLowerCase()} students ${direction} from ${formatRate(start.rate)} to ${formatRate(end.rate)} students suspended per 100 between ${years[0]} and ${years.at(-1)}.`;
-
+          narrative.textContent = `${highlightQuartile} campuses serving ${group.toLowerCase()} students ${direction} from ${formatRate(start.rate)} to ${formatRate(end.rate)} students suspended per 100 between ${years[0]} and ${years[years.length - 1]}.`;
         } else {
-          narrative.textContent = `Trends display suspension rates for selected ${dimLabel.toLowerCase()} quartiles across ${years[0]}–${years.at(-1)}.`;
+          narrative.textContent = `Trends display suspension rates for selected ${dimLabel.toLowerCase()} quartiles across ${years[0]}–${years[years.length - 1]}.`;
         }
       } else {
-        narrative.textContent = `Trends display suspension rates for selected ${dimLabel.toLowerCase()} quartiles across ${years[0]}–${years.at(-1)}.`;
+        narrative.textContent = `Trends display suspension rates for selected ${dimLabel.toLowerCase()} quartiles across ${years[0]}–${years[years.length - 1]}.`;
+
       }
     }
 
@@ -661,7 +662,8 @@
 
       const years = Array.from(new Set(rows.map((row) => row.year))).sort();
       const earliestYear = years[0];
-      const latestYear = years.at(-1);
+      const latestYear = years[years.length - 1];
+
       const highlightQuartile = selectedQuartiles.find((label) => /^Q4/.test(label)) || selectedQuartiles[0];
       const earlyHighlight = series.find((row) => row.year === earliestYear && row.quartile === highlightQuartile);
       const lateHighlight = series.find((row) => row.year === latestYear && row.quartile === highlightQuartile);
