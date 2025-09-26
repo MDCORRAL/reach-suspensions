@@ -418,20 +418,67 @@
         const scriptSelector = 'script[data-rates-bundle]';
         let script = document.querySelector(scriptSelector);
 
-        const handleLoad = () => {
+        const resolveWithPayload = () => {
           const payload = getPreloadedData();
           if (payload) {
             resolve(payload);
           } else {
+            if (script && script.dataset) {
+              script.dataset.ratesBundleState = 'error';
+            }
             reject(new Error('Bundle loaded but data missing'));
           }
         };
 
+        const handleLoad = () => {
+          if (script && script.dataset) {
+            script.dataset.ratesBundleState = 'loaded';
+          }
+          resolveWithPayload();
+        };
+
         const handleError = () => {
+          if (script && script.dataset) {
+            script.dataset.ratesBundleState = 'error';
+          }
           reject(new Error('Failed to load precomputed data bundle'));
         };
 
+        const handleExistingScriptState = () => {
+          if (!script) {
+            return false;
+          }
+          const state = script.dataset ? script.dataset.ratesBundleState : undefined;
+          if (state === 'loaded') {
+            resolveWithPayload();
+            return true;
+          }
+          if (state === 'error') {
+            reject(new Error('Failed to load precomputed data bundle'));
+            return true;
+          }
+          const readyState = script.readyState;
+          if (readyState === 'complete' || readyState === 'loaded') {
+            if (script.dataset) {
+              script.dataset.ratesBundleState = 'loaded';
+            }
+            resolveWithPayload();
+            return true;
+          }
+          if (readyState === 'error') {
+            if (script.dataset) {
+              script.dataset.ratesBundleState = 'error';
+            }
+            reject(new Error('Failed to load precomputed data bundle'));
+            return true;
+          }
+          return false;
+        };
+
         if (script) {
+          if (handleExistingScriptState()) {
+            return;
+          }
           script.addEventListener('load', handleLoad, { once: true });
           script.addEventListener('error', handleError, { once: true });
           return;
@@ -440,6 +487,9 @@
         script = document.createElement('script');
         script.src = DATA_BUNDLE_SRC;
         script.dataset.ratesBundle = 'true';
+        if (script.dataset) {
+          script.dataset.ratesBundleState = 'pending';
+        }
         script.addEventListener('load', handleLoad, { once: true });
         script.addEventListener('error', handleError, { once: true });
         document.head.appendChild(script);
@@ -628,20 +678,17 @@
     }
 
     function filterData({ years, races, levels, settings, includeAllLevels, includeAllSettings }) {
-      return state.data.filter((row) => (
-        (years.length === 0 || years.includes(row.year)) &&
-        (races.length === 0 || races.includes(row.race_ethnicity)) &&
-        (includeAllLevels || levels.length === 0 || levels.includes(row.school_level)) &&
-        (includeAllSettings || settings.length === 0 || settings.includes(row.setting))
-      ));
-    }
-
-    function hasAllSelections({ years, races, levels, settings, includeAllLevels, includeAllSettings }) {
-      const allYears = years.length === state.years.length;
-      const allRaces = races.length === state.races.length;
-      const allLevels = includeAllLevels || levels.length === state.levels.length;
-      const allSettings = includeAllSettings || settings.length === state.settings.length;
-      return allYears && allRaces && allLevels && allSettings;
+      return state.data.filter((row) => {
+        const matchesYear = years.length === 0 || years.includes(row.year);
+        const matchesRace = races.length === 0 || races.includes(row.race_ethnicity);
+        const matchesLevel = includeAllLevels || levels.length === 0
+          ? true
+          : levels.includes(row.school_level);
+        const matchesSetting = includeAllSettings || settings.length === 0
+          ? true
+          : settings.includes(row.setting);
+        return matchesYear && matchesRace && matchesLevel && matchesSetting;
+      });
     }
 
     function updateSummary(filtered) {
@@ -673,14 +720,11 @@
     function renderTable(filtered) {
       const wrapper = document.getElementById('table-wrapper');
       wrapper.innerHTML = '';
-      const allSelected = hasAllSelections(state.selections);
 
-      if (!state.tableUnlocked || !allSelected) {
+      if (!state.tableUnlocked) {
         const guidance = document.createElement('div');
         guidance.className = 'empty-state';
-        guidance.innerHTML = state.tableUnlocked
-          ? 'Full race × year details appear when every filter option is selected.'
-          : 'Select every filter option and press <strong>Update analysis</strong> to load the full race × year table.';
+        guidance.innerHTML = 'Choose any combination of filters and press <strong>Update analysis</strong> to view the race × year table.';
         wrapper.appendChild(guidance);
         return;
       }
@@ -688,7 +732,7 @@
       if (filtered.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
-        empty.textContent = 'No data available for the current selection.';
+        empty.textContent = 'No data available for the current selection. Adjust your filters and press Update analysis to refresh the table.';
         wrapper.appendChild(empty);
         return;
       }
@@ -964,10 +1008,9 @@
       const selections = getSelections();
       state.selections = selections;
       const filtered = filterData(selections);
-      const allSelected = hasAllSelections(selections);
 
       if (allowTableUnlock) {
-        state.tableUnlocked = allSelected;
+        state.tableUnlocked = true;
       }
 
       updateSummary(filtered);
