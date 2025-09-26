@@ -251,7 +251,6 @@
 
     .chart-card canvas {
       width: 100%;
-      height: 320px;
     }
 
     table {
@@ -403,19 +402,35 @@
         Chart.register(zoomPlugin);
       }
     }
-    const RACE_COLORS = {
-      'All Students': '#000000',
-      'Asian': '#1f77b4',
-      'Black/African American': '#ff7f0e',
-      'Filipino': '#2ca02c',
-      'Hispanic/Latino': '#d62728',
-      'American Indian/Alaska Native': '#9467bd',
-      'Native Hawaiian/Pacific Islander': '#8c564b',
-      'Two or More Races': '#e377c2',
-      'White': '#7f7f7f',
-      'Students with Disabilities': '#bcbd22',
-      'English Learner': '#17becf'
-    };
+    const UCLA_PALETTE = [
+      '#2774AE',
+      '#005587',
+      '#003B5C',
+      '#8BB8E8',
+      '#FFB81C',
+      '#FFC72C',
+      '#FFD100'
+    ];
+
+    const raceColorCache = new Map();
+
+    function hexToRgba(hex, alpha = 1) {
+      const sanitized = hex.replace('#', '');
+      const bigint = parseInt(sanitized, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function getRaceColor(race, alpha = 1) {
+      if (!raceColorCache.has(race)) {
+        const nextColor = UCLA_PALETTE[raceColorCache.size % UCLA_PALETTE.length];
+        raceColorCache.set(race, nextColor);
+      }
+      const baseColor = raceColorCache.get(race);
+      return alpha === 1 ? baseColor : hexToRgba(baseColor, alpha);
+    }
 
     const ALL_LEVEL_VALUE = '__all_levels__';
     const ALL_SETTING_VALUE = '__all_settings__';
@@ -435,7 +450,8 @@
         includeAllLevels: true,
         includeAllSettings: true
       },
-      charts: { line: null, bar: null }
+      charts: { line: null, bar: null },
+      tableUnlocked: false
     };
 
     function formatNumber(value, decimals = 0) {
@@ -569,6 +585,14 @@
       ));
     }
 
+    function hasAllSelections({ years, races, levels, settings, includeAllLevels, includeAllSettings }) {
+      const allYears = years.length === state.years.length;
+      const allRaces = races.length === state.races.length;
+      const allLevels = includeAllLevels || levels.length === state.levels.length;
+      const allSettings = includeAllSettings || settings.length === state.settings.length;
+      return allYears && allRaces && allLevels && allSettings;
+    }
+
     function updateSummary(filtered) {
       const totalSchools = filtered.reduce((sum, row) => sum + Number(row.n_schools || 0), 0);
       const totalRecords = filtered.reduce((sum, row) => sum + Number(row.n_records || 0), 0);
@@ -598,6 +622,18 @@
     function renderTable(filtered) {
       const wrapper = document.getElementById('table-wrapper');
       wrapper.innerHTML = '';
+      const allSelected = hasAllSelections(state.selections);
+
+      if (!state.tableUnlocked || !allSelected) {
+        const guidance = document.createElement('div');
+        guidance.className = 'empty-state';
+        guidance.innerHTML = state.tableUnlocked
+          ? 'Full race × year details appear when every filter option is selected.'
+          : 'Select every filter option and press <strong>Update analysis</strong> to load the full race × year table.';
+        wrapper.appendChild(guidance);
+        return;
+      }
+
       if (filtered.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
@@ -672,7 +708,7 @@
       });
 
       const datasets = races.map((race) => {
-        const color = RACE_COLORS[race] || '#2774ae';
+        const color = getRaceColor(race);
         const data = sortedYears.map((year) => {
           const entry = aggregated.get(`${year}||${race}`);
           if (!entry || entry.totalEnrollment <= 0) return null;
@@ -683,7 +719,7 @@
           label: race,
           data,
           borderColor: color,
-          backgroundColor: color,
+          backgroundColor: getRaceColor(race, 0.18),
           spanGaps: true,
           tension: 0.25,
           pointRadius: 4,
@@ -709,7 +745,8 @@
         data: { labels: sortedYears, datasets },
         options: {
           responsive: true,
-          maintainAspectRatio: false,
+          maintainAspectRatio: true,
+          aspectRatio: 2.2,
           interaction: { mode: 'nearest', intersect: false },
           plugins: {
             legend: { position: 'bottom' },
@@ -754,7 +791,8 @@
 
       const labels = totalsByRace.map((entry) => entry.race);
       const data = totalsByRace.map((entry) => Number(entry.totalSusp.toFixed(2)));
-      const backgroundColors = labels.map((race) => (RACE_COLORS[race] || '#2774ae'));
+      const backgroundColors = labels.map((race) => getRaceColor(race, 0.8));
+      const borderColors = labels.map((race) => getRaceColor(race));
 
       if (state.charts.bar) {
         if (state.charts.bar.resetZoom) {
@@ -763,6 +801,8 @@
         state.charts.bar.data.labels = labels;
         state.charts.bar.data.datasets[0].data = data;
         state.charts.bar.data.datasets[0].backgroundColor = backgroundColors;
+        state.charts.bar.data.datasets[0].borderColor = borderColors;
+        state.charts.bar.data.datasets[0].borderWidth = 1;
         state.charts.bar.update();
         return;
       }
@@ -776,13 +816,16 @@
               label: 'Total suspensions',
               data,
               backgroundColor: backgroundColors,
+              borderColor: borderColors,
+              borderWidth: 1,
               borderRadius: 8
             }
           ]
         },
         options: {
           responsive: true,
-          maintainAspectRatio: false,
+          maintainAspectRatio: true,
+          aspectRatio: 2.1,
           plugins: {
             legend: { display: false },
             tooltip: {
@@ -865,10 +908,17 @@
       link.remove();
     }
 
-    function updateVisuals() {
+    function updateVisuals(options = {}) {
+      const { allowTableUnlock = false } = options;
       const selections = getSelections();
       state.selections = selections;
       const filtered = filterData(selections);
+      const allSelected = hasAllSelections(selections);
+
+      if (allowTableUnlock) {
+        state.tableUnlocked = allSelected;
+      }
+
       updateSummary(filtered);
       renderTable(filtered);
       updateDownload(filtered);
@@ -894,6 +944,8 @@
         state.data = payload.rates_by_race_year || [];
         state.years = Array.from(new Set(state.data.map((row) => row.year))).sort();
         state.races = Array.from(new Set(state.data.map((row) => row.race_ethnicity))).sort();
+        raceColorCache.clear();
+        state.races.forEach((race) => getRaceColor(race));
         const levelSet = new Set();
         const settingSet = new Set();
         state.data.forEach((row) => {
@@ -932,7 +984,8 @@
     }
 
     document.getElementById('update-analysis').addEventListener('click', () => {
-      updateVisuals();
+      updateVisuals({ allowTableUnlock: true });
+
     });
 
     initialise();
