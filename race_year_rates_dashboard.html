@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
   <script src="dashboard/vendor/chart.umd.js"></script>
   <script src="dashboard/vendor/chartjs-plugin-zoom.min.js"></script>
+  <script src="dashboard/data/rates_by_race_year.js" data-rates-bundle="true"></script>
   <style>
     :root {
       color-scheme: light;
@@ -247,10 +248,12 @@
       padding: 1.25rem;
       background: var(--card-bg);
       box-shadow: 0 8px 18px rgba(0, 59, 92, 0.12);
+      position: relative;
     }
 
     .chart-card canvas {
       width: 100%;
+      max-height: 360px;
     }
 
     table {
@@ -391,10 +394,107 @@
 
   <script>
     const DATA_URL = 'dashboard/data/rates_by_race_year.json';
-    const PRELOADED_DATA =
-      typeof window !== 'undefined' && window.RATES_BY_RACE_YEAR_DATA
-        ? window.RATES_BY_RACE_YEAR_DATA
-        : null;
+    const DATA_BUNDLE_SRC = 'dashboard/data/rates_by_race_year.js';
+
+    function getPreloadedData() {
+      if (typeof window === 'undefined') return null;
+      const payload = window.RATES_BY_RACE_YEAR_DATA;
+      if (payload && Array.isArray(payload.rates_by_race_year)) {
+        return payload;
+      }
+      return null;
+    }
+
+    function ensureDataBundleLoaded() {
+      if (typeof window === 'undefined') {
+        return Promise.resolve(null);
+      }
+      const existingData = getPreloadedData();
+      if (existingData) {
+        return Promise.resolve(existingData);
+      }
+
+      return new Promise((resolve, reject) => {
+        const scriptSelector = 'script[data-rates-bundle]';
+        let script = document.querySelector(scriptSelector);
+
+        const resolveWithPayload = () => {
+          const payload = getPreloadedData();
+          if (payload) {
+            resolve(payload);
+          } else {
+            if (script && script.dataset) {
+              script.dataset.ratesBundleState = 'error';
+            }
+            reject(new Error('Bundle loaded but data missing'));
+          }
+        };
+
+        const handleLoad = () => {
+          if (script && script.dataset) {
+            script.dataset.ratesBundleState = 'loaded';
+          }
+          resolveWithPayload();
+        };
+
+        const handleError = () => {
+          if (script && script.dataset) {
+            script.dataset.ratesBundleState = 'error';
+          }
+          reject(new Error('Failed to load precomputed data bundle'));
+        };
+
+        const handleExistingScriptState = () => {
+          if (!script) {
+            return false;
+          }
+          const state = script.dataset ? script.dataset.ratesBundleState : undefined;
+          if (state === 'loaded') {
+            resolveWithPayload();
+            return true;
+          }
+          if (state === 'error') {
+            reject(new Error('Failed to load precomputed data bundle'));
+            return true;
+          }
+          const readyState = script.readyState;
+          if (readyState === 'complete' || readyState === 'loaded') {
+            if (script.dataset) {
+              script.dataset.ratesBundleState = 'loaded';
+            }
+            resolveWithPayload();
+            return true;
+          }
+          if (readyState === 'error') {
+            if (script.dataset) {
+              script.dataset.ratesBundleState = 'error';
+            }
+            reject(new Error('Failed to load precomputed data bundle'));
+            return true;
+          }
+          return false;
+        };
+
+        if (script) {
+          if (handleExistingScriptState()) {
+            return;
+          }
+          script.addEventListener('load', handleLoad, { once: true });
+          script.addEventListener('error', handleError, { once: true });
+          return;
+        }
+
+        script = document.createElement('script');
+        script.src = DATA_BUNDLE_SRC;
+        script.dataset.ratesBundle = 'true';
+        if (script.dataset) {
+          script.dataset.ratesBundleState = 'pending';
+        }
+        script.addEventListener('load', handleLoad, { once: true });
+        script.addEventListener('error', handleError, { once: true });
+        document.head.appendChild(script);
+      });
+    }
     if (window.Chart) {
       const zoomGlobal = window['chartjs-plugin-zoom'] || window.chartjsPluginZoom || window.ChartZoom;
       if (zoomGlobal) {
@@ -930,9 +1030,19 @@
     }
 
     async function loadData() {
-      if (PRELOADED_DATA && Array.isArray(PRELOADED_DATA.rates_by_race_year)) {
-        return PRELOADED_DATA;
+      try {
+        const preloaded = getPreloadedData() || (await ensureDataBundleLoaded());
+        if (preloaded && Array.isArray(preloaded.rates_by_race_year)) {
+          return preloaded;
+        }
+      } catch (bundleError) {
+        console.warn(bundleError);
       }
+
+      if (location.protocol === 'file:') {
+        throw new Error('Precomputed bundle unavailable when opened from disk.');
+      }
+
       const response = await fetch(DATA_URL, { cache: 'no-store' });
       if (!response.ok) throw new Error('Unable to load dataset');
       return response.json();
@@ -980,12 +1090,11 @@
           'Failed to load pre-computed data. Please refresh to try again. ' +
           'If the file is opened directly from disk, ensure the accompanying <code>dashboard/data/rates_by_race_year.js</code> file is present.';
         console.error(error);
-      }
+    }
     }
 
     document.getElementById('update-analysis').addEventListener('click', () => {
       updateVisuals({ allowTableUnlock: true });
-
     });
 
     initialise();
