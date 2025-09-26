@@ -28,31 +28,37 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--background);
+            background: linear-gradient(135deg, #003B5C 0%, #2774AE 100%);
             color: var(--text-primary);
             line-height: 1.6;
+            min-height: 100vh;
         }
 
         .header {
-            background: linear-gradient(135deg, var(--ucla-blue), var(--ucla-darker-blue));
-            color: white;
-            padding: 2rem 0;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2.5rem 0;
+            box-shadow: 0 4px 20px rgba(0, 59, 92, 0.12);
+            margin-bottom: 2.5rem;
+        }
+
+        .header .container {
             text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 0 1rem;
         }
 
         .header h1 {
             font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
+            color: #003B5C;
         }
 
         .header p {
             font-size: 1.1rem;
-            opacity: 0.9;
             max-width: 800px;
             margin: 0 auto;
             padding: 0 1rem;
+            color: #2774AE;
         }
 
         .container {
@@ -200,10 +206,12 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Suspension Categories Trends</h1>
-        <p>Explore how different types of school suspensions have changed over time across various student populations and school settings</p>
-    </div>
+    <header class="header">
+        <div class="container">
+            <h1>Suspension Categories Trends</h1>
+            <p>Explore how different types of school suspensions have changed over time across various student populations and school settings</p>
+        </div>
+    </header>
 
     <div class="container">
         <div class="controls-panel">
