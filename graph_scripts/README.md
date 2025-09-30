@@ -51,6 +51,8 @@ python graph_scripts/20_suspension_reason_trends_by_level_and_locale.py
 The script reads `data-stage/susp_v6_long.parquet`, aggregates suspension counts
 for "All Students" across each school level and locale, and exports one chart
 per combination to `outputs/20_suspension_reason_trends_by_level_and_locale/`.
+An additional "All Traditional" (non-charter) series is created for each level
+to highlight the systemwide trend across traditional public schools.
 PNG is the default output; pass `--image-format svg` for vector renders or
 
 `--levels`/`--locales` to limit the generated charts.

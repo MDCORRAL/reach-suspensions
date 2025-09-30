@@ -3,7 +3,9 @@
 This module can be executed as a script.  By default it reads the long-format
 parquet export and renders one chart per combination of school level and
 locale, storing PNG images in
-``outputs/20_suspension_reason_trends_by_level_and_locale``.
+``outputs/20_suspension_reason_trends_by_level_and_locale``. An additional
+"All Traditional" aggregate (non-charter schools) is generated for each level
+to provide a systemwide comparison across locales.
 The output directory, subset of levels/locales, and image format (``png`` or
 ``svg``) can be overridden via command-line flags.
 """
@@ -55,8 +57,8 @@ REASON_PALETTE = {
     "Violent (No Injury)": UCLA_PALETTE["Darker Blue"],
     "Weapons": UCLA_PALETTE["UCLA Blue"],
     "Illicit Drugs": UCLA_PALETTE["Purple"],
-    "Willful Defiance": UCLA_PALETTE["Darkest Gold"],
-    "Other": UCLA_PALETTE["Green"],
+    "Willful Defiance": UCLA_PALETTE["Green"],
+    "Other": UCLA_PALETTE["Magenta"],
 }
 
 LEVEL_ORDER = ["Elementary", "Middle", "High"]
@@ -78,6 +80,7 @@ read_columns = [
     "category_type",
     LOCALE_COLUMN,
     "cumulative_enrollment",
+    "charter_yn_std",
     *REASON_COLUMNS.keys(),
 ]
 
@@ -131,11 +134,14 @@ def prepare_data(raw_df: pd.DataFrame) -> pd.DataFrame:
         for locale in sorted(observed_locales)
         if locale not in locale_categories
     ]
+    base_locale_categories = [*locale_categories, *extras]
     filtered[LOCALE_COLUMN] = pd.Categorical(
         filtered[LOCALE_COLUMN],
-        categories=[*locale_categories, *extras],
+        categories=base_locale_categories,
         ordered=True,
     )
+
+    filtered["charter_yn_std"] = filtered["charter_yn_std"].fillna("Unknown")
 
     agg_dict = {col: "sum" for col in REASON_COLUMNS}
     agg_dict["cumulative_enrollment"] = "sum"
@@ -146,6 +152,30 @@ def prepare_data(raw_df: pd.DataFrame) -> pd.DataFrame:
         .agg(agg_dict)
         .reset_index()
     )
+
+    traditional = filtered[filtered["charter_yn_std"] == "No"].copy()
+    if not traditional.empty:
+        agg_traditional = (
+            traditional
+            .groupby(["academic_year", "school_level"], observed=True, dropna=False)
+            .agg(agg_dict)
+            .reset_index()
+        )
+        agg_traditional[LOCALE_COLUMN] = "All Traditional"
+        aggregated = pd.concat([aggregated, agg_traditional], ignore_index=True, sort=False)
+
+    if "All Traditional" in aggregated[LOCALE_COLUMN].astype("string").unique():
+        aggregated[LOCALE_COLUMN] = pd.Categorical(
+            aggregated[LOCALE_COLUMN].astype("string"),
+            categories=[*base_locale_categories, "All Traditional"],
+            ordered=True,
+        )
+    else:
+        aggregated[LOCALE_COLUMN] = pd.Categorical(
+            aggregated[LOCALE_COLUMN].astype("string"),
+            categories=base_locale_categories,
+            ordered=True,
+        )
 
     melted = aggregated.melt(
         id_vars=["academic_year", "school_level", LOCALE_COLUMN, "cumulative_enrollment"],
