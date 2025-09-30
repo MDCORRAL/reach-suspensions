@@ -21,14 +21,45 @@
       --shadow: 0 18px 40px rgba(0, 59, 92, 0.18);
     }
 
-    * { box-sizing: border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
-      font-family: 'Inter', sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #003B5C 0%, #2774AE 100%);
       color: var(--deep);
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .page-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .top-bar {
+      padding: 1rem 0;
+      text-align: right;
+      background: rgba(0, 59, 92, 0.35);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .top-bar .container {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .top-bar a {
+      color: #ffffff;
+      font-weight: 600;
+      text-decoration: underline;
     }
 
     .header {
@@ -42,36 +73,6 @@
       max-width: 1200px;
       margin: 0 auto;
       padding: 0 1.5rem;
-    }
-
-    .header-top {
-      display: flex;
-      justify-content: flex-end;
-      gap: 0.75rem;
-      margin-bottom: 1rem;
-    }
-
-    .nav-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      background: rgba(39, 116, 174, 0.12);
-      color: var(--deep);
-      text-decoration: none;
-      border-radius: 999px;
-      padding: 0.5rem 1.2rem;
-      font-weight: 600;
-      border: 1px solid rgba(39, 116, 174, 0.2);
-      box-shadow: 0 8px 20px rgba(0, 59, 92, 0.08);
-      transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
-    }
-
-    .nav-link:hover,
-    .nav-link:focus-visible {
-      transform: translateY(-1px);
-      box-shadow: 0 10px 28px rgba(0, 59, 92, 0.12);
-      background: rgba(39, 116, 174, 0.2);
-      outline: none;
     }
 
     .header h1 {
@@ -96,6 +97,8 @@
       max-width: 1200px;
       margin: 0 auto 4rem;
       padding: 0 1.5rem 3rem;
+      flex: 1;
+      width: 100%;
     }
 
     .panel {
@@ -245,6 +248,28 @@
       font-weight: 500;
     }
 
+    .footer-bar {
+      background: rgba(255, 255, 255, 0.12);
+      padding: 1.5rem 0;
+      margin-top: auto;
+    }
+
+    .footer-bar .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #ffffff;
+      font-size: 0.9rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-bar a {
+      color: #ffffff;
+      text-decoration: underline;
+      font-weight: 600;
+    }
+
     @media (max-width: 768px) {
       .header h1 { font-size: 2rem; }
       .control-row { flex-direction: column; align-items: flex-start; }
@@ -254,13 +279,17 @@
   </style>
 </head>
 <body>
-  <header class="header">
-    <div class="container">
-      <div class="header-top">
-        <a class="nav-link" href="index.html">&#8592; Back to main dashboard</a>
+  <div class="page-wrapper">
+    <div class="top-bar">
+      <div class="container">
+        <a href="index.html">&#8592; Back to Main Dashboard</a>
       </div>
-      <h1>Suspension Rates by Enrollment Quartiles</h1>
-      <p>
+    </div>
+
+    <header class="header">
+      <div class="container">
+        <h1>Suspension Rates by Enrollment Quartiles</h1>
+        <p>
         Compare how suspension rates shift across campuses with different racial/ethnic enrollment concentrations.
         Select a student group, choose which quartiles to display, and see how the rates evolve over time and in the most recent year.
       </p>
@@ -321,7 +350,15 @@
       <h2>Interpretation</h2>
       <div id="insightBox" class="insight-box"></div>
     </section>
-  </main>
+    </main>
+  </div>
+
+  <footer class="footer-bar">
+    <div class="container">
+      <span>University of California, Los Angeles — Center for the Transformation of Schools</span>
+      <a href="https://ucla.edu" target="_blank" rel="noopener">Visit UCLA</a>
+    </div>
+  </footer>
 
   <script>
     const quartilePalette = {
