@@ -54,6 +54,7 @@ per combination to `outputs/20_suspension_reason_trends_by_level_and_locale/`.
 An additional "All Traditional" (non-charter) series is created for each level
 to highlight the systemwide trend across traditional public schools.
 PNG is the default output; pass `--image-format svg` for vector renders or
+
 `--levels`/`--locales` to limit the generated charts.
 
 ## Working from R
