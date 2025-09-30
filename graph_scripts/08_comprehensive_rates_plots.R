@@ -47,7 +47,7 @@ ucla_colors <- c(
 )
 
 race_palette <- c(
-  "All Students" = ucla_colors[["Darkest Blue"]],
+  "All Students" = "#C8102E",
   "Black/African American" = ucla_colors[["UCLA Blue"]],
   "Hispanic/Latino" = ucla_colors[["UCLA Gold"]],
   "White" = ucla_colors[["Darker Blue"]],
@@ -57,6 +57,12 @@ race_palette <- c(
   "Native Hawaiian/Pacific Islander" = ucla_colors[["Green"]],
   "Two or More Races" = ucla_colors[["Magenta"]]
 )
+
+line_style_palette <- setNames(rep("solid", length(race_palette)), names(race_palette))
+line_style_palette[["All Students"]] <- "dotted"
+
+linewidth_palette <- setNames(rep(1.1, length(race_palette)), names(race_palette))
+linewidth_palette[["All Students"]] <- 0.7
 
 safe_div <- function(num, den) ifelse(is.na(den) | den == 0, NA_real_, num / den)
 
@@ -153,7 +159,7 @@ rates_by_grade <- calc_summary_stats(analytic_data, year, grade_level, race_ethn
 
 plot_mean_rates <- function(df) {
   ggplot(df, aes(x = year, y = pooled_rate, color = race_ethnicity, group = race_ethnicity)) +
-    geom_line(linewidth = 1.1) +
+    geom_line(aes(linewidth = race_ethnicity, linetype = race_ethnicity)) +
     geom_point(size = 2.5) +
     geom_label_repel(
       aes(label = pooled_rate_pct),
@@ -168,6 +174,8 @@ plot_mean_rates <- function(df) {
       max.overlaps = Inf
     ) +
     scale_color_manual(values = race_palette, drop = FALSE) +
+    scale_linetype_manual(values = line_style_palette, drop = FALSE) +
+    scale_linewidth_manual(values = linewidth_palette, drop = FALSE) +
     scale_y_continuous(labels = percent_format(accuracy = 0.1), expand = expansion(mult = c(0.05, 0.1))) +
     labs(
       title = "Pooled Suspension Rates by Race/Ethnicity",
@@ -182,7 +190,7 @@ plot_mean_rates <- function(df) {
 
 plot_grade_rates <- function(df, grade_label) {
   ggplot(df, aes(x = year, y = pooled_rate, color = race_ethnicity, group = race_ethnicity)) +
-    geom_line(linewidth = 1.1) +
+    geom_line(aes(linewidth = race_ethnicity, linetype = race_ethnicity)) +
     geom_point(size = 2.5) +
     geom_label_repel(
       aes(label = pooled_rate_pct),
@@ -197,6 +205,8 @@ plot_grade_rates <- function(df, grade_label) {
       max.overlaps = Inf
     ) +
     scale_color_manual(values = race_palette, drop = FALSE) +
+    scale_linetype_manual(values = line_style_palette, drop = FALSE) +
+    scale_linewidth_manual(values = linewidth_palette, drop = FALSE) +
     scale_y_continuous(labels = percent_format(accuracy = 0.1), expand = expansion(mult = c(0.05, 0.1))) +
     labs(
       title = glue::glue("Pooled Suspension Rates by Race/Ethnicity — {grade_label} Schools"),
