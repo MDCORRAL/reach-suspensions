@@ -23,5 +23,5 @@ data-stage/*.parquet
 .Renviron
 
 # Generated figures
-outputs/
+outputs/*
 fv_outputs/

@@ -40,6 +40,20 @@ The script will read the parquet inputs, generate plots, and write supporting na
 
 Image files are saved to `outputs/graphs/` and narrative text files are saved to `outputs/graphs/descriptions/`. These directories are created automatically if they do not already exist.
 
+## Suspension reason trends by level and locale
+
+The UCLA-branded suspension reason trend charts can be regenerated with:
+
+```bash
+python graph_scripts/20_suspension_reason_trends_by_level_and_locale.py
+```
+
+The script reads `data-stage/susp_v6_long.parquet`, aggregates suspension counts
+for "All Students" across each school level and locale, and exports one chart
+per combination to `outputs/20_suspension_reason_trends_by_level_and_locale/`.
+Use `--image-format png` to write PNGs instead of the default SVG output or pass
+`--levels`/`--locales` to limit the generated charts.
+
 ## Working from R
 
 Analysts who prefer R can call the script via [`reticulate`](https://rstudio.github.io/reticulate/). Use `reticulate::py_install(c("matplotlib", "numpy", "pandas", "pyarrow"))` to install the Python dependencies inside the active reticulate environment, and then invoke the script with `reticulate::py_run_file("graph_scripts/06_statewide_trends.py")` or an equivalent wrapper.
