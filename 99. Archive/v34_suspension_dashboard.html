@@ -17,6 +17,33 @@
             background: linear-gradient(135deg, #003B5C 0%, #2774AE 100%);
             color: #333;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            padding: 1rem 0;
+            text-align: right;
+            background: rgba(0, 59, 92, 0.35);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .top-bar .container {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .top-bar a {
+            color: #ffffff;
+            font-weight: 600;
+            text-decoration: underline;
         }
 
         .header {
@@ -30,6 +57,11 @@
             max-width: 1400px;
             margin: 0 auto;
             padding: 0 2rem;
+        }
+
+        main.container {
+            flex: 1;
+            width: 100%;
         }
 
         .header h1 {
@@ -232,18 +264,47 @@
             font-size: 0.9rem;
             margin: 0.2rem;
         }
+
+        .footer-bar {
+            background: rgba(255, 255, 255, 0.12);
+            padding: 1.5rem 0;
+            margin-top: auto;
+        }
+
+        .footer-bar .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #ffffff;
+            font-size: 0.9rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-bar a {
+            color: #ffffff;
+            text-decoration: underline;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="container">
-            <h1>California School Suspension Analysis</h1>
-            <p>Examining disciplinary disparities and trends across traditional and non-traditional educational settings from 2017-2023</p>
+    <div class="page-wrapper">
+        <div class="top-bar">
+            <div class="container">
+                <a href="../index.html">← Back to Main Dashboard</a>
+            </div>
         </div>
-    </div>
 
-    <div class="container">
-        <div class="controls">
+        <header class="header">
+            <div class="container">
+                <h1>California School Suspension Analysis</h1>
+                <p>Examining disciplinary disparities and trends across traditional and non-traditional educational settings from 2017-2023</p>
+            </div>
+        </header>
+
+        <main class="container">
+            <div class="controls">
             <h3>Data Filters & Controls</h3>
             <div class="filter-group">
                 <label for="yearSelect">Academic Year:</label>
@@ -269,11 +330,11 @@
             </div>
         </div>
 
-        <div class="stats-grid" id="statsGrid">
+            <div class="stats-grid" id="statsGrid">
             <!-- Stats will be populated here -->
         </div>
 
-        <div class="dashboard">
+            <div class="dashboard">
             <div class="chart-container">
                 <h3>Suspension Rate Trends Over Time</h3>
                 <div class="chart-wrapper">
@@ -318,9 +379,17 @@
                 </div>
             </div>
         </div>
-    </div>
+    </main>
+  </div>
 
-    <script>
+  <footer class="footer-bar">
+    <div class="container">
+      <span>University of California, Los Angeles — Center for the Transformation of Schools</span>
+      <a href="https://ucla.edu" target="_blank" rel="noopener">Visit UCLA</a>
+    </div>
+  </footer>
+
+  <script>
         // UCLA Brand Colors
         const colors = {
             primary: '#2774AE',

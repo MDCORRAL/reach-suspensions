@@ -23,11 +23,45 @@
       --highlight: #ffb81c;
     }
 
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #003B5C 0%, #2774AE 100%);
       color: rgba(255, 255, 255, 0.9);
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .page-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .top-bar {
+      padding: 1rem 0;
+      text-align: right;
+      background: rgba(0, 59, 92, 0.35);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .top-bar .container {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .top-bar a {
+      color: #ffffff;
+      font-weight: 600;
+      text-decoration: underline;
     }
 
     .header {
@@ -46,7 +80,7 @@
     .header-top {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 1rem;
       margin-bottom: 1.5rem;
       flex-wrap: wrap;
@@ -76,29 +110,6 @@
       transform: translateY(-1px);
     }
 
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #005587;
-      text-decoration: none;
-      padding: 0.45rem 0.85rem;
-      border-radius: 999px;
-      background: rgba(39, 116, 174, 0.14);
-      border: 1px solid rgba(39, 116, 174, 0.28);
-      transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .back-link:hover,
-    .back-link:focus-visible {
-      background: rgba(39, 116, 174, 0.24);
-      box-shadow: 0 10px 24px rgba(0, 59, 92, 0.16);
-      outline: none;
-      transform: translateX(-2px);
-    }
-
     .header h1 {
       margin: 0;
       font-size: clamp(1.8rem, 3vw, 2.4rem);
@@ -119,6 +130,8 @@
       margin: 0 auto 4rem;
       display: grid;
       gap: 2.5rem;
+      flex: 1;
+      width: 100%;
     }
 
     .dashboard {
@@ -349,6 +362,28 @@
       color: rgba(255, 255, 255, 0.85);
     }
 
+    .footer-bar {
+      background: rgba(255, 255, 255, 0.12);
+      padding: 1.5rem 0;
+      margin-top: auto;
+    }
+
+    .footer-bar .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #ffffff;
+      font-size: 0.9rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-bar a {
+      color: #ffffff;
+      text-decoration: underline;
+      font-weight: 600;
+    }
+
     .info-card h3 {
       font-size: 1rem;
       color: var(--accent-strong);
@@ -409,25 +444,32 @@
   </style>
 </head>
 <body>
-  <header class="header">
-    <div class="container">
-      <div class="header-top">
-        <a class="back-link" href="index.html">← Back to dashboard home</a>
-        <a class="methodology-button" href="#methodology-and-filters">
-          Methodology &amp; filters
-        </a>
+  <div class="page-wrapper">
+    <div class="top-bar">
+      <div class="container">
+        <a href="index.html">← Back to Main Dashboard</a>
       </div>
-      <h1>Tail Concentration Explorer</h1>
-      <p>
-        Use the controls below to surface the existing grade-setting outputs produced by the REACH suspension
-        analyses. Toggle grade levels and school types to see the prepared results without running any new
-        computations.
-      </p>
     </div>
-  </header>
-  <main>
-    <div id="loading">Loading pre-computed data…</div>
-    <section id="content" hidden>
+
+    <header class="header">
+      <div class="container">
+        <div class="header-top">
+          <a class="methodology-button" href="#methodology-and-filters">
+            Methodology &amp; filters
+          </a>
+        </div>
+        <h1>Tail Concentration Explorer</h1>
+        <p>
+          Use the controls below to surface the existing grade-setting outputs produced by the REACH suspension
+          analyses. Toggle grade levels and school types to see the prepared results without running any new
+          computations.
+        </p>
+      </div>
+    </header>
+
+    <main>
+      <div id="loading">Loading pre-computed data…</div>
+      <section id="content" hidden>
       <div class="card">
         <h2>Filters</h2>
         <div id="controls"></div>
@@ -505,7 +547,16 @@
         </div>
       </section>
     </section>
-  </main>
+    </main>
+  </div>
+
+  <footer class="footer-bar">
+    <div class="container">
+      <span>University of California, Los Angeles — Center for the Transformation of Schools</span>
+      <a href="https://ucla.edu" target="_blank" rel="noopener">Visit UCLA</a>
+    </div>
+  </footer>
+
   <script>
     (function () {
       'use strict';

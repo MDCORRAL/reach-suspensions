@@ -19,15 +19,51 @@
       --shadow: 0 8px 32px rgba(0, 59, 92, 0.1);
     }
 
-    * { box-sizing: border-box; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
-      font-family: 'Inter', sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #003B5C 0%, #2774AE 100%);
       color: var(--text);
       line-height: 1.6;
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .page-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .top-bar {
+      padding: 1rem 0;
+      text-align: right;
+      background: rgba(0, 59, 92, 0.35);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .top-bar .container {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .top-bar a,
+    .top-bar span {
+      color: #ffffff;
+      font-weight: 600;
+      text-decoration: underline;
+    }
+
+    .top-bar span {
+      text-decoration: none;
     }
 
     .header {
@@ -66,6 +102,8 @@
       max-width: 1200px;
       margin: 0 auto 4rem;
       padding: 0 1.5rem;
+      flex: 1;
+      width: 100%;
     }
 
     section { margin-top: 2rem; }
@@ -199,6 +237,28 @@
 
     .chart { min-height: 360px; }
 
+    .footer-bar {
+      background: rgba(255, 255, 255, 0.12);
+      padding: 1.5rem 0;
+      margin-top: auto;
+    }
+
+    .footer-bar .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #ffffff;
+      font-size: 0.9rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-bar a {
+      color: #ffffff;
+      text-decoration: underline;
+      font-weight: 600;
+    }
+
     .narrative {
       display: grid;
       gap: 1rem;
@@ -284,18 +344,25 @@
   </style>
 </head>
 <body>
-  <header class="header">
-    <div class="container">
-      <h1>REACH Suspension Insights Dashboard</h1>
-      <p>
-        Explore California school suspension patterns through an equity lens. Filter the data to surface disparities by student
-        group, school setting, and the racial composition of campuses to guide strategic interventions.
-      </p>
+  <div class="page-wrapper">
+    <div class="top-bar">
+      <div class="container">
+        <span>UCLA Suspension Analysis Suite</span>
+      </div>
     </div>
-  </header>
 
-  <main>
-    <section class="panel intro">
+    <header class="header">
+      <div class="container">
+        <h1>REACH Suspension Insights Dashboard</h1>
+        <p>
+          Explore California school suspension patterns through an equity lens. Filter the data to surface disparities by student
+          group, school setting, and the racial composition of campuses to guide strategic interventions.
+        </p>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel intro">
       <div class="cta-links">
         <a class="cta-button" href="suspension_dashboard.html">
           View Suspension Dashboard
@@ -414,7 +481,15 @@
         Data source: REACH suspensions longitudinal dataset, 2017-18 through 2022-23. Aggregations use weighted calculations based on enrollment counts to avoid overstating small-campus trends.
       </p>
     </section>
-  </main>
+    </main>
+  </div>
+
+  <footer class="footer-bar">
+    <div class="container">
+      <span>University of California, Los Angeles — Center for the Transformation of Schools</span>
+      <a href="https://ucla.edu" target="_blank" rel="noopener">Visit UCLA</a>
+    </div>
+  </footer>
 
   <script src="https://cdn.plot.ly/plotly-2.27.1.min.js"></script>
   <script>
