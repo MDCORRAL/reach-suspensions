@@ -7,6 +7,7 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(forcats)
   library(ggplot2)
+  library(ggrepel)
   library(here)
   library(janitor)
   library(readr)
@@ -152,8 +153,20 @@ plot_mean_rates <- function(df) {
   ggplot(df, aes(x = year, y = mean_rate, color = race_ethnicity, group = race_ethnicity)) +
     geom_line(linewidth = 1.1) +
     geom_point(size = 2.5) +
+    geom_label_repel(
+      aes(label = mean_rate_pct),
+      size = 3,
+      label.size = 0,
+      fill = scales::alpha("white", 0.9),
+      label.padding = grid::unit(0.15, "lines"),
+      point.padding = grid::unit(0.25, "lines"),
+      label.r = grid::unit(0.1, "lines"),
+      segment.alpha = 0.4,
+      show.legend = FALSE,
+      max.overlaps = Inf
+    ) +
     scale_color_manual(values = race_palette, drop = FALSE) +
-    scale_y_continuous(labels = percent_format(accuracy = 0.1), expand = expansion(mult = c(0, 0.05))) +
+    scale_y_continuous(labels = percent_format(accuracy = 0.1), expand = expansion(mult = c(0.05, 0.1))) +
     labs(
       title = "Mean Suspension Rates by Race/Ethnicity",
       subtitle = "California campus-level mean suspension rate by academic year",
@@ -169,8 +182,20 @@ plot_grade_rates <- function(df, grade_label) {
   ggplot(df, aes(x = year, y = mean_rate, color = race_ethnicity, group = race_ethnicity)) +
     geom_line(linewidth = 1.1) +
     geom_point(size = 2.5) +
+    geom_label_repel(
+      aes(label = mean_rate_pct),
+      size = 3,
+      label.size = 0,
+      fill = scales::alpha("white", 0.9),
+      label.padding = grid::unit(0.15, "lines"),
+      point.padding = grid::unit(0.25, "lines"),
+      label.r = grid::unit(0.1, "lines"),
+      segment.alpha = 0.4,
+      show.legend = FALSE,
+      max.overlaps = Inf
+    ) +
     scale_color_manual(values = race_palette, drop = FALSE) +
-    scale_y_continuous(labels = percent_format(accuracy = 0.1), expand = expansion(mult = c(0, 0.05))) +
+    scale_y_continuous(labels = percent_format(accuracy = 0.1), expand = expansion(mult = c(0.05, 0.1))) +
     labs(
       title = glue::glue("Mean Suspension Rates by Race/Ethnicity — {grade_label} Schools"),
       subtitle = "California campus-level mean suspension rate by academic year",
