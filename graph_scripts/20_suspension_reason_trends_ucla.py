@@ -21,12 +21,12 @@ from adjustText import adjust_text
 
 # UCLA brand colors
 UCLA_DARKEST_BLUE = "#003B5C"
-UCLA_DARKER_BLUE = "#005587"
+UCLA_DARKER_BLUE = "#8BB8E8" #light bluse
 UCLA_BLUE = "#2774AE"
 UCLA_DARKEST_GOLD = "#FFB81C"
-UCLA_DARKER_GOLD = "#FFC72C"
+UCLA_DARKER_GOLD = "#8A69D4"
 UCLA_GOLD = "#FFD100"
-UCLA_LIGHTEST_BLUE = "#DAEBFE"
+UCLA_LIGHTEST_BLUE = "#00FF87"
 
 TEXT_COLOR = UCLA_DARKEST_BLUE
 GRID_COLOR = UCLA_LIGHTEST_BLUE
@@ -53,7 +53,7 @@ LEVEL_ORDER = ["Elementary", "Middle", "High"]
 
 DEFAULT_DATA_PATH = Path("data-stage") / "susp_v6_long.parquet"
 DEFAULT_OUTPUT_DIR = Path("outputs") / "20_reason_trends_by_level"
-DEFAULT_IMAGE_FORMAT = "svg"
+DEFAULT_IMAGE_FORMAT = "png"
 
 # ----------------------------------------------------------------------------
 # Data preparation
