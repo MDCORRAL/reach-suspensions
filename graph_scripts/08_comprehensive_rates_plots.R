@@ -47,7 +47,7 @@ ucla_colors <- c(
 )
 
 race_palette <- c(
-  "All Students" = ucla_colors[["Darkest Blue"]],
+  "All Students" = "#C8102E",
   "Black/African American" = ucla_colors[["UCLA Blue"]],
   "Hispanic/Latino" = ucla_colors[["UCLA Gold"]],
   "White" = ucla_colors[["Darker Blue"]],
@@ -57,6 +57,14 @@ race_palette <- c(
   "Native Hawaiian/Pacific Islander" = ucla_colors[["Green"]],
   "Two or More Races" = ucla_colors[["Magenta"]]
 )
+
+race_levels_plot <- c(setdiff(names(race_palette), "All Students"), "All Students")
+
+line_style_palette <- setNames(rep("solid", length(race_palette)), names(race_palette))
+line_style_palette[["All Students"]] <- "longdash"
+
+linewidth_palette <- setNames(rep(1.1, length(race_palette)), names(race_palette))
+linewidth_palette[["All Students"]] <- 1.4
 
 safe_div <- function(num, den) ifelse(is.na(den) | den == 0, NA_real_, num / den)
 
@@ -129,20 +137,22 @@ calc_summary_stats <- function(data, ...) {
       n_records = n(),
       total_enrollment = sum(enrollment, na.rm = TRUE),
       total_suspensions = sum(total_suspensions, na.rm = TRUE),
-      mean_rate = mean(suspension_rate, na.rm = TRUE),
       .groups = "drop"
     ) %>%
-    mutate(mean_rate_pct = percent(mean_rate, accuracy = 0.1))
+    mutate(
+      pooled_rate = safe_div(total_suspensions, total_enrollment),
+      pooled_rate_pct = percent(pooled_rate, accuracy = 0.1)
+    )
 }
 
 rates_by_race_year <- calc_summary_stats(analytic_data, year, race_ethnicity) %>%
-  mutate(race_ethnicity = forcats::fct_relevel(race_ethnicity, names(race_palette)))
+  mutate(race_ethnicity = forcats::fct_relevel(race_ethnicity, race_levels_plot))
 
 rates_by_grade <- calc_summary_stats(analytic_data, year, grade_level, race_ethnicity) %>%
   filter(grade_level %in% c("Elementary", "Middle", "High")) %>%
   mutate(
     grade_level = forcats::fct_relevel(grade_level, c("Elementary", "Middle", "High")),
-    race_ethnicity = forcats::fct_relevel(race_ethnicity, names(race_palette))
+    race_ethnicity = forcats::fct_relevel(race_ethnicity, race_levels_plot)
   )
 
 # -----------------------------------------------------------------------------
@@ -150,11 +160,11 @@ rates_by_grade <- calc_summary_stats(analytic_data, year, grade_level, race_ethn
 # -----------------------------------------------------------------------------
 
 plot_mean_rates <- function(df) {
-  ggplot(df, aes(x = year, y = mean_rate, color = race_ethnicity, group = race_ethnicity)) +
-    geom_line(linewidth = 1.1) +
+  ggplot(df, aes(x = year, y = pooled_rate, color = race_ethnicity, group = race_ethnicity)) +
+    geom_line(aes(linewidth = race_ethnicity, linetype = race_ethnicity)) +
     geom_point(size = 2.5) +
     geom_label_repel(
-      aes(label = mean_rate_pct),
+      aes(label = pooled_rate_pct),
       size = 3,
       label.size = 0,
       fill = scales::alpha("white", 0.9),
@@ -165,25 +175,28 @@ plot_mean_rates <- function(df) {
       show.legend = FALSE,
       max.overlaps = Inf
     ) +
-    scale_color_manual(values = race_palette, drop = FALSE) +
+    scale_color_manual(values = race_palette, breaks = names(race_palette), drop = FALSE) +
+    scale_linetype_manual(values = line_style_palette, breaks = names(line_style_palette), drop = FALSE) +
+    scale_linewidth_manual(values = linewidth_palette, breaks = names(linewidth_palette), drop = FALSE) +
     scale_y_continuous(labels = percent_format(accuracy = 0.1), expand = expansion(mult = c(0.05, 0.1))) +
     labs(
-      title = "Mean Suspension Rates by Race/Ethnicity",
-      subtitle = "California campus-level mean suspension rate by academic year",
+      title = "Pooled Suspension Rates by Race/Ethnicity",
+      subtitle = "Enrollment-weighted statewide suspension rates by academic year",
       x = "Academic Year",
-      y = "Mean suspension rate",
+      y = "Pooled suspension rate",
       color = "Race/Ethnicity",
-      caption = "Source: REACH suspension v6 staged files"
+      caption = "Source: REACH suspension v6 staged files; rates reflect total suspensions divided by total enrollment"
     ) +
+    guides(linetype = guide_none(), linewidth = guide_none()) +
     ucla_theme()
 }
 
 plot_grade_rates <- function(df, grade_label) {
-  ggplot(df, aes(x = year, y = mean_rate, color = race_ethnicity, group = race_ethnicity)) +
-    geom_line(linewidth = 1.1) +
+  ggplot(df, aes(x = year, y = pooled_rate, color = race_ethnicity, group = race_ethnicity)) +
+    geom_line(aes(linewidth = race_ethnicity, linetype = race_ethnicity)) +
     geom_point(size = 2.5) +
     geom_label_repel(
-      aes(label = mean_rate_pct),
+      aes(label = pooled_rate_pct),
       size = 3,
       label.size = 0,
       fill = scales::alpha("white", 0.9),
@@ -194,16 +207,19 @@ plot_grade_rates <- function(df, grade_label) {
       show.legend = FALSE,
       max.overlaps = Inf
     ) +
-    scale_color_manual(values = race_palette, drop = FALSE) +
+    scale_color_manual(values = race_palette, breaks = names(race_palette), drop = FALSE) +
+    scale_linetype_manual(values = line_style_palette, breaks = names(line_style_palette), drop = FALSE) +
+    scale_linewidth_manual(values = linewidth_palette, breaks = names(linewidth_palette), drop = FALSE) +
     scale_y_continuous(labels = percent_format(accuracy = 0.1), expand = expansion(mult = c(0.05, 0.1))) +
     labs(
-      title = glue::glue("Mean Suspension Rates by Race/Ethnicity — {grade_label} Schools"),
-      subtitle = "California campus-level mean suspension rate by academic year",
+      title = glue::glue("Pooled Suspension Rates by Race/Ethnicity — {grade_label} Schools"),
+      subtitle = "Enrollment-weighted statewide suspension rates by academic year",
       x = "Academic Year",
-      y = "Mean suspension rate",
+      y = "Pooled suspension rate",
       color = "Race/Ethnicity",
-      caption = "Source: REACH suspension v6 staged files"
+      caption = "Source: REACH suspension v6 staged files; rates reflect total suspensions divided by total enrollment"
     ) +
+    guides(linetype = guide_none(), linewidth = guide_none()) +
     ucla_theme()
 }
 
