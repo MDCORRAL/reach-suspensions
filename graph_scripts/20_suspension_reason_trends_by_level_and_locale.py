@@ -8,6 +8,7 @@ locale, storing PNG images in
 to provide a systemwide comparison across locales.
 The script also emits a statewide aggregate chart that combines traditional
 elementary, middle, and high school results into a single view.
+
 The output directory, subset of levels/locales, and image format (``png`` or
 ``svg``) can be overridden via command-line flags.
 """
@@ -207,7 +208,7 @@ def prepare_data(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         )
         statewide_melted["school_level"] = "All Traditional"
         statewide_melted = statewide_melted.dropna(subset=["reason_label"]).copy()
-
+        
     if "All Traditional" in aggregated[LOCALE_COLUMN].astype("string").unique():
         aggregated[LOCALE_COLUMN] = pd.Categorical(
             aggregated[LOCALE_COLUMN].astype("string"),
@@ -466,7 +467,6 @@ def plot_statewide(
     fig.savefig(output_path, **save_kwargs)
     plt.close(fig)
     print(f"Saved chart: {output_path}")
-
 
 def plot_all_levels(
     df: pd.DataFrame,

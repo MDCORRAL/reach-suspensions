@@ -56,6 +56,7 @@ to highlight the systemwide trend across traditional public schools. A
 statewide "All Traditional" chart summarises elementary, middle, and high
 schools in a single view alongside the level/locale outputs.
 PNG is the default output; pass `--image-format svg` for vector renders or
+
 `--levels`/`--locales` to limit the generated charts.
 
 ## Working from R
