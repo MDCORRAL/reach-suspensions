@@ -6,6 +6,9 @@ locale, storing PNG images in
 ``outputs/20_suspension_reason_trends_by_level_and_locale``. An additional
 "All Traditional" aggregate (non-charter schools) is generated for each level
 to provide a systemwide comparison across locales.
+The script also emits a statewide aggregate chart that combines traditional
+elementary, middle, and high school results into a single view.
+
 The output directory, subset of levels/locales, and image format (``png`` or
 ``svg``) can be overridden via command-line flags.
 """
@@ -92,8 +95,12 @@ def load_data(data_path: Path) -> pd.DataFrame:
     return parquet_table.to_pandas()
 
 
-def prepare_data(raw_df: pd.DataFrame) -> pd.DataFrame:
-    """Filter and aggregate suspension reason counts by level/year/locale."""
+def prepare_data(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Filter and aggregate suspension reason counts by level/year/locale.
+
+    Returns a tuple containing the level/locale melt and the statewide
+    traditional aggregate.
+    """
 
     filtered = (
         raw_df
@@ -164,6 +171,44 @@ def prepare_data(raw_df: pd.DataFrame) -> pd.DataFrame:
         agg_traditional[LOCALE_COLUMN] = "All Traditional"
         aggregated = pd.concat([aggregated, agg_traditional], ignore_index=True, sort=False)
 
+    statewide_melted = pd.DataFrame(
+        columns=[
+            "academic_year",
+            "cumulative_enrollment",
+            "reason",
+            "count",
+            "reason_label",
+            "rate",
+            "school_level",
+        ]
+    )
+    if not traditional.empty:
+        statewide_agg = (
+            traditional
+            .groupby(["academic_year"], observed=True, dropna=False)
+            .agg(agg_dict)
+            .reset_index()
+        )
+        statewide_agg["academic_year"] = pd.Categorical(
+            statewide_agg["academic_year"],
+            categories=filtered["academic_year"].cat.categories,
+            ordered=True,
+        )
+        statewide_melted = statewide_agg.melt(
+            id_vars=["academic_year", "cumulative_enrollment"],
+            value_vars=list(REASON_COLUMNS.keys()),
+            var_name="reason",
+            value_name="count",
+        )
+        statewide_melted["reason_label"] = statewide_melted["reason"].map(REASON_COLUMNS)
+        statewide_melted["rate"] = np.where(
+            statewide_melted["cumulative_enrollment"] > 0,
+            statewide_melted["count"] / statewide_melted["cumulative_enrollment"],
+            np.nan,
+        )
+        statewide_melted["school_level"] = "All Traditional"
+        statewide_melted = statewide_melted.dropna(subset=["reason_label"]).copy()
+        
     if "All Traditional" in aggregated[LOCALE_COLUMN].astype("string").unique():
         aggregated[LOCALE_COLUMN] = pd.Categorical(
             aggregated[LOCALE_COLUMN].astype("string"),
@@ -197,7 +242,7 @@ def prepare_data(raw_df: pd.DataFrame) -> pd.DataFrame:
     if melted.empty:
         raise SystemExit("No suspension reason data available after filtering.")
 
-    return melted
+    return melted, statewide_melted
 
 # ----------------------------------------------------------------------------
 # Plotting helpers
@@ -324,6 +369,105 @@ def plot_level_locale(
     print(f"Saved chart: {output_path}")
 
 
+def plot_statewide(
+    df: pd.DataFrame,
+    output_dir: Path,
+    image_format: str = DEFAULT_IMAGE_FORMAT,
+    dpi: int | None = None,
+) -> None:
+    """Render the statewide traditional aggregate chart."""
+
+    statewide_df = df.dropna(subset=["rate"]).copy()
+    if statewide_df.empty:
+        print("Skipping statewide aggregate: no data to plot.")
+        return
+
+    if isinstance(statewide_df["academic_year"].dtype, pd.CategoricalDtype):
+        years = statewide_df["academic_year"].cat.categories
+    else:
+        years = sorted(statewide_df["academic_year"].unique())
+
+    x_positions = {year: idx for idx, year in enumerate(years)}
+
+    fig, ax = plt.subplots(figsize=(10, 6), dpi=dpi or 300)
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+
+    texts = []
+    for reason_label, color in REASON_PALETTE.items():
+        reason_df = statewide_df[statewide_df["reason_label"] == reason_label]
+        if reason_df.empty:
+            continue
+        reason_df = reason_df.sort_values("academic_year")
+        xs = [x_positions[year] for year in reason_df["academic_year"]]
+        ys = reason_df["rate"].to_numpy() * 100
+        ax.plot(xs, ys, label=reason_label, color=color, linewidth=2.2, marker="o", markersize=6)
+        for x_val, y_val, rate_val in zip(xs, ys, reason_df["rate"]):
+            label = _format_percent(rate_val)
+            text = ax.text(
+                x_val,
+                y_val,
+                label,
+                color=color,
+                fontsize=9,
+                fontweight="bold",
+            )
+            texts.append(text)
+
+    if texts:
+        with redirect_stdout(io.StringIO()):
+            adjust_text(
+                texts,
+                ax=ax,
+                expand_points=(1.1, 1.4),
+                expand_text=(1.1, 1.4),
+                only_move={"points": "y", "text": "xy"},
+            )
+
+    ax.set_xticks(list(x_positions.values()))
+    ax.set_xticklabels(years, rotation=45, ha="right", color=TEXT_COLOR)
+    ax.tick_params(axis="y", colors=TEXT_COLOR)
+
+    ax.set_ylabel("Suspension Rate (Percent)", color=TEXT_COLOR, fontweight="bold")
+    ax.set_xlabel("Academic Year", color=TEXT_COLOR, fontweight="bold")
+    ax.set_title(
+        "All Traditional Schools — Statewide Suspension Rates by Reason",
+        color=TEXT_COLOR,
+        fontsize=16,
+        fontweight="bold",
+        pad=15,
+    )
+
+    ax.grid(True, axis="y", color=GRID_COLOR, linestyle="-", linewidth=0.8)
+    ax.grid(False, axis="x")
+
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    legend = ax.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.2),
+        ncol=3,
+        frameon=False,
+        labelcolor=TEXT_COLOR,
+    )
+    for text in legend.get_texts():
+        text.set_fontweight("bold")
+
+    ax.set_ylim(bottom=0)
+    ax.margins(x=0.02, y=0.15)
+
+    plt.tight_layout()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    suffix = image_format.lower().lstrip(".")
+    output_path = output_dir / f"20_suspension_reason_trends_all_traditional_statewide.{suffix}"
+    save_kwargs = {"format": suffix}
+    if suffix != "svg" and dpi is not None:
+        save_kwargs["dpi"] = dpi
+    fig.savefig(output_path, **save_kwargs)
+    plt.close(fig)
+    print(f"Saved chart: {output_path}")
+
 def plot_all_levels(
     df: pd.DataFrame,
     output_dir: Path,
@@ -410,7 +554,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     raw_df = load_data(args.data_path)
-    melted = prepare_data(raw_df)
+    melted, statewide = prepare_data(raw_df)
     dpi = args.dpi if args.image_format != "svg" else None
     plot_all_levels(
         melted,
@@ -419,6 +563,12 @@ def main() -> None:
         dpi=dpi,
         levels=args.levels,
         locales=args.locales,
+    )
+    plot_statewide(
+        statewide,
+        output_dir=args.output_dir,
+        image_format=args.image_format,
+        dpi=dpi,
     )
 
 
