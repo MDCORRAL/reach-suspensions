@@ -129,10 +129,12 @@ calc_summary_stats <- function(data, ...) {
       n_records = n(),
       total_enrollment = sum(enrollment, na.rm = TRUE),
       total_suspensions = sum(total_suspensions, na.rm = TRUE),
-      mean_rate = mean(suspension_rate, na.rm = TRUE),
       .groups = "drop"
     ) %>%
-    mutate(mean_rate_pct = percent(mean_rate, accuracy = 0.1))
+    mutate(
+      pooled_rate = safe_div(total_suspensions, total_enrollment),
+      pooled_rate_pct = percent(pooled_rate, accuracy = 0.1)
+    )
 }
 
 rates_by_race_year <- calc_summary_stats(analytic_data, year, race_ethnicity) %>%
@@ -150,11 +152,11 @@ rates_by_grade <- calc_summary_stats(analytic_data, year, grade_level, race_ethn
 # -----------------------------------------------------------------------------
 
 plot_mean_rates <- function(df) {
-  ggplot(df, aes(x = year, y = mean_rate, color = race_ethnicity, group = race_ethnicity)) +
+  ggplot(df, aes(x = year, y = pooled_rate, color = race_ethnicity, group = race_ethnicity)) +
     geom_line(linewidth = 1.1) +
     geom_point(size = 2.5) +
     geom_label_repel(
-      aes(label = mean_rate_pct),
+      aes(label = pooled_rate_pct),
       size = 3,
       label.size = 0,
       fill = scales::alpha("white", 0.9),
@@ -168,22 +170,22 @@ plot_mean_rates <- function(df) {
     scale_color_manual(values = race_palette, drop = FALSE) +
     scale_y_continuous(labels = percent_format(accuracy = 0.1), expand = expansion(mult = c(0.05, 0.1))) +
     labs(
-      title = "Mean Suspension Rates by Race/Ethnicity",
-      subtitle = "California campus-level mean suspension rate by academic year",
+      title = "Pooled Suspension Rates by Race/Ethnicity",
+      subtitle = "Enrollment-weighted statewide suspension rates by academic year",
       x = "Academic Year",
-      y = "Mean suspension rate",
+      y = "Pooled suspension rate",
       color = "Race/Ethnicity",
-      caption = "Source: REACH suspension v6 staged files"
+      caption = "Source: REACH suspension v6 staged files; rates reflect total suspensions divided by total enrollment"
     ) +
     ucla_theme()
 }
 
 plot_grade_rates <- function(df, grade_label) {
-  ggplot(df, aes(x = year, y = mean_rate, color = race_ethnicity, group = race_ethnicity)) +
+  ggplot(df, aes(x = year, y = pooled_rate, color = race_ethnicity, group = race_ethnicity)) +
     geom_line(linewidth = 1.1) +
     geom_point(size = 2.5) +
     geom_label_repel(
-      aes(label = mean_rate_pct),
+      aes(label = pooled_rate_pct),
       size = 3,
       label.size = 0,
       fill = scales::alpha("white", 0.9),
@@ -197,12 +199,12 @@ plot_grade_rates <- function(df, grade_label) {
     scale_color_manual(values = race_palette, drop = FALSE) +
     scale_y_continuous(labels = percent_format(accuracy = 0.1), expand = expansion(mult = c(0.05, 0.1))) +
     labs(
-      title = glue::glue("Mean Suspension Rates by Race/Ethnicity — {grade_label} Schools"),
-      subtitle = "California campus-level mean suspension rate by academic year",
+      title = glue::glue("Pooled Suspension Rates by Race/Ethnicity — {grade_label} Schools"),
+      subtitle = "Enrollment-weighted statewide suspension rates by academic year",
       x = "Academic Year",
-      y = "Mean suspension rate",
+      y = "Pooled suspension rate",
       color = "Race/Ethnicity",
-      caption = "Source: REACH suspension v6 staged files"
+      caption = "Source: REACH suspension v6 staged files; rates reflect total suspensions divided by total enrollment"
     ) +
     ucla_theme()
 }
