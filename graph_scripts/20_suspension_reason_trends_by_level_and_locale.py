@@ -2,9 +2,10 @@
 
 This module can be executed as a script.  By default it reads the long-format
 parquet export and renders one chart per combination of school level and
-locale, storing the images in ``outputs/20_suspension_reason_trends_by_level_and_locale``.
-The output directory, subset of levels/locales, and image format (``svg`` or
-``png``) can be overridden via command-line flags.
+locale, storing PNG images in
+``outputs/20_suspension_reason_trends_by_level_and_locale``.
+The output directory, subset of levels/locales, and image format (``png`` or
+``svg``) can be overridden via command-line flags.
 """
 
 from __future__ import annotations
@@ -22,17 +23,23 @@ import pandas as pd
 import pyarrow.parquet as pq
 from adjustText import adjust_text
 
-# UCLA brand colors
-UCLA_DARKEST_BLUE = "#003B5C"
-UCLA_DARKER_BLUE = "#005587"
-UCLA_BLUE = "#2774AE"
-UCLA_DARKEST_GOLD = "#FFB81C"
-UCLA_DARKER_GOLD = "#FFC72C"
-UCLA_GOLD = "#FFD100"
-UCLA_LIGHTEST_BLUE = "#DAEBFE"
+# UCLA brand-aligned palette
+UCLA_PALETTE = {
+    "Darkest Blue": "#003B5C",
+    "Darker Blue": "#005587",
+    "UCLA Blue": "#2774AE",
+    "Lighter Blue": "#8BB8E8",
+    "UCLA Gold": "#FFD100",
+    "Darker Gold": "#FFC72C",
+    "Darkest Gold": "#FFB81C",
+    "Purple": "#8A69D4",
+    "Green": "#00FF87",
+    "Magenta": "#FF00A5",
+    "Cyan": "#00FFFF",
+}
 
-TEXT_COLOR = UCLA_DARKEST_BLUE
-GRID_COLOR = UCLA_LIGHTEST_BLUE
+TEXT_COLOR = UCLA_PALETTE["Darkest Blue"]
+GRID_COLOR = UCLA_PALETTE["Lighter Blue"]
 
 REASON_COLUMNS = {
     "suspension_count_violent_incident_injury": "Violent (Injury)",
@@ -44,12 +51,12 @@ REASON_COLUMNS = {
 }
 
 REASON_PALETTE = {
-    "Violent (Injury)": UCLA_DARKEST_BLUE,
-    "Violent (No Injury)": UCLA_DARKER_BLUE,
-    "Weapons": UCLA_BLUE,
-    "Illicit Drugs": UCLA_DARKEST_GOLD,
-    "Willful Defiance": UCLA_DARKER_GOLD,
-    "Other": UCLA_GOLD,
+    "Violent (Injury)": UCLA_PALETTE["Darkest Blue"],
+    "Violent (No Injury)": UCLA_PALETTE["Darker Blue"],
+    "Weapons": UCLA_PALETTE["UCLA Blue"],
+    "Illicit Drugs": UCLA_PALETTE["Purple"],
+    "Willful Defiance": UCLA_PALETTE["Darkest Gold"],
+    "Other": UCLA_PALETTE["Green"],
 }
 
 LEVEL_ORDER = ["Elementary", "Middle", "High"]
@@ -58,7 +65,7 @@ LOCALE_ORDER = ["City", "Suburban", "Town", "Rural", "Unknown"]
 
 DEFAULT_DATA_PATH = Path("data-stage") / "susp_v6_long.parquet"
 DEFAULT_OUTPUT_DIR = Path("outputs") / "20_suspension_reason_trends_by_level_and_locale"
-DEFAULT_IMAGE_FORMAT = "svg"
+DEFAULT_IMAGE_FORMAT = "png"
 
 # ----------------------------------------------------------------------------
 # Data preparation
@@ -345,9 +352,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--image-format",
-        choices=["svg", "png"],
+        choices=["png", "svg"],
         default=DEFAULT_IMAGE_FORMAT,
-        help="Image format for saved charts.",
+        help="Image format for saved charts (default: png).",
     )
     parser.add_argument(
         "--dpi",
