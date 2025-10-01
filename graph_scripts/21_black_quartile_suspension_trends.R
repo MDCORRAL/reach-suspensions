@@ -21,8 +21,7 @@ quartile_palette <- c(
 )
 
 statewide_color <- "red"
-statewide_label <- "Statewide traditional average"
-
+statewide_label <- "Statewide average (All Students)"
 joined <- load_joined_data()
 
 black_base <- joined %>%
@@ -39,7 +38,25 @@ if (nrow(black_base) == 0) {
   stop("No traditional school records available for Black student quartile trends.")
 }
 
-statewide_rates <- black_base %>%
+all_students_base <- joined %>%
+  dplyr::filter(
+    is_traditional,
+    subgroup == "All Students",
+    !is.na(total_suspensions),
+    !is.na(cumulative_enrollment),
+    cumulative_enrollment > 0
+  ) %>%
+  dplyr::mutate(academic_year = as.character(academic_year))
+
+if (nrow(all_students_base) == 0) {
+  stop("No statewide All Students records available for traditional schools.")
+}
+
+year_levels <- union(black_base$academic_year, all_students_base$academic_year) %>%
+  unique() %>%
+  sort()
+
+statewide_rates <- all_students_base %>%
   dplyr::group_by(academic_year) %>%
   dplyr::summarise(
     suspensions = sum(total_suspensions, na.rm = TRUE),
@@ -47,8 +64,6 @@ statewide_rates <- black_base %>%
     rate = safe_div(suspensions, enrollment),
     .groups = "drop"
   )
-
-year_levels <- statewide_rates$academic_year %>% unique() %>% sort()
 
 statewide_rates <- statewide_rates %>%
   dplyr::mutate(academic_year = factor(academic_year, levels = year_levels, ordered = TRUE))
