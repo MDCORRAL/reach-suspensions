@@ -5,14 +5,17 @@ data/*
 !data/**/
 !data/dashboard_data.json
 data-raw/
-data-stage/*.parquet
+data-stage/
+*.parquet
 *.duckdb
 *.xlsx
 *.csv
 *.png
 # Allow committing the built dashboard data assets
-!dashboard/data/
+dashboard/data/
 !dashboard/data/dashboard_data.json
+!dashboard/data/rates_by_race_year.json
+!dashboard/data/pareto_grade_setting_payload.json
 # macOS system files
 .DS_Store
 # R/RStudio
