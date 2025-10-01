@@ -28,23 +28,10 @@ import pandas as pd
 import pyarrow.parquet as pq
 from adjustText import adjust_text
 
-# UCLA brand-aligned palette
-UCLA_PALETTE = {
-    "Darkest Blue": "#003B5C",
-    "Darker Blue": "red",
-    "UCLA Blue": "#2774AE",
-    "Lighter Blue": "#8BB8E8",
-    "UCLA Gold": "#FFD100",
-    "Darker Gold": "#FFC72C",
-    "Darkest Gold": "#FFB81C",
-    "Purple": "#8A69D4",
-    "Green": "#00FF87",
-    "Magenta": "#FF00A5",
-    "Cyan": "#00FFFF",
-}
+from palette_utils import DISCIPLINE_BASE_PALETTE, DISCIPLINE_REASON_PALETTE
 
-TEXT_COLOR = UCLA_PALETTE["Darkest Blue"]
-GRID_COLOR = UCLA_PALETTE["Lighter Blue"]
+TEXT_COLOR = DISCIPLINE_BASE_PALETTE["Darkest Blue"]
+GRID_COLOR = DISCIPLINE_BASE_PALETTE["Lighter Blue"]
 
 REASON_COLUMNS = {
     "suspension_count_violent_incident_injury": "Violent (Injury)",
@@ -55,14 +42,7 @@ REASON_COLUMNS = {
     "suspension_count_other_reasons": "Other",
 }
 
-REASON_PALETTE = {
-    "Violent (Injury)": UCLA_PALETTE["Darkest Blue"],
-    "Violent (No Injury)": UCLA_PALETTE["Darker Blue"],
-    "Weapons": UCLA_PALETTE["UCLA Blue"],
-    "Illicit Drugs": UCLA_PALETTE["Purple"],
-    "Willful Defiance": "red",
-    "Other": UCLA_PALETTE["Magenta"],
-}
+REASON_PALETTE = DISCIPLINE_REASON_PALETTE.copy()
 
 LEVEL_ORDER = ["Elementary", "Middle", "High"]
 LOCALE_COLUMN = "locale_simple"
