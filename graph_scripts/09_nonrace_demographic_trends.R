@@ -87,6 +87,7 @@ oth_long <- read_parquet(OTH_LONG) %>%
   build_keys() %>%
   mutate(
     academic_year = as.character(academic_year),
+
     subgroup = str_squish(as.character(subgroup)),
     category_type = str_squish(as.character(category_type)),
     cumulative_enrollment = readr::parse_number(as.character(cumulative_enrollment)),
