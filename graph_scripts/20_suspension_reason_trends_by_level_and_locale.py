@@ -31,7 +31,7 @@ from adjustText import adjust_text
 # UCLA brand-aligned palette
 UCLA_PALETTE = {
     "Darkest Blue": "#003B5C",
-    "Darker Blue": "#005587",
+    "Darker Blue": "red",
     "UCLA Blue": "#2774AE",
     "Lighter Blue": "#8BB8E8",
     "UCLA Gold": "#FFD100",
