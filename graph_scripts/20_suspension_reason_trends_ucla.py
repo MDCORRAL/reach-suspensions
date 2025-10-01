@@ -19,18 +19,10 @@ import pandas as pd
 import pyarrow.parquet as pq
 from adjustText import adjust_text
 
-# UCLA brand colors
-UCLA_DARKEST_BLUE = "#003B5C"
-UCLA_DARKER_BLUE = "red" 
-UCLA_BLUE = "#2774AE"
-UCLA_DARKEST_GOLD = "#FFB81C"
-UCLA_DARKER_GOLD = "#8A69D4"
-UCLA_GOLD = "#FFD100"
-RED = "red"
-UCLA_LIGHTEST_BLUE = "#8BB8E8"
+from palette_utils import DISCIPLINE_BASE_PALETTE, DISCIPLINE_REASON_PALETTE
 
-TEXT_COLOR = UCLA_DARKEST_BLUE
-GRID_COLOR = UCLA_LIGHTEST_BLUE
+TEXT_COLOR = DISCIPLINE_BASE_PALETTE["Darkest Blue"]
+GRID_COLOR = DISCIPLINE_BASE_PALETTE["Lighter Blue"]
 
 REASON_COLUMNS = {
     "suspension_count_violent_incident_injury": "Violent (Injury)",
@@ -41,14 +33,7 @@ REASON_COLUMNS = {
     "suspension_count_other_reasons": "Other",
 }
 
-REASON_PALETTE = {
-    "Violent (Injury)": UCLA_DARKEST_BLUE,
-    "Violent (No Injury)": UCLA_DARKER_BLUE,
-    "Weapons": UCLA_BLUE,
-    "Illicit Drugs": UCLA_DARKEST_GOLD,
-    "Willful Defiance": RED,
-    "Other": UCLA_GOLD,
-}
+REASON_PALETTE = DISCIPLINE_REASON_PALETTE.copy()
 
 LEVEL_ORDER = ["Elementary", "Middle", "High"]
 
