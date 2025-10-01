@@ -147,7 +147,8 @@ build_quartile_plot <- function(data, panel_label = NULL) {
       box.padding = grid::unit(0.3, "lines"),
       point.padding = grid::unit(0.3, "lines"),
       min.segment.length = 0,
-      max.overlaps = Inf
+      max.overlaps = Inf,
+      show.legend = FALSE
     ) +
 
     scale_color_manual(
