@@ -9,16 +9,16 @@ DISCIPLINE_BASE_PALETTE = {
     "Darker Gold": "#FFC72C",
     "Darkest Gold": "#FFB81C",
     "Purple": "#8A69D4",
-    "Magenta": "#FF00A5",
-    "Cyan": "#00FFFF",
+    "Grey": "Grey",
+    "Black": "black",
 }
 
 # Prefer distinctive non-UCLA accent colors before reusing darker/lighter variants.
 DISCIPLINE_COLOR_PRIORITY = [
     "UCLA Blue",
     "UCLA Gold",
-    "Magenta",
-    "Cyan",
+    "Grey",
+    "Black",
     "Purple",
     "Darker Blue",
     "Darkest Blue",
