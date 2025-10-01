@@ -104,6 +104,11 @@ DEFAULT_IS_TRADITIONAL = True
 SETTINGS_TO_INCLUDE: Optional[Set[str]] = {"Traditional"}
 DROP_UNKNOWN_QUARTILES = False
 
+SPECIAL_SCHOOL_CODES: Set[str] = {"0000000", "0000001"}
+DEFAULT_IS_TRADITIONAL = True
+SETTINGS_TO_INCLUDE: Optional[Set[str]] = {"Traditional"}
+DROP_UNKNOWN_QUARTILES = False
+
 RACE_LEVELS: List[str] = [
     "Black/African American",
     "Hispanic/Latino",
@@ -191,7 +196,7 @@ def standardize_quartile_label(value: object, group: str) -> Optional[str]:
 
 
 def standardize_quartile_series(series: pd.Series, group: str) -> pd.Series:
-    """Vectorized quartile normalization that mirrors the R logic."""
+"""Vectorized quartile normalization that mirrors the R logic."""
 
     working = pd.Series(series, copy=False).astype("string")
     stripped = working.str.strip()
@@ -663,6 +668,7 @@ def build_locale_figure(
             ax.set_title(f"{locale} Schools", loc="left", fontsize=14, fontweight="bold", pad=4)
             if subset.empty:
                 ax.axis("off")
+
                 continue
             subset = subset.sort_values(["subgroup", "year_index"])
             apply_reach_style(ax, year_order, y_limit)
@@ -700,6 +706,7 @@ def build_locale_figure(
 
         for ax in axes_flat[len(LOCALE_ORDER):]:
             ax.axis("off")
+
 
         caption = (
             "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
