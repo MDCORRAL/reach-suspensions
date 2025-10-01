@@ -104,6 +104,7 @@ DEFAULT_IS_TRADITIONAL = True
 SETTINGS_TO_INCLUDE: Optional[Set[str]] = {"Traditional"}
 DROP_UNKNOWN_QUARTILES = False
 
+
 RACE_LEVELS: List[str] = [
     "Black/African American",
     "Hispanic/Latino",
@@ -141,7 +142,6 @@ def slugify_for_filename(value: str) -> str:
     while "__" in slug:
         slug = slug.replace("__", "_")
     return slug.strip("_")
-
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -570,6 +570,7 @@ def format_percent(value: float, accuracy: float = 0.1) -> str:
 def build_level_figure(
     base: pd.DataFrame, *, render: bool = True
 ) -> Tuple[pd.DataFrame, List[str], List[Path]]:
+
     data = compute_group_rates(base, ["school_level"])
     data = data[data["school_level"].isin(LEVEL_ORDER)].copy()
     data["school_level"] = pd.Categorical(data["school_level"], categories=LEVEL_ORDER, ordered=True)
@@ -620,6 +621,7 @@ def build_level_figure(
                 )
                 handles.append(line)
                 labels.append(race)
+
                 axis_annotations.extend(
                     annotate_points(
                         ax,
@@ -650,12 +652,14 @@ def build_level_figure(
             plt.close(fig)
             saved_paths.append(out_path)
 
+
     return data, year_order, saved_paths
 
 
 def build_locale_figure(
     base: pd.DataFrame, *, render: bool = True
 ) -> Tuple[pd.DataFrame, List[str], List[Path]]:
+
     data = compute_group_rates(base, ["locale_simple"])
     data = data[data["locale_simple"].isin(LOCALE_ORDER)].copy()
     data["locale_simple"] = pd.Categorical(data["locale_simple"], categories=LOCALE_ORDER, ordered=True)
@@ -704,6 +708,7 @@ def build_locale_figure(
                 )
                 handles.append(line)
                 labels.append(race)
+
                 axis_annotations.extend(
                     annotate_points(
                         ax,
@@ -953,12 +958,14 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     level_data, level_years, level_paths = build_level_figure(
         base, render=not args.diagnostics_only
     )
+
     write_diagnostics(level_data)
 
     if args.diagnostics_only:
         return
 
     locale_data, locale_years, locale_paths = build_locale_figure(base, render=True)
+
     quartile_data, quartile_years = build_quartile_figure(base, render=True)
 
     elementary_base = base[base["school_level"] == "Elementary"].copy()
@@ -995,6 +1002,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         print(f"Saved {path.name}")
     for path in locale_paths:
         print(f"Saved {path.name}")
+
     print("Saved statewide_race_trends_quartile_comparison.png")
     print("Saved statewide_race_trends_quartile_elementary.png")
 

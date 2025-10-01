@@ -167,6 +167,7 @@ Enrollment quartiles show lower SPED enrollment medians as Black share rises (mi
   produces `diagnostic_alignment_elementary.csv` comparing pooled elementary
   rates by race/year to confirm American Indian/Alaska Native values match the
   Python output within rounding tolerance.
+
 ### Analysis 02 – Black suspension rates by racial composition
 - Loads `susp_v6_long.parquet`, rebuilds keys, and filters to campus-level rows. It verifies needed columns (including quartiles) exist and generates quartile labels with `get_quartile_label()` when missing.【ca2bee†L31-L47】
 - Totals are aggregated by academic year × quartile to compute pooled suspension rates (`sum(total_suspensions)/sum(cumulative_enrollment)`). Reason-specific plots either use provided `_count` columns or derive counts by multiplying `prop_susp_*` shares by total suspensions before aggregating and labeling via `add_reason_label()`.【ca2bee†L68-L188】
