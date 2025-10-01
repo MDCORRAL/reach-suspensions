@@ -32,6 +32,10 @@ RUN_TAG <- format(Sys.time(), "%Y%m%d_%H%M")
 OUT_DIR <- here("outputs", paste0("comprehensive_rates_", RUN_TAG))
 if (!dir.exists(OUT_DIR)) dir.create(OUT_DIR, recursive = TRUE)
 
+DEFAULT_IS_TRADITIONAL <- TRUE
+SETTINGS_TO_INCLUDE <- c("Traditional")  # set to NULL to keep all settings
+DROP_UNKNOWN_QUARTILES <- FALSE
+
 # Helper functions from repository conventions
 safe_div <- function(x, y) ifelse(y == 0 | is.na(y), NA_real_, x / y)
 
@@ -119,7 +123,7 @@ v6_traditional <- v6_features %>%
   transmute(
     school_code = as.character(school_code),
     year = as.character(academic_year),
-    is_traditional = !is.na(is_traditional) & is_traditional
+    is_traditional = as.logical(is_traditional)
   ) %>%
   select(school_code, year, is_traditional) %>%
   distinct()
@@ -128,10 +132,16 @@ v6_traditional <- v6_features %>%
 analytic_data <- v6_complete %>%
   left_join(v6_traditional, by = c("school_code", "year")) %>%
   mutate(
-    is_traditional = ifelse(is.na(is_traditional), TRUE, is_traditional),
+    is_traditional = ifelse(is.na(is_traditional), DEFAULT_IS_TRADITIONAL, is_traditional),
     setting = ifelse(is_traditional, "Traditional", "Non-traditional")
-  ) %>%
-  filter(!is.na(white_q), !is.na(black_q), !is.na(hispanic_q)) %>%
+  )
+
+if (!is.null(SETTINGS_TO_INCLUDE) && length(SETTINGS_TO_INCLUDE) > 0) {
+  analytic_data <- analytic_data %>%
+    filter(setting %in% SETTINGS_TO_INCLUDE)
+}
+
+analytic_data <- analytic_data %>%
   mutate(
     year = order_year(year),
     black_q = order_quartile(black_q),
@@ -140,6 +150,18 @@ analytic_data <- v6_complete %>%
     setting = factor(setting, levels = c("Traditional", "Non-traditional")),
     grade_level = factor(grade_level, levels = LEVEL_LABELS)
   )
+
+if (DROP_UNKNOWN_QUARTILES) {
+  analytic_data <- analytic_data %>%
+    filter(!is.na(black_q), !is.na(white_q), !is.na(hispanic_q))
+} else {
+  analytic_data <- analytic_data %>%
+    mutate(
+      black_q = forcats::fct_explicit_na(black_q, na_level = "Unknown"),
+      white_q = forcats::fct_explicit_na(white_q, na_level = "Unknown"),
+      hispanic_q = forcats::fct_explicit_na(hispanic_q, na_level = "Unknown")
+    )
+}
 
 # NOW add the diagnostic code:
 unknown_schools <- analytic_data %>%

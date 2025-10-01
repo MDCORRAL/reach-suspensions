@@ -29,6 +29,15 @@ Python utilities in `graph_scripts/` rely on a small set of data analysis librar
 pip install -r graph_scripts/requirements.txt
 ```
 
+## Statewide analytic dataset
+
+Statewide scripts—including the Python trends generator and the comprehensive R
+analysis—now share the long-form staged file `data-stage/susp_v6_long.parquet`
+and join `data-stage/susp_v6_features.parquet` for the `is_traditional` flag.
+Both pipelines filter to campus-level records, remove placeholder school codes
+(`0000000`, `0000001`), default missing traditional flags to `TRUE`, and focus
+on Traditional schools unless the loader configuration is changed explicitly.
+
 ## Analysis scripts
 
 The canonical analysis of Black student suspension rates by school racial composition lives at

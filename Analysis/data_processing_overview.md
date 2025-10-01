@@ -152,6 +152,16 @@
 Enrollment quartiles show lower SPED enrollment medians as Black share rises (min=11 students across quartiles, median drops from 142 in Q1 to 103 in Q4).【fad982†L1-L9】
 
 ## Downstream analyses
+### Statewide trend alignment
+- `graph_scripts/06_statewide_trends.py` and `Analysis/18_comprehensive_suspension_rates_analysis.R`
+  now draw from the shared long-form dataset `data-stage/susp_v6_long.parquet`
+  and join `data-stage/susp_v6_features.parquet` for `is_traditional`. Both
+  loaders restrict to campus-level rows, drop placeholder school codes
+  `0000000`/`0000001`, default missing traditional flags to `TRUE`, and focus on
+  Traditional schools unless the configuration toggle (`SETTINGS_TO_INCLUDE`) is
+  widened. Quartile filters are optional: missing labels are retained and
+  labeled "Unknown" by default so statewide totals stay aligned across Python
+  and R workflows.
 ### Analysis 02 – Black suspension rates by racial composition
 - Loads `susp_v6_long.parquet`, rebuilds keys, and filters to campus-level rows. It verifies needed columns (including quartiles) exist and generates quartile labels with `get_quartile_label()` when missing.【ca2bee†L31-L47】
 - Totals are aggregated by academic year × quartile to compute pooled suspension rates (`sum(total_suspensions)/sum(cumulative_enrollment)`). Reason-specific plots either use provided `_count` columns or derive counts by multiplying `prop_susp_*` shares by total suspensions before aggregating and labeling via `add_reason_label()`.【ca2bee†L68-L188】

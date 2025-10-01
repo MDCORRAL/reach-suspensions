@@ -74,7 +74,7 @@ plot_quartiles <- ggplot(bars,
     subtitle = "Traditional schools statewide vs. schools in the highest quartile of Black enrollment",
     x = NULL,
     y = "Suspension rate",
-    caption = "Source: California statewide suspension data (susp_v5 + v6 features)"
+    caption = "Source: California statewide suspension data (susp_v6_long + v6 features)"
   ) +
   theme_reach() +
   theme(axis.text.x = element_text(angle = 35, hjust = 1))
