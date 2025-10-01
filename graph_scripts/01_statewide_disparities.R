@@ -72,7 +72,7 @@ plot_statewide <- ggplot(statewide_rates,
     x = NULL,
     y = "Suspension rate",
     color = "Student group",
-    caption = "Source: California statewide suspension data (susp_v5 + v6 features)"
+    caption = "Source: California statewide suspension data (susp_v6_long + v6 features)"
   ) +
   theme_reach()
 
