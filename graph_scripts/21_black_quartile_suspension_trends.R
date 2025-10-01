@@ -20,9 +20,8 @@ quartile_palette <- c(
   "Q4" = "#FFB81C"   # Darkest Gold
 )
 
-statewide_color <- "#003B5C"      # Darkest Blue
-statewide_average_color <- "#005587"  # Darker Blue
-statewide_label <- "Statewide Traditional Average"
+statewide_color <- "red"
+statewide_label <- "Statewide traditional average"
 
 joined <- load_joined_data()
 
@@ -106,15 +105,17 @@ if (nrow(white_quartiles) == 0) {
 }
 
 build_quartile_plot <- function(quartile_data, cohort_label) {
-  latest_year <- tail(levels(quartile_data$academic_year), 1)
-
   quartile_labels <- quartile_data %>%
-    dplyr::filter(academic_year == latest_year) %>%
-    dplyr::mutate(label = scales::percent(rate, accuracy = 0.1))
+    dplyr::mutate(
+      label = scales::percent(rate, accuracy = 0.1),
+      segment_colour = quartile_palette[as.character(quartile)]
+    )
 
   statewide_labels <- statewide_rates %>%
-    dplyr::filter(academic_year == latest_year) %>%
-    dplyr::mutate(label = scales::percent(rate, accuracy = 0.1))
+    dplyr::mutate(
+      label = scales::percent(rate, accuracy = 0.1),
+      segment_colour = statewide_color
+    )
 
   ggplot() +
     geom_line(
@@ -145,37 +146,49 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
     ) +
     ggrepel::geom_label_repel(
       data = quartile_labels,
-      aes(x = academic_year, y = rate, label = label, fill = quartile),
-      color = "white",
-      size = 3.2,
+      aes(
+        x = academic_year,
+        y = rate,
+        label = label,
+        color = quartile,
+        segment.colour = segment_colour
+      ),
+      inherit.aes = FALSE,
+      fill = scales::alpha("white", 0.85),
+      fontface = "bold",
+      size = 3,
       show.legend = FALSE,
-      label.size = 0.15,
-      label.padding = grid::unit(0.15, "lines"),
-      segment.curvature = -0.1,
-      segment.ncp = 5,
-      min.segment.length = 0
+      label.size = 0,
+      label.padding = grid::unit(0.18, "lines"),
+      box.padding = grid::unit(0.35, "lines"),
+      point.padding = grid::unit(0.3, "lines"),
+      label.r = grid::unit(0.08, "lines"),
+      direction = "y",
+      max.overlaps = Inf,
+      segment.size = 0.4
     ) +
     ggrepel::geom_label_repel(
       data = statewide_labels,
-      aes(x = academic_year, y = rate, label = label),
-      fill = statewide_color,
-      color = "white",
-      size = 3.2,
+      aes(
+        x = academic_year,
+        y = rate,
+        label = label,
+        color = statewide_label,
+        segment.colour = segment_colour
+      ),
+      inherit.aes = FALSE,
+      fill = scales::alpha("white", 0.85),
+      fontface = "bold",
+      size = 3,
       show.legend = FALSE,
-      label.size = 0.15,
-      label.padding = grid::unit(0.15, "lines"),
-      segment.curvature = -0.1,
-      segment.ncp = 5,
-      min.segment.length = 0
-    ) +
-    annotate(
-      "text",
-      x = levels(quartile_data$academic_year)[1],
-      y = overall_statewide_average,
-      label = glue::glue("Overall statewide avg: {scales::percent(overall_statewide_average, accuracy = 0.1)}"),
-      color = statewide_average_color,
-      vjust = -1,
-      size = 3
+      label.size = 0,
+      label.padding = grid::unit(0.18, "lines"),
+      box.padding = grid::unit(0.35, "lines"),
+      point.padding = grid::unit(0.3, "lines"),
+      label.r = grid::unit(0.08, "lines"),
+      direction = "y",
+      max.overlaps = Inf,
+      segment.size = 0.4
     ) +
     scale_color_manual(
       values = c(quartile_palette, setNames(statewide_color, statewide_label)),
