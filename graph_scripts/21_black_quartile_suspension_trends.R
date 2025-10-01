@@ -6,6 +6,7 @@ suppressPackageStartupMessages({
   library(ggplot2)
   library(glue)
   library(here)
+  library(ggrepel)
   library(readr)
   library(scales)
 })
@@ -13,14 +14,14 @@ suppressPackageStartupMessages({
 source(here::here("graph_scripts", "graph_utils.R"))
 
 quartile_palette <- c(
-  "Q1" = "#0B3954",
-  "Q2" = "#087E8B",
-  "Q3" = "#FF5A5F",
-  "Q4" = "#C81D25"
+  "Q1" = "#8BB8E8",  # Lighter Blue
+  "Q2" = "#2774AE",  # UCLA Blue
+  "Q3" = "#FFC72C",  # Darker Gold
+  "Q4" = "#FFB81C"   # Darkest Gold
 )
 
-statewide_color <- "#D00000"
-statewide_label <- "Statewide Traditional Average"
+statewide_color <- "red"
+statewide_label <- "Statewide average (All Students)"
 
 joined <- load_joined_data()
 
@@ -38,7 +39,25 @@ if (nrow(black_base) == 0) {
   stop("No traditional school records available for Black student quartile trends.")
 }
 
-statewide_rates <- black_base %>%
+all_students_base <- joined %>%
+  dplyr::filter(
+    is_traditional,
+    subgroup == "All Students",
+    !is.na(total_suspensions),
+    !is.na(cumulative_enrollment),
+    cumulative_enrollment > 0
+  ) %>%
+  dplyr::mutate(academic_year = as.character(academic_year))
+
+if (nrow(all_students_base) == 0) {
+  stop("No statewide All Students records available for traditional schools.")
+}
+
+year_levels <- union(black_base$academic_year, all_students_base$academic_year) %>%
+  unique() %>%
+  sort()
+
+statewide_rates <- all_students_base %>%
   dplyr::group_by(academic_year) %>%
   dplyr::summarise(
     suspensions = sum(total_suspensions, na.rm = TRUE),
@@ -46,8 +65,6 @@ statewide_rates <- black_base %>%
     rate = safe_div(suspensions, enrollment),
     .groups = "drop"
   )
-
-year_levels <- statewide_rates$academic_year %>% unique() %>% sort()
 
 statewide_rates <- statewide_rates %>%
   dplyr::mutate(academic_year = factor(academic_year, levels = year_levels, ordered = TRUE))
@@ -96,6 +113,18 @@ if (nrow(white_quartiles) == 0) {
 }
 
 build_quartile_plot <- function(quartile_data, cohort_label) {
+  quartile_labels <- quartile_data %>%
+    dplyr::mutate(
+      label = scales::percent(rate, accuracy = 0.1),
+      segment_colour = quartile_palette[as.character(quartile)]
+    )
+
+  statewide_labels <- statewide_rates %>%
+    dplyr::mutate(
+      label = scales::percent(rate, accuracy = 0.1),
+      segment_colour = statewide_color
+    )
+
   ggplot() +
     geom_line(
       data = quartile_data,
@@ -116,6 +145,52 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       data = statewide_rates,
       aes(x = academic_year, y = rate, color = statewide_label),
       size = 2
+    ) +
+    ggrepel::geom_label_repel(
+      data = quartile_labels,
+      aes(
+        x = academic_year,
+        y = rate,
+        label = label,
+        color = quartile,
+        segment.colour = segment_colour
+      ),
+      inherit.aes = FALSE,
+      fill = scales::alpha("white", 0.85),
+      fontface = "bold",
+      size = 3,
+      show.legend = FALSE,
+      label.size = 0,
+      label.padding = grid::unit(0.18, "lines"),
+      box.padding = grid::unit(0.35, "lines"),
+      point.padding = grid::unit(0.3, "lines"),
+      label.r = grid::unit(0.08, "lines"),
+      direction = "y",
+      max.overlaps = Inf,
+      segment.size = 0.4
+    ) +
+    ggrepel::geom_label_repel(
+      data = statewide_labels,
+      aes(
+        x = academic_year,
+        y = rate,
+        label = label,
+        color = statewide_label,
+        segment.colour = segment_colour
+      ),
+      inherit.aes = FALSE,
+      fill = scales::alpha("white", 0.85),
+      fontface = "bold",
+      size = 3,
+      show.legend = FALSE,
+      label.size = 0,
+      label.padding = grid::unit(0.18, "lines"),
+      box.padding = grid::unit(0.35, "lines"),
+      point.padding = grid::unit(0.3, "lines"),
+      label.r = grid::unit(0.08, "lines"),
+      direction = "y",
+      max.overlaps = Inf,
+      segment.size = 0.4
     ) +
     scale_color_manual(
       values = c(quartile_palette, setNames(statewide_color, statewide_label)),
