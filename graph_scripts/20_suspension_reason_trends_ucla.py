@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import sys
 from pathlib import Path
 from typing import Iterable
 
@@ -18,6 +19,16 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 from adjustText import adjust_text
+
+
+# ``palette_utils`` lives alongside this script.  When the module is executed via
+# ``reticulate::source_python()`` in RStudio, Python's module search path does
+# not automatically include the script directory, which caused
+# ``ModuleNotFoundError`` for ``palette_utils``.  Explicitly add the current
+# directory so the shared palette definitions can always be imported.
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
 from palette_utils import DISCIPLINE_BASE_PALETTE, DISCIPLINE_REASON_PALETTE
 
