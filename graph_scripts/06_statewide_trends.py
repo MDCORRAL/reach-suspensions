@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+##06_statewide_trends.py
 """Generate statewide suspension trends by race across levels, locales, and quartiles."""
 
 from __future__ import annotations

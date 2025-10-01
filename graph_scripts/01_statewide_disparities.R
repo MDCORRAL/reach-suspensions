@@ -55,12 +55,26 @@ plot_statewide <- ggplot(statewide_rates,
   geom_line(linewidth = 1.1) +
   geom_point(size = 2.7) +
 
-  geom_text_repel(data = label_data,
-                  aes(label = label),
-                  size = 3,
-                  show.legend = FALSE,
-                  max.overlaps = Inf,
-                  seed = 123) +
+  geom_label_repel(
+    data = label_data,
+    aes(label = label),
+    size = 3,
+    fontface = "bold",
+    show.legend = FALSE,
+    max.overlaps = Inf,
+    seed = 123,
+    fill = alpha("white", 0.85),          # Semi-transparent white background
+    label.r = unit(0.15, "lines"),        # Rounded corners
+    label.padding = unit(0.18, "lines"),  # Match Python's pad=0.18
+    label.size = 0,                       # No border (matches edgecolor="none")
+    segment.color = alpha("grey60", 0.75), # Semi-transparent leader lines
+    segment.size = 0.5,
+    min.segment.length = 0,
+    force = 2,                            # Stronger repulsion
+    force_pull = 0.5,                     # Balance between repulsion and attraction
+    box.padding = 0.35,                   # Space between label and point
+    point.padding = 0.3                   # Space around the actual point
+  ) +
   scale_color_manual(values = race_palette, guide = guide_legend(nrow = 2)) +
   scale_x_discrete(expand = expansion(mult = c(0.02, 0.02))) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 0.1),
