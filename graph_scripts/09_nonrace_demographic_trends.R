@@ -28,9 +28,8 @@ source(here("R", "utils_keys_filters.R"))
 
 DATA_STAGE <- here("data-stage")
 OTH_LONG <- file.path(DATA_STAGE, "oth_long.parquet")
-V6_FEAT <- file.path(DATA_STAGE, "susp_v6_features.parquet")
 
-stopifnot(file.exists(OTH_LONG), file.exists(V6_FEAT))
+stopifnot(file.exists(OTH_LONG))
 
 OUTPUT_DIR <- here("outputs", "graphs", "nonrace_demographics")
 dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
@@ -85,11 +84,10 @@ ucla_theme <- function(base_size = 12, base_family = NULL) {
 
 oth_long <- read_parquet(OTH_LONG) %>%
   clean_names() %>%
+  build_keys() %>%
   mutate(
     academic_year = as.character(academic_year),
-    county_code = str_pad(as.character(county_code), width = 2, pad = "0"),
-    district_code = str_pad(as.character(district_code), width = 5, pad = "0"),
-    school_code = str_pad(as.character(school_code), width = 7, pad = "0"),
+
     subgroup = str_squish(as.character(subgroup)),
     category_type = str_squish(as.character(category_type)),
     cumulative_enrollment = readr::parse_number(as.character(cumulative_enrollment)),
@@ -103,20 +101,7 @@ oth_long <- read_parquet(OTH_LONG) %>%
     !is.na(subgroup)
   )
 
-features <- read_parquet(V6_FEAT) %>%
-  clean_names() %>%
-  transmute(
-    academic_year = as.character(academic_year),
-    school_code = str_pad(as.character(school_code), width = 7, pad = "0"),
-    is_traditional = as.logical(is_traditional)
-  ) %>%
-  distinct()
-
-traditional_features <- features %>%
-  filter(is.na(is_traditional) | is_traditional)
-
-analytic_data <- oth_long %>%
-  inner_join(traditional_features, by = c("school_code", "academic_year"))
+analytic_data <- oth_long
 
 year_levels <- sort(unique(analytic_data$academic_year))
 
@@ -141,8 +126,8 @@ all_students_summary <- summary_by_demo %>%
   filter(category_type == "Total", subgroup == "All Students") %>%
   transmute(
     academic_year,
-    subgroup = "All Students",
-    n_schools = NA_integer_,
+    subgroup,
+    n_schools,
     total_enrollment,
     total_suspensions,
     pooled_rate,
