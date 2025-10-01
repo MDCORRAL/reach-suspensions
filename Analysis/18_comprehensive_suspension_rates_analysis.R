@@ -455,6 +455,43 @@ writeData(wb, "rates_by_setting", rates_by_setting)
 addWorksheet(wb, "rates_by_grade_level")
 writeData(wb, "rates_by_grade_level", rates_by_grade)
 
+# -------------------------------------------------------------------------
+# Diagnostics: compare with python statewide trends (if available)
+# -------------------------------------------------------------------------
+python_diag <- here("outputs", "graphs", "diagnostics", "statewide_elementary_rates.csv")
+
+if (file.exists(python_diag)) {
+  message("Aligning with python statewide elementary diagnostic -> ", python_diag)
+  diag_py <- read_csv(python_diag, show_col_types = FALSE) %>%
+    transmute(
+      year = as.character(academic_year),
+      race_ethnicity = as.character(subgroup),
+      py_total_suspensions = as.numeric(total_suspensions),
+      py_enrollment = as.numeric(cumulative_enrollment),
+      py_rate = as.numeric(rate)
+    )
+
+  diag_compare <- rates_by_grade %>%
+    filter(grade_level == "Elementary") %>%
+    mutate(year = as.character(year)) %>%
+    select(
+      year,
+      race_ethnicity,
+      r_total_suspensions = total_suspensions,
+      r_enrollment = total_enrollment,
+      r_rate = pooled_rate
+    ) %>%
+    inner_join(diag_py, by = c("year", "race_ethnicity")) %>%
+    mutate(rate_gap = r_rate - py_rate)
+
+  write_csv(
+    diag_compare,
+    file.path(OUT_DIR, "diagnostic_alignment_elementary.csv")
+  )
+} else {
+  message("Python diagnostic not found (", python_diag, "); skip alignment export.")
+}
+
 # Sheet 7: Comprehensive cross-tab (filtered for major races to avoid huge file)
 addWorksheet(wb, "comprehensive_analysis")
 rates_comprehensive_filtered <- rates_comprehensive %>%

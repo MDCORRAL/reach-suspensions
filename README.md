@@ -38,6 +38,12 @@ Both pipelines filter to campus-level records, remove placeholder school codes
 (`0000000`, `0000001`), default missing traditional flags to `TRUE`, and focus
 on Traditional schools unless the loader configuration is changed explicitly.
 
+Running `python graph_scripts/06_statewide_trends.py --diagnostics-only`
+produces `outputs/graphs/diagnostics/statewide_elementary_rates.csv`, which the
+comprehensive R workflow reads to verify that pooled rates (e.g., American
+Indian/Alaska Native elementary suspension rates) match across languages within
+rounding tolerance.
+
 ## Analysis scripts
 
 The canonical analysis of Black student suspension rates by school racial composition lives at
@@ -47,7 +53,8 @@ The canonical analysis of Black student suspension rates by school racial compos
 
 These optional environment variables allow the project to run without hard-coded paths. Set them in your shell or `.Renviron`.
 
-- `REACH_PROJECT_ROOT`: path to the project root. Defaults to the current working directory if unset.
+- `REACH_PROJECT_ROOT`: path to the project root for R utilities. Defaults to the current working directory if unset.
+- `REACH_SUSPENSIONS_ROOT`: optional override for Python graph scripts. Defaults to the auto-detected repository root.
 - `REACH_DATA_DIR`: directory for staged data files. Defaults to `data-stage/` under the project root.
 - `RAW_PATH`: full path to the raw Excel file `copy_CDE_suspensions_1718-2324_sc_race.xlsx`. Defaults to `data-raw/` under the project root.
 
