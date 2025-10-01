@@ -129,50 +129,67 @@ plot_subtitle <- glue::glue(
   "Lines trace suspension rates by race/ethnicity across highest-Black, highest-White, and highest-Hispanic/Latino panels"
 )
 
-plot_rates <- ggplot(quartile_q4_rates,
-                     aes(x = academic_year,
-                         y = rate,
-                         color = subgroup,
-                         group = subgroup)) +
-  geom_line(linewidth = 0.7) +
-  geom_point(size = 1.6) +
-  ggrepel::geom_label_repel(
-    aes(label = scales::percent(rate, accuracy = 0.1)),
-    size = 3,
-    label.size = 0,
-    label.padding = grid::unit(0.12, "lines"),
-    label.r = grid::unit(0.2, "lines"),
-    fill = "white",
-    box.padding = grid::unit(0.3, "lines"),
-    point.padding = grid::unit(0.3, "lines"),
-    min.segment.length = 0,
-    max.overlaps = Inf
-  ) +
+build_quartile_plot <- function(data, panel_label = NULL) {
+  ggplot(data,
+         aes(x = academic_year,
+             y = rate,
+             color = subgroup,
+             group = subgroup)) +
+    geom_line(linewidth = 0.7) +
+    geom_point(size = 1.6) +
+    ggrepel::geom_label_repel(
+      aes(label = scales::percent(rate, accuracy = 0.1)),
+      size = 3,
+      label.size = 0,
+      label.padding = grid::unit(0.12, "lines"),
+      label.r = grid::unit(0.2, "lines"),
+      fill = "white",
+      box.padding = grid::unit(0.3, "lines"),
+      point.padding = grid::unit(0.3, "lines"),
+      min.segment.length = 0,
+      max.overlaps = Inf
+    ) +
 
-  scale_color_manual(
-    values = race_palette,
-    breaks = race_levels,
-    limits = race_levels,
-    name = "Student race/ethnicity"
-  ) +
+    scale_color_manual(
+      values = race_palette,
+      breaks = race_levels,
+      limits = race_levels,
+      name = "Student race/ethnicity"
+    ) +
 
-  scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
-  labs(
-    title = plot_title,
-    subtitle = plot_subtitle,
-    x = "Academic year",
-    y = "Suspension rate",
-    caption = "Source: California statewide suspension data (susp_v6_long + v6 features)"
-  ) +
-  facet_wrap(~ quartile_group, ncol = 1) +
-  theme_reach() +
-  theme(
-    legend.position = "bottom"
-  )
+    scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
+    labs(
+      title = if (is.null(panel_label)) plot_title else glue::glue("{plot_title}\n{panel_label}"),
+      subtitle = plot_subtitle,
+      x = "Academic year",
+      y = "Suspension rate",
+      caption = "Source: California statewide suspension data (susp_v6_long + v6 features)"
+    ) +
+    theme_reach() +
+    theme(
+      legend.position = "bottom"
+    )
+}
+
+plot_rates <- build_quartile_plot(quartile_q4_rates) +
+  facet_wrap(~ quartile_group, ncol = 1)
 
 out_path <- file.path(OUTPUT_DIR, "quartile_enrollment_comparison.png")
 
 ggsave(out_path, plot_rates, width = 13, height = 18, dpi = 320)
+
+split_quartile_plots <- split(quartile_q4_rates, quartile_q4_rates$quartile_group)
+
+for (group_name in names(split_quartile_plots)) {
+  panel_data <- split_quartile_plots[[group_name]]
+  individual_plot <- build_quartile_plot(panel_data, panel_label = group_name)
+  file_stub <- gsub("[^A-Za-z0-9]+", "_", tolower(group_name))
+  file_stub <- gsub("_+", "_", file_stub)
+  file_stub <- gsub("^_+|_+$", "", file_stub)
+  individual_path <- file.path(OUTPUT_DIR, paste0("quartile_enrollment_comparison_", file_stub, ".png"))
+  ggsave(individual_path, individual_plot, width = 13, height = 6, dpi = 320)
+  message("Saved ", group_name, " plot to ", individual_path)
+}
 
 table_path <- file.path(OUTPUT_DIR, "quartile_enrollment_comparison.csv")
 
