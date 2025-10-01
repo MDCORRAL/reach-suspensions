@@ -556,11 +556,17 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     y_limit = y_max + max(0.01, y_max * 0.18)
     offset = max(0.0015, y_limit * 0.015)
 
-    fig, axes = plt.subplots(2, 2, figsize=(22, 14), sharex=False, sharey=True)
-    axes_flat = axes.flatten()
+    caption = (
+        "Source: California statewide suspension data (susp_v5.parquet + susp_v6_features.parquet). "
+        "Traditional schools only; locale grouping uses locale_simple categories."
+    )
+    subtitle = "By locale, 2017-18 through 2023-24 (no statewide reporting in 2020-21)."
+
+    # Create first figure: City + Suburban
+    fig1, axes1 = plt.subplots(1, 2, figsize=(22, 9), sharey=True)
     legend_handles: Dict[str, plt.Line2D] = {}
 
-    for idx, (locale, ax) in enumerate(zip(LOCALE_ORDER, axes_flat)):
+    for idx, (locale, ax) in enumerate(zip(["City", "Suburban"], axes1)):
         subset = data[data["locale_simple"] == locale]
         ax.set_title(f"{locale} Schools", loc="left", fontsize=14, fontweight="bold", pad=4)
         if subset.empty:
@@ -595,7 +601,7 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
             if race not in legend_handles:
                 legend_handles[race] = line
         resolve_label_overlaps(ax, axis_annotations)
-        if idx % 2 == 0:
+        if idx == 0:
             ax.set_ylabel("Suspension rate", fontsize=11)
         else:
             ax.set_ylabel("")
@@ -607,9 +613,54 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
         "Traditional schools only; locale grouping uses locale_simple categories."
     )
-    subtitle = "By locale, 2017-18 through 2023-24 (no statewide reporting in 2020-21)."
+
+    out_path1 = OUTPUT_DIR / "PY6_statewide_race_trends_by_locale_city_suburban.png"
+    fig1.savefig(out_path1, dpi=320)
+    plt.close(fig1)
+
+    # Create second figure: Town + Rural
+    fig2, axes2 = plt.subplots(1, 2, figsize=(22, 9), sharey=True)
+
+    for idx, (locale, ax) in enumerate(zip(["Town", "Rural"], axes2)):
+        subset = data[data["locale_simple"] == locale]
+        ax.set_title(f"{locale} Schools", loc="left", fontsize=14, fontweight="bold", pad=4)
+        if subset.empty:
+            ax.axis("off")
+            continue
+        subset = subset.sort_values(["subgroup", "year_index"])
+        apply_reach_style(ax, year_order, y_limit)
+        axis_annotations: List[Annotation] = []
+        for race in RACE_LEVELS:
+            race_df = subset[subset["subgroup"] == race]
+            if race_df.empty:
+                continue
+            line, = ax.plot(
+                race_df["year_index"],
+                race_df["rate"],
+                color=RACE_PALETTE[race],
+                linewidth=2.3,
+                marker="o",
+                markersize=5.3,
+                markeredgecolor="white",
+                markeredgewidth=0.6,
+            )
+            axis_annotations.extend(
+                annotate_points(
+                    ax,
+                    race_df,
+                    RACE_PALETTE[race],
+                    offset,
+                    label_last_only=False,
+                )
+            )
+        resolve_label_overlaps(ax, axis_annotations)
+        if idx == 0:
+            ax.set_ylabel("Suspension rate", fontsize=11)
+        else:
+            ax.set_ylabel("")
+
     finalize_figure(
-        fig,
+        fig2,
         title="Suspension Rates by Race Across School Locales",
         subtitle=subtitle,
         caption=caption,
@@ -619,9 +670,10 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         legend_y=0.91,
     )
 
-    out_path = OUTPUT_DIR / "PY6_statewide_race_trends_by_locale.png"
-    fig.savefig(out_path, dpi=320)
-    plt.close(fig)
+    out_path2 = OUTPUT_DIR / "PY6_statewide_race_trends_by_locale_town_rural.png"
+    fig2.savefig(out_path2, dpi=320)
+    plt.close(fig2)
+
     return data, year_order
 
 
@@ -867,10 +919,11 @@ def main() -> None:
         "statewide_race_trends_quartile_comparison_elementary.txt",
     )
 
-    print("Saved Py06_statewide_race_trends_by_level.png")
-    print("Saved Py06_statewide_race_trends_by_locale.png")
-    print("Saved Py06_statewide_race_trends_quartile_comparison.png")
-    print("Saved Py06_statewide_race_trends_quartile_elementary.png")
+    print("Saved PY6_statewide_race_trends_by_level.png")
+    print("Saved PY6_statewide_race_trends_by_locale_city_suburban.png")
+    print("Saved PY6_statewide_race_trends_by_locale_town_rural.png")
+    print("Saved statewide_race_trends_quartile_comparison.png")
+    print("Saved statewide_race_trends_quartile_elementary.png")
 
 
 if __name__ == "__main__":
