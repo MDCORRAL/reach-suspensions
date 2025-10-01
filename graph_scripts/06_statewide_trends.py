@@ -104,10 +104,6 @@ DEFAULT_IS_TRADITIONAL = True
 SETTINGS_TO_INCLUDE: Optional[Set[str]] = {"Traditional"}
 DROP_UNKNOWN_QUARTILES = False
 
-SPECIAL_SCHOOL_CODES: Set[str] = {"0000000", "0000001"}
-DEFAULT_IS_TRADITIONAL = True
-SETTINGS_TO_INCLUDE: Optional[Set[str]] = {"Traditional"}
-DROP_UNKNOWN_QUARTILES = False
 
 RACE_LEVELS: List[str] = [
     "Black/African American",
@@ -138,6 +134,14 @@ QUARTILE_GROUPS = [
     ("white_prop_q_label", "Q4 (Highest % White)", "Highest-White Enrollment Schools"),
 ]
 
+
+def slugify_for_filename(value: str) -> str:
+    """Return a filesystem-friendly slug for appending to filenames."""
+
+    slug = "".join(ch.lower() if ch.isalnum() else "_" for ch in value)
+    while "__" in slug:
+        slug = slug.replace("__", "_")
+    return slug.strip("_")
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -196,7 +200,7 @@ def standardize_quartile_label(value: object, group: str) -> Optional[str]:
 
 
 def standardize_quartile_series(series: pd.Series, group: str) -> pd.Series:
-"""Vectorized quartile normalization that mirrors the R logic."""
+    """Vectorized quartile normalization that mirrors the R logic."""
 
     working = pd.Series(series, copy=False).astype("string")
     stripped = working.str.strip()
@@ -565,7 +569,8 @@ def format_percent(value: float, accuracy: float = 0.1) -> str:
 
 def build_level_figure(
     base: pd.DataFrame, *, render: bool = True
-) -> Tuple[pd.DataFrame, List[str]]:
+) -> Tuple[pd.DataFrame, List[str], List[Path]]:
+
     data = compute_group_rates(base, ["school_level"])
     data = data[data["school_level"].isin(LEVEL_ORDER)].copy()
     data["school_level"] = pd.Categorical(data["school_level"], categories=LEVEL_ORDER, ordered=True)
@@ -576,23 +581,34 @@ def build_level_figure(
     y_limit = y_max + max(0.01, y_max * 0.18)
     offset = max(0.0015, y_limit * 0.015)
 
-    if render:
-        fig, axes = plt.subplots(1, len(LEVEL_ORDER), figsize=(22, 9), sharey=True)
-        legend_handles: Dict[str, plt.Line2D] = {}
+    saved_paths: List[Path] = []
 
-        for idx, (level, ax) in enumerate(zip(LEVEL_ORDER, np.atleast_1d(axes))):
+    if render:
+        caption = (
+            "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
+            "Traditional schools only; rates aggregate total suspensions ÷ cumulative enrollment."
+        )
+        subtitle = (
+            "By grade span, 2017-18 through 2023-24 (no statewide reporting in 2020-21)."
+        )
+
+        for level in LEVEL_ORDER:
             subset = data[data["school_level"] == level]
             if subset.empty:
-                ax.axis("off")
                 continue
+
             subset = subset.sort_values(["subgroup", "year_index"])
+            fig, ax = plt.subplots(figsize=(10, 9))
             apply_reach_style(ax, year_order, y_limit)
-            ax.set_title(f"{level} Schools", loc="left", fontsize=14, fontweight="bold", pad=4)
             axis_annotations: List[Annotation] = []
+            handles: List[plt.Line2D] = []
+            labels: List[str] = []
+
             for race in RACE_LEVELS:
                 race_df = subset[subset["subgroup"] == race]
                 if race_df.empty:
                     continue
+
                 line, = ax.plot(
                     race_df["year_index"],
                     race_df["rate"],
@@ -603,6 +619,9 @@ def build_level_figure(
                     markeredgecolor="white",
                     markeredgewidth=0.6,
                 )
+                handles.append(line)
+                labels.append(race)
+
                 axis_annotations.extend(
                     annotate_points(
                         ax,
@@ -612,42 +631,35 @@ def build_level_figure(
                         label_last_only=False,
                     )
                 )
-                if race not in legend_handles:
-                    legend_handles[race] = line
+
             resolve_label_overlaps(ax, axis_annotations)
-            if idx > 0:
-                ax.set_ylabel("")
-            else:
-                ax.set_ylabel("Suspension rate", fontsize=11)
+            ax.set_ylabel("Suspension rate", fontsize=11)
 
-        caption = (
-            "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
-            "Traditional schools only; rates aggregate total suspensions ÷ cumulative enrollment."
-        )
-        subtitle = (
-            "By grade span, 2017-18 through 2023-24 (no statewide reporting in 2020-21)."
-        )
-        finalize_figure(
-            fig,
-            title="Suspension Rates by Race Across School Levels",
-            subtitle=subtitle,
-            caption=caption,
-            handles=list(legend_handles.values()),
-            labels=list(legend_handles.keys()),
-            legend_cols=4,
-            legend_y=0.91,
-        )
+            finalize_figure(
+                fig,
+                title=f"Suspension Rates by Race – {level} Schools",
+                subtitle=subtitle,
+                caption=caption,
+                handles=handles,
+                labels=labels,
+                legend_cols=4,
+                legend_y=0.88,
+            )
 
-        out_path = OUTPUT_DIR / "PY6_statewide_race_trends_by_level.png"
-        fig.savefig(out_path, dpi=320)
-        plt.close(fig)
+            filename = f"PY6_statewide_race_trends_by_level_{slugify_for_filename(level)}.png"
+            out_path = OUTPUT_DIR / filename
+            fig.savefig(out_path, dpi=320)
+            plt.close(fig)
+            saved_paths.append(out_path)
 
-    return data, year_order
+
+    return data, year_order, saved_paths
 
 
 def build_locale_figure(
     base: pd.DataFrame, *, render: bool = True
-) -> Tuple[pd.DataFrame, List[str]]:
+) -> Tuple[pd.DataFrame, List[str], List[Path]]:
+
     data = compute_group_rates(base, ["locale_simple"])
     data = data[data["locale_simple"].isin(LOCALE_ORDER)].copy()
     data["locale_simple"] = pd.Categorical(data["locale_simple"], categories=LOCALE_ORDER, ordered=True)
@@ -658,25 +670,32 @@ def build_locale_figure(
     y_limit = y_max + max(0.01, y_max * 0.18)
     offset = max(0.0015, y_limit * 0.015)
 
+    saved_paths: List[Path] = []
+
     if render:
-        fig, axes = plt.subplots(2, 2, figsize=(22, 14), sharex=False, sharey=True)
-        axes_flat = axes.flatten()
-        legend_handles: Dict[str, plt.Line2D] = {}
+        caption = (
+            "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
+            "Traditional schools only; locale grouping uses locale_simple categories."
+        )
+        subtitle = "By locale, 2017-18 through 2023-24 (no statewide reporting in 2020-21)."
 
-        for idx, (locale, ax) in enumerate(zip(LOCALE_ORDER, axes_flat)):
+        for locale in LOCALE_ORDER:
             subset = data[data["locale_simple"] == locale]
-            ax.set_title(f"{locale} Schools", loc="left", fontsize=14, fontweight="bold", pad=4)
             if subset.empty:
-                ax.axis("off")
-
                 continue
+
             subset = subset.sort_values(["subgroup", "year_index"])
+            fig, ax = plt.subplots(figsize=(10, 9))
             apply_reach_style(ax, year_order, y_limit)
             axis_annotations: List[Annotation] = []
+            handles: List[plt.Line2D] = []
+            labels: List[str] = []
+
             for race in RACE_LEVELS:
                 race_df = subset[subset["subgroup"] == race]
                 if race_df.empty:
                     continue
+
                 line, = ax.plot(
                     race_df["year_index"],
                     race_df["rate"],
@@ -687,6 +706,9 @@ def build_locale_figure(
                     markeredgecolor="white",
                     markeredgewidth=0.6,
                 )
+                handles.append(line)
+                labels.append(race)
+
                 axis_annotations.extend(
                     annotate_points(
                         ax,
@@ -696,39 +718,28 @@ def build_locale_figure(
                         label_last_only=False,
                     )
                 )
-                if race not in legend_handles:
-                    legend_handles[race] = line
+
             resolve_label_overlaps(ax, axis_annotations)
-            if idx % 2 == 0:
-                ax.set_ylabel("Suspension rate", fontsize=11)
-            else:
-                ax.set_ylabel("")
+            ax.set_ylabel("Suspension rate", fontsize=11)
 
-        for ax in axes_flat[len(LOCALE_ORDER):]:
-            ax.axis("off")
+            finalize_figure(
+                fig,
+                title=f"Suspension Rates by Race – {locale} Schools",
+                subtitle=subtitle,
+                caption=caption,
+                handles=handles,
+                labels=labels,
+                legend_cols=4,
+                legend_y=0.88,
+            )
 
+            filename = f"PY6_statewide_race_trends_by_locale_{slugify_for_filename(locale)}.png"
+            out_path = OUTPUT_DIR / filename
+            fig.savefig(out_path, dpi=320)
+            plt.close(fig)
+            saved_paths.append(out_path)
 
-        caption = (
-            "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
-            "Traditional schools only; locale grouping uses locale_simple categories."
-        )
-        subtitle = "By locale, 2017-18 through 2023-24 (no statewide reporting in 2020-21)."
-        finalize_figure(
-            fig,
-            title="Suspension Rates by Race Across School Locales",
-            subtitle=subtitle,
-            caption=caption,
-            handles=list(legend_handles.values()),
-            labels=list(legend_handles.keys()),
-            legend_cols=4,
-            legend_y=0.91,
-        )
-
-        out_path = OUTPUT_DIR / "PY6_statewide_race_trends_by_locale.png"
-        fig.savefig(out_path, dpi=320)
-        plt.close(fig)
-
-    return data, year_order
+    return data, year_order, saved_paths
 
 
 def build_quartile_figure(
@@ -944,13 +955,17 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     joined = load_joined_data()
     base = prepare_base_data(joined)
 
-    level_data, level_years = build_level_figure(base, render=not args.diagnostics_only)
+    level_data, level_years, level_paths = build_level_figure(
+        base, render=not args.diagnostics_only
+    )
+
     write_diagnostics(level_data)
 
     if args.diagnostics_only:
         return
 
-    locale_data, locale_years = build_locale_figure(base, render=True)
+    locale_data, locale_years, locale_paths = build_locale_figure(base, render=True)
+
     quartile_data, quartile_years = build_quartile_figure(base, render=True)
 
     elementary_base = base[base["school_level"] == "Elementary"].copy()
@@ -983,8 +998,11 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         "statewide_race_trends_quartile_comparison_elementary.txt",
     )
 
-    print("Saved PY6_statewide_race_trends_by_level.png")
-    print("Saved PY6_statewide_race_trends_by_locale.png")
+    for path in level_paths:
+        print(f"Saved {path.name}")
+    for path in locale_paths:
+        print(f"Saved {path.name}")
+
     print("Saved statewide_race_trends_quartile_comparison.png")
     print("Saved statewide_race_trends_quartile_elementary.png")
 
