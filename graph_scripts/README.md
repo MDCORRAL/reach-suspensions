@@ -21,10 +21,13 @@ python -m pip install matplotlib numpy pandas pyarrow adjustText
 
 `graph_scripts/06_statewide_trends.py` expects the staged parquet files to be present in the repository's `data-stage/` directory:
 
-- `data-stage/susp_v5.parquet`
+- `data-stage/susp_v6_long.parquet`
 - `data-stage/susp_v6_features.parquet`
 
-Ensure both files exist before running the script.
+The script filters to campus-level records, drops the special placeholder
+school codes (`0000000`, `0000001`), and keeps Traditional schools by default.
+Adjust the `SETTINGS_TO_INCLUDE` constant (defined alongside the loader in each
+script) if you need to include non-traditional settings as well.
 
 ## Run statewide trends
 

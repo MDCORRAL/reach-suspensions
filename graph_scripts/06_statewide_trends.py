@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 import sys
 
@@ -61,11 +61,16 @@ DATA_STAGE = ROOT_DIR / "data-stage"
 OUTPUT_DIR = ROOT_DIR / "outputs" / "graphs"
 TEXT_DIR = OUTPUT_DIR / "descriptions"
 
-SUSP_PATH = DATA_STAGE / "susp_v5.parquet"
+LONG_PATH = DATA_STAGE / "susp_v6_long.parquet"
 FEAT_PATH = DATA_STAGE / "susp_v6_features.parquet"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 TEXT_DIR.mkdir(parents=True, exist_ok=True)
+
+SPECIAL_SCHOOL_CODES: Set[str] = {"0000000", "0000001"}
+DEFAULT_IS_TRADITIONAL = True
+SETTINGS_TO_INCLUDE: Optional[Set[str]] = {"Traditional"}
+DROP_UNKNOWN_QUARTILES = False
 
 RACE_LEVELS: List[str] = [
     "Black/African American",
@@ -119,14 +124,40 @@ def clean_columns(columns: Iterable[str]) -> List[str]:
     return cleaned
 
 
+def standardize_quartile_label(value: object, group: str) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, float) and math.isnan(value):
+        return None
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    lowered = text.lower()
+    if lowered.startswith("q1") or lowered == "1":
+        return f"Q1 (Lowest % {group})"
+    if lowered.startswith("q2") or lowered == "2":
+        return "Q2"
+    if lowered.startswith("q3") or lowered == "3":
+        return "Q3"
+    if lowered.startswith("q4") or lowered == "4":
+        return f"Q4 (Highest % {group})"
+    if lowered in {"unknown", "na"}:
+        return None
+    return text
+
+
+def standardize_quartile_series(series: pd.Series, group: str) -> pd.Series:
+    return series.map(lambda val: standardize_quartile_label(val, group))
+
+
 def load_joined_data() -> pd.DataFrame:
     """Load suspension data joined with school features."""
-    if not SUSP_PATH.exists() or not FEAT_PATH.exists():
+    if not LONG_PATH.exists() or not FEAT_PATH.exists():
         raise FileNotFoundError("Required parquet files are missing in data-stage/.")
 
-    susp = pq.read_table(SUSP_PATH).to_pandas()
-    susp.columns = clean_columns(susp.columns)
-    susp = susp[[
+    columns = [
         "school_code",
         "academic_year",
         "subgroup",
@@ -140,35 +171,83 @@ def load_joined_data() -> pd.DataFrame:
         "black_prop_q_label",
         "white_prop_q",
         "white_prop_q_label",
-    ]]
-
-    feat = pq.read_table(FEAT_PATH).to_pandas()
-    feat.columns = clean_columns(feat.columns)
-    feat = feat[[
-        "school_code",
-        "academic_year",
-        "is_traditional",
-        "black_prop_q",
-        "black_prop_q_label",
-    ]].rename(
-        columns={
-            "black_prop_q": "feat_black_prop_q",
-            "black_prop_q_label": "feat_black_prop_q_label",
-        }
+        "hispanic_prop_q",
+        "hispanic_prop_q_label",
+        "aggregate_level",
+    ]
+    susp = pq.read_table(LONG_PATH, columns=columns).to_pandas()
+    susp.columns = clean_columns(susp.columns)
+    susp["aggregate_level"] = susp["aggregate_level"].astype("string")
+    susp = susp[susp["aggregate_level"].str.lower().isin({"s", "school"})]
+    susp = susp.drop(columns=["aggregate_level"])
+    susp["school_code"] = susp["school_code"].astype(str).str.strip().str.zfill(7)
+    susp = susp[~susp["school_code"].isin(SPECIAL_SCHOOL_CODES)]
+    susp["academic_year"] = susp["academic_year"].astype(str).str.strip()
+    for col in [
+        "subgroup",
+        "school_level",
+        "school_type",
+        "school_locale",
+        "locale_simple",
+    ]:
+        susp[col] = susp[col].astype("string").str.strip()
+    susp["cumulative_enrollment"] = pd.to_numeric(
+        susp["cumulative_enrollment"], errors="coerce"
     )
+    susp["total_suspensions"] = pd.to_numeric(
+        susp["total_suspensions"], errors="coerce"
+    )
+    susp["black_prop_q"] = pd.to_numeric(susp["black_prop_q"], errors="coerce").astype(
+        "Int64"
+    )
+    susp["white_prop_q"] = pd.to_numeric(susp["white_prop_q"], errors="coerce").astype(
+        "Int64"
+    )
+    susp["hispanic_prop_q"] = pd.to_numeric(
+        susp["hispanic_prop_q"], errors="coerce"
+    ).astype("Int64")
+    susp["black_prop_q_label"] = standardize_quartile_series(
+        susp["black_prop_q_label"], "Black"
+    )
+    susp["white_prop_q_label"] = standardize_quartile_series(
+        susp["white_prop_q_label"], "White"
+    )
+    susp["hispanic_prop_q_label"] = standardize_quartile_series(
+        susp["hispanic_prop_q_label"], "Hispanic/Latino"
+    )
+
+    feat = pq.read_table(
+        FEAT_PATH, columns=["school_code", "academic_year", "is_traditional"]
+    ).to_pandas()
+    feat.columns = clean_columns(feat.columns)
+    feat["school_code"] = feat["school_code"].astype(str).str.strip().str.zfill(7)
+    feat["academic_year"] = feat["academic_year"].astype(str).str.strip()
+    feat["is_traditional"] = feat["is_traditional"].astype("boolean")
 
     joined = susp.merge(feat, on=["school_code", "academic_year"], how="left")
-    joined["academic_year"] = joined["academic_year"].astype(str).str.strip()
-    joined["school_code"] = joined["school_code"].astype(str).str.strip()
-    joined["is_traditional"] = joined["is_traditional"].fillna(False)
-    joined["black_prop_q"] = joined["black_prop_q"].where(
-        joined["black_prop_q"].notna(), joined["feat_black_prop_q"]
+    joined["is_traditional"] = joined["is_traditional"].map(
+        lambda val: bool(val) if pd.notna(val) else DEFAULT_IS_TRADITIONAL
     )
-    joined["black_prop_q_label"] = joined["black_prop_q_label"].where(
-        joined["black_prop_q_label"].notna(), joined["feat_black_prop_q_label"]
-    )
+    joined["setting"] = np.where(joined["is_traditional"], "Traditional", "Non-traditional")
 
-    return joined.drop(columns=["feat_black_prop_q", "feat_black_prop_q_label"])
+    if DROP_UNKNOWN_QUARTILES:
+        mask = (
+            joined["black_prop_q_label"].notna()
+            & joined["white_prop_q_label"].notna()
+            & joined["hispanic_prop_q_label"].notna()
+        )
+        joined = joined[mask]
+    else:
+        joined["black_prop_q_label"] = joined["black_prop_q_label"].fillna("Unknown")
+        joined["white_prop_q_label"] = joined["white_prop_q_label"].fillna("Unknown")
+        joined["hispanic_prop_q_label"] = joined["hispanic_prop_q_label"].fillna(
+            "Unknown"
+        )
+
+    if SETTINGS_TO_INCLUDE:
+        joined = joined[joined["setting"].isin(SETTINGS_TO_INCLUDE)].copy()
+
+    return joined
 
 
 def prepare_base_data(joined: pd.DataFrame) -> pd.DataFrame:
@@ -443,7 +522,7 @@ def build_level_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
             ax.set_ylabel("Suspension rate", fontsize=11)
 
     caption = (
-        "Source: California statewide suspension data (susp_v5.parquet + susp_v6_features.parquet). "
+        "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
         "Traditional schools only; rates aggregate total suspensions ÷ cumulative enrollment."
     )
     subtitle = (
@@ -525,7 +604,7 @@ def build_locale_figure(base: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         ax.axis("off")
 
     caption = (
-        "Source: California statewide suspension data (susp_v5.parquet + susp_v6_features.parquet). "
+        "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
         "Traditional schools only; locale grouping uses locale_simple categories."
     )
     subtitle = "By locale, 2017-18 through 2023-24 (no statewide reporting in 2020-21)."
@@ -553,7 +632,7 @@ def build_quartile_figure(
     title: str = "Suspension Rates in Highest-Black vs. Highest-White Enrollment Schools",
     subtitle: str = "Traditional schools in top quartile for Black vs. White enrollment, 2017-18 through 2023-24.",
     caption: str = (
-        "Source: California statewide suspension data (susp_v5.parquet + susp_v6_features.parquet). "
+        "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
         "Traditional schools only; quartiles reference highest shares of Black or White enrollment."
     ),
     output_filename: str = "statewide_race_trends_quartile_comparison.png",
@@ -768,7 +847,7 @@ def main() -> None:
         title="Elementary Suspension Rates in Highest-Black vs. Highest-White Enrollment Schools",
         subtitle="Traditional elementary schools in top quartile for Black vs. White enrollment, 2017-18 through 2023-24.",
         caption=(
-            "Source: California statewide suspension data (susp_v5.parquet + susp_v6_features.parquet). "
+            "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
             "Traditional elementary schools only; quartiles reference highest shares of Black or White enrollment."
         ),
         output_filename="statewide_race_trends_quartile_elementary.png",

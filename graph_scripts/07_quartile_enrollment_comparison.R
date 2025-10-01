@@ -162,7 +162,7 @@ plot_rates <- ggplot(quartile_q4_rates,
     subtitle = plot_subtitle,
     x = "Academic year",
     y = "Suspension rate",
-    caption = "Source: California statewide suspension data (susp_v5 + v6 features)"
+    caption = "Source: California statewide suspension data (susp_v6_long + v6 features)"
   ) +
   facet_wrap(~ quartile_group, ncol = 1) +
   theme_reach() +
