@@ -31,8 +31,8 @@ DISCIPLINE_REASON_PALETTE = {
     "Violent (Injury)": DISCIPLINE_BASE_PALETTE["UCLA Blue"],
     # Keep "Violent (No Injury)" visually distinct from the red Willful Defiance line
     # by assigning it the cyan accent before reusing any darker UCLA shades.
-    "Violent (No Injury)": DISCIPLINE_BASE_PALETTE["Cyan"],
-    "Weapons": DISCIPLINE_BASE_PALETTE["Magenta"],
+    "Violent (No Injury)": DISCIPLINE_BASE_PALETTE["Black"],
+    "Weapons": DISCIPLINE_BASE_PALETTE["Grey"],
     "Illicit Drugs": DISCIPLINE_BASE_PALETTE["Purple"],
     "Willful Defiance": "red",
     "Other": DISCIPLINE_BASE_PALETTE["UCLA Gold"],
