@@ -1,39 +1,30 @@
 # graph_scripts/21_black_quartile_suspension_trends.R
-
-# Plot Black student suspension trends by Black enrollment quartile using UCLA brand colors.
+# Suspension trends for Black students across enrollment quartiles.
 
 suppressPackageStartupMessages({
   library(dplyr)
   library(ggplot2)
   library(glue)
   library(here)
+  library(readr)
   library(scales)
-  library(tidyr)
 })
-
-try(here::i_am("graph_scripts/21_black_quartile_suspension_trends.R"), silent = TRUE)
 
 source(here::here("graph_scripts", "graph_utils.R"))
 
 quartile_palette <- c(
-  "Q1 (Lowest % Black)"   = "#8A69D4",  # UCLA Purple (accessible on white)
-  "Q2"                     = "#2774AE",  # UCLA Blue
-  "Q3"                     = "#005587",  # Darker Blue
-  "Q4 (Highest % Black)"  = "#003B5C"   # Darkest Blue
+  "Q1" = "#0B3954",
+  "Q2" = "#087E8B",
+  "Q3" = "#FF5A5F",
+  "Q4" = "#C81D25"
 )
 
-statewide_color <- "#000000"  # Brand-approved black for strong contrast
-
-line_palette <- c(
-  "Statewide Traditional Average" = statewide_color,
-  quartile_palette
-)
-
-legend_levels <- names(line_palette)
+statewide_color <- "#D00000"
+statewide_label <- "Statewide Traditional Average"
 
 joined <- load_joined_data()
 
-analysis_base <- joined %>%
+black_base <- joined %>%
   dplyr::filter(
     is_traditional,
     subgroup == "Black/African American",
@@ -41,104 +32,130 @@ analysis_base <- joined %>%
     !is.na(cumulative_enrollment),
     cumulative_enrollment > 0
   ) %>%
-  dplyr::mutate(
-    academic_year = as.character(academic_year),
-    black_prop_q_label = dplyr::case_when(
-      black_prop_q_label %in% names(quartile_palette) ~ black_prop_q_label,
-      TRUE ~ NA_character_
-    )
-  )
+  dplyr::mutate(academic_year = as.character(academic_year))
 
-if (nrow(analysis_base) == 0) {
-  stop("No eligible traditional school records available for quartile trends plot.")
+if (nrow(black_base) == 0) {
+  stop("No traditional school records available for Black student quartile trends.")
 }
 
-quartile_rates <- analysis_base %>%
-  dplyr::filter(!is.na(black_prop_q_label)) %>%
-  dplyr::group_by(academic_year, black_prop_q_label) %>%
-  dplyr::summarise(
-    suspensions = sum(total_suspensions, na.rm = TRUE),
-    enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
-    rate        = safe_div(suspensions, enrollment),
-    .groups     = "drop"
-  )
-
-statewide_rates <- analysis_base %>%
+statewide_rates <- black_base %>%
   dplyr::group_by(academic_year) %>%
   dplyr::summarise(
     suspensions = sum(total_suspensions, na.rm = TRUE),
-    enrollment  = sum(cumulative_enrollment, na.rm = TRUE),
-    rate        = safe_div(suspensions, enrollment),
-    .groups     = "drop"
-  ) %>%
-  dplyr::mutate(line_label = "Statewide Traditional Average")
+    enrollment = sum(cumulative_enrollment, na.rm = TRUE),
+    rate = safe_div(suspensions, enrollment),
+    .groups = "drop"
+  )
 
-plot_data <- quartile_rates %>%
-  dplyr::mutate(line_label = black_prop_q_label) %>%
-  dplyr::select(academic_year, line_label, rate) %>%
-  dplyr::bind_rows(statewide_rates) %>%
-  dplyr::mutate(
-    academic_year = factor(academic_year, levels = sort(unique(academic_year))),
-    line_label    = factor(line_label, levels = legend_levels, ordered = TRUE)
-  ) %>%
-  dplyr::arrange(line_label, academic_year)
+year_levels <- statewide_rates$academic_year %>% unique() %>% sort()
 
-if (nrow(plot_data) == 0) {
-  stop("No rates available to plot for quartile trends.")
+statewide_rates <- statewide_rates %>%
+  dplyr::mutate(academic_year = factor(academic_year, levels = year_levels, ordered = TRUE))
+
+prepare_quartile_data <- function(data, quartile_col, quartile_label_col, cohort_label) {
+  data %>%
+    dplyr::filter(!is.na({{ quartile_col }}), {{ quartile_col }} %in% 1:4) %>%
+    dplyr::mutate(
+      quartile_value = {{ quartile_col }},
+      quartile = factor(glue::glue("Q{quartile_value}"), levels = names(quartile_palette), ordered = TRUE),
+      quartile_label = {{ quartile_label_col }}
+    ) %>%
+    dplyr::group_by(academic_year, quartile, quartile_label) %>%
+    dplyr::summarise(
+      suspensions = sum(total_suspensions, na.rm = TRUE),
+      enrollment = sum(cumulative_enrollment, na.rm = TRUE),
+      rate = safe_div(suspensions, enrollment),
+      .groups = "drop"
+    ) %>%
+    dplyr::mutate(
+      academic_year = factor(academic_year, levels = year_levels, ordered = TRUE),
+      cohort = cohort_label
+    )
 }
 
-plot_caption <- paste(
-  "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet).",
-  "Traditional schools only; rates represent Black students statewide.")
-
-plot_object <- ggplot(plot_data,
-                      aes(x = academic_year,
-                          y = rate,
-                          color = line_label,
-                          group = line_label)) +
-  geom_line(linewidth = 1.1) +
-  geom_point(size = 2.4) +
-  scale_color_manual(
-    values = line_palette,
-    breaks = legend_levels,
-    limits = legend_levels,
-    name = "Reference group"
-  ) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
-  labs(
-    title = "Black student suspension trends by Black enrollment quartile",
-    subtitle = "Traditional public schools statewide",
-    x = "Academic year",
-    y = "Suspension rate",
-    caption = plot_caption
-  ) +
-  theme_reach(base_size = 13) +
-  theme(legend.position = "bottom")
-
-output_path <- file.path(OUTPUT_DIR, "21_black_quartile_suspension_trends.png")
-
-ggsave(output_path, plot_object, width = 12, height = 7.5, dpi = 320)
-
-latest_year <- latest_year_available(plot_data$academic_year)
-
-latest_summary <- plot_data %>%
-  dplyr::filter(academic_year == latest_year) %>%
-  dplyr::mutate(rate = scales::percent(rate, accuracy = 0.1))
-
-statewide_latest <- latest_summary %>%
-  dplyr::filter(line_label == "Statewide Traditional Average") %>%
-  dplyr::pull(rate)
-
-quartile_latest <- latest_summary %>%
-  dplyr::filter(line_label != "Statewide Traditional Average") %>%
-  dplyr::mutate(summary = glue::glue("{line_label}: {rate}")) %>%
-  dplyr::pull(summary)
-
-description_text <- glue::glue(
-  "Traditional schools statewide suspended Black students at {statewide_latest} in {latest_year}. ",
-  "Quartile comparisons show {paste(quartile_latest, collapse = '; ')}."
+black_quartiles <- prepare_quartile_data(
+  black_base,
+  quartile_col = black_prop_q,
+  quartile_label_col = black_prop_q_label,
+  cohort_label = "Black enrollment quartiles"
 )
 
-write_description(description_text, "21_black_quartile_suspension_trends.txt")
+white_quartiles <- prepare_quartile_data(
+  black_base,
+  quartile_col = white_prop_q,
+  quartile_label_col = white_prop_q_label,
+  cohort_label = "White enrollment quartiles"
+)
 
-message("Saved ", output_path)
+if (nrow(black_quartiles) == 0) {
+  stop("No Black enrollment quartile data available for Black students.")
+}
+
+if (nrow(white_quartiles) == 0) {
+  stop("No White enrollment quartile data available for Black students.")
+}
+
+build_quartile_plot <- function(quartile_data, cohort_label) {
+  ggplot() +
+    geom_line(
+      data = quartile_data,
+      aes(x = academic_year, y = rate, color = quartile, group = quartile),
+      linewidth = 1
+    ) +
+    geom_point(
+      data = quartile_data,
+      aes(x = academic_year, y = rate, color = quartile),
+      size = 2
+    ) +
+    geom_line(
+      data = statewide_rates,
+      aes(x = academic_year, y = rate, color = statewide_label, group = statewide_label),
+      linewidth = 1
+    ) +
+    geom_point(
+      data = statewide_rates,
+      aes(x = academic_year, y = rate, color = statewide_label),
+      size = 2
+    ) +
+    scale_color_manual(
+      values = c(quartile_palette, setNames(statewide_color, statewide_label)),
+      breaks = c(names(quartile_palette), statewide_label),
+      name = "Series"
+    ) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
+    labs(
+      title = glue::glue("Black student suspension trends in {cohort_label}"),
+      subtitle = "Traditional schools only; lines show suspension rates by enrollment quartile",
+      x = "Academic year",
+      y = "Suspension rate",
+      caption = "Source: California statewide suspension data (susp_v6_long + v6 features)"
+    ) +
+    theme_reach() +
+    theme(legend.position = "bottom")
+}
+
+black_plot <- build_quartile_plot(black_quartiles, "Black enrollment quartiles")
+white_plot <- build_quartile_plot(white_quartiles, "White enrollment quartiles")
+
+output_black_path <- file.path(OUTPUT_DIR, "black_students_black_quartile_trends.png")
+output_white_path <- file.path(OUTPUT_DIR, "black_students_white_quartile_trends.png")
+
+ggsave(output_black_path, black_plot, width = 12, height = 7, dpi = 320)
+ggsave(output_white_path, white_plot, width = 12, height = 7, dpi = 320)
+
+message("Saved Black enrollment quartile plot to ", output_black_path)
+message("Saved White enrollment quartile plot to ", output_white_path)
+
+readr::write_csv(
+  black_quartiles %>%
+    dplyr::select(academic_year, quartile, quartile_label, suspensions, enrollment, rate),
+  file.path(OUTPUT_DIR, "black_students_black_quartile_trends.csv")
+)
+
+readr::write_csv(
+  white_quartiles %>%
+    dplyr::select(academic_year, quartile, quartile_label, suspensions, enrollment, rate),
+  file.path(OUTPUT_DIR, "black_students_white_quartile_trends.csv")
+)
+
+invisible(TRUE)
