@@ -60,7 +60,7 @@ REASON_PALETTE = {
     "Violent (No Injury)": UCLA_PALETTE["Darker Blue"],
     "Weapons": UCLA_PALETTE["UCLA Blue"],
     "Illicit Drugs": UCLA_PALETTE["Purple"],
-    "Willful Defiance": UCLA_PALETTE["Green"],
+    "Willful Defiance": "red",
     "Other": UCLA_PALETTE["Magenta"],
 }
 
@@ -299,7 +299,17 @@ def plot_level_locale(
         reason_df = reason_df.sort_values("academic_year")
         xs = [x_positions[year] for year in reason_df["academic_year"]]
         ys = reason_df["rate"].to_numpy() * 100
-        ax.plot(xs, ys, label=reason_label, color=color, linewidth=2.2, marker="o", markersize=6)
+        linestyle = "--" if reason_label == "Willful Defiance" else "-"
+        ax.plot(
+            xs,
+            ys,
+            label=reason_label,
+            color=color,
+            linewidth=2.2,
+            marker="o",
+            markersize=6,
+            linestyle=linestyle,
+        )
         for x_val, y_val, rate_val in zip(xs, ys, reason_df["rate"]):
             label = _format_percent(rate_val)
             text = ax.text(
@@ -401,7 +411,17 @@ def plot_statewide(
         reason_df = reason_df.sort_values("academic_year")
         xs = [x_positions[year] for year in reason_df["academic_year"]]
         ys = reason_df["rate"].to_numpy() * 100
-        ax.plot(xs, ys, label=reason_label, color=color, linewidth=2.2, marker="o", markersize=6)
+        linestyle = "--" if reason_label == "Willful Defiance" else "-"
+        ax.plot(
+            xs,
+            ys,
+            label=reason_label,
+            color=color,
+            linewidth=2.2,
+            marker="o",
+            markersize=6,
+            linestyle=linestyle,
+        )
         for x_val, y_val, rate_val in zip(xs, ys, reason_df["rate"]):
             label = _format_percent(rate_val)
             text = ax.text(
