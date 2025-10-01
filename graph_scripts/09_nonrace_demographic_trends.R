@@ -53,6 +53,18 @@ all_students_color <- "#C8102E"
 
 safe_div <- function(num, den) ifelse(is.na(den) | den == 0, NA_real_, num / den)
 
+caption_text <- stringr::str_wrap(
+  paste(
+    "Source: California Department of Education CALPADS suspension data",
+    "processed through the REACH staging pipeline (susp_v6_features.parquet",
+    "and oth_long.parquet). Demographic categories are canonicalized in",
+    "R/01b_ingest_demographics.R; rates equal total suspensions divided by",
+    "cumulative enrollment for traditional public schools (campus-level",
+    "totals aggregated statewide)."
+  ),
+  width = 120
+)
+
 ucla_theme <- function(base_size = 12, base_family = NULL) {
   ggplot2::theme_minimal(base_size = base_size, base_family = base_family) +
     ggplot2::theme(
@@ -87,7 +99,6 @@ oth_long <- read_parquet(OTH_LONG) %>%
   build_keys() %>%
   mutate(
     academic_year = as.character(academic_year),
-
     subgroup = str_squish(as.character(subgroup)),
     category_type = str_squish(as.character(category_type)),
     cumulative_enrollment = readr::parse_number(as.character(cumulative_enrollment)),
@@ -239,11 +250,14 @@ plot_category_trends <- function(cat) {
     scale_y_continuous(labels = percent_format(accuracy = 0.1), expand = expansion(mult = c(0.05, 0.1))) +
     labs(
       title = glue("Statewide Suspension Rates by Year — {cat}"),
-      subtitle = "Enrollment-weighted suspension rates for traditional public schools (campus-level totals aggregated statewide).",
+      subtitle = stringr::str_wrap(
+        "Enrollment-weighted suspension rates for traditional public schools (campus-level totals aggregated statewide).",
+        width = 95
+      ),
       x = "Academic Year",
       y = "Pooled suspension rate",
       color = cat,
-      caption = "Source: California Department of Education CALPADS suspension data processed through the REACH staging pipeline (susp_v6_features.parquet & oth_long.parquet). Demographic categories canonicalized in R/01b_ingest_demographics.R; rates equal total suspensions divided by cumulative enrollment."
+      caption = caption_text
     ) +
     guides(linetype = guide_none(), linewidth = guide_none()) +
     ucla_theme()
@@ -260,5 +274,92 @@ plots <- imap(category_palettes, function(palette, cat) {
   message("Saved ", out_path)
   plt
 })
+
+combined_label_map <- purrr::imap(category_subgroups, function(subgroups, cat) {
+  setNames(glue::glue("{cat} — {subgroups}"), subgroups)
+}) %>%
+  purrr::reduce(c) %>%
+  c(`All Students` = "All Students (Statewide)")
+
+combined_palette <- purrr::reduce(category_palettes, function(acc, pal) {
+  new_names <- setdiff(names(pal), names(acc))
+  c(acc, pal[new_names])
+}, .init = c())
+
+combined_data <- purrr::imap_dfr(category_subgroups, function(subgroups, cat) {
+  summary_by_demo %>%
+    filter(category_type == cat, subgroup %in% subgroups) %>%
+    mutate(category_type = cat)
+}) %>%
+  bind_rows(all_students_summary %>% mutate(category_type = "Total")) %>%
+  mutate(
+    academic_year = factor(academic_year, levels = year_levels),
+    subgroup = forcats::fct_relevel(
+      subgroup,
+      c(setdiff(names(combined_label_map), "All Students"), "All Students")
+    )
+  )
+
+combined_plot <- ggplot(
+  combined_data,
+  aes(x = academic_year, y = pooled_rate, color = subgroup, group = subgroup)
+) +
+  geom_line(aes(linetype = subgroup, linewidth = subgroup)) +
+  geom_point(size = 2.3) +
+  geom_label_repel(
+    aes(label = pooled_rate_pct),
+    size = 3,
+    label.size = 0,
+    fill = scales::alpha("white", 0.9),
+    label.padding = grid::unit(0.15, "lines"),
+    point.padding = grid::unit(0.25, "lines"),
+    label.r = grid::unit(0.1, "lines"),
+    segment.alpha = 0.4,
+    show.legend = FALSE,
+    max.overlaps = Inf
+  ) +
+  scale_color_manual(
+    values = combined_palette[names(combined_label_map)],
+    breaks = names(combined_label_map),
+    labels = combined_label_map,
+    drop = FALSE
+  ) +
+  scale_linetype_manual(
+    values = line_styles_for(combined_palette[names(combined_label_map)]),
+    breaks = names(combined_label_map),
+    drop = FALSE
+  ) +
+  scale_linewidth_manual(
+    values = line_widths_for(combined_palette[names(combined_label_map)]),
+    breaks = names(combined_label_map),
+    drop = FALSE
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 0.1),
+    expand = expansion(mult = c(0.05, 0.1))
+  ) +
+  labs(
+    title = "Statewide Suspension Rates by Year — Non-Race Demographics",
+    subtitle = stringr::str_wrap(
+      "Enrollment-weighted suspension rates for traditional public schools across all reported non-race demographic categories.",
+      width = 95
+    ),
+    x = "Academic Year",
+    y = "Pooled suspension rate",
+    color = "Demographic subgroup",
+    caption = caption_text
+  ) +
+  guides(linetype = guide_none(), linewidth = guide_none()) +
+  ucla_theme()
+
+combined_out_path <- file.path(
+  OUTPUT_DIR,
+  "suspension_rates_all_nonrace_categories.png"
+)
+
+ggsave(combined_out_path, combined_plot, width = 11, height = 7.5, dpi = 320)
+message("Saved ", combined_out_path)
+
+plots$all_nonrace_categories <- combined_plot
 
 invisible(plots)

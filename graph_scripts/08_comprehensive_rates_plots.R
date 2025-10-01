@@ -68,6 +68,17 @@ linewidth_palette[["All Students"]] <- 1.4
 
 safe_div <- function(num, den) ifelse(is.na(den) | den == 0, NA_real_, num / den)
 
+caption_text <- stringr::str_wrap(
+  paste(
+    "Source: California Department of Education CALPADS suspension data",
+    "processed through the REACH staging pipeline (susp_v6_long.parquet",
+    "and susp_v6_features.parquet). Rates reflect total suspensions divided",
+    "by cumulative enrollment for traditional public schools (campus-level",
+    "totals aggregated statewide)."
+  ),
+  width = 120
+)
+
 ucla_theme <- function(base_size = 12, base_family = NULL) {
   ggplot2::theme_minimal(base_size = base_size, base_family = base_family) +
     ggplot2::theme(
@@ -181,11 +192,14 @@ plot_mean_rates <- function(df) {
     scale_y_continuous(labels = percent_format(accuracy = 0.1), expand = expansion(mult = c(0.05, 0.1))) +
     labs(
       title = "Pooled Suspension Rates by Race/Ethnicity",
-      subtitle = "Enrollment-weighted statewide suspension rates by academic year",
+      subtitle = stringr::str_wrap(
+        "Enrollment-weighted suspension rates for traditional public schools (campus-level totals aggregated statewide)",
+        width = 90
+      ),
       x = "Academic Year",
       y = "Pooled suspension rate",
       color = "Race/Ethnicity",
-      caption = "Source: REACH suspension v6 staged files; rates reflect total suspensions divided by total enrollment"
+      caption = caption_text
     ) +
     guides(linetype = guide_none(), linewidth = guide_none()) +
     ucla_theme()
@@ -213,11 +227,14 @@ plot_grade_rates <- function(df, grade_label) {
     scale_y_continuous(labels = percent_format(accuracy = 0.1), expand = expansion(mult = c(0.05, 0.1))) +
     labs(
       title = glue::glue("Pooled Suspension Rates by Race/Ethnicity — {grade_label} Schools"),
-      subtitle = "Enrollment-weighted statewide suspension rates by academic year",
+      subtitle = stringr::str_wrap(
+        "Enrollment-weighted suspension rates for traditional public schools (campus-level totals aggregated statewide)",
+        width = 90
+      ),
       x = "Academic Year",
       y = "Pooled suspension rate",
       color = "Race/Ethnicity",
-      caption = "Source: REACH suspension v6 staged files; rates reflect total suspensions divided by total enrollment"
+      caption = caption_text
     ) +
     guides(linetype = guide_none(), linewidth = guide_none()) +
     ucla_theme()
