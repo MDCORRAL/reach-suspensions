@@ -10,16 +10,22 @@ suppressPackageStartupMessages({
   library(janitor)
   library(scales)
   library(stringr)
+  library(tidyr)
 })
 
 DATA_STAGE <- here::here("data-stage")
-SUSP_PATH  <- file.path(DATA_STAGE, "susp_v5.parquet")
+SUSP_PATH  <- file.path(DATA_STAGE, "susp_v6_long.parquet")
 FEAT_PATH  <- file.path(DATA_STAGE, "susp_v6_features.parquet")
 OUTPUT_DIR <- here::here("outputs", "graphs")
 TEXT_DIR   <- file.path(OUTPUT_DIR, "descriptions")
 
 dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
 dir.create(TEXT_DIR,   recursive = TRUE, showWarnings = FALSE)
+
+SPECIAL_SCHOOL_CODES <- c("0000000", "0000001")
+DEFAULT_IS_TRADITIONAL <- TRUE
+SETTINGS_TO_INCLUDE <- c("Traditional")  # set to NULL to keep all settings
+DROP_UNKNOWN_QUARTILES <- FALSE
 
 race_levels <- c(
   "Black/African American",
@@ -77,60 +83,81 @@ standardize_quartile_label <- function(x, group = "Black") {
 load_joined_data <- function() {
   stopifnot(file.exists(SUSP_PATH), file.exists(FEAT_PATH))
 
-  susp <- arrow::read_parquet(SUSP_PATH) %>%
+  cols_needed <- c(
+    "school_code", "academic_year", "subgroup",
+    "cumulative_enrollment", "total_suspensions",
+    "school_level", "school_type", "school_locale", "locale_simple",
+    "black_prop_q", "black_prop_q_label",
+    "white_prop_q", "white_prop_q_label",
+    "hispanic_prop_q", "hispanic_prop_q_label",
+    "aggregate_level"
+  )
+
+  susp <- arrow::read_parquet(SUSP_PATH, col_select = cols_needed) %>%
     janitor::clean_names() %>%
-    dplyr::transmute(
-      school_code = as.character(school_code),
+    dplyr::mutate(
+      aggregate_level = stringr::str_to_lower(as.character(aggregate_level)),
+      school_code = stringr::str_pad(as.character(school_code), width = 7, pad = "0"),
       academic_year = as.character(academic_year),
       subgroup = as.character(subgroup),
-      cumulative_enrollment = as.numeric(cumulative_enrollment),
-      total_suspensions = as.numeric(total_suspensions),
+      cumulative_enrollment = suppressWarnings(as.numeric(cumulative_enrollment)),
+      total_suspensions = suppressWarnings(as.numeric(total_suspensions)),
       school_level = as.character(school_level),
       school_type = as.character(school_type),
-      black_prop_q = as.integer(black_prop_q),
-      black_prop_q_label = as.character(black_prop_q_label),
-      white_prop_q = as.integer(white_prop_q),
-      white_prop_q_label = as.character(white_prop_q_label),
-      hispanic_prop_q = as.integer(hispanic_prop_q),
-      hispanic_prop_q_label = as.character(hispanic_prop_q_label)
-    )
+      school_locale = as.character(school_locale),
+      locale_simple = as.character(locale_simple),
+      black_prop_q = suppressWarnings(as.integer(black_prop_q)),
+      white_prop_q = suppressWarnings(as.integer(white_prop_q)),
+      hispanic_prop_q = suppressWarnings(as.integer(hispanic_prop_q)),
+      black_prop_q_label = standardize_quartile_label(black_prop_q_label, "Black"),
+      white_prop_q_label = standardize_quartile_label(white_prop_q_label, "White"),
+      hispanic_prop_q_label = standardize_quartile_label(hispanic_prop_q_label, "Hispanic/Latino")
+    ) %>%
+    dplyr::filter(
+      aggregate_level %in% c("s", "school"),
+      !school_code %in% SPECIAL_SCHOOL_CODES
+    ) %>%
+    dplyr::select(-aggregate_level)
 
   feat <- arrow::read_parquet(FEAT_PATH) %>%
     janitor::clean_names() %>%
     dplyr::transmute(
       school_code = as.character(school_code),
       academic_year = as.character(academic_year),
-      is_traditional = !is.na(is_traditional) & is_traditional,
-      feat_black_q = as.integer(black_prop_q),
-      feat_black_q_label = as.character(black_prop_q_label),
-      feat_white_q = as.integer(white_prop_q),
-      feat_white_q_label = as.character(white_prop_q_label),
-      feat_hispanic_q = as.integer(hispanic_prop_q),
-      feat_hispanic_q_label = as.character(hispanic_prop_q_label)
+      is_traditional = as.logical(is_traditional)
     )
 
-  susp %>%
+  joined <- susp %>%
     dplyr::left_join(feat, by = c("school_code", "academic_year")) %>%
     dplyr::mutate(
-      is_traditional = dplyr::coalesce(is_traditional, FALSE),
-      black_prop_q = dplyr::coalesce(feat_black_q, black_prop_q),
-      black_prop_q_label = dplyr::coalesce(feat_black_q_label, black_prop_q_label),
-      black_prop_q_label = standardize_quartile_label(black_prop_q_label, "Black"),
-      white_prop_q = dplyr::coalesce(feat_white_q, white_prop_q),
-      white_prop_q_label = dplyr::coalesce(feat_white_q_label, white_prop_q_label),
-      white_prop_q_label = standardize_quartile_label(white_prop_q_label, "White"),
-      hispanic_prop_q = dplyr::coalesce(feat_hispanic_q, hispanic_prop_q),
-      hispanic_prop_q_label = dplyr::coalesce(feat_hispanic_q_label, hispanic_prop_q_label),
-      hispanic_prop_q_label = standardize_quartile_label(hispanic_prop_q_label, "Hispanic/Latino")
-    ) %>%
-    dplyr::select(
-      -feat_black_q,
-      -feat_black_q_label,
-      -feat_white_q,
-      -feat_white_q_label,
-      -feat_hispanic_q,
-      -feat_hispanic_q_label
+      is_traditional = dplyr::case_when(
+        !is.na(is_traditional) ~ as.logical(is_traditional),
+        TRUE ~ DEFAULT_IS_TRADITIONAL
+      ),
+      setting = ifelse(is_traditional, "Traditional", "Non-traditional")
     )
+
+  if (DROP_UNKNOWN_QUARTILES) {
+    joined <- joined %>%
+      dplyr::filter(
+        !is.na(black_prop_q_label),
+        !is.na(white_prop_q_label),
+        !is.na(hispanic_prop_q_label)
+      )
+  } else {
+    joined <- joined %>%
+      tidyr::replace_na(list(
+        black_prop_q_label = "Unknown",
+        white_prop_q_label = "Unknown",
+        hispanic_prop_q_label = "Unknown"
+      ))
+  }
+
+  if (!is.null(SETTINGS_TO_INCLUDE) && length(SETTINGS_TO_INCLUDE) > 0) {
+    joined <- joined %>% dplyr::filter(setting %in% SETTINGS_TO_INCLUDE)
+  }
+
+  joined
 }
 
 factorize_race <- function(x) forcats::fct_relevel(factor(x), race_levels)

@@ -32,6 +32,10 @@ RUN_TAG <- format(Sys.time(), "%Y%m%d_%H%M")
 OUT_DIR <- here("outputs", paste0("comprehensive_rates_", RUN_TAG))
 if (!dir.exists(OUT_DIR)) dir.create(OUT_DIR, recursive = TRUE)
 
+DEFAULT_IS_TRADITIONAL <- TRUE
+SETTINGS_TO_INCLUDE <- c("Traditional")  # set to NULL to keep all settings
+DROP_UNKNOWN_QUARTILES <- FALSE
+
 # Helper functions from repository conventions
 safe_div <- function(x, y) ifelse(y == 0 | is.na(y), NA_real_, x / y)
 
@@ -119,7 +123,7 @@ v6_traditional <- v6_features %>%
   transmute(
     school_code = as.character(school_code),
     year = as.character(academic_year),
-    is_traditional = !is.na(is_traditional) & is_traditional
+    is_traditional = as.logical(is_traditional)
   ) %>%
   select(school_code, year, is_traditional) %>%
   distinct()
@@ -128,10 +132,16 @@ v6_traditional <- v6_features %>%
 analytic_data <- v6_complete %>%
   left_join(v6_traditional, by = c("school_code", "year")) %>%
   mutate(
-    is_traditional = ifelse(is.na(is_traditional), TRUE, is_traditional),
+    is_traditional = ifelse(is.na(is_traditional), DEFAULT_IS_TRADITIONAL, is_traditional),
     setting = ifelse(is_traditional, "Traditional", "Non-traditional")
-  ) %>%
-  filter(!is.na(white_q), !is.na(black_q), !is.na(hispanic_q)) %>%
+  )
+
+if (!is.null(SETTINGS_TO_INCLUDE) && length(SETTINGS_TO_INCLUDE) > 0) {
+  analytic_data <- analytic_data %>%
+    filter(setting %in% SETTINGS_TO_INCLUDE)
+}
+
+analytic_data <- analytic_data %>%
   mutate(
     year = order_year(year),
     black_q = order_quartile(black_q),
@@ -140,6 +150,18 @@ analytic_data <- v6_complete %>%
     setting = factor(setting, levels = c("Traditional", "Non-traditional")),
     grade_level = factor(grade_level, levels = LEVEL_LABELS)
   )
+
+if (DROP_UNKNOWN_QUARTILES) {
+  analytic_data <- analytic_data %>%
+    filter(!is.na(black_q), !is.na(white_q), !is.na(hispanic_q))
+} else {
+  analytic_data <- analytic_data %>%
+    mutate(
+      black_q = forcats::fct_explicit_na(black_q, na_level = "Unknown"),
+      white_q = forcats::fct_explicit_na(white_q, na_level = "Unknown"),
+      hispanic_q = forcats::fct_explicit_na(hispanic_q, na_level = "Unknown")
+    )
+}
 
 # NOW add the diagnostic code:
 unknown_schools <- analytic_data %>%
@@ -432,6 +454,43 @@ writeData(wb, "rates_by_setting", rates_by_setting)
 # Sheet 6: Rates by grade level
 addWorksheet(wb, "rates_by_grade_level")
 writeData(wb, "rates_by_grade_level", rates_by_grade)
+
+# -------------------------------------------------------------------------
+# Diagnostics: compare with python statewide trends (if available)
+# -------------------------------------------------------------------------
+python_diag <- here("outputs", "graphs", "diagnostics", "statewide_elementary_rates.csv")
+
+if (file.exists(python_diag)) {
+  message("Aligning with python statewide elementary diagnostic -> ", python_diag)
+  diag_py <- read_csv(python_diag, show_col_types = FALSE) %>%
+    transmute(
+      year = as.character(academic_year),
+      race_ethnicity = as.character(subgroup),
+      py_total_suspensions = as.numeric(total_suspensions),
+      py_enrollment = as.numeric(cumulative_enrollment),
+      py_rate = as.numeric(rate)
+    )
+
+  diag_compare <- rates_by_grade %>%
+    filter(grade_level == "Elementary") %>%
+    mutate(year = as.character(year)) %>%
+    select(
+      year,
+      race_ethnicity,
+      r_total_suspensions = total_suspensions,
+      r_enrollment = total_enrollment,
+      r_rate = pooled_rate
+    ) %>%
+    inner_join(diag_py, by = c("year", "race_ethnicity")) %>%
+    mutate(rate_gap = r_rate - py_rate)
+
+  write_csv(
+    diag_compare,
+    file.path(OUT_DIR, "diagnostic_alignment_elementary.csv")
+  )
+} else {
+  message("Python diagnostic not found (", python_diag, "); skip alignment export.")
+}
 
 # Sheet 7: Comprehensive cross-tab (filtered for major races to avoid huge file)
 addWorksheet(wb, "comprehensive_analysis")

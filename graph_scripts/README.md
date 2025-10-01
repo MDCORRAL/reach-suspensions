@@ -21,10 +21,13 @@ python -m pip install matplotlib numpy pandas pyarrow adjustText
 
 `graph_scripts/06_statewide_trends.py` expects the staged parquet files to be present in the repository's `data-stage/` directory:
 
-- `data-stage/susp_v5.parquet`
+- `data-stage/susp_v6_long.parquet`
 - `data-stage/susp_v6_features.parquet`
 
-Ensure both files exist before running the script.
+The script filters to campus-level records, drops the special placeholder
+school codes (`0000000`, `0000001`), and keeps Traditional schools by default.
+Adjust the `SETTINGS_TO_INCLUDE` constant (defined alongside the loader in each
+script) if you need to include non-traditional settings as well.
 
 ## Run statewide trends
 
@@ -35,6 +38,13 @@ python graph_scripts/06_statewide_trends.py
 ```
 
 The script will read the parquet inputs, generate plots, and write supporting narrative text.
+Pass `--diagnostics-only` to refresh the alignment CSVs without rendering images or
+text summaries; this is useful for quick parity checks between the Python and R
+pipelines.
+
+The loader infers the repository root automatically, even when `__file__` is
+undefined (e.g., when sourced from within RStudio). Set the optional environment
+variable `REACH_SUSPENSIONS_ROOT` to override the detected location.
 
 ## Outputs
 
@@ -61,4 +71,4 @@ PNG is the default output; pass `--image-format svg` for vector renders or
 
 ## Working from R
 
-Analysts who prefer R can call the script via [`reticulate`](https://rstudio.github.io/reticulate/). Use `reticulate::py_install(c("matplotlib", "numpy", "pandas", "pyarrow"))` to install the Python dependencies inside the active reticulate environment, and then invoke the script with `reticulate::py_run_file("graph_scripts/06_statewide_trends.py")` or an equivalent wrapper.
+Analysts who prefer R can call the script via [`reticulate`](https://rstudio.github.io/reticulate/). Use `reticulate::py_install(c("matplotlib", "numpy", "pandas", "pyarrow", "adjustText"))` to install the Python dependencies inside the active reticulate environment. Invoke the script with `reticulate::py_run_file("graph_scripts/06_statewide_trends.py")` (or `system("python graph_scripts/06_statewide_trends.py --diagnostics-only")` for quick checks). The auto-detected project root works within RStudio sessions; set `Sys.setenv(REACH_SUSPENSIONS_ROOT = here::here())` if you need to override it explicitly.
