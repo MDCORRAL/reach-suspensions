@@ -53,6 +53,14 @@ year_levels <- statewide_rates$academic_year %>% unique() %>% sort()
 statewide_rates <- statewide_rates %>%
   dplyr::mutate(academic_year = factor(academic_year, levels = year_levels, ordered = TRUE))
 
+overall_statewide_average <- statewide_rates %>%
+  dplyr::summarise(
+    suspensions = sum(suspensions, na.rm = TRUE),
+    enrollment = sum(enrollment, na.rm = TRUE),
+    rate = safe_div(suspensions, enrollment)
+  ) %>%
+  dplyr::pull(rate)
+
 prepare_quartile_data <- function(data, quartile_col, quartile_label_col, cohort_label) {
   data %>%
     dplyr::filter(!is.na({{ quartile_col }}), {{ quartile_col }} %in% 1:4) %>%
@@ -125,6 +133,12 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       aes(x = academic_year, y = rate, color = statewide_label, group = statewide_label),
       linewidth = 1
     ) +
+    geom_hline(
+      yintercept = overall_statewide_average,
+      linewidth = 0.8,
+      color = statewide_average_color,
+      linetype = "dashed"
+    ) +
     geom_point(
       data = statewide_rates,
       aes(x = academic_year, y = rate, color = statewide_label),
@@ -181,6 +195,7 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       breaks = c(names(quartile_palette), statewide_label),
       name = "Series"
     ) +
+    scale_fill_manual(values = quartile_palette, guide = "none") +
     scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
     labs(
       title = glue::glue("Black student suspension trends in {cohort_label}"),
