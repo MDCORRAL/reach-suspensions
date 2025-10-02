@@ -79,6 +79,15 @@ series_linetypes <- c(
   stats::setNames(statewide_linetype, statewide_label)
 )
 
+
+overall_statewide_average <- statewide_rates %>%
+  dplyr::summarise(
+    suspensions = sum(suspensions, na.rm = TRUE),
+    enrollment = sum(enrollment, na.rm = TRUE),
+    rate = safe_div(suspensions, enrollment)
+  ) %>%
+  dplyr::pull(rate)
+
 prepare_quartile_data <- function(data, quartile_col, quartile_label_col, cohort_label) {
   data %>%
     dplyr::filter(!is.na({{ quartile_col }}), {{ quartile_col }} %in% 1:4) %>%
@@ -216,6 +225,52 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       segment.size = 0.4,
       segment.linetype = "solid"
     ) +
+    ggrepel::geom_label_repel(
+      data = quartile_labels,
+      aes(
+        x = academic_year,
+        y = rate,
+        label = label,
+        color = quartile,
+        segment.colour = segment_colour
+      ),
+      inherit.aes = FALSE,
+      fill = scales::alpha("white", 0.85),
+      fontface = "bold",
+      size = 3,
+      show.legend = FALSE,
+      label.size = 0,
+      label.padding = grid::unit(0.18, "lines"),
+      box.padding = grid::unit(0.35, "lines"),
+      point.padding = grid::unit(0.3, "lines"),
+      label.r = grid::unit(0.08, "lines"),
+      direction = "y",
+      max.overlaps = Inf,
+      segment.size = 0.4
+    ) +
+    ggrepel::geom_label_repel(
+      data = statewide_labels,
+      aes(
+        x = academic_year,
+        y = rate,
+        label = label,
+        color = statewide_label,
+        segment.colour = segment_colour
+      ),
+      inherit.aes = FALSE,
+      fill = scales::alpha("white", 0.85),
+      fontface = "bold",
+      size = 3,
+      show.legend = FALSE,
+      label.size = 0,
+      label.padding = grid::unit(0.18, "lines"),
+      box.padding = grid::unit(0.35, "lines"),
+      point.padding = grid::unit(0.3, "lines"),
+      label.r = grid::unit(0.08, "lines"),
+      direction = "y",
+      max.overlaps = Inf,
+      segment.size = 0.4
+    ) +
     scale_color_manual(
       values = series_palette,
       breaks = series_levels,
@@ -234,6 +289,7 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       labels = unname(legend_labels),
       guide = "none"
     ) +
+    scale_fill_manual(values = quartile_palette, guide = "none") +
     scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
     labs(
       title = glue::glue("Black student suspension trends in {cohort_label}"),
