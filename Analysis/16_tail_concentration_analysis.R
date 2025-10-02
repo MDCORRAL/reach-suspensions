@@ -46,6 +46,13 @@ susp_files <- list.files(
   full.names = TRUE
 )
 
+if (length(susp_files) > 0) {
+  susp_versions <- stringr::str_match(basename(susp_files), "^susp_v([0-9]+)_long\\.parquet$")[, 2]
+  susp_versions_num <- suppressWarnings(as.integer(susp_versions))
+  susp_order <- order(susp_versions_num, decreasing = TRUE, na.last = TRUE)
+  susp_files <- susp_files[susp_order]
+}
+
 if (length(susp_files) == 0) {
   stop("No susp_v*_long.parquet files found in data-stage/.")
 }
