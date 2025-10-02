@@ -15,17 +15,10 @@ suppressPackageStartupMessages({
 source(here::here("graph_scripts", "graph_utils.R"))
 
 quartile_palette <- c(
-<<<<<<< HEAD
-  "Q1" = "#8BB8E8",  # Lighter Blue
-  "Q2" = "#FFB81C",   # Darkest Gold
-  "Q3" = "#FFC72C",  # Darker Gold
-  "Q4" = "#2774AE",  # UCLA Blue
-=======
   'Q1' = '#003B5C',  # Darkest Blue
   'Q2' = '#2774AE',  # UCLA Blue
   'Q3' = '#FFC72C',  # Darker Gold
   'Q4' = '#8A69D4'   # Purple accent keeps high-contrast separation
->>>>>>> origin/main
 )
 
 statewide_color <- 'red'  # Matches the Willful Defiance accent in palette_utils.py
