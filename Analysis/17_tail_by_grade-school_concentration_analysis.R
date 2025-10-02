@@ -54,6 +54,14 @@ required_cols <- unique(c(
 
 # Locate the appropriate susp_v*_long.parquet file
 susp_files <- list.files(DATA_STAGE, pattern = "^susp_v[0-9]+_long\\.parquet$", full.names = TRUE)
+
+if (length(susp_files) > 0) {
+  susp_versions <- stringr::str_match(basename(susp_files), "^susp_v([0-9]+)_long\\.parquet$")[, 2]
+  susp_versions_num <- suppressWarnings(as.integer(susp_versions))
+  susp_order <- order(susp_versions_num, decreasing = TRUE, na.last = TRUE)
+  susp_files <- susp_files[susp_order]
+}
+
 INPUT_PATH <- NULL
 for (f in susp_files) {
   file_cols <- names(read_parquet(f, as_data_frame = FALSE))
@@ -69,11 +77,58 @@ if (is.null(INPUT_PATH)) {
   stop("No susp_v*_long.parquet file with all required columns found.")
 }
 
-V6F_PARQ <- file.path(DATA_STAGE, "susp_v6_features.parquet")  # School features
-if (!file.exists(V6F_PARQ)) {
-  stop("Missing susp_v6_features.parquet. Run R/22_build_v6_features.R first.")
+input_version <- stringr::str_match(basename(INPUT_PATH), "^susp_(v[0-9]+)_long\\.parquet$")[, 2]
+
+feature_files <- list.files(
+  DATA_STAGE,
+  pattern = "^susp_v[0-9]+_features\\.parquet$",
+  full.names = TRUE
+)
+
+if (length(feature_files) == 0) {
+  stop("No susp_v*_features.parquet files found in data-stage/. Run R/22_build_v6_features.R (or the latest features builder) first.")
+}
+
+feature_req_cols <- c("school_code", "is_traditional")
+preferred_feature <- if (!is.na(input_version)) paste0("susp_", input_version, "_features.parquet") else NA_character_
+
+feature_versions <- stringr::str_match(basename(feature_files), "^susp_v([0-9]+)_features\\.parquet$")[, 2]
+feature_versions_num <- suppressWarnings(as.integer(feature_versions))
+feature_order <- order(feature_versions_num, decreasing = TRUE, na.last = TRUE)
+feature_candidates <- feature_files[feature_order]
+
+if (!is.na(preferred_feature)) {
+  preferred_path <- file.path(DATA_STAGE, preferred_feature)
+  if (file.exists(preferred_path)) {
+    feature_candidates <- c(preferred_path, setdiff(feature_candidates, preferred_path))
+  }
+}
+
+FEATURE_PATH <- NULL
+for (f in feature_candidates) {
+  cols_available <- names(read_parquet(f, as_data_frame = FALSE))
+  missing_feature_cols <- setdiff(feature_req_cols, cols_available)
+  has_year_info <- any(c("year", "academic_year") %in% cols_available)
+  if (length(missing_feature_cols) > 0 || !has_year_info) {
+    missing_msg <- c(missing_feature_cols, if (!has_year_info) "year/academic_year")
+    message(
+      "Skipping ", basename(f), ": missing columns ",
+      paste(unique(missing_msg), collapse = ", ")
+    )
+    next
+  }
+  FEATURE_PATH <- f
+  break
+}
+
+if (is.null(FEATURE_PATH)) {
+  stop("No susp_v*_features.parquet file with the required columns found in data-stage/.")
+}
+
+if (!is.na(preferred_feature) && basename(FEATURE_PATH) != preferred_feature) {
+  message("Using features (fallback): ", basename(FEATURE_PATH))
 } else {
-  message("Using features: ", basename(V6F_PARQ))
+  message("Using features: ", basename(FEATURE_PATH))
 }
 
 # Choose measure for concentration analysis
@@ -306,7 +361,7 @@ generate_comparison_tables <- function(df, output_dir) {
 ## -------------------------------------------------------------------------
 
 # Check required files exist
-required_files <- c(INPUT_PATH, V6F_PARQ)
+required_files <- c(INPUT_PATH, FEATURE_PATH)
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {
   stop("Missing required files: ", paste(missing_files, collapse = ", "))
@@ -355,21 +410,21 @@ dat <- dat0 %>%
 
 # Add enhanced school features for traditional vs non-traditional classification
 message("Loading and processing school features for traditional/non-traditional classification...")
-v6_features <- read_parquet(V6F_PARQ) %>% clean_names()
+school_features <- read_parquet(FEATURE_PATH) %>% clean_names()
 
 # Check available columns
-available_cols <- intersect(c("school_code", "year", "academic_year", "is_traditional", "school_type"), names(v6_features))
+available_cols <- intersect(c("school_code", "year", "academic_year", "is_traditional", "school_type"), names(school_features))
 message("Using feature columns: ", paste(available_cols, collapse = ", "))
 
 if ("is_traditional" %in% available_cols) {
-  v6_features <- v6_features %>%
+  school_features <- school_features %>%
     select(all_of(available_cols))
 
-  if ("year" %in% names(v6_features) && !"academic_year" %in% names(v6_features)) {
-    v6_features <- v6_features %>% rename(academic_year = year)
+  if ("year" %in% names(school_features) && !"academic_year" %in% names(school_features)) {
+    school_features <- school_features %>% rename(academic_year = year)
   }
 
-  v6_features <- v6_features %>%
+  school_features <- school_features %>%
     mutate(
       school_code   = as.character(school_code),
       academic_year = as.character(academic_year)
@@ -378,7 +433,7 @@ if ("is_traditional" %in% available_cols) {
   # Join features and apply simple setting/level classification
   dat <- dat %>%
     left_join(
-      v6_features,
+      school_features,
       by = c("school_id" = "school_code", "year" = "academic_year")
     ) %>%
     mutate(
