@@ -96,11 +96,12 @@ prepare_quartile_data <- function(data, quartile_col, quartile_label_col, cohort
     ) %>%
     tidyr::complete(
       academic_year = year_levels,
-      tidyr::nesting(quartile, quartile_label),
+      quartile = factor(names(quartile_palette), levels = names(quartile_palette), ordered = TRUE),
       fill = list(suspensions = NA_real_, enrollment = NA_real_, rate = NA_real_)
     ) %>%
     dplyr::mutate(
       academic_year = factor(academic_year, levels = year_levels, ordered = TRUE),
+      quartile = factor(quartile, levels = names(quartile_palette), ordered = TRUE),
       cohort = cohort_label
     ) %>%
     dplyr::arrange(academic_year)
