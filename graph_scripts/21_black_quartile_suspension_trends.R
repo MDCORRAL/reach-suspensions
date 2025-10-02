@@ -134,17 +134,14 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
     dplyr::distinct(quartile, quartile_label) %>%
     dplyr::arrange(quartile) %>%
     { stats::setNames(.$quartile_label, as.character(.$quartile)) }
-
   legend_labels <- c(
     quartile_legend_labels[names(quartile_palette)],
     stats::setNames(statewide_label, statewide_label)
   )
-
   if (any(is.na(legend_labels))) {
     missing <- is.na(legend_labels)
     legend_labels[missing] <- names(legend_labels)[missing]
   }
-
   plot_data <- dplyr::bind_rows(
     quartile_data %>%
       dplyr::transmute(
@@ -165,7 +162,6 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       series = factor(series, levels = series_levels, ordered = TRUE)
     ) %>%
     dplyr::arrange(series, academic_year)
-
   label_data <- plot_data %>%
     dplyr::filter(!is.na(rate)) %>%
     dplyr::mutate(
@@ -180,7 +176,6 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
   statewide_labels <- label_data %>%
     dplyr::filter(as.character(series) == statewide_label) %>%
     dplyr::mutate(segment_linetype = "solid")
-
   ggplot(plot_data, aes(
     x = academic_year,
     y = rate,
@@ -268,6 +263,7 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       labels = unname(legend_labels),
       guide = "none"
     ) +
+    scale_fill_manual(values = quartile_palette, guide = "none") +
     scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
     labs(
       title = glue::glue("Black student suspension trends in {cohort_label}"),
