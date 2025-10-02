@@ -16,6 +16,7 @@ try:
     import matplotlib.pyplot as plt
     from matplotlib.ticker import FuncFormatter
     from matplotlib.text import Annotation
+    from matplotlib.patches import Patch
 except ImportError:
     print(
         "Required package 'matplotlib' is not installed. Install it with `pip install matplotlib`.",
@@ -743,6 +744,128 @@ def build_locale_figure(
     return data, year_order, saved_paths
 
 
+def build_locale_snapshot_figure(
+    base: pd.DataFrame, *, render: bool = True
+) -> Tuple[pd.DataFrame, str, Optional[Path]]:
+
+    data = compute_group_rates(base, ["locale_simple"])
+    data = data[data["locale_simple"].isin(LOCALE_ORDER)].copy()
+    if data.empty:
+        return data, "", None
+
+    data["locale_simple"] = pd.Categorical(
+        data["locale_simple"], categories=LOCALE_ORDER, ordered=True
+    )
+    year_order = sorted(data["academic_year"].unique())
+    latest_year = year_order[-1]
+    latest = data[data["academic_year"] == latest_year].copy()
+
+    if latest.empty:
+        return latest, latest_year, None
+
+    latest = latest.set_index(["locale_simple", "subgroup"])
+    full_index = pd.MultiIndex.from_product(
+        [LOCALE_ORDER, RACE_LEVELS], names=["locale_simple", "subgroup"]
+    )
+    latest = latest.reindex(full_index).reset_index()
+
+    saved_path: Optional[Path] = None
+
+    if render:
+        x_max = latest["rate"].max()
+        if not (isinstance(x_max, float) and math.isfinite(x_max)):
+            x_max = 0.05
+        x_limit = x_max + max(0.01, x_max * 0.25)
+        offset = max(0.002, x_limit * 0.015)
+
+        fig, axes = plt.subplots(1, len(LOCALE_ORDER), figsize=(18, 9), sharey=True)
+        if len(LOCALE_ORDER) == 1:
+            axes = [axes]
+
+        for idx, (ax, locale) in enumerate(zip(axes, LOCALE_ORDER)):
+            subset = latest[latest["locale_simple"] == locale]
+            ax.set_facecolor("white")
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+            ax.grid(axis="x", color="#DFE2E5", linewidth=0.8, linestyle="--", alpha=0.6)
+            ax.grid(axis="y", color="#F0F2F5", linewidth=0.6)
+
+            y_positions = np.arange(len(RACE_LEVELS))
+            colors = [RACE_PALETTE[race] for race in RACE_LEVELS]
+            rates = subset["rate"].to_numpy(dtype=float)
+            bars = ax.barh(
+                y_positions,
+                rates,
+                color=colors,
+                edgecolor="white",
+                linewidth=0.7,
+            )
+
+            for y_pos, rate, bar in zip(y_positions, rates, bars):
+                if isinstance(rate, float) and math.isfinite(rate):
+                    ax.text(
+                        rate + offset,
+                        y_pos,
+                        f"{rate * 100:.1f}%",
+                        va="center",
+                        ha="left",
+                        fontsize=9.5,
+                        color="#333333",
+                    )
+
+            ax.set_xlim(0, x_limit)
+            ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value * 100:.1f}%"))
+            ax.tick_params(axis="x", labelsize=10, pad=4)
+            ax.tick_params(axis="y", labelsize=10)
+
+            if idx == 0:
+                ax.set_yticks(y_positions)
+                ax.set_yticklabels(RACE_LEVELS)
+            else:
+                ax.set_yticks(y_positions)
+                ax.set_yticklabels([])
+
+            ax.set_title(f"{locale} Schools", fontsize=14, fontweight="bold", pad=12)
+
+        fig.patch.set_facecolor("white")
+        handles = [
+            Patch(facecolor=RACE_PALETTE[race], edgecolor="white", label=race)
+            for race in RACE_LEVELS
+        ]
+
+        fig.legend(
+            handles,
+            [race for race in RACE_LEVELS],
+            loc="upper center",
+            bbox_to_anchor=(0.5, 0.88),
+            ncol=4,
+            frameon=False,
+            fontsize=10,
+            title="Student group",
+            title_fontsize=11,
+        )
+
+        title = "Suspension Rates by Race Across School Locales"
+        subtitle = f"Traditional schools, {latest_year}"
+        caption = (
+            "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
+            "Traditional schools only; rates represent total suspensions ÷ cumulative enrollment."
+        )
+
+        fig.text(0.07, 0.95, title, fontsize=20, fontweight="bold", ha="left")
+        fig.text(0.07, 0.92, subtitle, fontsize=13, ha="left")
+        fig.text(0.07, 0.055, caption, fontsize=10, ha="left", color="#4A4A4A")
+
+        fig.subplots_adjust(left=0.17, right=0.98, top=0.83, bottom=0.16, wspace=0.08)
+
+        out_path = OUTPUT_DIR / "statewide_race_trends_by_locale_2023_24_horizontal.png"
+        fig.savefig(out_path, dpi=320)
+        plt.close(fig)
+        saved_path = out_path
+
+    return latest, latest_year, saved_path
+
+
 def build_quartile_figure(
     base: pd.DataFrame,
     *,
@@ -966,6 +1089,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         return
 
     locale_data, locale_years, locale_paths = build_locale_figure(base, render=True)
+    _, _, locale_snapshot_path = build_locale_snapshot_figure(base, render=True)
 
     quartile_data, quartile_years = build_quartile_figure(base, render=True)
 
@@ -1003,6 +1127,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         print(f"Saved {path.name}")
     for path in locale_paths:
         print(f"Saved {path.name}")
+    if locale_snapshot_path is not None:
+        print(f"Saved {locale_snapshot_path.name}")
 
     print("Saved statewide_race_trends_quartile_comparison.png")
     print("Saved statewide_race_trends_quartile_elementary.png")
