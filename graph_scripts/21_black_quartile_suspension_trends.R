@@ -143,17 +143,17 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
     dplyr::distinct(quartile, quartile_label) %>%
     dplyr::arrange(quartile) %>%
     { stats::setNames(.$quartile_label, as.character(.$quartile)) }
-
+  
   legend_labels <- c(
     quartile_legend_labels[names(quartile_palette)],
     stats::setNames(statewide_label, statewide_label)
   )
-
+  
   if (any(is.na(legend_labels))) {
     missing <- is.na(legend_labels)
     legend_labels[missing] <- names(legend_labels)[missing]
   }
-
+  
   plot_data <- dplyr::bind_rows(
     quartile_data %>%
       dplyr::transmute(
@@ -174,14 +174,14 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       series = factor(series, levels = series_levels, ordered = TRUE)
     ) %>%
     dplyr::arrange(series, academic_year)
-
+  
   label_data <- plot_data %>%
     dplyr::filter(!is.na(rate)) %>%
     dplyr::mutate(
       label = scales::percent(rate, accuracy = 0.1),
       segment_colour = series_palette[as.character(series)]
     )
-
+  
   ggplot(plot_data, aes(
     x = academic_year,
     y = rate,
