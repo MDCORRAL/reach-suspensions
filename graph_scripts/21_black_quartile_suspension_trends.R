@@ -9,19 +9,22 @@ suppressPackageStartupMessages({
   library(ggrepel)
   library(readr)
   library(scales)
+  library(tidyr)
 })
 
 source(here::here("graph_scripts", "graph_utils.R"))
 
 quartile_palette <- c(
-  "Q1" = "#8BB8E8",  # Lighter Blue
-  "Q2" = "#2774AE",  # UCLA Blue
-  "Q3" = "#FFC72C",  # Darker Gold
-  "Q4" = "#FFB81C"   # Darkest Gold
+  'Q1' = '#003B5C',  # Darkest Blue
+  'Q2' = '#2774AE',  # UCLA Blue
+  'Q3' = '#FFC72C',  # Darker Gold
+  'Q4' = '#8A69D4'   # Purple accent keeps high-contrast separation
 )
 
-statewide_color <- "red"
-statewide_label <- "Statewide average (All Students)"
+statewide_color <- 'red'  # Matches the Willful Defiance accent in palette_utils.py
+statewide_linetype <- 'dashed'
+statewide_label <- 'Statewide average (All Students)'
+
 joined <- load_joined_data()
 
 black_base <- joined %>%
@@ -63,10 +66,19 @@ statewide_rates <- all_students_base %>%
     enrollment = sum(cumulative_enrollment, na.rm = TRUE),
     rate = safe_div(suspensions, enrollment),
     .groups = "drop"
-  )
+  ) %>%
+  dplyr::mutate(
+    academic_year = factor(academic_year, levels = year_levels, ordered = TRUE)
+  ) %>%
+  dplyr::arrange(academic_year)
 
-statewide_rates <- statewide_rates %>%
-  dplyr::mutate(academic_year = factor(academic_year, levels = year_levels, ordered = TRUE))
+series_levels <- c(names(quartile_palette), statewide_label)
+series_palette <- c(quartile_palette, stats::setNames(statewide_color, statewide_label))
+series_linetypes <- c(
+  stats::setNames(rep("solid", length(quartile_palette)), names(quartile_palette)),
+  stats::setNames(statewide_linetype, statewide_label)
+)
+
 
 overall_statewide_average <- statewide_rates %>%
   dplyr::summarise(
@@ -91,10 +103,16 @@ prepare_quartile_data <- function(data, quartile_col, quartile_label_col, cohort
       rate = safe_div(suspensions, enrollment),
       .groups = "drop"
     ) %>%
+    tidyr::complete(
+      academic_year = year_levels,
+      tidyr::nesting(quartile, quartile_label),
+      fill = list(suspensions = NA_real_, enrollment = NA_real_, rate = NA_real_)
+    ) %>%
     dplyr::mutate(
       academic_year = factor(academic_year, levels = year_levels, ordered = TRUE),
       cohort = cohort_label
-    )
+    ) %>%
+    dplyr::arrange(academic_year)
 }
 
 black_quartiles <- prepare_quartile_data(
@@ -120,44 +138,92 @@ if (nrow(white_quartiles) == 0) {
 }
 
 build_quartile_plot <- function(quartile_data, cohort_label) {
-  quartile_labels <- quartile_data %>%
+  quartile_legend_labels <- quartile_data %>%
+    dplyr::filter(!is.na(quartile_label)) %>%
+    dplyr::distinct(quartile, quartile_label) %>%
+    dplyr::arrange(quartile) %>%
+    { stats::setNames(.$quartile_label, as.character(.$quartile)) }
+
+  legend_labels <- c(
+    quartile_legend_labels[names(quartile_palette)],
+    stats::setNames(statewide_label, statewide_label)
+  )
+
+  if (any(is.na(legend_labels))) {
+    missing <- is.na(legend_labels)
+    legend_labels[missing] <- names(legend_labels)[missing]
+  }
+
+  plot_data <- dplyr::bind_rows(
+    quartile_data %>%
+      dplyr::transmute(
+        academic_year = factor(as.character(academic_year), levels = year_levels, ordered = TRUE),
+        rate = rate,
+        series = as.character(quartile),
+        point_size = 2.3
+      ),
+    statewide_rates %>%
+      dplyr::transmute(
+        academic_year = factor(as.character(academic_year), levels = year_levels, ordered = TRUE),
+        rate = rate,
+        series = statewide_label,
+        point_size = 2.6
+      )
+  ) %>%
+    dplyr::mutate(
+      series = factor(series, levels = series_levels, ordered = TRUE)
+    ) %>%
+    dplyr::arrange(series, academic_year)
+
+  label_data <- plot_data %>%
+    dplyr::filter(!is.na(rate)) %>%
     dplyr::mutate(
       label = scales::percent(rate, accuracy = 0.1),
-      segment_colour = quartile_palette[as.character(quartile)]
+      segment_colour = series_palette[as.character(series)]
     )
 
-  statewide_labels <- statewide_rates %>%
-    dplyr::mutate(
-      label = scales::percent(rate, accuracy = 0.1),
-      segment_colour = statewide_color
-    )
-
-  ggplot() +
+  ggplot(plot_data, aes(
+    x = academic_year,
+    y = rate,
+    group = series,
+    color = series,
+    linetype = series
+  )) +
     geom_line(
-      data = quartile_data,
-      aes(x = academic_year, y = rate, color = quartile, group = quartile),
-      linewidth = 1
+      linewidth = 1.1,
+      lineend = 'round',
+      na.rm = TRUE
     ) +
     geom_point(
-      data = quartile_data,
-      aes(x = academic_year, y = rate, color = quartile),
-      size = 2
+      aes(size = point_size),
+      stroke = 0,
+      na.rm = TRUE,
+      show.legend = FALSE
     ) +
-    geom_line(
-      data = statewide_rates,
-      aes(x = academic_year, y = rate, color = statewide_label, group = statewide_label),
-      linewidth = 1
-    ) +
-    geom_hline(
-      yintercept = overall_statewide_average,
-      linewidth = 0.8,
-      color = statewide_average_color,
-      linetype = "dashed"
-    ) +
-    geom_point(
-      data = statewide_rates,
-      aes(x = academic_year, y = rate, color = statewide_label),
-      size = 2
+    scale_size_identity() +
+    ggrepel::geom_label_repel(
+      data = label_data,
+      aes(
+        x = academic_year,
+        y = rate,
+        label = label,
+        color = series,
+        segment.colour = segment_colour
+      ),
+      inherit.aes = FALSE,
+      fill = scales::alpha("white", 0.85),
+      fontface = "bold",
+      size = 3,
+      show.legend = FALSE,
+      label.size = 0,
+      label.padding = grid::unit(0.18, "lines"),
+      box.padding = grid::unit(0.35, "lines"),
+      point.padding = grid::unit(0.3, "lines"),
+      label.r = grid::unit(0.08, "lines"),
+      direction = "y",
+      max.overlaps = Inf,
+      segment.size = 0.4,
+      segment.linetype = "solid"
     ) +
     ggrepel::geom_label_repel(
       data = quartile_labels,
@@ -206,9 +272,22 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       segment.size = 0.4
     ) +
     scale_color_manual(
-      values = c(quartile_palette, setNames(statewide_color, statewide_label)),
-      breaks = c(names(quartile_palette), statewide_label),
-      name = "Series"
+      values = series_palette,
+      breaks = series_levels,
+      labels = unname(legend_labels),
+      name = "Series",
+      guide = guide_legend(
+        override.aes = list(
+          linetype = unname(series_linetypes),
+          linewidth = rep(1.1, length(series_levels))
+        )
+      )
+    ) +
+    scale_linetype_manual(
+      values = series_linetypes,
+      breaks = series_levels,
+      labels = unname(legend_labels),
+      guide = "none"
     ) +
     scale_fill_manual(values = quartile_palette, guide = "none") +
     scale_y_continuous(labels = scales::percent_format(accuracy = 0.1)) +
