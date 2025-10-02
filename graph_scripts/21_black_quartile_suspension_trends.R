@@ -15,9 +15,9 @@ source(here::here("graph_scripts", "graph_utils.R"))
 
 quartile_palette <- c(
   "Q1" = "#8BB8E8",  # Lighter Blue
-  "Q2" = "#2774AE",  # UCLA Blue
+  "Q2" = "#FFB81C",   # Darkest Gold
   "Q3" = "#FFC72C",  # Darker Gold
-  "Q4" = "#FFB81C"   # Darkest Gold
+  "Q4" = "#2774AE",  # UCLA Blue
 )
 
 statewide_color <- "red"
