@@ -14,6 +14,62 @@ suppressPackageStartupMessages({
 
 source(here::here("graph_scripts", "graph_utils.R"))
 
+ucla_colors <- c(
+  "Darkest Blue" = "#003B5C",
+  "Darker Blue" = "#005587",
+  "UCLA Blue" = "#2774AE",
+  "Lighter Blue" = "#8BB8E8",
+  "UCLA Gold" = "#FFD100",
+  "Darker Gold" = "#FFC72C",
+  "Darkest Gold" = "#FFB81C",
+  "Purple" = "#8A69D4",
+  "Green" = "#00FF87",
+  "Magenta" = "#FF00A5",
+  "Cyan" = "#00FFFF"
+)
+
+setting_palette_ucla <- c(
+  "Elementary Traditional Schools" = ucla_colors[["UCLA Blue"]],
+  "Middle Traditional Schools" = ucla_colors[["UCLA Gold"]],
+  "High Traditional Schools" = ucla_colors[["Darkest Blue"]]
+)
+
+theme_ucla <- function(base_size = 12, base_family = NULL) {
+  ggplot2::theme_minimal(base_size = base_size, base_family = base_family) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(
+        face = "bold",
+        size = base_size + 6,
+        hjust = 0,
+        color = ucla_colors[["Darkest Blue"]]
+      ),
+      plot.subtitle = ggplot2::element_text(
+        size = base_size + 1,
+        margin = ggplot2::margin(b = 10),
+        color = ucla_colors[["Darkest Blue"]]
+      ),
+      plot.caption = ggplot2::element_text(
+        size = base_size - 1,
+        color = "#5A5A5A",
+        hjust = 0
+      ),
+      axis.title = ggplot2::element_text(
+        color = ucla_colors[["Darkest Blue"]],
+        face = "bold"
+      ),
+      axis.text = ggplot2::element_text(color = ucla_colors[["Darkest Blue"]]),
+      panel.grid.major = ggplot2::element_line(color = "#DFE2E5", linewidth = 0.4),
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.title = ggplot2::element_text(face = "bold", color = ucla_colors[["Darkest Blue"]]),
+      legend.text = ggplot2::element_text(color = ucla_colors[["Darkest Blue"]]),
+      legend.position = "bottom",
+      plot.background = ggplot2::element_rect(fill = "white", color = NA),
+      panel.background = ggplot2::element_rect(fill = "white", color = NA),
+      strip.text = ggplot2::element_text(face = "bold", color = ucla_colors[["Darkest Blue"]]),
+      plot.margin = ggplot2::margin(20, 30, 20, 20)
+    )
+}
+
 calc_top_share <- function(df, label, top_frac = 0.10) {
   df %>%
     dplyr::group_by(academic_year) %>%
@@ -84,7 +140,7 @@ series <- series %>%
   dplyr::filter(!is.na(top_share))
 
 latest_year <- latest_year_available(series$academic_year)
-palette_levels <- setting_palette[level_order]
+palette_levels <- setting_palette_ucla[level_order]
 palette_levels <- palette_levels[!is.na(palette_levels)]
 
 plot_all_years <- ggplot(series,
@@ -94,7 +150,8 @@ plot_all_years <- ggplot(series,
     aes(label = scales::percent(top_share, accuracy = 0.1)),
     position = position_dodge(width = 0.75),
     vjust = -0.25,
-    size = 3
+    size = 3,
+    color = ucla_colors[["Darkest Blue"]]
   ) +
   scale_fill_manual(values = palette_levels, name = NULL, drop = FALSE) +
   scale_y_continuous(
@@ -111,7 +168,7 @@ plot_all_years <- ggplot(series,
   ) +
 
   guides(fill = guide_legend(nrow = 1)) +
-  theme_reach()
+  theme_ucla()
 
 out_path_all <- file.path(OUTPUT_DIR, "unequal_burden_levels_by_year.png")
 
@@ -136,7 +193,8 @@ if (nrow(series_latest) > 0) {
     geom_text(
       aes(label = scales::percent(top_share, accuracy = 0.1)),
       vjust = -0.25,
-      size = 3
+      size = 3,
+      color = ucla_colors[["Darkest Blue"]]
     ) +
     scale_fill_manual(values = palette_latest, guide = "none") +
     scale_y_continuous(
@@ -151,7 +209,7 @@ if (nrow(series_latest) > 0) {
       y = "Share of suspensions",
       caption = "Source: California statewide suspension data (susp_v6_long + v6 features)"
     ) +
-    theme_reach() +
+    theme_ucla() +
     theme(axis.text.x = element_text(angle = 0, hjust = 0.5))
 
   ggsave(out_path_latest, plot_latest, width = 8, height = 6, dpi = 320)
