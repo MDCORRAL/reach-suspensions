@@ -79,15 +79,6 @@ series_linetypes <- c(
   stats::setNames(statewide_linetype, statewide_label)
 )
 
-
-overall_statewide_average <- statewide_rates %>%
-  dplyr::summarise(
-    suspensions = sum(suspensions, na.rm = TRUE),
-    enrollment = sum(enrollment, na.rm = TRUE),
-    rate = safe_div(suspensions, enrollment)
-  ) %>%
-  dplyr::pull(rate)
-
 prepare_quartile_data <- function(data, quartile_col, quartile_label_col, cohort_label) {
   data %>%
     dplyr::filter(!is.na({{ quartile_col }}), {{ quartile_col }} %in% 1:4) %>%
@@ -143,17 +134,14 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
     dplyr::distinct(quartile, quartile_label) %>%
     dplyr::arrange(quartile) %>%
     { stats::setNames(.$quartile_label, as.character(.$quartile)) }
-  
   legend_labels <- c(
     quartile_legend_labels[names(quartile_palette)],
     stats::setNames(statewide_label, statewide_label)
   )
-  
   if (any(is.na(legend_labels))) {
     missing <- is.na(legend_labels)
     legend_labels[missing] <- names(legend_labels)[missing]
   }
-  
   plot_data <- dplyr::bind_rows(
     quartile_data %>%
       dplyr::transmute(
@@ -174,14 +162,20 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       series = factor(series, levels = series_levels, ordered = TRUE)
     ) %>%
     dplyr::arrange(series, academic_year)
-  
   label_data <- plot_data %>%
     dplyr::filter(!is.na(rate)) %>%
     dplyr::mutate(
       label = scales::percent(rate, accuracy = 0.1),
       segment_colour = series_palette[as.character(series)]
     )
-  
+
+  quartile_labels <- label_data %>%
+    dplyr::filter(as.character(series) != statewide_label) %>%
+    dplyr::mutate(segment_linetype = "solid")
+
+  statewide_labels <- label_data %>%
+    dplyr::filter(as.character(series) == statewide_label) %>%
+    dplyr::mutate(segment_linetype = "solid")
   ggplot(plot_data, aes(
     x = academic_year,
     y = rate,
@@ -202,13 +196,14 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
     ) +
     scale_size_identity() +
     ggrepel::geom_label_repel(
-      data = label_data,
+      data = quartile_labels,
       aes(
         x = academic_year,
         y = rate,
         label = label,
         color = series,
-        segment.colour = segment_colour
+        segment.colour = segment_colour,
+        segment.linetype = segment_linetype
       ),
       inherit.aes = FALSE,
       fill = scales::alpha("white", 0.85),
@@ -223,30 +218,7 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       direction = "y",
       max.overlaps = Inf,
       segment.size = 0.4,
-      segment.linetype = "solid"
-    ) +
-    ggrepel::geom_label_repel(
-      data = quartile_labels,
-      aes(
-        x = academic_year,
-        y = rate,
-        label = label,
-        color = quartile,
-        segment.colour = segment_colour
-      ),
-      inherit.aes = FALSE,
-      fill = scales::alpha("white", 0.85),
-      fontface = "bold",
-      size = 3,
-      show.legend = FALSE,
-      label.size = 0,
-      label.padding = grid::unit(0.18, "lines"),
-      box.padding = grid::unit(0.35, "lines"),
-      point.padding = grid::unit(0.3, "lines"),
-      label.r = grid::unit(0.08, "lines"),
-      direction = "y",
-      max.overlaps = Inf,
-      segment.size = 0.4
+      min.segment.length = 0
     ) +
     ggrepel::geom_label_repel(
       data = statewide_labels,
@@ -254,8 +226,9 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
         x = academic_year,
         y = rate,
         label = label,
-        color = statewide_label,
-        segment.colour = segment_colour
+        color = series,
+        segment.colour = segment_colour,
+        segment.linetype = segment_linetype
       ),
       inherit.aes = FALSE,
       fill = scales::alpha("white", 0.85),
@@ -269,7 +242,8 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       label.r = grid::unit(0.08, "lines"),
       direction = "y",
       max.overlaps = Inf,
-      segment.size = 0.4
+      segment.size = 0.4,
+      min.segment.length = 0
     ) +
     scale_color_manual(
       values = series_palette,
