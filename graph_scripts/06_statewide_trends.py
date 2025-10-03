@@ -16,7 +16,7 @@ try:
     import matplotlib.pyplot as plt
     from matplotlib.patches import Patch
     from matplotlib.text import Annotation
-    from matplotlib.ticker import FuncFormatter
+    from matplotlib.ticker import FuncFormatter, MultipleLocator
 except ImportError:
     print(
         "Required package 'matplotlib' is not installed. Install it with `pip install matplotlib`.",
@@ -112,6 +112,7 @@ TEXT_COLOR = DISCIPLINE_BASE_PALETTE["Darkest Blue"]
 CAPTION_COLOR = DISCIPLINE_BASE_PALETTE["Grey"]
 GRID_COLOR_PRIMARY = DISCIPLINE_BASE_PALETTE["Lighter Blue"]
 GRID_COLOR_SECONDARY = DISCIPLINE_BASE_PALETTE["Grey"]
+ROW_STRIPE_COLOR = "#F5F7FB"
 
 DATA_STAGE = ROOT_DIR / "data-stage"
 OUTPUT_DIR = ROOT_DIR / "outputs" / "graphs"
@@ -777,6 +778,77 @@ def build_locale_figure(
     return data, year_order, saved_paths
 
 
+def _determine_major_tick(x_limit: float) -> float:
+    """Return a visually comfortable major tick interval for percentage axes."""
+
+    candidates = [0.01, 0.02, 0.05, 0.1, 0.2]
+    for step in candidates:
+        if x_limit / step <= 8:
+            return step
+    return candidates[-1]
+
+
+def _style_snapshot_axis(
+    ax: plt.Axes,
+    *,
+    x_limit: float,
+    major_step: float,
+    show_y_labels: bool,
+    y_labels: Sequence[str],
+) -> None:
+    ax.set_facecolor("white")
+    ax.set_axisbelow(True)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    y_positions = np.arange(len(y_labels))
+    ax.set_ylim(-0.5, len(y_labels) - 0.5)
+    ax.invert_yaxis()
+
+    for idx in range(len(y_labels)):
+        if idx % 2 == 1:
+            ax.axhspan(
+                idx - 0.5,
+                idx + 0.5,
+                color=ROW_STRIPE_COLOR,
+                alpha=0.35,
+                zorder=0,
+            )
+
+    ax.set_yticks(y_positions)
+    if show_y_labels:
+        ax.set_yticklabels(y_labels, color=TEXT_COLOR)
+    else:
+        ax.set_yticklabels([])
+
+    ax.set_xlim(0, x_limit)
+    ax.xaxis.set_major_locator(MultipleLocator(major_step))
+    if major_step > 0:
+        ax.xaxis.set_minor_locator(MultipleLocator(major_step / 2))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value * 100:.0f}%" if major_step >= 0.05 else f"{value * 100:.1f}%"))
+
+    ax.grid(
+        which="major",
+        axis="x",
+        color=GRID_COLOR_PRIMARY,
+        linewidth=0.9,
+        alpha=0.45,
+    )
+    ax.grid(
+        which="minor",
+        axis="x",
+        color=GRID_COLOR_PRIMARY,
+        linewidth=0.5,
+        linestyle="--",
+        alpha=0.25,
+    )
+
+    ax.tick_params(axis="x", labelsize=10, pad=6, colors=TEXT_COLOR, length=0)
+    ax.tick_params(axis="y", labelsize=10, colors=TEXT_COLOR, length=0)
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+
+
 def build_locale_snapshot_figure(
     base: pd.DataFrame, *, render: bool = True
 ) -> Tuple[pd.DataFrame, str, Optional[Path]]:
@@ -809,6 +881,7 @@ def build_locale_snapshot_figure(
         if not (isinstance(x_max, float) and math.isfinite(x_max)):
             x_max = 0.05
         x_limit = x_max + max(0.01, x_max * 0.25)
+        major_step = _determine_major_tick(x_limit)
         offset = max(0.002, x_limit * 0.015)
 
         fig, axes = plt.subplots(1, len(LOCALE_ORDER), figsize=(18, 9), sharey=True)
@@ -817,17 +890,13 @@ def build_locale_snapshot_figure(
 
         for idx, (ax, locale) in enumerate(zip(axes, LOCALE_ORDER)):
             subset = latest[latest["locale_simple"] == locale]
-            ax.set_facecolor("white")
-            for spine in ax.spines.values():
-                spine.set_visible(False)
-            ax.grid(
-                axis="x",
-                color=GRID_COLOR_PRIMARY,
-                linewidth=0.8,
-                linestyle="--",
-                alpha=0.6,
+            _style_snapshot_axis(
+                ax,
+                x_limit=x_limit,
+                major_step=major_step,
+                show_y_labels=idx == 0,
+                y_labels=RACE_LEVELS,
             )
-            ax.grid(axis="y", color=GRID_COLOR_SECONDARY, linewidth=0.6)
 
             y_positions = np.arange(len(RACE_LEVELS))
             colors = [RACE_PALETTE[race] for race in RACE_LEVELS]
@@ -837,7 +906,8 @@ def build_locale_snapshot_figure(
                 rates,
                 color=colors,
                 edgecolor="white",
-                linewidth=0.7,
+                linewidth=0.8,
+                height=0.65,
             )
 
             for y_pos, rate, bar in zip(y_positions, rates, bars):
@@ -851,18 +921,6 @@ def build_locale_snapshot_figure(
                         fontsize=9.5,
                         color=TEXT_COLOR,
                     )
-
-            ax.set_xlim(0, x_limit)
-            ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value * 100:.1f}%"))
-            ax.tick_params(axis="x", labelsize=10, pad=4, colors=TEXT_COLOR)
-            ax.tick_params(axis="y", labelsize=10, colors=TEXT_COLOR)
-
-            if idx == 0:
-                ax.set_yticks(y_positions)
-                ax.set_yticklabels(RACE_LEVELS, color=TEXT_COLOR)
-            else:
-                ax.set_yticks(y_positions)
-                ax.set_yticklabels([])
 
             ax.set_title(
                 f"{locale} Schools",
@@ -907,6 +965,129 @@ def build_locale_snapshot_figure(
         fig.subplots_adjust(left=0.17, right=0.98, top=0.83, bottom=0.16, wspace=0.08)
 
         out_path = OUTPUT_DIR / "statewide_race_trends_by_locale_2023_24_horizontal.png"
+        fig.savefig(out_path, dpi=320)
+        plt.close(fig)
+        saved_path = out_path
+
+    return latest, latest_year, saved_path
+
+
+def build_level_snapshot_figure(
+    base: pd.DataFrame, *, render: bool = True
+) -> Tuple[pd.DataFrame, str, Optional[Path]]:
+
+    data = compute_group_rates(base, ["school_level"])
+    data = data[data["school_level"].isin(LEVEL_ORDER)].copy()
+    if data.empty:
+        return data, "", None
+
+    data["school_level"] = pd.Categorical(
+        data["school_level"], categories=LEVEL_ORDER, ordered=True
+    )
+    year_order = sorted(data["academic_year"].unique())
+    latest_year = year_order[-1]
+    latest = data[data["academic_year"] == latest_year].copy()
+
+    if latest.empty:
+        return latest, latest_year, None
+
+    latest = latest.set_index(["school_level", "subgroup"])
+    full_index = pd.MultiIndex.from_product(
+        [LEVEL_ORDER, RACE_LEVELS], names=["school_level", "subgroup"]
+    )
+    latest = latest.reindex(full_index).reset_index()
+
+    saved_path: Optional[Path] = None
+
+    if render:
+        x_max = latest["rate"].max()
+        if not (isinstance(x_max, float) and math.isfinite(x_max)):
+            x_max = 0.05
+        x_limit = x_max + max(0.01, x_max * 0.25)
+        major_step = _determine_major_tick(x_limit)
+        offset = max(0.002, x_limit * 0.015)
+
+        fig, axes = plt.subplots(1, len(LEVEL_ORDER), figsize=(16, 9), sharey=True)
+        if len(LEVEL_ORDER) == 1:
+            axes = [axes]
+
+        for idx, (ax, level) in enumerate(zip(axes, LEVEL_ORDER)):
+            subset = latest[latest["school_level"] == level]
+            _style_snapshot_axis(
+                ax,
+                x_limit=x_limit,
+                major_step=major_step,
+                show_y_labels=idx == 0,
+                y_labels=RACE_LEVELS,
+            )
+
+            y_positions = np.arange(len(RACE_LEVELS))
+            colors = [RACE_PALETTE[race] for race in RACE_LEVELS]
+            rates = subset["rate"].to_numpy(dtype=float)
+            bars = ax.barh(
+                y_positions,
+                rates,
+                color=colors,
+                edgecolor="white",
+                linewidth=0.8,
+                height=0.65,
+            )
+
+            for y_pos, rate, bar in zip(y_positions, rates, bars):
+                if isinstance(rate, float) and math.isfinite(rate):
+                    ax.text(
+                        rate + offset,
+                        y_pos,
+                        f"{rate * 100:.1f}%",
+                        va="center",
+                        ha="left",
+                        fontsize=9.5,
+                        color=TEXT_COLOR,
+                    )
+
+            ax.set_title(
+                f"{level} Schools",
+                fontsize=14,
+                fontweight="bold",
+                pad=12,
+                color=TEXT_COLOR,
+            )
+
+        fig.patch.set_facecolor("white")
+        handles = [
+            Patch(facecolor=RACE_PALETTE[race], edgecolor="white", label=race)
+            for race in RACE_LEVELS
+        ]
+
+        legend = fig.legend(
+            handles,
+            [race for race in RACE_LEVELS],
+            loc="upper center",
+            bbox_to_anchor=(0.5, 0.88),
+            ncol=4,
+            frameon=False,
+            fontsize=10,
+            title="Student group",
+            title_fontsize=11,
+        )
+        legend.get_title().set_color(TEXT_COLOR)
+        for text in legend.get_texts():
+            text.set_color(TEXT_COLOR)
+
+        title = "Suspension Rates by Race Across Grade Levels"
+        subtitle = f"Traditional schools, {latest_year}"
+        caption = (
+            "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
+            "Traditional schools only; rates represent total suspensions ÷ cumulative enrollment."
+        )
+
+        fig.text(0.07, 0.95, title, fontsize=20, fontweight="bold", ha="left", color=TEXT_COLOR)
+        fig.text(0.07, 0.92, subtitle, fontsize=13, ha="left", color=TEXT_COLOR)
+        fig.text(0.07, 0.055, caption, fontsize=10, ha="left", color=CAPTION_COLOR)
+
+        fig.subplots_adjust(left=0.17, right=0.98, top=0.83, bottom=0.16, wspace=0.1)
+
+        out_path = OUTPUT_DIR / "statewide_race_trends_by_level_2023_24_horizontal.png"
         fig.savefig(out_path, dpi=320)
         plt.close(fig)
         saved_path = out_path
@@ -1145,6 +1326,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
     locale_data, locale_years, locale_paths = build_locale_figure(base, render=True)
     _, _, locale_snapshot_path = build_locale_snapshot_figure(base, render=True)
+    _, _, level_snapshot_path = build_level_snapshot_figure(base, render=True)
 
     quartile_data, quartile_years = build_quartile_figure(base, render=True)
 
@@ -1184,6 +1366,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         print(f"Saved {path.name}")
     if locale_snapshot_path is not None:
         print(f"Saved {locale_snapshot_path.name}")
+    if level_snapshot_path is not None:
+        print(f"Saved {level_snapshot_path.name}")
 
     print("Saved statewide_race_trends_quartile_comparison.png")
     print("Saved statewide_race_trends_quartile_elementary.png")
