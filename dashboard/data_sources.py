@@ -89,16 +89,23 @@ def map_setting(raw: object, is_traditional: object) -> str:
     if not pd.isna(is_traditional):
         return "Traditional" if bool(is_traditional) else "Non-traditional"
     if raw is None or (isinstance(raw, float) and math.isnan(raw)):
-        return "Unknown"
+        # The graph scripts assume schools with missing flags are traditional
+        # unless explicitly labelled otherwise. Mirror that default so the
+        # dashboard shares the same totals.
+        return "Traditional"
     text = str(raw).strip()
     if not text:
-        return "Unknown"
-    lowered = text.lower()
-    if "traditional" in lowered:
         return "Traditional"
+    lowered = text.lower()
+    if "non" in lowered and "traditional" in lowered:
+        return "Non-traditional"
     if SETTING_ALT_PATTERN.search(lowered):
         return "Non-traditional"
-    return "Other"
+    if "traditional" in lowered:
+        return "Traditional"
+    # Fall back to the canonical behaviour of treating unspecified values as
+    # traditional so downstream percentages stay aligned with the R outputs.
+    return "Traditional"
 
 
 def safe_div(numer: pd.Series, denom: pd.Series) -> pd.Series:
