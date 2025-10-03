@@ -1,0 +1,688 @@
+{
+  "summary": [
+    {
+      "year_num": 2017,
+      "n_schools": 9947,
+      "total_enrollment": 6870997,
+      "total_suspensions": 363203,
+      "mean_rate": 0.06437792925707769,
+      "median_rate": 0.022336769759450172,
+      "overall_rate": 0.05286030542583558,
+      "mean_rate_pct": "6.4%",
+      "median_rate_pct": "2.2%",
+      "overall_rate_pct": "5.3%"
+    },
+    {
+      "year_num": 2018,
+      "n_schools": 9961,
+      "total_enrollment": 6774236,
+      "total_suspensions": 353546,
+      "mean_rate": 0.06335139656570536,
+      "median_rate": 0.021341463414634148,
+      "overall_rate": 0.052189796753464156,
+      "mean_rate_pct": "6.3%",
+      "median_rate_pct": "2.1%",
+      "overall_rate_pct": "5.2%"
+    },
+    {
+      "year_num": 2019,
+      "n_schools": 10064,
+      "total_enrollment": 6703797,
+      "total_suspensions": 232824,
+      "mean_rate": 0.04347188182991671,
+      "median_rate": 0.01194386490486635,
+      "overall_rate": 0.03473016858953217,
+      "mean_rate_pct": "4.3%",
+      "median_rate_pct": "1.2%",
+      "overall_rate_pct": "3.5%"
+    },
+    {
+      "year_num": 2021,
+      "n_schools": 10013,
+      "total_enrollment": 6515687,
+      "total_suspensions": 291907,
+      "mean_rate": 0.047435482456641496,
+      "median_rate": 0.014957264957264958,
+      "overall_rate": 0.044800648036039795,
+      "mean_rate_pct": "4.7%",
+      "median_rate_pct": "1.5%",
+      "overall_rate_pct": "4.5%"
+    },
+    {
+      "year_num": 2022,
+      "n_schools": 10024,
+      "total_enrollment": 6407616,
+      "total_suspensions": 336902,
+      "mean_rate": 0.056450768871648176,
+      "median_rate": 0.019801980198019802,
+      "overall_rate": 0.05257836924060368,
+      "mean_rate_pct": "5.6%",
+      "median_rate_pct": "2.0%",
+      "overall_rate_pct": "5.3%"
+    },
+    {
+      "year_num": 2023,
+      "n_schools": 10002,
+      "total_enrollment": 6404542,
+      "total_suspensions": 307095,
+      "mean_rate": 0.05301101602749891,
+      "median_rate": 0.020041757147459635,
+      "overall_rate": 0.0479495645434131,
+      "mean_rate_pct": "5.3%",
+      "median_rate_pct": "2.0%",
+      "overall_rate_pct": "4.8%"
+    }
+  ],
+  "gradeSetting": [
+    {
+      "year_num": 2017,
+      "level": "Elementary",
+      "setting": "Non-traditional",
+      "n_schools": 100,
+      "total_enrollment": 21667,
+      "total_suspensions": 696,
+      "overall_rate": 0.03212258272949647
+    },
+    {
+      "year_num": 2017,
+      "level": "Elementary",
+      "setting": "Traditional",
+      "n_schools": 3268,
+      "total_enrollment": 1938161,
+      "total_suspensions": 47248,
+      "overall_rate": 0.024377747772243896
+    },
+    {
+      "year_num": 2017,
+      "level": "High",
+      "setting": "Non-traditional",
+      "n_schools": 95,
+      "total_enrollment": 19593,
+      "total_suspensions": 3123,
+      "overall_rate": 0.15939366100137806
+    },
+    {
+      "year_num": 2017,
+      "level": "High",
+      "setting": "Traditional",
+      "n_schools": 871,
+      "total_enrollment": 1226004,
+      "total_suspensions": 68134,
+      "overall_rate": 0.05557404380409852
+    },
+    {
+      "year_num": 2017,
+      "level": "Middle",
+      "setting": "Traditional",
+      "n_schools": 764,
+      "total_enrollment": 641657,
+      "total_suspensions": 61059,
+      "overall_rate": 0.09515831667074465
+    },
+    {
+      "year_num": 2018,
+      "level": "Elementary",
+      "setting": "Non-traditional",
+      "n_schools": 98,
+      "total_enrollment": 21124,
+      "total_suspensions": 688,
+      "overall_rate": 0.03256958909297482
+    },
+    {
+      "year_num": 2018,
+      "level": "Elementary",
+      "setting": "Traditional",
+      "n_schools": 3273,
+      "total_enrollment": 1898364,
+      "total_suspensions": 42830,
+      "overall_rate": 0.022561531929598328
+    },
+    {
+      "year_num": 2018,
+      "level": "High",
+      "setting": "Non-traditional",
+      "n_schools": 98,
+      "total_enrollment": 18636,
+      "total_suspensions": 2693,
+      "overall_rate": 0.14450525863919295
+    },
+    {
+      "year_num": 2018,
+      "level": "High",
+      "setting": "Traditional",
+      "n_schools": 885,
+      "total_enrollment": 1212183,
+      "total_suspensions": 69300,
+      "overall_rate": 0.057169585780364844
+    },
+    {
+      "year_num": 2018,
+      "level": "Middle",
+      "setting": "Traditional",
+      "n_schools": 761,
+      "total_enrollment": 631747,
+      "total_suspensions": 59129,
+      "overall_rate": 0.0935960123277198
+    },
+    {
+      "year_num": 2019,
+      "level": "Elementary",
+      "setting": "Non-traditional",
+      "n_schools": 104,
+      "total_enrollment": 20727,
+      "total_suspensions": 478,
+      "overall_rate": 0.02306170695228446
+    },
+    {
+      "year_num": 2019,
+      "level": "Elementary",
+      "setting": "Traditional",
+      "n_schools": 3288,
+      "total_enrollment": 1864141,
+      "total_suspensions": 25730,
+      "overall_rate": 0.013802603987573901
+    },
+    {
+      "year_num": 2019,
+      "level": "High",
+      "setting": "Non-traditional",
+      "n_schools": 103,
+      "total_enrollment": 17110,
+      "total_suspensions": 1493,
+      "overall_rate": 0.08725891291642314
+    },
+    {
+      "year_num": 2019,
+      "level": "High",
+      "setting": "Traditional",
+      "n_schools": 884,
+      "total_enrollment": 1208456,
+      "total_suspensions": 49255,
+      "overall_rate": 0.04075862091793164
+    },
+    {
+      "year_num": 2019,
+      "level": "Middle",
+      "setting": "Traditional",
+      "n_schools": 758,
+      "total_enrollment": 621721,
+      "total_suspensions": 37499,
+      "overall_rate": 0.06031483575430137
+    },
+    {
+      "year_num": 2021,
+      "level": "Elementary",
+      "setting": "Non-traditional",
+      "n_schools": 103,
+      "total_enrollment": 20076,
+      "total_suspensions": 551,
+      "overall_rate": 0.027445706315999203
+    },
+    {
+      "year_num": 2021,
+      "level": "Elementary",
+      "setting": "Traditional",
+      "n_schools": 3286,
+      "total_enrollment": 1749496,
+      "total_suspensions": 30625,
+      "overall_rate": 0.01750504145193816
+    },
+    {
+      "year_num": 2021,
+      "level": "High",
+      "setting": "Non-traditional",
+      "n_schools": 101,
+      "total_enrollment": 13851,
+      "total_suspensions": 1111,
+      "overall_rate": 0.08021081510360263
+    },
+    {
+      "year_num": 2021,
+      "level": "High",
+      "setting": "Traditional",
+      "n_schools": 882,
+      "total_enrollment": 1191793,
+      "total_suspensions": 64581,
+      "overall_rate": 0.05418810145721614
+    },
+    {
+      "year_num": 2021,
+      "level": "Middle",
+      "setting": "Traditional",
+      "n_schools": 750,
+      "total_enrollment": 574395,
+      "total_suspensions": 49875,
+      "overall_rate": 0.08683049121249314
+    },
+    {
+      "year_num": 2022,
+      "level": "Elementary",
+      "setting": "Non-traditional",
+      "n_schools": 103,
+      "total_enrollment": 20022,
+      "total_suspensions": 644,
+      "overall_rate": 0.03216461891918889
+    },
+    {
+      "year_num": 2022,
+      "level": "Elementary",
+      "setting": "Traditional",
+      "n_schools": 3277,
+      "total_enrollment": 1742068,
+      "total_suspensions": 39244,
+      "overall_rate": 0.022527249223336862
+    },
+    {
+      "year_num": 2022,
+      "level": "High",
+      "setting": "Non-traditional",
+      "n_schools": 100,
+      "total_enrollment": 14080,
+      "total_suspensions": 1343,
+      "overall_rate": 0.09538352272727273
+    },
+    {
+      "year_num": 2022,
+      "level": "High",
+      "setting": "Traditional",
+      "n_schools": 887,
+      "total_enrollment": 1174430,
+      "total_suspensions": 72142,
+      "overall_rate": 0.061427245557419345
+    },
+    {
+      "year_num": 2022,
+      "level": "Middle",
+      "setting": "Traditional",
+      "n_schools": 748,
+      "total_enrollment": 564539,
+      "total_suspensions": 57491,
+      "overall_rate": 0.10183707414368183
+    },
+    {
+      "year_num": 2023,
+      "level": "Elementary",
+      "setting": "Non-traditional",
+      "n_schools": 101,
+      "total_enrollment": 19889,
+      "total_suspensions": 668,
+      "overall_rate": 0.033586404545226003
+    },
+    {
+      "year_num": 2023,
+      "level": "Elementary",
+      "setting": "Traditional",
+      "n_schools": 3276,
+      "total_enrollment": 1742728,
+      "total_suspensions": 39681,
+      "overall_rate": 0.022769474065947183
+    },
+    {
+      "year_num": 2023,
+      "level": "High",
+      "setting": "Non-traditional",
+      "n_schools": 98,
+      "total_enrollment": 13828,
+      "total_suspensions": 1174,
+      "overall_rate": 0.0849002024877061
+    },
+    {
+      "year_num": 2023,
+      "level": "High",
+      "setting": "Traditional",
+      "n_schools": 881,
+      "total_enrollment": 1159458,
+      "total_suspensions": 63760,
+      "overall_rate": 0.05499121141084886
+    },
+    {
+      "year_num": 2023,
+      "level": "Middle",
+      "setting": "Traditional",
+      "n_schools": 750,
+      "total_enrollment": 567886,
+      "total_suspensions": 51537,
+      "overall_rate": 0.09075236931355941
+    }
+  ],
+  "comparison": [
+    {
+      "year_num": 2017,
+      "level": "Elementary",
+      "n_schools_Non-traditional": 100,
+      "overall_rate_pct_Non-traditional": "3.2%",
+      "mean_rate_pct_Non-traditional": "4.1%",
+      "median_rate_pct_Non-traditional": "1.0%",
+      "n_schools_Traditional": 3268,
+      "overall_rate_pct_Traditional": "2.4%",
+      "mean_rate_pct_Traditional": "2.4%",
+      "median_rate_pct_Traditional": "1.0%"
+    },
+    {
+      "year_num": 2017,
+      "level": "High",
+      "n_schools_Non-traditional": 95,
+      "overall_rate_pct_Non-traditional": "15.9%",
+      "mean_rate_pct_Non-traditional": "23.2%",
+      "median_rate_pct_Non-traditional": "5.3%",
+      "n_schools_Traditional": 871,
+      "overall_rate_pct_Traditional": "5.6%",
+      "mean_rate_pct_Traditional": "5.9%",
+      "median_rate_pct_Traditional": "4.3%"
+    },
+    {
+      "year_num": 2017,
+      "level": "Middle",
+      "n_schools_Traditional": 764,
+      "overall_rate_pct_Traditional": "9.5%",
+      "mean_rate_pct_Traditional": "10.0%",
+      "median_rate_pct_Traditional": "7.1%"
+    },
+    {
+      "year_num": 2018,
+      "level": "Elementary",
+      "n_schools_Non-traditional": 98,
+      "overall_rate_pct_Non-traditional": "3.3%",
+      "mean_rate_pct_Non-traditional": "4.1%",
+      "median_rate_pct_Non-traditional": "1.4%",
+      "n_schools_Traditional": 3273,
+      "overall_rate_pct_Traditional": "2.3%",
+      "mean_rate_pct_Traditional": "2.2%",
+      "median_rate_pct_Traditional": "0.9%"
+    },
+    {
+      "year_num": 2018,
+      "level": "High",
+      "n_schools_Non-traditional": 98,
+      "overall_rate_pct_Non-traditional": "14.5%",
+      "mean_rate_pct_Non-traditional": "21.0%",
+      "median_rate_pct_Non-traditional": "2.3%",
+      "n_schools_Traditional": 885,
+      "overall_rate_pct_Traditional": "5.7%",
+      "mean_rate_pct_Traditional": "6.2%",
+      "median_rate_pct_Traditional": "4.4%"
+    },
+    {
+      "year_num": 2018,
+      "level": "Middle",
+      "n_schools_Traditional": 761,
+      "overall_rate_pct_Traditional": "9.4%",
+      "mean_rate_pct_Traditional": "9.9%",
+      "median_rate_pct_Traditional": "6.2%"
+    },
+    {
+      "year_num": 2019,
+      "level": "Elementary",
+      "n_schools_Non-traditional": 104,
+      "overall_rate_pct_Non-traditional": "2.3%",
+      "mean_rate_pct_Non-traditional": "2.4%",
+      "median_rate_pct_Non-traditional": "0.4%",
+      "n_schools_Traditional": 3288,
+      "overall_rate_pct_Traditional": "1.4%",
+      "mean_rate_pct_Traditional": "1.4%",
+      "median_rate_pct_Traditional": "0.5%"
+    },
+    {
+      "year_num": 2019,
+      "level": "High",
+      "n_schools_Non-traditional": 103,
+      "overall_rate_pct_Non-traditional": "8.7%",
+      "mean_rate_pct_Non-traditional": "15.8%",
+      "median_rate_pct_Non-traditional": "1.3%",
+      "n_schools_Traditional": 884,
+      "overall_rate_pct_Traditional": "4.1%",
+      "mean_rate_pct_Traditional": "4.3%",
+      "median_rate_pct_Traditional": "2.7%"
+    },
+    {
+      "year_num": 2019,
+      "level": "Middle",
+      "n_schools_Traditional": 758,
+      "overall_rate_pct_Traditional": "6.0%",
+      "mean_rate_pct_Traditional": "6.3%",
+      "median_rate_pct_Traditional": "3.8%"
+    },
+    {
+      "year_num": 2021,
+      "level": "Elementary",
+      "n_schools_Non-traditional": 103,
+      "overall_rate_pct_Non-traditional": "2.7%",
+      "mean_rate_pct_Non-traditional": "2.5%",
+      "median_rate_pct_Non-traditional": "1.0%",
+      "n_schools_Traditional": 3286,
+      "overall_rate_pct_Traditional": "1.8%",
+      "mean_rate_pct_Traditional": "1.7%",
+      "median_rate_pct_Traditional": "0.7%"
+    },
+    {
+      "year_num": 2021,
+      "level": "High",
+      "n_schools_Non-traditional": 101,
+      "overall_rate_pct_Non-traditional": "8.0%",
+      "mean_rate_pct_Non-traditional": "18.4%",
+      "median_rate_pct_Non-traditional": "0.7%",
+      "n_schools_Traditional": 882,
+      "overall_rate_pct_Traditional": "5.4%",
+      "mean_rate_pct_Traditional": "5.3%",
+      "median_rate_pct_Traditional": "3.8%"
+    },
+    {
+      "year_num": 2021,
+      "level": "Middle",
+      "n_schools_Traditional": 750,
+      "overall_rate_pct_Traditional": "8.7%",
+      "mean_rate_pct_Traditional": "8.9%",
+      "median_rate_pct_Traditional": "6.5%"
+    },
+    {
+      "year_num": 2022,
+      "level": "Elementary",
+      "n_schools_Non-traditional": 103,
+      "overall_rate_pct_Non-traditional": "3.2%",
+      "mean_rate_pct_Non-traditional": "2.6%",
+      "median_rate_pct_Non-traditional": "1.0%",
+      "n_schools_Traditional": 3277,
+      "overall_rate_pct_Traditional": "2.3%",
+      "mean_rate_pct_Traditional": "2.2%",
+      "median_rate_pct_Traditional": "0.9%"
+    },
+    {
+      "year_num": 2022,
+      "level": "High",
+      "n_schools_Non-traditional": 100,
+      "overall_rate_pct_Non-traditional": "9.5%",
+      "mean_rate_pct_Non-traditional": "22.4%",
+      "median_rate_pct_Non-traditional": "1.7%",
+      "n_schools_Traditional": 887,
+      "overall_rate_pct_Traditional": "6.1%",
+      "mean_rate_pct_Traditional": "6.1%",
+      "median_rate_pct_Traditional": "4.3%"
+    },
+    {
+      "year_num": 2022,
+      "level": "Middle",
+      "n_schools_Traditional": 748,
+      "overall_rate_pct_Traditional": "10.2%",
+      "mean_rate_pct_Traditional": "10.4%",
+      "median_rate_pct_Traditional": "7.8%"
+    },
+    {
+      "year_num": 2023,
+      "level": "Elementary",
+      "n_schools_Non-traditional": 101,
+      "overall_rate_pct_Non-traditional": "3.4%",
+      "mean_rate_pct_Non-traditional": "3.1%",
+      "median_rate_pct_Non-traditional": "0.9%",
+      "n_schools_Traditional": 3276,
+      "overall_rate_pct_Traditional": "2.3%",
+      "mean_rate_pct_Traditional": "2.3%",
+      "median_rate_pct_Traditional": "1.0%"
+    },
+    {
+      "year_num": 2023,
+      "level": "High",
+      "n_schools_Non-traditional": 98,
+      "overall_rate_pct_Non-traditional": "8.5%",
+      "mean_rate_pct_Non-traditional": "17.3%",
+      "median_rate_pct_Non-traditional": "1.3%",
+      "n_schools_Traditional": 881,
+      "overall_rate_pct_Traditional": "5.5%",
+      "mean_rate_pct_Traditional": "5.8%",
+      "median_rate_pct_Traditional": "3.8%"
+    },
+    {
+      "year_num": 2023,
+      "level": "Middle",
+      "n_schools_Traditional": 750,
+      "overall_rate_pct_Traditional": "9.1%",
+      "mean_rate_pct_Traditional": "9.3%",
+      "median_rate_pct_Traditional": "6.7%"
+    }
+  ],
+  "pareto": [
+    {
+      "year_num": 2017,
+      "top_label": "Top 5%",
+      "share_pct": "35.3%",
+      "top_schools": 497,
+      "total_schools": 9947,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2017,
+      "top_label": "Top 10%",
+      "share_pct": "53.1%",
+      "top_schools": 994,
+      "total_schools": 9947,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2017,
+      "top_label": "Top 20%",
+      "share_pct": "73.9%",
+      "top_schools": 1989,
+      "total_schools": 9947,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2018,
+      "top_label": "Top 5%",
+      "share_pct": "36.9%",
+      "top_schools": 498,
+      "total_schools": 9961,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2018,
+      "top_label": "Top 10%",
+      "share_pct": "54.8%",
+      "top_schools": 996,
+      "total_schools": 9961,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2018,
+      "top_label": "Top 20%",
+      "share_pct": "75.0%",
+      "top_schools": 1992,
+      "total_schools": 9961,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2019,
+      "top_label": "Top 5%",
+      "share_pct": "39.1%",
+      "top_schools": 503,
+      "total_schools": 10064,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2019,
+      "top_label": "Top 10%",
+      "share_pct": "57.8%",
+      "top_schools": 1006,
+      "total_schools": 10064,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2019,
+      "top_label": "Top 20%",
+      "share_pct": "77.9%",
+      "top_schools": 2012,
+      "total_schools": 10064,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2021,
+      "top_label": "Top 5%",
+      "share_pct": "39.1%",
+      "top_schools": 500,
+      "total_schools": 10013,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2021,
+      "top_label": "Top 10%",
+      "share_pct": "58.2%",
+      "top_schools": 1001,
+      "total_schools": 10013,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2021,
+      "top_label": "Top 20%",
+      "share_pct": "78.7%",
+      "top_schools": 2002,
+      "total_schools": 10013,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2022,
+      "top_label": "Top 5%",
+      "share_pct": "37.2%",
+      "top_schools": 501,
+      "total_schools": 10024,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2022,
+      "top_label": "Top 10%",
+      "share_pct": "56.0%",
+      "top_schools": 1002,
+      "total_schools": 10024,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2022,
+      "top_label": "Top 20%",
+      "share_pct": "76.4%",
+      "top_schools": 2004,
+      "total_schools": 10024,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2023,
+      "top_label": "Top 5%",
+      "share_pct": "36.1%",
+      "top_schools": 500,
+      "total_schools": 10002,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2023,
+      "top_label": "Top 10%",
+      "share_pct": "54.1%",
+      "top_schools": 1000,
+      "total_schools": 10002,
+      "measure_type": "total_susp"
+    },
+    {
+      "year_num": 2023,
+      "top_label": "Top 20%",
+      "share_pct": "74.7%",
+      "top_schools": 2000,
+      "total_schools": 10002,
+      "measure_type": "total_susp"
+    }
+  ]
+}
