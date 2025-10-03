@@ -88,9 +88,18 @@ def _resolve_project_root() -> Path:
     )
 
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-if str(SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_DIR))
+try:
+    SCRIPT_DIR = Path(__file__).resolve().parent
+except NameError:  # pragma: no cover - interactive contexts without __file__
+    SCRIPT_DIR = Path.cwd().resolve()
+
+ROOT_DIR = _resolve_project_root()
+GRAPH_SCRIPTS_DIR = ROOT_DIR / "graph_scripts"
+
+for candidate in (GRAPH_SCRIPTS_DIR, SCRIPT_DIR):
+    candidate_str = str(candidate)
+    if candidate_str and candidate_str not in sys.path:
+        sys.path.insert(0, candidate_str)
 
 try:
     from palette_utils import DISCIPLINE_BASE_PALETTE
@@ -104,7 +113,6 @@ CAPTION_COLOR = DISCIPLINE_BASE_PALETTE["Grey"]
 GRID_COLOR_PRIMARY = DISCIPLINE_BASE_PALETTE["Lighter Blue"]
 GRID_COLOR_SECONDARY = DISCIPLINE_BASE_PALETTE["Grey"]
 
-ROOT_DIR = _resolve_project_root()
 DATA_STAGE = ROOT_DIR / "data-stage"
 OUTPUT_DIR = ROOT_DIR / "outputs" / "graphs"
 TEXT_DIR = OUTPUT_DIR / "descriptions"
