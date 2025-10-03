@@ -940,7 +940,7 @@ def build_locale_snapshot_figure(
             handles,
             [race for race in RACE_LEVELS],
             loc="upper center",
-            bbox_to_anchor=(0.5, 0.86),
+            bbox_to_anchor=(0.5, 0.18),
             ncol=4,
             frameon=False,
             fontsize=10,
@@ -960,9 +960,9 @@ def build_locale_snapshot_figure(
 
         fig.text(0.07, 0.96, title, fontsize=20, fontweight="bold", ha="left", color=TEXT_COLOR)
         fig.text(0.07, 0.93, subtitle, fontsize=13, ha="left", color=TEXT_COLOR)
-        fig.text(0.07, 0.055, caption, fontsize=10, ha="left", color=CAPTION_COLOR)
+        fig.text(0.07, 0.075, caption, fontsize=10, ha="left", color=CAPTION_COLOR)
 
-        fig.subplots_adjust(left=0.17, right=0.98, top=0.78, bottom=0.16, wspace=0.08)
+        fig.subplots_adjust(left=0.17, right=0.98, top=0.84, bottom=0.28, wspace=0.08)
 
         out_path = OUTPUT_DIR / "statewide_race_trends_by_locale_2023_24_horizontal.png"
         fig.savefig(out_path, dpi=320)
@@ -1063,7 +1063,7 @@ def build_level_snapshot_figure(
             handles,
             [race for race in RACE_LEVELS],
             loc="upper center",
-            bbox_to_anchor=(0.5, 0.86),
+            bbox_to_anchor=(0.5, 0.18),
             ncol=4,
             frameon=False,
             fontsize=10,
@@ -1083,9 +1083,9 @@ def build_level_snapshot_figure(
 
         fig.text(0.07, 0.96, title, fontsize=20, fontweight="bold", ha="left", color=TEXT_COLOR)
         fig.text(0.07, 0.93, subtitle, fontsize=13, ha="left", color=TEXT_COLOR)
-        fig.text(0.07, 0.055, caption, fontsize=10, ha="left", color=CAPTION_COLOR)
+        fig.text(0.07, 0.075, caption, fontsize=10, ha="left", color=CAPTION_COLOR)
 
-        fig.subplots_adjust(left=0.17, right=0.98, top=0.78, bottom=0.16, wspace=0.1)
+        fig.subplots_adjust(left=0.17, right=0.98, top=0.84, bottom=0.28, wspace=0.1)
 
         out_path = OUTPUT_DIR / "statewide_race_trends_by_level_2023_24_horizontal.png"
         fig.savefig(out_path, dpi=320)
