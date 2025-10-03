@@ -14,9 +14,9 @@ import sys
 
 try:
     import matplotlib.pyplot as plt
-    from matplotlib.ticker import FuncFormatter
-    from matplotlib.text import Annotation
     from matplotlib.patches import Patch
+    from matplotlib.text import Annotation
+    from matplotlib.ticker import FuncFormatter
 except ImportError:
     print(
         "Required package 'matplotlib' is not installed. Install it with `pip install matplotlib`.",
@@ -88,6 +88,22 @@ def _resolve_project_root() -> Path:
     )
 
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+try:
+    from palette_utils import DISCIPLINE_BASE_PALETTE
+except ImportError as exc:  # pragma: no cover - guard for missing palette module
+    raise SystemExit(
+        "Unable to import palette_utils. Ensure graph_scripts/palette_utils.py is available."
+    ) from exc
+
+TEXT_COLOR = DISCIPLINE_BASE_PALETTE["Darkest Blue"]
+CAPTION_COLOR = DISCIPLINE_BASE_PALETTE["Grey"]
+GRID_COLOR_PRIMARY = DISCIPLINE_BASE_PALETTE["Lighter Blue"]
+GRID_COLOR_SECONDARY = DISCIPLINE_BASE_PALETTE["Grey"]
+
 ROOT_DIR = _resolve_project_root()
 DATA_STAGE = ROOT_DIR / "data-stage"
 OUTPUT_DIR = ROOT_DIR / "outputs" / "graphs"
@@ -119,14 +135,14 @@ RACE_LEVELS: List[str] = [
 ]
 
 RACE_PALETTE: Dict[str, str] = {
-    "Black/African American": "#D62828",
-    "Hispanic/Latino": "#F77F00",
-    "White": "#003049",
-    "Asian": "#2A9D8F",
-    "American Indian/Alaska Native": "#8E7DBE",
-    "Native Hawaiian/Pacific Islander": "#577590",
-    "Filipino": "#E9C46A",
-    "Two or More Races": "#588157",
+    "Black/African American": DISCIPLINE_BASE_PALETTE["UCLA Blue"],
+    "Hispanic/Latino": DISCIPLINE_BASE_PALETTE["UCLA Gold"],
+    "White": DISCIPLINE_BASE_PALETTE["Darkest Blue"],
+    "Asian": DISCIPLINE_BASE_PALETTE["Purple"],
+    "American Indian/Alaska Native": DISCIPLINE_BASE_PALETTE["Darker Blue"],
+    "Native Hawaiian/Pacific Islander": DISCIPLINE_BASE_PALETTE["Darkest Gold"],
+    "Filipino": DISCIPLINE_BASE_PALETTE["Lighter Blue"],
+    "Two or More Races": DISCIPLINE_BASE_PALETTE["Grey"],
 }
 
 LEVEL_ORDER = ["Elementary", "Middle", "High"]
@@ -382,12 +398,18 @@ def apply_reach_style(ax: plt.Axes, year_order: Sequence[str], y_limit: float) -
     ax.set_facecolor("white")
     for spine in ax.spines.values():
         spine.set_visible(False)
-    ax.grid(axis="y", color="#DFE2E5", linewidth=0.8)
-    ax.grid(axis="x", color="#DFE2E5", linewidth=0.5, linestyle="--", alpha=0.4)
+    ax.grid(axis="y", color=GRID_COLOR_PRIMARY, linewidth=0.8)
+    ax.grid(
+        axis="x",
+        color=GRID_COLOR_PRIMARY,
+        linewidth=0.5,
+        linestyle="--",
+        alpha=0.4,
+    )
     ax.set_xticks(range(len(year_order)))
     ax.set_xticklabels(year_order, rotation=45, ha="right")
-    ax.tick_params(axis="x", labelsize=10, pad=6)
-    ax.tick_params(axis="y", labelsize=10)
+    ax.tick_params(axis="x", labelsize=10, pad=6, colors=TEXT_COLOR)
+    ax.tick_params(axis="y", labelsize=10, colors=TEXT_COLOR)
     ax.margins(x=0.02)
     ax.set_xlim(-0.35, len(year_order) - 0.65)
     ax.set_ylim(0, y_limit)
@@ -524,7 +546,7 @@ def resolve_label_overlaps(ax: plt.Axes, annotations: Sequence[Annotation]) -> N
                 textcoords="data",
                 arrowprops={
                     "arrowstyle": "-",
-                    "color": getattr(annotation, "_annotation_color", "#555555"),
+                    "color": getattr(annotation, "_annotation_color", TEXT_COLOR),
                     "linewidth": 0.7,
                     "alpha": 0.75,
                 },
@@ -546,7 +568,7 @@ def finalize_figure(
 ) -> None:
     fig.patch.set_facecolor("white")
     if handles:
-        fig.legend(
+        legend = fig.legend(
             handles,
             labels,
             loc="upper center",
@@ -557,9 +579,12 @@ def finalize_figure(
             title="Student group",
             title_fontsize=11,
         )
-    fig.text(0.07, 0.965, title, fontsize=20, fontweight="bold", ha="left")
-    fig.text(0.07, 0.933, subtitle, fontsize=13, ha="left")
-    fig.text(0.07, 0.05, caption, fontsize=10, color="#4A4A4A", ha="left")
+        legend.get_title().set_color(TEXT_COLOR)
+        for text in legend.get_texts():
+            text.set_color(TEXT_COLOR)
+    fig.text(0.07, 0.965, title, fontsize=20, fontweight="bold", ha="left", color=TEXT_COLOR)
+    fig.text(0.07, 0.933, subtitle, fontsize=13, ha="left", color=TEXT_COLOR)
+    fig.text(0.07, 0.05, caption, fontsize=10, color=CAPTION_COLOR, ha="left")
     fig.subplots_adjust(left=0.07, right=0.98, top=0.80, bottom=0.18, wspace=0.28, hspace=0.36)
 
 
@@ -635,7 +660,7 @@ def build_level_figure(
                 )
 
             resolve_label_overlaps(ax, axis_annotations)
-            ax.set_ylabel("Suspension rate", fontsize=11)
+            ax.set_ylabel("Suspension rate", fontsize=11, color=TEXT_COLOR)
 
             finalize_figure(
                 fig,
@@ -722,7 +747,7 @@ def build_locale_figure(
                 )
 
             resolve_label_overlaps(ax, axis_annotations)
-            ax.set_ylabel("Suspension rate", fontsize=11)
+            ax.set_ylabel("Suspension rate", fontsize=11, color=TEXT_COLOR)
 
             finalize_figure(
                 fig,
@@ -787,8 +812,14 @@ def build_locale_snapshot_figure(
             ax.set_facecolor("white")
             for spine in ax.spines.values():
                 spine.set_visible(False)
-            ax.grid(axis="x", color="#DFE2E5", linewidth=0.8, linestyle="--", alpha=0.6)
-            ax.grid(axis="y", color="#F0F2F5", linewidth=0.6)
+            ax.grid(
+                axis="x",
+                color=GRID_COLOR_PRIMARY,
+                linewidth=0.8,
+                linestyle="--",
+                alpha=0.6,
+            )
+            ax.grid(axis="y", color=GRID_COLOR_SECONDARY, linewidth=0.6)
 
             y_positions = np.arange(len(RACE_LEVELS))
             colors = [RACE_PALETTE[race] for race in RACE_LEVELS]
@@ -810,22 +841,28 @@ def build_locale_snapshot_figure(
                         va="center",
                         ha="left",
                         fontsize=9.5,
-                        color="#333333",
+                        color=TEXT_COLOR,
                     )
 
             ax.set_xlim(0, x_limit)
             ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value * 100:.1f}%"))
-            ax.tick_params(axis="x", labelsize=10, pad=4)
-            ax.tick_params(axis="y", labelsize=10)
+            ax.tick_params(axis="x", labelsize=10, pad=4, colors=TEXT_COLOR)
+            ax.tick_params(axis="y", labelsize=10, colors=TEXT_COLOR)
 
             if idx == 0:
                 ax.set_yticks(y_positions)
-                ax.set_yticklabels(RACE_LEVELS)
+                ax.set_yticklabels(RACE_LEVELS, color=TEXT_COLOR)
             else:
                 ax.set_yticks(y_positions)
                 ax.set_yticklabels([])
 
-            ax.set_title(f"{locale} Schools", fontsize=14, fontweight="bold", pad=12)
+            ax.set_title(
+                f"{locale} Schools",
+                fontsize=14,
+                fontweight="bold",
+                pad=12,
+                color=TEXT_COLOR,
+            )
 
         fig.patch.set_facecolor("white")
         handles = [
@@ -833,7 +870,7 @@ def build_locale_snapshot_figure(
             for race in RACE_LEVELS
         ]
 
-        fig.legend(
+        legend = fig.legend(
             handles,
             [race for race in RACE_LEVELS],
             loc="upper center",
@@ -844,6 +881,9 @@ def build_locale_snapshot_figure(
             title="Student group",
             title_fontsize=11,
         )
+        legend.get_title().set_color(TEXT_COLOR)
+        for text in legend.get_texts():
+            text.set_color(TEXT_COLOR)
 
         title = "Suspension Rates by Race Across School Locales"
         subtitle = f"Traditional schools, {latest_year}"
@@ -852,9 +892,9 @@ def build_locale_snapshot_figure(
             "Traditional schools only; rates represent total suspensions ÷ cumulative enrollment."
         )
 
-        fig.text(0.07, 0.95, title, fontsize=20, fontweight="bold", ha="left")
-        fig.text(0.07, 0.92, subtitle, fontsize=13, ha="left")
-        fig.text(0.07, 0.055, caption, fontsize=10, ha="left", color="#4A4A4A")
+        fig.text(0.07, 0.95, title, fontsize=20, fontweight="bold", ha="left", color=TEXT_COLOR)
+        fig.text(0.07, 0.92, subtitle, fontsize=13, ha="left", color=TEXT_COLOR)
+        fig.text(0.07, 0.055, caption, fontsize=10, ha="left", color=CAPTION_COLOR)
 
         fig.subplots_adjust(left=0.17, right=0.98, top=0.83, bottom=0.16, wspace=0.08)
 
@@ -914,7 +954,14 @@ def build_quartile_figure(
                 continue
             subset = subset.sort_values(["subgroup", "year_index"])
             apply_reach_style(ax, year_order, y_limit)
-            ax.set_title(label, loc="left", fontsize=14, fontweight="bold", pad=4)
+            ax.set_title(
+                label,
+                loc="left",
+                fontsize=14,
+                fontweight="bold",
+                pad=4,
+                color=TEXT_COLOR,
+            )
             axis_annotations: List[Annotation] = []
             for race in RACE_LEVELS:
                 race_df = subset[subset["subgroup"] == race]
@@ -945,7 +992,7 @@ def build_quartile_figure(
             if idx > 0:
                 ax.set_ylabel("")
             else:
-                ax.set_ylabel("Suspension rate", fontsize=11)
+                ax.set_ylabel("Suspension rate", fontsize=11, color=TEXT_COLOR)
 
         finalize_figure(
             fig,
