@@ -13,30 +13,27 @@ from __future__ import annotations
 
 import json
 import math
-import re
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
-import numpy as np
 import pandas as pd
-import pyarrow.parquet as pq
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+THIS_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = THIS_DIR.parent
+if str(THIS_DIR) not in sys.path:
+    sys.path.append(str(THIS_DIR))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
+from data_sources import prepare_analysis_frame as load_base_frame
+
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
-LONG_PATH = PROJECT_ROOT / "data-stage" / "susp_v6_long.parquet"
-FEATURES_PATH = PROJECT_ROOT / "data-stage" / "susp_v6_features.parquet"
 JSON_PATH = PROJECT_ROOT / "dashboard" / "pareto_grade_setting_payload.json"
 TARGET_CSV_NAME = "pareto_grade_setting_slide_ready.csv"
 TOP_PCTS: tuple[float, ...] = (0.05, 0.10, 0.20)
-
-YEAR_PATTERN = re.compile(r"^(\d{4})")
-SETTING_ALT_PATTERN = re.compile(r"alternative|charter|continuation|community", re.IGNORECASE)
-GRADE_ELEMENTARY = re.compile(r"elementary|elem|primary|k.*5|k.*6", re.IGNORECASE)
-GRADE_MIDDLE = re.compile(r"middle|junior|intermediate|6.*8|7.*8", re.IGNORECASE)
-GRADE_HIGH = re.compile(r"high|secondary|9.*12|senior", re.IGNORECASE)
-GRADE_ALT = re.compile(r"adult|continuation", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -67,108 +64,20 @@ class SlideRow:
         }
 
 
-def extract_year(text: object) -> int | None:
-    if text is None or (isinstance(text, float) and math.isnan(text)):
-        return None
-    match = YEAR_PATTERN.search(str(text))
-    if match:
-        try:
-            return int(match.group(1))
-        except ValueError:
-            return None
-    return None
-
-
-def map_grade_level(value: object) -> str:
-    if value is None or (isinstance(value, float) and math.isnan(value)):
-        return "Unknown"
-    text = str(value).strip()
-    if not text:
-        return "Unknown"
-    if GRADE_ELEMENTARY.search(text):
-        return "Elementary"
-    if GRADE_MIDDLE.search(text):
-        return "Middle"
-    if GRADE_HIGH.search(text):
-        return "High"
-    if GRADE_ALT.search(text):
-        return "Alternative"
-    return "Other"
-
-
-def map_setting(raw: object, is_traditional: object) -> str:
-    if not pd.isna(is_traditional):
-        return "Traditional" if bool(is_traditional) else "Non-traditional"
-    if raw is None or (isinstance(raw, float) and math.isnan(raw)):
-        return "Unknown"
-    text = str(raw).strip()
-    if not text:
-        return "Unknown"
-    lowered = text.lower()
-    if "traditional" in lowered:
-        return "Traditional"
-    if SETTING_ALT_PATTERN.search(lowered):
-        return "Non-traditional"
-    return "Other"
-
-
-def load_suspension_data() -> pd.DataFrame:
-    long_cols = [
-        "school_code",
-        "school_name",
-        "academic_year",
-        "school_type",
-        "school_level",
-        "cumulative_enrollment",
-        "total_suspensions",
-        "unduplicated_count_of_students_suspended_total",
-        "subgroup",
-    ]
-    table = pq.read_table(LONG_PATH, columns=long_cols)
-    df = table.to_pandas()
-    mask = df["subgroup"].str.lower().isin({"total", "all students", "ta"})
-    df = df.loc[mask].copy()
-    df["school_id"] = df["school_code"].astype("string")
-    df["school_name"] = df["school_name"].astype("string")
-    df["year"] = df["academic_year"].astype("string")
-    df["year_num"] = df["year"].map(extract_year)
-    df["level_raw"] = df["school_level"].astype("string")
-    df["setting_raw"] = df["school_type"].astype("string")
-    df["enrollment"] = pd.to_numeric(df["cumulative_enrollment"], errors="coerce")
-    df["measure"] = pd.to_numeric(df["total_suspensions"], errors="coerce")
-    df = df.dropna(subset=["school_id", "year_num", "enrollment", "measure"])
-    df = df.loc[(df["enrollment"] > 0) & (df["measure"] >= 0)]
-    return df
-
-
-def load_feature_flags() -> pd.DataFrame:
-    feat_cols = ["school_code", "academic_year", "is_traditional", "school_type"]
-    table = pq.read_table(FEATURES_PATH, columns=feat_cols)
-    df = table.to_pandas()
-    df["school_code"] = df["school_code"].astype("string")
-    df["academic_year"] = df["academic_year"].astype("string")
-    return df
-
-
-def prepare_analysis_frame() -> pd.DataFrame:
-    susp = load_suspension_data()
-    feats = load_feature_flags()
-    merged = susp.merge(
-        feats,
-        left_on=["school_id", "year"],
-        right_on=["school_code", "academic_year"],
-        how="left",
-        suffixes=("", "_feat"),
+def prepare_grade_setting_frame() -> pd.DataFrame:
+    frame = load_base_frame()
+    frame = frame.loc[(frame["level"] != "Unknown") & (frame["setting"] != "Unknown")].copy()
+    frame = frame.rename(columns={"year_label": "year"})
+    aggregated = (
+        frame.groupby(["school_id", "year", "year_num", "level", "setting"], as_index=False)
+        .agg(
+            enrollment=("enrollment", "max"),
+            measure=("total_susp", "sum"),
+        )
     )
-    merged["setting"] = [
-        map_setting(raw, is_trad)
-        for raw, is_trad in zip(merged["school_type_feat"].fillna(merged["setting_raw"]), merged["is_traditional"])
-    ]
-    merged["level"] = [map_grade_level(value) for value in merged["level_raw"]]
-    analysis = merged[["school_id", "year_num", "level", "setting", "measure"]].copy()
-    analysis = analysis.replace({np.nan: None})
-    analysis = analysis.loc[(analysis["level"] != "Unknown") & (analysis["setting"] != "Unknown")]
-    return analysis
+    aggregated["enrollment"] = aggregated["enrollment"].astype(float)
+    aggregated["measure"] = aggregated["measure"].astype(float)
+    return aggregated
 
 
 def compute_slide_rows(frame: pd.DataFrame) -> list[SlideRow]:
@@ -230,7 +139,7 @@ def write_outputs(rows: Iterable[SlideRow]) -> Path:
 
 def main() -> None:
     OUTPUTS_DIR.mkdir(exist_ok=True)
-    frame = prepare_analysis_frame()
+    frame = prepare_grade_setting_frame()
     rows = compute_slide_rows(frame)
     csv_path = write_outputs(rows)
     print(f"Wrote {len(rows)} slide-ready rows to {csv_path}")
