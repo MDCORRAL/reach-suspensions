@@ -321,7 +321,7 @@
                 </div>
                 <div class="narrative">
                     <h4>Setting-Based Disparities</h4>
-                    <p>Alternative and non-traditional settings show dramatically higher rates across all grade levels. Elementary traditional schools maintain the lowest rates at <span class="highlight">1.6-1.7%</span>, while alternative high schools reach concerning levels above <span class="highlight">15%</span>.</p>
+                    <p>Alternative and non-traditional settings show dramatically higher rates across all grade levels. Elementary traditional schools remain the lowest, while non-traditional high schools reach double-digit suspension rates.</p>
                 </div>
             </div>
         </div>
@@ -340,95 +340,152 @@
             white: '#FFFFFF'
         };
 
-        // Embedded data - processed from CSV files
-        const EMBEDDED_DATA = {
-            summary: [
-                {"year_num":2017,"n_schools":9947,"total_enrollment":6870997,"total_suspensions":363203,"mean_rate":0.06437792925707775,"median_rate":0.022336769759450172,"overall_rate":0.05286030542583558,"mean_rate_pct":"6.4%","median_rate_pct":"2.2%","overall_rate_pct":"5.3%"},
-                {"year_num":2018,"n_schools":9961,"total_enrollment":6774236,"total_suspensions":353546,"mean_rate":0.06335139656570532,"median_rate":0.021341463414634148,"overall_rate":0.052189796753464156,"mean_rate_pct":"6.3%","median_rate_pct":"2.1%","overall_rate_pct":"5.2%"},
-                {"year_num":2019,"n_schools":10064,"total_enrollment":6703797,"total_suspensions":232824,"mean_rate":0.043471881829916736,"median_rate":0.01194386490486635,"overall_rate":0.03473016858953217,"mean_rate_pct":"4.3%","median_rate_pct":"1.2%","overall_rate_pct":"3.5%"},
-                {"year_num":2021,"n_schools":10013,"total_enrollment":6515687,"total_suspensions":291907,"mean_rate":0.047435482456641385,"median_rate":0.014957264957264958,"overall_rate":0.044800648036039795,"mean_rate_pct":"4.7%","median_rate_pct":"1.5%","overall_rate_pct":"4.5%"},
-                {"year_num":2022,"n_schools":10024,"total_enrollment":6407616,"total_suspensions":336902,"mean_rate":0.05645076887164804,"median_rate":0.019801980198019802,"overall_rate":0.05257836924060368,"mean_rate_pct":"5.6%","median_rate_pct":"2.0%","overall_rate_pct":"5.3%"},
-                {"year_num":2023,"n_schools":10002,"total_enrollment":6404542,"total_suspensions":307095,"mean_rate":0.05301101602749898,"median_rate":0.020041757147459635,"overall_rate":0.0479495645434131,"mean_rate_pct":"5.3%","median_rate_pct":"2.0%","overall_rate_pct":"4.8%"}
-            ],
-            gradeSetting: [
-                {"year_num":2017,"level":"Elementary","setting":"Traditional","n_schools":1724,"total_enrollment":982913,"total_suspensions":16525,"overall_rate":0.01681227127935026},
-                {"year_num":2017,"level":"Elementary","setting":"Non-traditional","n_schools":2,"total_enrollment":211,"total_suspensions":3,"overall_rate":0.014218009478672985},
-                {"year_num":2017,"level":"High","setting":"Traditional","n_schools":966,"total_enrollment":1329560,"total_suspensions":69397,"overall_rate":0.05219546316074491},
-                {"year_num":2017,"level":"High","setting":"Non-traditional","n_schools":127,"total_enrollment":33247,"total_suspensions":4079,"overall_rate":0.12268776130177159},
-                {"year_num":2017,"level":"Middle","setting":"Traditional","n_schools":2393,"total_enrollment":2270896,"total_suspensions":132239,"overall_rate":0.05824395844504021},
-                {"year_num":2017,"level":"Middle","setting":"Non-traditional","n_schools":107,"total_enrollment":18684,"total_suspensions":695,"overall_rate":0.037192118226600544},
-                {"year_num":2018,"level":"Elementary","setting":"Traditional","n_schools":1723,"total_enrollment":967646,"total_suspensions":15808,"overall_rate":0.016340917696768673},
-                {"year_num":2018,"level":"Elementary","setting":"Non-traditional","n_schools":2,"total_enrollment":182,"total_suspensions":2,"overall_rate":0.010989010989010988},
-                {"year_num":2018,"level":"High","setting":"Traditional","n_schools":982,"total_enrollment":1309751,"total_suspensions":70430,"overall_rate":0.05378113879003363},
-                {"year_num":2018,"level":"High","setting":"Non-traditional","n_schools":130,"total_enrollment":33038,"total_suspensions":3768,"overall_rate":0.11403508771929825},
-                {"year_num":2018,"level":"Middle","setting":"Traditional","n_schools":2414,"total_enrollment":2235717,"total_suspensions":126246,"overall_rate":0.05646413882505583},
-                {"year_num":2018,"level":"Middle","setting":"Non-traditional","n_schools":112,"total_enrollment":18442,"total_suspensions":706,"overall_rate":0.038284163894833264},
-                {"year_num":2019,"level":"Elementary","setting":"Traditional","n_schools":1740,"total_enrollment":976577,"total_suspensions":10647,"overall_rate":0.010903473945409081},
-                {"year_num":2019,"level":"Elementary","setting":"Non-traditional","n_schools":2,"total_enrollment":159,"total_suspensions":1,"overall_rate":0.006289308176100629},
-                {"year_num":2019,"level":"High","setting":"Traditional","n_schools":996,"total_enrollment":1310053,"total_suspensions":47520,"overall_rate":0.036279159235668385},
-                {"year_num":2019,"level":"High","setting":"Non-traditional","n_schools":134,"total_enrollment":32937,"total_suspensions":2568,"overall_rate":0.07795982142857143},
-                {"year_num":2019,"level":"Middle","setting":"Traditional","n_schools":2437,"total_enrollment":2207525,"total_suspensions":83699,"overall_rate":0.0379156804733728},
-                {"year_num":2019,"level":"Middle","setting":"Non-traditional","n_schools":115,"total_enrollment":18023,"total_suspensions":436,"overall_rate":0.024201396648044693},
-                {"year_num":2021,"level":"Elementary","setting":"Traditional","n_schools":1724,"total_enrollment":950932,"total_suspensions":12689,"overall_rate":0.013347329473684211},
-                {"year_num":2021,"level":"Elementary","setting":"Non-traditional","n_schools":2,"total_enrollment":223,"total_suspensions":2,"overall_rate":0.008968609865470852},
-                {"year_num":2021,"level":"High","setting":"Traditional","n_schools":1009,"total_enrollment":1280537,"total_suspensions":53512,"overall_rate":0.04177015686274509},
-                {"year_num":2021,"level":"High","setting":"Non-traditional","n_schools":139,"total_enrollment":33004,"total_suspensions":3007,"overall_rate":0.09110559013474576},
-                {"year_num":2021,"level":"Middle","setting":"Traditional","n_schools":2420,"total_enrollment":2148036,"total_suspensions":94865,"overall_rate":0.044167364016736403},
-                {"year_num":2021,"level":"Middle","setting":"Non-traditional","n_schools":119,"total_enrollment":17735,"total_suspensions":498,"overall_rate":0.028082191780821918},
-                {"year_num":2022,"level":"Elementary","setting":"Traditional","n_schools":1722,"total_enrollment":933175,"total_suspensions":15131,"overall_rate":0.01621295681063123},
-                {"year_num":2022,"level":"Elementary","setting":"Non-traditional","n_schools":2,"total_enrollment":216,"total_suspensions":3,"overall_rate":0.013888888888888888},
-                {"year_num":2022,"level":"High","setting":"Traditional","n_schools":1021,"total_enrollment":1267633,"total_suspensions":63783,"overall_rate":0.050312143459915904},
-                {"year_num":2022,"level":"High","setting":"Non-traditional","n_schools":139,"total_enrollment":32547,"total_suspensions":3510,"overall_rate":0.10786516853932584},
-                {"year_num":2022,"level":"Middle","setting":"Traditional","n_schools":2420,"total_enrollment":2105045,"total_suspensions":109788,"overall_rate":0.05216216216216216},
-                {"year_num":2022,"level":"Middle","setting":"Non-traditional","n_schools":120,"total_enrollment":17550,"total_suspensions":574,"overall_rate":0.032706766917293232},
-                {"year_num":2023,"level":"Elementary","setting":"Traditional","n_schools":1724,"total_enrollment":929542,"total_suspensions":13691,"overall_rate":0.014728260869565218},
-                {"year_num":2023,"level":"Elementary","setting":"Non-traditional","n_schools":2,"total_enrollment":182,"total_suspensions":2,"overall_rate":0.010989010989010988},
-                {"year_num":2023,"level":"High","setting":"Traditional","n_schools":1018,"total_enrollment":1257879,"total_suspensions":57717,"overall_rate":0.045863874345549736},
-                {"year_num":2023,"level":"High","setting":"Non-traditional","n_schools":140,"total_enrollment":32063,"total_suspensions":3139,"overall_rate":0.09790026246719161},
-                {"year_num":2023,"level":"Middle","setting":"Traditional","n_schools":2398,"total_enrollment":2093026,"total_suspensions":97995,"overall_rate":0.046817182711198004},
-                {"year_num":2023,"level":"Middle","setting":"Non-traditional","n_schools":120,"total_enrollment":17318,"total_suspensions":525,"overall_rate":0.03031645569620253}
-            ],
-            comparison: [
-                {"year_num":2017,"level":"Elementary","n_schools_Non-traditional":2,"n_schools_Traditional":1724,"overall_rate_pct_Non-traditional":"1.4%","overall_rate_pct_Traditional":"1.7%","mean_rate_pct_Non-traditional":"1.9%","mean_rate_pct_Traditional":"1.7%","median_rate_pct_Non-traditional":"1.9%","median_rate_pct_Traditional":"0.6%"},
-                {"year_num":2017,"level":"High","n_schools_Non-traditional":127,"n_schools_Traditional":966,"overall_rate_pct_Non-traditional":"12.3%","overall_rate_pct_Traditional":"5.2%","mean_rate_pct_Non-traditional":"19.7%","mean_rate_pct_Traditional":"5.5%","median_rate_pct_Non-traditional":"4.3%","median_rate_pct_Traditional":"3.8%"},
-                {"year_num":2017,"level":"Middle","n_schools_Non-traditional":107,"n_schools_Traditional":2393,"overall_rate_pct_Non-traditional":"3.7%","overall_rate_pct_Traditional":"5.8%","mean_rate_pct_Non-traditional":"6.1%","mean_rate_pct_Traditional":"5.5%","median_rate_pct_Non-traditional":"1.1%","median_rate_pct_Traditional":"2.6%"},
-                {"year_num":2018,"level":"Elementary","n_schools_Non-traditional":2,"n_schools_Traditional":1723,"overall_rate_pct_Non-traditional":"1.1%","overall_rate_pct_Traditional":"1.6%","mean_rate_pct_Non-traditional":"0.7%","mean_rate_pct_Traditional":"1.6%","median_rate_pct_Non-traditional":"0.7%","median_rate_pct_Traditional":"0.5%"},
-                {"year_num":2018,"level":"High","n_schools_Non-traditional":130,"n_schools_Traditional":982,"overall_rate_pct_Non-traditional":"11.4%","overall_rate_pct_Traditional":"5.4%","mean_rate_pct_Non-traditional":"18.1%","mean_rate_pct_Traditional":"5.8%","median_rate_pct_Non-traditional":"3.0%","median_rate_pct_Traditional":"3.6%"},
-                {"year_num":2018,"level":"Middle","n_schools_Non-traditional":112,"n_schools_Traditional":2414,"overall_rate_pct_Non-traditional":"3.8%","overall_rate_pct_Traditional":"5.6%","mean_rate_pct_Non-traditional":"5.8%","mean_rate_pct_Traditional":"5.3%","median_rate_pct_Non-traditional":"1.0%","median_rate_pct_Traditional":"2.5%"},
-                {"year_num":2019,"level":"Elementary","n_schools_Non-traditional":2,"n_schools_Traditional":1740,"overall_rate_pct_Non-traditional":"0.6%","overall_rate_pct_Traditional":"1.1%","mean_rate_pct_Non-traditional":"0.5%","mean_rate_pct_Traditional":"1.1%","median_rate_pct_Non-traditional":"0.5%","median_rate_pct_Traditional":"0.3%"},
-                {"year_num":2019,"level":"High","n_schools_Non-traditional":134,"n_schools_Traditional":996,"overall_rate_pct_Non-traditional":"7.8%","overall_rate_pct_Traditional":"3.6%","mean_rate_pct_Non-traditional":"11.8%","mean_rate_pct_Traditional":"3.8%","median_rate_pct_Non-traditional":"1.8%","median_rate_pct_Traditional":"2.4%"},
-                {"year_num":2019,"level":"Middle","n_schools_Non-traditional":115,"n_schools_Traditional":2437,"overall_rate_pct_Non-traditional":"2.4%","overall_rate_pct_Traditional":"3.8%","mean_rate_pct_Non-traditional":"3.6%","mean_rate_pct_Traditional":"3.6%","median_rate_pct_Non-traditional":"0.6%","median_rate_pct_Traditional":"1.7%"},
-                {"year_num":2021,"level":"Elementary","n_schools_Non-traditional":2,"n_schools_Traditional":1724,"overall_rate_pct_Non-traditional":"0.9%","overall_rate_pct_Traditional":"1.3%","mean_rate_pct_Non-traditional":"0.8%","mean_rate_pct_Traditional":"1.3%","median_rate_pct_Non-traditional":"0.8%","median_rate_pct_Traditional":"0.4%"},
-                {"year_num":2021,"level":"High","n_schools_Non-traditional":139,"n_schools_Traditional":1009,"overall_rate_pct_Non-traditional":"9.1%","overall_rate_pct_Traditional":"4.2%","mean_rate_pct_Non-traditional":"13.7%","mean_rate_pct_Traditional":"4.4%","median_rate_pct_Non-traditional":"2.1%","median_rate_pct_Traditional":"2.7%"},
-                {"year_num":2021,"level":"Middle","n_schools_Non-traditional":119,"n_schools_Traditional":2420,"overall_rate_pct_Non-traditional":"2.8%","overall_rate_pct_Traditional":"4.4%","mean_rate_pct_Non-traditional":"4.2%","mean_rate_pct_Traditional":"4.2%","median_rate_pct_Non-traditional":"0.8%","median_rate_pct_Traditional":"2.1%"},
-                {"year_num":2022,"level":"Elementary","n_schools_Non-traditional":2,"n_schools_Traditional":1722,"overall_rate_pct_Non-traditional":"1.4%","overall_rate_pct_Traditional":"1.6%","mean_rate_pct_Non-traditional":"1.2%","mean_rate_pct_Traditional":"1.6%","median_rate_pct_Non-traditional":"1.2%","median_rate_pct_Traditional":"0.5%"},
-                {"year_num":2022,"level":"High","n_schools_Non-traditional":139,"n_schools_Traditional":1021,"overall_rate_pct_Non-traditional":"10.8%","overall_rate_pct_Traditional":"5.0%","mean_rate_pct_Non-traditional":"16.3%","mean_rate_pct_Traditional":"5.3%","median_rate_pct_Non-traditional":"2.5%","median_rate_pct_Traditional":"3.2%"},
-                {"year_num":2022,"level":"Middle","n_schools_Non-traditional":120,"n_schools_Traditional":2420,"overall_rate_pct_Non-traditional":"3.3%","overall_rate_pct_Traditional":"5.2%","mean_rate_pct_Non-traditional":"5.0%","mean_rate_pct_Traditional":"5.0%","median_rate_pct_Non-traditional":"1.0%","median_rate_pct_Traditional":"2.5%"},
-                {"year_num":2023,"level":"Elementary","n_schools_Non-traditional":2,"n_schools_Traditional":1724,"overall_rate_pct_Non-traditional":"1.1%","overall_rate_pct_Traditional":"1.5%","mean_rate_pct_Non-traditional":"0.9%","mean_rate_pct_Traditional":"1.5%","median_rate_pct_Non-traditional":"0.9%","median_rate_pct_Traditional":"0.5%"},
-                {"year_num":2023,"level":"High","n_schools_Non-traditional":140,"n_schools_Traditional":1018,"overall_rate_pct_Non-traditional":"9.8%","overall_rate_pct_Traditional":"4.6%","mean_rate_pct_Non-traditional":"14.6%","mean_rate_pct_Traditional":"4.9%","median_rate_pct_Non-traditional":"2.2%","median_rate_pct_Traditional":"2.9%"},
-                {"year_num":2023,"level":"Middle","n_schools_Non-traditional":120,"n_schools_Traditional":2398,"overall_rate_pct_Non-traditional":"3.0%","overall_rate_pct_Traditional":"4.7%","mean_rate_pct_Non-traditional":"4.5%","mean_rate_pct_Traditional":"4.5%","median_rate_pct_Non-traditional":"0.9%","median_rate_pct_Traditional":"2.3%"}
-            ],
-            pareto: [
-                {"year_num":2017,"top_label":"Top 5%","share_pct":"35.3%","top_schools":497,"total_schools":9947,"measure_type":"total_susp"},
-                {"year_num":2017,"top_label":"Top 10%","share_pct":"53.1%","top_schools":994,"total_schools":9947,"measure_type":"total_susp"},
-                {"year_num":2017,"top_label":"Top 20%","share_pct":"73.9%","top_schools":1989,"total_schools":9947,"measure_type":"total_susp"},
-                {"year_num":2018,"top_label":"Top 5%","share_pct":"35.5%","top_schools":498,"total_schools":9961,"measure_type":"total_susp"},
-                {"year_num":2018,"top_label":"Top 10%","share_pct":"54.3%","top_schools":996,"total_schools":9961,"measure_type":"total_susp"},
-                {"year_num":2018,"top_label":"Top 20%","share_pct":"74.9%","top_schools":1992,"total_schools":9961,"measure_type":"total_susp"},
-                {"year_num":2019,"top_label":"Top 5%","share_pct":"36.5%","top_schools":503,"total_schools":10064,"measure_type":"total_susp"},
-                {"year_num":2019,"top_label":"Top 10%","share_pct":"55.8%","top_schools":1006,"total_schools":10064,"measure_type":"total_susp"},
-                {"year_num":2019,"top_label":"Top 20%","share_pct":"76.4%","top_schools":2013,"total_schools":10064,"measure_type":"total_susp"},
-                {"year_num":2021,"top_label":"Top 5%","share_pct":"36.1%","top_schools":501,"total_schools":10013,"measure_type":"total_susp"},
-                {"year_num":2021,"top_label":"Top 10%","share_pct":"55.0%","top_schools":1001,"total_schools":10013,"measure_type":"total_susp"},
-                {"year_num":2021,"top_label":"Top 20%","share_pct":"75.7%","top_schools":2003,"total_schools":10013,"measure_type":"total_susp"},
-                {"year_num":2022,"top_label":"Top 5%","share_pct":"35.7%","top_schools":501,"total_schools":10024,"measure_type":"total_susp"},
-                {"year_num":2022,"top_label":"Top 10%","share_pct":"54.6%","top_schools":1002,"total_schools":10024,"measure_type":"total_susp"},
-                {"year_num":2022,"top_label":"Top 20%","share_pct":"75.3%","top_schools":2005,"total_schools":10024,"measure_type":"total_susp"},
-                {"year_num":2023,"top_label":"Top 5%","share_pct":"36.2%","top_schools":500,"total_schools":10002,"measure_type":"total_susp"},
-                {"year_num":2023,"top_label":"Top 10%","share_pct":"55.4%","top_schools":1000,"total_schools":10002,"measure_type":"total_susp"},
-                {"year_num":2023,"top_label":"Top 20%","share_pct":"76.1%","top_schools":2000,"total_schools":10002,"measure_type":"total_susp"}
-            ]
+        const DATA_URL = `dashboard/data/suspension_dashboard.json?v=${Date.now()}`;
+        const DATA_BUNDLE_SRC = 'dashboard/data/suspension_dashboard.js';
+
+        let EMBEDDED_DATA = {
+            summary: [],
+            gradeSetting: [],
+            comparison: [],
+            pareto: []
         };
+
+        function getPreloadedData() {
+            if (typeof window === 'undefined') return null;
+            const payload = window.SUSPENSION_DASHBOARD_DATA;
+            if (payload && Array.isArray(payload.summary)) {
+                return payload;
+            }
+            return null;
+        }
+
+        function normalisePayload(payload = {}) {
+            return {
+                summary: Array.isArray(payload.summary) ? payload.summary : [],
+                gradeSetting: Array.isArray(payload.gradeSetting) ? payload.gradeSetting : [],
+                comparison: Array.isArray(payload.comparison) ? payload.comparison : [],
+                pareto: Array.isArray(payload.pareto) ? payload.pareto : []
+            };
+        }
+
+        function ensureDataBundleLoaded() {
+            if (typeof window === 'undefined') {
+                return Promise.reject(new Error('No browser environment available.'));
+            }
+            const existing = getPreloadedData();
+            if (existing) {
+                return Promise.resolve(existing);
+            }
+            return new Promise((resolve, reject) => {
+                const selector = 'script[data-suspension-bundle]';
+                let script = document.querySelector(selector);
+
+                const resolveWithPayload = () => {
+                    const payload = getPreloadedData();
+                    if (payload) {
+                        resolve(payload);
+                    } else {
+                        if (script && script.dataset) {
+                            script.dataset.suspensionBundleState = 'error';
+                        }
+                        reject(new Error('Bundle loaded but data missing'));
+                    }
+                };
+
+                const handleLoad = () => {
+                    if (script && script.dataset) {
+                        script.dataset.suspensionBundleState = 'loaded';
+                    }
+                    resolveWithPayload();
+                };
+
+                const handleError = () => {
+                    if (script && script.dataset) {
+                        script.dataset.suspensionBundleState = 'error';
+                    }
+                    reject(new Error('Failed to load precomputed data bundle'));
+                };
+
+                const monitorExistingScript = () => {
+                    if (!script) {
+                        return false;
+                    }
+                    const state = script.dataset ? script.dataset.suspensionBundleState : undefined;
+                    if (state === 'loaded') {
+                        resolveWithPayload();
+                        return true;
+                    }
+                    if (state === 'error') {
+                        reject(new Error('Failed to load precomputed data bundle'));
+                        return true;
+                    }
+                    const readyState = script.readyState;
+                    if (readyState === 'complete' || readyState === 'loaded') {
+                        if (script.dataset) {
+                            script.dataset.suspensionBundleState = 'loaded';
+                        }
+                        resolveWithPayload();
+                        return true;
+                    }
+                    if (readyState === 'error') {
+                        if (script.dataset) {
+                            script.dataset.suspensionBundleState = 'error';
+                        }
+                        reject(new Error('Failed to load precomputed data bundle'));
+                        return true;
+                    }
+                    return false;
+                };
+
+                if (script) {
+                    if (monitorExistingScript()) {
+                        return;
+                    }
+                    script.addEventListener('load', handleLoad, { once: true });
+                    script.addEventListener('error', handleError, { once: true });
+                    return;
+                }
+
+                script = document.createElement('script');
+                script.src = DATA_BUNDLE_SRC;
+                script.dataset.suspensionBundle = 'true';
+                if (script.dataset) {
+                    script.dataset.suspensionBundleState = 'pending';
+                }
+                script.addEventListener('load', handleLoad, { once: true });
+                script.addEventListener('error', handleError, { once: true });
+                document.head.appendChild(script);
+            });
+        }
+
+        async function fetchDashboardData() {
+            try {
+                const response = await fetch(DATA_URL, { cache: 'no-store' });
+                if (!response.ok) throw new Error('Unable to load dataset');
+                const payload = await response.json();
+                if (payload && (Array.isArray(payload.summary) || Array.isArray(payload.gradeSetting))) {
+                    return payload;
+                }
+                throw new Error('Dataset missing expected arrays');
+            } catch (error) {
+                console.warn('Direct JSON request for prepared data failed:', error);
+                return ensureDataBundleLoaded();
+            }
+        }
+
+        function showLoadError(message) {
+            const main = document.querySelector('main');
+            if (main) {
+                main.innerHTML = `<div class="panel"><p>${message}</p></div>`;
+            }
+        }
+
+
+            gradeSetting: [],
+            comparison: [],
+            pareto: []
+        };
+
 
         // Global chart storage
         let allCharts = {};
@@ -436,9 +493,24 @@
 
         // Initialize the dashboard
         function initDashboard() {
+            if (!Array.isArray(EMBEDDED_DATA.summary) || EMBEDDED_DATA.summary.length === 0) {
+                showLoadError('No suspension overview data available.');
+                return;
+            }
             createStatCards();
             createCharts();
             setupEventListeners();
+        }
+
+        async function bootstrapDashboard() {
+            try {
+                const payload = await fetchDashboardData();
+                EMBEDDED_DATA = normalisePayload(payload);
+                initDashboard();
+            } catch (error) {
+                console.error('Failed to load suspension dashboard data', error);
+                showLoadError('Unable to load suspension overview data. Please refresh to try again.');
+            }
         }
 
         // Create statistical overview cards
@@ -1294,7 +1366,7 @@
         }
 
         // Initialize dashboard when page loads
-        document.addEventListener('DOMContentLoaded', initDashboard);
+        document.addEventListener('DOMContentLoaded', bootstrapDashboard);
     </script>
 </body>
 </html>
