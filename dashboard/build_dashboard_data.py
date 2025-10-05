@@ -48,8 +48,14 @@ prevent front-end errors.
 
 from __future__ import annotations
 
+import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Iterable, Sequence
+
+import numpy as np
+import pandas as pd
 
 # -------- Robust project root resolution --------------------------------------
 def resolve_project_root() -> Path:
@@ -93,6 +99,8 @@ DIMENSION_COLUMNS: list[str] = [
 SCHOOL_IDENTIFIER = "school_code"
 REASON_COLUMN = "reason_lab"
 
+SPECIAL_SCHOOL_CODES = {"0000000", "0000001"}
+
 # Numeric columns aggregated in the dashboard.
 NUMERIC_COLUMNS: list[str] = [
     "total_suspensions",
@@ -118,6 +126,30 @@ class AggregatedData:
 # Data preparation helpers
 # ---------------------------------------------------------------------------
 
+
+def standardize_quartile_label(series: pd.Series, group: str) -> pd.Series:
+    """Return quartile labels that match the statewide trends script."""
+
+    working = pd.Series(series, copy=False).astype("string")
+    stripped = working.str.strip()
+    result = stripped.copy()
+    result[stripped.isna() | (stripped == "")] = pd.NA
+    lowered = stripped.str.lower()
+    mask = lowered.isin({"unknown", "na"})
+    result[mask] = pd.NA
+
+    mask = lowered.str.startswith("q1") | (lowered == "1")
+    result[mask] = f"Q1 (Lowest % {group})"
+    mask = lowered.str.startswith("q2") | (lowered == "2")
+    result[mask] = "Q2"
+    mask = lowered.str.startswith("q3") | (lowered == "3")
+    result[mask] = "Q3"
+    mask = lowered.str.startswith("q4") | (lowered == "4")
+    result[mask] = f"Q4 (Highest % {group})"
+
+    return result.astype("string")
+
+
 def read_source(long_path: Path, features_path: Path, columns: Sequence[str]) -> pd.DataFrame:
     """Load the long-form parquet file and join features for locale and quartiles.
 
@@ -132,6 +164,16 @@ def read_source(long_path: Path, features_path: Path, columns: Sequence[str]) ->
     # Load the long-form suspension data
     long_df = pd.read_parquet(long_path, columns=list(columns))
 
+    if "academic_year" in long_df.columns:
+        long_df["academic_year"] = long_df["academic_year"].astype("string")
+    if SCHOOL_IDENTIFIER in long_df.columns:
+        long_df[SCHOOL_IDENTIFIER] = (
+            long_df[SCHOOL_IDENTIFIER]
+            .astype("string")
+            .str.strip()
+            .str.zfill(7)
+        )
+
     # Attempt to join locale information
     if features_path.exists():
         try:
@@ -140,7 +182,12 @@ def read_source(long_path: Path, features_path: Path, columns: Sequence[str]) ->
                 columns=[SCHOOL_IDENTIFIER, "academic_year", "locale_simple"],
             )
             feats["academic_year"] = feats["academic_year"].astype("string")
-            feats[SCHOOL_IDENTIFIER] = feats[SCHOOL_IDENTIFIER].astype("string")
+            feats[SCHOOL_IDENTIFIER] = (
+                feats[SCHOOL_IDENTIFIER]
+                .astype("string")
+                .str.strip()
+                .str.zfill(7)
+            )
             long_df = long_df.merge(
                 feats, on=[SCHOOL_IDENTIFIER, "academic_year"], how="left"
             )
@@ -149,6 +196,19 @@ def read_source(long_path: Path, features_path: Path, columns: Sequence[str]) ->
             long_df["locale_simple"] = np.nan
     else:
         long_df["locale_simple"] = np.nan
+
+    if SCHOOL_IDENTIFIER in long_df.columns:
+        long_df = long_df[~long_df[SCHOOL_IDENTIFIER].isin(SPECIAL_SCHOOL_CODES)]
+
+    quartile_columns = {
+        "black_prop_q_label": "Black",
+        "white_prop_q_label": "White",
+        "hispanic_prop_q_label": "Hispanic/Latino",
+    }
+    for column, group in quartile_columns.items():
+        if column in long_df.columns:
+            long_df[column] = standardize_quartile_label(long_df[column], group)
+
     return long_df
 
 
