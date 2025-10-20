@@ -25,6 +25,7 @@ try(here::i_am("graph_scripts/09_nonrace_demographic_trends.R"), silent = TRUE)
 # -----------------------------------------------------------------------------
 
 source(here("R", "utils_keys_filters.R"))
+source(here("graph_scripts", "graph_utils.R"))
 
 DATA_STAGE <- here("data-stage")
 OTH_LONG <- file.path(DATA_STAGE, "oth_long.parquet")
