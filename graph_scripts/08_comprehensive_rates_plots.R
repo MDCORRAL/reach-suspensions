@@ -21,6 +21,7 @@ try(here::i_am("graph_scripts/08_comprehensive_rates_plots.R"), silent = TRUE)
 # Configuration ----------------------------------------------------------------
 # -----------------------------------------------------------------------------
 source(here("R", "utils_keys_filters.R"))
+source(here::here("graph_scripts", "graph_utils.R"))
 
 DATA_STAGE <- here("data-stage")
 V6_LONG <- file.path(DATA_STAGE, "susp_v6_long.parquet")
