@@ -103,27 +103,26 @@ def canon_race_label(series: pd.Series) -> pd.Series:
     return mapped
 
 
-def norm_quartile(series: pd.Series) -> pd.Series:
+def norm_quartile(series: pd.Series, group: str) -> pd.Series:
+    """Normalise quartile labels while retaining descriptive text."""
+
     mapping = {
-        "Q1": "Q1",
-        "1": "Q1",
+        "Q1": f"Q1 (Lowest % {group})",
+        "1": f"Q1 (Lowest % {group})",
         "Q2": "Q2",
         "2": "Q2",
         "Q3": "Q3",
         "3": "Q3",
-        "Q4": "Q4",
-        "4": "Q4",
-        "Q1 (Lowest % Black)": "Q1",
-        "Q1 (Lowest % White)": "Q1",
-        "Q1 (Lowest % Hispanic/Latino)": "Q1",
-        "Q4 (Highest % Black)": "Q4",
-        "Q4 (Highest % White)": "Q4",
-        "Q4 (Highest % Hispanic/Latino)": "Q4",
+        "Q4": f"Q4 (Highest % {group})",
+        "4": f"Q4 (Highest % {group})",
+        f"Q1 (Lowest % {group})": f"Q1 (Lowest % {group})",
+        f"Q4 (Highest % {group})": f"Q4 (Highest % {group})",
     }
-    values = series.astype("string")
+    values = series.astype("string").str.strip()
     # Preserve missing values instead of converting to the string "<NA>"
     values = values.where(~values.isna(), other=np.nan)
-    return values.map(mapping)
+    mapped = values.map(mapping)
+    return mapped.astype("string")
 
 
 def safe_div(numer: pd.Series, denom: pd.Series) -> pd.Series:
@@ -149,14 +148,19 @@ def load_long_form() -> pd.DataFrame:
     ]
     df = pd.read_parquet(LONG_PATH, columns=cols)
     for code_col, width in ("county_code", 2), ("district_code", 5), ("school_code", 7):
-        df[code_col] = df[code_col].astype("string").str.zfill(width)
+        df[code_col] = (
+            df[code_col]
+            .astype("string")
+            .str.strip()
+            .str.zfill(width)
+        )
     df["aggregate_level"] = df["aggregate_level"].astype("string")
     df = df[df["aggregate_level"].str.lower().isin({"s", "school"})]
     df = df[~df["school_code"].isin(SPECIAL_SCHOOL_CODES)]
     df["race_ethnicity"] = canon_race_label(df["subgroup"])
-    df["white_q"] = norm_quartile(df["white_prop_q_label"])
-    df["black_q"] = norm_quartile(df["black_prop_q_label"])
-    df["hispanic_q"] = norm_quartile(df["hispanic_prop_q_label"])
+    df["white_q"] = norm_quartile(df["white_prop_q_label"], "White")
+    df["black_q"] = norm_quartile(df["black_prop_q_label"], "Black")
+    df["hispanic_q"] = norm_quartile(df["hispanic_prop_q_label"], "Hispanic/Latino")
     df["enrollment"] = pd.to_numeric(df["cumulative_enrollment"], errors="coerce")
     df["total_suspensions"] = pd.to_numeric(df["total_suspensions"], errors="coerce")
     df["undup_suspensions"] = pd.to_numeric(
@@ -185,7 +189,12 @@ def load_traditional_flags() -> pd.DataFrame:
     feats = pd.read_parquet(
         FEATURES_PATH, columns=["school_code", "academic_year", "is_traditional"]
     )
-    feats["school_code"] = feats["school_code"].astype("string").str.zfill(7)
+    feats["school_code"] = (
+        feats["school_code"]
+        .astype("string")
+        .str.strip()
+        .str.zfill(7)
+    )
     feats["year"] = feats["academic_year"].astype("string")
     feats["is_traditional"] = feats["is_traditional"].fillna(False)
     feats = feats.drop(columns=["academic_year"])
