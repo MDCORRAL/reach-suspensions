@@ -68,16 +68,7 @@ linewidth_palette[["All Students"]] <- 1.4
 
 safe_div <- function(num, den) ifelse(is.na(den) | den == 0, NA_real_, num / den)
 
-caption_text <- stringr::str_wrap(
-  paste(
-    "Source: California Department of Education CALPADS suspension data",
-    "processed through the REACH staging pipeline (susp_v6_long.parquet",
-    "and susp_v6_features.parquet). Rates reflect total suspensions divided",
-    "by cumulative enrollment for traditional public schools (campus-level",
-    "totals aggregated statewide)."
-  ),
-  width = 120
-)
+caption_text <- standard_citation(wrap_width = 120)
 
 ucla_theme <- function(base_size = 12, base_family = NULL) {
   ggplot2::theme_minimal(base_size = base_size, base_family = base_family) +

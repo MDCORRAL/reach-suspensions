@@ -271,7 +271,7 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       subtitle = "Traditional schools only; lines show suspension rates by enrollment quartile",
       x = "Academic year",
       y = "Suspension rate",
-      caption = "Source: California statewide suspension data (susp_v6_long + v6 features)"
+      caption = standard_citation()
     ) +
     theme_reach() +
     theme(legend.position = "bottom")

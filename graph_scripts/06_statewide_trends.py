@@ -102,7 +102,7 @@ for candidate in (GRAPH_SCRIPTS_DIR, SCRIPT_DIR):
         sys.path.insert(0, candidate_str)
 
 try:
-    from palette_utils import DISCIPLINE_BASE_PALETTE
+    from palette_utils import DISCIPLINE_BASE_PALETTE, STANDARD_CITATION
 except ImportError as exc:  # pragma: no cover - guard for missing palette module
     raise SystemExit(
         "Unable to import palette_utils. Ensure graph_scripts/palette_utils.py is available."
@@ -620,10 +620,7 @@ def build_level_figure(
     saved_paths: List[Path] = []
 
     if render:
-        caption = (
-            "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
-            "Traditional schools only; rates aggregate total suspensions ÷ cumulative enrollment."
-        )
+        caption = STANDARD_CITATION
         subtitle = (
             "By grade span, 2017-18 through 2023-24 (no statewide reporting in 2020-21)."
         )
@@ -709,10 +706,7 @@ def build_locale_figure(
     saved_paths: List[Path] = []
 
     if render:
-        caption = (
-            "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
-            "Traditional schools only; locale grouping uses locale_simple categories."
-        )
+        caption = STANDARD_CITATION
         subtitle = "By locale, 2017-18 through 2023-24 (no statewide reporting in 2020-21)."
 
         for locale in LOCALE_ORDER:
@@ -953,10 +947,7 @@ def build_locale_snapshot_figure(
 
         title = "Suspension Rates by Race Across School Locales"
         subtitle = f"Traditional schools, {latest_year}"
-        caption = (
-            "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
-            "Traditional schools only; rates represent total suspensions ÷ cumulative enrollment."
-        )
+        caption = STANDARD_CITATION
 
         fig.text(0.07, 0.95, title, fontsize=20, fontweight="bold", ha="left", color=TEXT_COLOR)
         fig.text(0.07, 0.92, subtitle, fontsize=13, ha="left", color=TEXT_COLOR)
@@ -1076,10 +1067,7 @@ def build_level_snapshot_figure(
 
         title = "Suspension Rates by Race Across Grade Levels"
         subtitle = f"Traditional schools, {latest_year}"
-        caption = (
-            "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
-            "Traditional schools only; rates represent total suspensions ÷ cumulative enrollment."
-        )
+        caption = STANDARD_CITATION
 
         fig.text(0.07, 0.95, title, fontsize=20, fontweight="bold", ha="left", color=TEXT_COLOR)
         fig.text(0.07, 0.92, subtitle, fontsize=13, ha="left", color=TEXT_COLOR)
@@ -1101,10 +1089,7 @@ def build_quartile_figure(
     base_subset: pd.DataFrame | None = None,
     title: str = "Suspension Rates in Highest-Black vs. Highest-White Enrollment Schools",
     subtitle: str = "Traditional schools in top quartile for Black vs. White enrollment, 2017-18 through 2023-24.",
-    caption: str = (
-        "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
-        "Traditional schools only; quartiles reference highest shares of Black or White enrollment."
-    ),
+    caption: str = STANDARD_CITATION,
     output_filename: str = "statewide_race_trends_quartile_comparison.png",
     render: bool = True,
 ) -> Tuple[pd.DataFrame, List[str]]:
@@ -1338,10 +1323,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         base_subset=elementary_base,
         title="Elementary Suspension Rates in Highest-Black vs. Highest-White Enrollment Schools",
         subtitle="Traditional elementary schools in top quartile for Black vs. White enrollment, 2017-18 through 2023-24.",
-        caption=(
-            "Source: California statewide suspension data (susp_v6_long.parquet + susp_v6_features.parquet). "
-            "Traditional elementary schools only; quartiles reference highest shares of Black or White enrollment."
-        ),
+        caption=STANDARD_CITATION,
         output_filename="statewide_race_trends_quartile_elementary.png",
         render=True,
     )

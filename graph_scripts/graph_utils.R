@@ -190,3 +190,21 @@ write_description <- function(text, filename) {
   writeLines(text, full_path, useBytes = TRUE)
   invisible(full_path)
 }
+
+# Standardized citation text for all outputs
+# Returns a human-readable citation that clearly describes the data source and analysis
+standard_citation <- function(wrap_width = NULL) {
+  citation_text <- paste(
+    "Source: REACH analysis of 2017-18 through 2023-24 suspension data",
+    "from the California Department of Education's California Longitudinal Pupil",
+    "Achievement Data System (CALPADS). Analysis includes traditional public schools",
+    "aggregated at the school level, with suspension rates calculated as total",
+    "suspensions divided by cumulative enrollment."
+  )
+
+  if (!is.null(wrap_width)) {
+    citation_text <- stringr::str_wrap(citation_text, width = wrap_width)
+  }
+
+  citation_text
+}
