@@ -164,7 +164,7 @@ build_quartile_plot <- function(data, panel_label = NULL) {
       subtitle = plot_subtitle,
       x = "Academic year",
       y = "Suspension rate",
-      caption = "Source: California statewide suspension data (susp_v6_long + v6 features)"
+      caption = standard_citation()
     ) +
     theme_reach() +
     theme(

@@ -1,5 +1,15 @@
 """Shared UCLA-aligned color palettes for discipline graphics."""
 
+# Standardized citation text for all outputs
+# Use this consistent citation across all graphs and reports
+STANDARD_CITATION = (
+    "Source: REACH analysis of 2017-18 through 2023-24 suspension data "
+    "from the California Department of Education's California Longitudinal Pupil "
+    "Achievement Data System (CALPADS). Analysis includes traditional public schools "
+    "aggregated at the school level, with suspension rates calculated as total "
+    "suspensions divided by cumulative enrollment."
+)
+
 DISCIPLINE_BASE_PALETTE = {
     "Darkest Blue": "#003B5C",
     "Darker Blue": "#005587",
