@@ -36,6 +36,17 @@ at the school level, with suspension rates calculated as total suspensions
 divided by cumulative enrollment.
 ```
 
+## Quartile-Specific Citation
+
+For analyses that use **quartile-based groupings** (e.g., schools divided by percentage of Black enrollment), use the enhanced **quartile citation** that includes an explanation of how quartiles were calculated:
+
+> **Source:** REACH analysis of 2017-18 through 2023-24 suspension data from the California Department of Education's California Longitudinal Pupil Achievement Data System (CALPADS). Analysis includes traditional public schools aggregated at the school level, with suspension rates calculated as total suspensions divided by cumulative enrollment. Schools are divided into quartiles based on the percentage of Black student enrollment (calculated separately for each academic year). Q1 represents schools with the lowest percentage, Q4 represents schools with the highest percentage.
+
+This provides readers with essential context about:
+- **What quartiles represent**: Schools grouped by racial enrollment composition
+- **How they were calculated**: Percentage of specific demographic group, calculated yearly
+- **What Q1 vs Q4 means**: Lowest vs highest percentage
+
 ## How to Use the Standard Citation
 
 ### In R Scripts
@@ -58,6 +69,16 @@ ggplot(data, aes(x, y)) +
 labs(
   caption = standard_citation(wrap_width = 120)
 )
+
+# For quartile-based analyses
+labs(
+  caption = quartile_citation("Black")  # Explains Black enrollment quartiles
+)
+
+# For analyses using multiple quartile types
+labs(
+  caption = quartile_citation("Black and White")
+)
 ```
 
 ### In Python Scripts
@@ -65,10 +86,18 @@ labs(
 Import the `STANDARD_CITATION` constant from `graph_scripts/palette_utils.py`:
 
 ```python
-from palette_utils import STANDARD_CITATION
+from palette_utils import STANDARD_CITATION, quartile_citation
 
-# Use in matplotlib captions
+# Use in matplotlib captions (standard)
 fig.text(0.07, 0.05, STANDARD_CITATION, fontsize=10, ha="left")
+
+# For quartile-based analyses
+caption = quartile_citation("Black")
+fig.text(0.07, 0.05, caption, fontsize=10, ha="left")
+
+# For analyses using multiple quartile types
+caption = quartile_citation("Black and White")
+fig.text(0.07, 0.05, caption, fontsize=10, ha="left")
 ```
 
 ### In HTML/Dashboards
@@ -92,26 +121,28 @@ Use the full citation text in data source sections:
 
 The following files have been updated to use the standardized citation:
 
-### R Graph Scripts
-- `graph_scripts/01_statewide_disparities.R`
-- `graph_scripts/02_statewide_quartiles.R`
-- `graph_scripts/03_elementary_disparities.R`
-- `graph_scripts/04_elementary_quartiles.R`
-- `graph_scripts/05_unequal_burden.R`
-- `graph_scripts/07_quartile_enrollment_comparison.R`
-- `graph_scripts/08_comprehensive_rates_plots.R`
-- `graph_scripts/09_nonrace_demographic_trends.R`
-- `graph_scripts/21_black_quartile_suspension_trends.R`
+### R Graph Scripts (Standard Citation)
+- `graph_scripts/01_statewide_disparities.R` - Uses `standard_citation()`
+- `graph_scripts/03_elementary_disparities.R` - Uses `standard_citation()`
+- `graph_scripts/05_unequal_burden.R` - Uses `standard_citation()`
+- `graph_scripts/08_comprehensive_rates_plots.R` - Uses `standard_citation()`
+- `graph_scripts/09_nonrace_demographic_trends.R` - Uses `standard_citation()`
+
+### R Graph Scripts (Quartile Citation)
+- `graph_scripts/02_statewide_quartiles.R` - Uses `quartile_citation("Black")`
+- `graph_scripts/04_elementary_quartiles.R` - Uses `quartile_citation("Black")`
+- `graph_scripts/07_quartile_enrollment_comparison.R` - Uses `quartile_citation("Black and White")`
+- `graph_scripts/21_black_quartile_suspension_trends.R` - Uses `quartile_citation("Black and White")`
 
 ### Python Graph Scripts
-- `graph_scripts/06_statewide_trends.py`
+- `graph_scripts/06_statewide_trends.py` - Uses `STANDARD_CITATION` and `quartile_citation()` for quartile figures
 
 ### Utility Files
-- `graph_scripts/graph_utils.R` - Added `standard_citation()` function
-- `graph_scripts/palette_utils.py` - Added `STANDARD_CITATION` constant
+- `graph_scripts/graph_utils.R` - Added `standard_citation()` and `quartile_citation()` functions
+- `graph_scripts/palette_utils.py` - Added `STANDARD_CITATION` constant and `quartile_citation()` function
 
 ### HTML Dashboards
-- `tail_concentration_dashboard.html`
+- `tail_concentration_dashboard.html` - Uses standard citation text
 
 ## Data Details
 
@@ -134,6 +165,13 @@ The data covers the following academic years:
 - **Geographic Scope**: California statewide
 - **Aggregation Level**: School (campus) level
 - **Rate Calculation**: Total suspensions ÷ cumulative enrollment
+
+### Quartile Methodology
+For analyses using quartile groupings:
+- **Calculation**: Schools are divided into quartiles (Q1-Q4) based on the percentage of a specific demographic group's enrollment
+- **Frequency**: Quartiles are calculated separately for each academic year
+- **Interpretation**: Q1 = lowest percentage, Q4 = highest percentage
+- **Common Uses**: Black enrollment quartiles, White enrollment quartiles, or combined analyses
 
 ## Questions or Updates
 

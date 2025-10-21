@@ -208,3 +208,29 @@ standard_citation <- function(wrap_width = NULL) {
 
   citation_text
 }
+
+# Enhanced citation for quartile-based analyses
+# Includes explanation of how quartiles were formulated
+quartile_citation <- function(quartile_type = "Black", wrap_width = NULL) {
+  base_text <- paste(
+    "Source: REACH analysis of 2017-18 through 2023-24 suspension data",
+    "from the California Department of Education's California Longitudinal Pupil",
+    "Achievement Data System (CALPADS). Analysis includes traditional public schools",
+    "aggregated at the school level, with suspension rates calculated as total",
+    "suspensions divided by cumulative enrollment."
+  )
+
+  quartile_text <- paste(
+    "Schools are divided into quartiles based on the percentage of",
+    quartile_type, "student enrollment (calculated separately for each academic year).",
+    "Q1 represents schools with the lowest percentage, Q4 represents schools with the highest percentage."
+  )
+
+  citation_text <- paste(base_text, quartile_text)
+
+  if (!is.null(wrap_width)) {
+    citation_text <- stringr::str_wrap(citation_text, width = wrap_width)
+  }
+
+  citation_text
+}

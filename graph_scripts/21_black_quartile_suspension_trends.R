@@ -271,7 +271,7 @@ build_quartile_plot <- function(quartile_data, cohort_label) {
       subtitle = "Traditional schools only; lines show suspension rates by enrollment quartile",
       x = "Academic year",
       y = "Suspension rate",
-      caption = standard_citation()
+      caption = quartile_citation("Black and White")
     ) +
     theme_reach() +
     theme(legend.position = "bottom")

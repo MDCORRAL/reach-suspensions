@@ -102,7 +102,7 @@ for candidate in (GRAPH_SCRIPTS_DIR, SCRIPT_DIR):
         sys.path.insert(0, candidate_str)
 
 try:
-    from palette_utils import DISCIPLINE_BASE_PALETTE, STANDARD_CITATION
+    from palette_utils import DISCIPLINE_BASE_PALETTE, STANDARD_CITATION, quartile_citation
 except ImportError as exc:  # pragma: no cover - guard for missing palette module
     raise SystemExit(
         "Unable to import palette_utils. Ensure graph_scripts/palette_utils.py is available."
@@ -1089,7 +1089,7 @@ def build_quartile_figure(
     base_subset: pd.DataFrame | None = None,
     title: str = "Suspension Rates in Highest-Black vs. Highest-White Enrollment Schools",
     subtitle: str = "Traditional schools in top quartile for Black vs. White enrollment, 2017-18 through 2023-24.",
-    caption: str = STANDARD_CITATION,
+    caption: str | None = None,
     output_filename: str = "statewide_race_trends_quartile_comparison.png",
     render: bool = True,
 ) -> Tuple[pd.DataFrame, List[str]]:
@@ -1118,6 +1118,9 @@ def build_quartile_figure(
     offset = max(0.0015, y_limit * 0.015)
 
     if render:
+        # Use quartile-specific citation if none provided
+        if caption is None:
+            caption = quartile_citation("Black and White")
         fig, axes = plt.subplots(1, len(quartile_order), figsize=(22, 9), sharey=True)
         legend_handles: Dict[str, plt.Line2D] = {}
 
@@ -1323,7 +1326,6 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         base_subset=elementary_base,
         title="Elementary Suspension Rates in Highest-Black vs. Highest-White Enrollment Schools",
         subtitle="Traditional elementary schools in top quartile for Black vs. White enrollment, 2017-18 through 2023-24.",
-        caption=STANDARD_CITATION,
         output_filename="statewide_race_trends_quartile_elementary.png",
         render=True,
     )

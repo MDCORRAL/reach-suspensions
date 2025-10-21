@@ -164,7 +164,7 @@ build_quartile_plot <- function(data, panel_label = NULL) {
       subtitle = plot_subtitle,
       x = "Academic year",
       y = "Suspension rate",
-      caption = standard_citation()
+      caption = quartile_citation("Black and White")
     ) +
     theme_reach() +
     theme(
