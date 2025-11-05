@@ -302,6 +302,31 @@ if (!length(race_cols)) {
     filter(!is.na(staff_count) & staff_count > 0)
 }
 
+# ---- Backfill totals for ALL gender rows from race components ------------------
+
+# If some years/schools don't provide total_staff_count for ALL,
+# compute it from the component race columns.
+if (length(race_cols) && "total_staff_count" %in% names(teacher_all)) {
+  teacher_all <- teacher_all |>
+    mutate(
+      calc_total_from_race = rowSums(across(all_of(race_cols)), na.rm = TRUE),
+      total_staff_count = ifelse(
+        staff_gender_code == "ALL" & (is.na(total_staff_count) | total_staff_count == 0),
+        calc_total_from_race,
+        total_staff_count
+      )
+    ) |>
+    select(-calc_total_from_race)
+}
+
+# Optional: sanity check gender codes
+valid_gender <- c("ALL", "GF", "GM", "GX", "GZ")
+gn_extra <- setdiff(unique(teacher_all$staff_gender_code), valid_gender)
+if (length(gn_extra)) {
+  warning("[01c] Unexpected staff_gender_code values: ", paste(gn_extra, collapse = ", "))
+}
+# ---- Write staged Parquet -----------------------------------------------------
+
 dir.create(dirname(OUT_PARQUET), recursive = TRUE, showWarnings = FALSE)
 write_parquet(teacher_long, OUT_PARQUET)
 
@@ -380,3 +405,55 @@ teacher_long %>%
 teacher_long %>%
   count(source_file) %>%
   print(n = 10)
+# ---- Investigate total_staff_count discrepancies ------------------------------
+# 1. Check if problem exists in other years
+teacher_long %>%
+  filter(staff_gender_code == "ALL") %>%
+  group_by(academic_year, cds_school) %>%
+  summarise(
+    calc_total = sum(staff_count, na.rm = TRUE),
+    file_total = first(total_staff_count),
+    diff = abs(calc_total - file_total),
+    .groups = "drop"
+  ) %>%
+  group_by(academic_year) %>%
+  summarise(
+    n_schools = n(),
+    n_mismatch = sum(diff > 1),
+    pct_mismatch = 100 * n_mismatch / n_schools
+  )
+
+# 2. Examine raw 2024-25 data
+teacher_list[[6]] %>%
+  select(academic_year, staff_gender_code, total_staff_count, 
+         any_of(c("total_staff", "african_american", "asian", "hispanic_or_latino"))) %>%
+  filter(staff_gender_code == "ALL") %>%
+  head(20)
+
+# 3. Check column names in stre2425.txt
+names(teacher_list[[6]])
+
+# ---- Fix total_staff_count where zero
+# 1. Determine scope of total_staff_count problem
+teacher_all %>%
+  group_by(academic_year) %>%
+  summarise(
+    n_rows = n(),
+    n_zero = sum(total_staff_count == 0, na.rm = TRUE),
+    n_na = sum(is.na(total_staff_count)),
+    pct_zero = 100 * n_zero / n_rows
+  )
+
+# 2. If total_staff_count unreliable, calculate from race sums
+teacher_long <- teacher_long %>%
+  group_by(academic_year, cds_school, staff_gender_code) %>%
+  mutate(
+    calculated_total = sum(staff_count, na.rm = TRUE),
+    # Use file total if present, otherwise use calculated
+    total_staff_count = if_else(
+      total_staff_count == 0 & calculated_total > 0,
+      calculated_total,
+      total_staff_count
+    )
+  ) %>%
+  ungroup()
