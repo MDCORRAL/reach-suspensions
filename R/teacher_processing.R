@@ -123,7 +123,7 @@ teacher_longify_wide_counts <- function(df) {
   id_cols <- unique(c(if (existing_race) base_cols[base_cols != "race_ethnicity"] else base_cols,
                       "race_ethnicity"))
 
-  df %>%
+  long_df <- df %>%
     tidyr::pivot_longer(
       cols = dplyr::all_of(race_cols),
       names_to = c("metric", "race_suffix"),
@@ -134,7 +134,14 @@ teacher_longify_wide_counts <- function(df) {
     dplyr::mutate(
       metric = dplyr::if_else(metric == "" | metric == "_", "staff_count", stringr::str_remove(metric, "^_"))
     ) %>%
-    dplyr::left_join(lookup, by = "race_suffix") %>%
+    dplyr::left_join(lookup, by = "race_suffix")
+
+  missing_cols <- setdiff(c("reporting_category", "reporting_category_description", "race_ethnicity"), names(long_df))
+  for (col in missing_cols) {
+    long_df[[col]] <- rep(NA_character_, nrow(long_df))
+  }
+
+  long_df %>%
     dplyr::mutate(
       reporting_category = dplyr::coalesce(reporting_category, reporting_category_code),
       reporting_category_description = dplyr::coalesce(
