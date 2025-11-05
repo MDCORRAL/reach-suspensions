@@ -4,6 +4,9 @@ message("=== REACH: full pipeline start @ ", format(Sys.time(), usetz = TRUE), "
 
 source("R/run_helper.R")
 
+# 0) Ingest teacher demographics (txt -> parquet)
+run("R/01c_ingest_teacher_demographics.R")
+
 # 1) Core build (00–06, with USE_TA toggle inside run_pipeline.R)
 run("run_pipeline.R")
 
@@ -20,5 +23,8 @@ run("Analysis/15a_emit_nonintersectional_exports.R")   # new companion script we
 run("Analysis/16_tail_concentration_analysis.R")
 run("Analysis/17_tail_concentration_by_level.R")
 
+# 5) Merge teacher summaries with student features
+run("Analysis/18_merge_teacher_student.R")
+
 message("\n=== All done @ ", format(Sys.time(), usetz = TRUE), " ===")
-# End of file ----------------------------------------------------------------- 
+# End of file -----------------------------------------------------------------
