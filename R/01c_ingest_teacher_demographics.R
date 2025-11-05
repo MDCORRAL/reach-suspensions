@@ -9,6 +9,7 @@ suppressPackageStartupMessages({
   library(purrr)
   library(arrow)
   library(here)
+  library(tibble)
 })
 
 source("R/ingest_helpers.R")
@@ -56,12 +57,27 @@ derive_year_from_file <- function(path) {
 
 read_teacher_txt <- function(path) {
   message("  - reading ", basename(path))
-  raw <- readr::read_delim(
-    file = path,
-    delim = "\t",
-    col_types = readr::cols(.default = readr::col_character()),
-    na = c("", "NA", "N/A", "NULL", "*"),
-    progress = FALSE
+  raw <- tryCatch(
+    readr::read_delim(
+      file = path,
+      delim = "\t",
+      col_types = readr::cols(.default = readr::col_character()),
+      na = c("", "NA", "N/A", "NULL", "*"),
+      progress = FALSE
+    ),
+    error = function(e) {
+      message("    readr::read_delim failed (", conditionMessage(e), ")")
+      message("    falling back to utils::read.delim")
+      utils::read.delim(
+        file = path,
+        sep = "\t",
+        header = TRUE,
+        stringsAsFactors = FALSE,
+        na.strings = c("", "NA", "N/A", "NULL", "*"),
+        check.names = FALSE,
+        quote = ""
+      ) |> tibble::as_tibble()
+    }
   ) |> janitor::clean_names()
 
   raw <- raw |> mutate(source_file = basename(path))
