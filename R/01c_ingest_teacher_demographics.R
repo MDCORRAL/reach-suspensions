@@ -63,7 +63,12 @@ read_teacher_txt <- function(path) {
       delim = "\t",
       col_types = readr::cols(.default = readr::col_character()),
       na = c("", "NA", "N/A", "NULL", "*"),
-      progress = FALSE
+      progress = FALSE,
+      quote = "",
+      escape_double = FALSE,
+      escape_backslash = FALSE,
+      trim_ws = TRUE,
+      show_col_types = FALSE
     ),
     error = function(e) {
       message("    readr::read_delim failed (", conditionMessage(e), ")")
