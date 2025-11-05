@@ -102,10 +102,10 @@ read_teacher_txt <- function(path) {
   # Keep provenance
   raw <- raw |> mutate(source_file = basename(path))
   
-  # Drop any leftover header lines that leaked into the data
-  # e.g., staff_gender_code == "ACADEMIC YEAR" / "DISTRICT CODE" / "COUNTY CODE" / "SCHOOL CODE"
+  # Normalize then drop any leftover header lines that leaked into the data
   if ("staff_gender_code" %in% names(raw)) {
     raw <- raw %>%
+      mutate(staff_gender_code = stringr::str_to_upper(stringr::str_squish(staff_gender_code))) %>%
       filter(!staff_gender_code %in% c("ACADEMIC YEAR","DISTRICT CODE","COUNTY CODE","SCHOOL CODE"))
   }
   
@@ -263,6 +263,31 @@ teacher_all <- teacher_all |> mutate(
   staff_gender = teacher_gender_label(staff_gender_code, fallback = staff_gender)
 )
 
+# ---- Backfill totals for ALL gender rows from race components ------------------
+
+# If some years/schools don't provide total_staff_count for ALL,
+# compute it from the component race columns.
+if (length(race_cols) && "total_staff_count" %in% names(teacher_all)) {
+  teacher_all <- teacher_all |>
+    mutate(
+      calc_total_from_race = rowSums(across(all_of(race_cols)), na.rm = TRUE),
+      total_staff_count = ifelse(
+        staff_gender_code == "ALL" & (is.na(total_staff_count) | total_staff_count == 0),
+        calc_total_from_race,
+        total_staff_count
+      )
+    ) |>
+    select(-calc_total_from_race)
+}
+
+# Optional: sanity check gender codes
+valid_gender <- c("ALL", "GF", "GM", "GX", "GZ")
+gn_extra <- setdiff(unique(teacher_all$staff_gender_code), valid_gender)
+if (length(gn_extra)) {
+  warning("[01c] Unexpected staff_gender_code values: ", paste(gn_extra, collapse = ", "))
+}
+
+
 # If total_staff duplicates total_staff_count, drop it
 if (all(c("total_staff","total_staff_count") %in% names(teacher_all))) {
   same <- teacher_all %>%
@@ -302,29 +327,6 @@ if (!length(race_cols)) {
     filter(!is.na(staff_count) & staff_count > 0)
 }
 
-# ---- Backfill totals for ALL gender rows from race components ------------------
-
-# If some years/schools don't provide total_staff_count for ALL,
-# compute it from the component race columns.
-if (length(race_cols) && "total_staff_count" %in% names(teacher_all)) {
-  teacher_all <- teacher_all |>
-    mutate(
-      calc_total_from_race = rowSums(across(all_of(race_cols)), na.rm = TRUE),
-      total_staff_count = ifelse(
-        staff_gender_code == "ALL" & (is.na(total_staff_count) | total_staff_count == 0),
-        calc_total_from_race,
-        total_staff_count
-      )
-    ) |>
-    select(-calc_total_from_race)
-}
-
-# Optional: sanity check gender codes
-valid_gender <- c("ALL", "GF", "GM", "GX", "GZ")
-gn_extra <- setdiff(unique(teacher_all$staff_gender_code), valid_gender)
-if (length(gn_extra)) {
-  warning("[01c] Unexpected staff_gender_code values: ", paste(gn_extra, collapse = ", "))
-}
 # ---- Write staged Parquet -----------------------------------------------------
 
 dir.create(dirname(OUT_PARQUET), recursive = TRUE, showWarnings = FALSE)
