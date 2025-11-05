@@ -212,3 +212,54 @@ summary_counts <- teacher_all |>
 print(summary_counts)
 
 invisible(TRUE)
+
+###############
+# Examine parsing issues for each file
+problems(teacher_list[[1]]) %>% print(n = 20)
+problems(teacher_list[[2]]) %>% print(n = 20)
+# Continue for all 6...
+
+# Or batch check
+map(teacher_list, problems) %>% 
+  map_int(nrow)  # Count problems per file
+
+############
+# Compare gender code distribution across years
+teacher_all %>%
+  count(academic_year, staff_gender_code) %>%
+  pivot_wider(names_from = academic_year, values_from = n, values_fill = 0)
+
+# Check if 2022 has more schools or different structure
+teacher_all %>%
+  group_by(academic_year) %>%
+  summarise(
+    n_schools = n_distinct(cds_school),
+    n_gender_codes = n_distinct(staff_gender_code),
+    avg_rows_per_school = n() / n_distinct(cds_school)
+  )
+####################
+# Check source_file corruption
+teacher_all %>% 
+  count(source_file) %>% 
+  arrange(source_file)
+
+# Verify total_staff redundancy
+teacher_all %>%
+  summarise(
+    nonzero = sum(total_staff != 0, na.rm = TRUE),
+    total_rows = n()
+  )
+################
+# In the summarise step, add:
+teacher_all <- teacher_all |>
+  group_by(across(all_of(key_cols))) |>
+  summarise(
+    across(all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
+    source_file = paste(unique(source_file), collapse = ";"),  # Preserve
+    .groups = "drop"
+  )
+    ################
+# What values exist?
+teacher_all %>% 
+  count(school_grade_span, sort = TRUE) %>%
+  print(n = 20)
