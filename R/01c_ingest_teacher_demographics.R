@@ -150,7 +150,12 @@ read_teacher_txt <- function(path) {
                                      "charter_yn", "reporting_category", "staff_gender_code"))
   numeric_cols <- setdiff(numeric_candidates, id_cols)
   if (length(numeric_cols)) {
-    raw <- raw |> mutate(across(all_of(numeric_cols), ~ suppressWarnings(readr::parse_number(.x))))
+    raw <- raw |> mutate(
+      across(
+        all_of(numeric_cols),
+        ~ suppressWarnings(readr::parse_number(as.character(.x)))
+      )
+    )
   }
 
   raw <- raw |> mutate(year = suppressWarnings(as.integer(year)))

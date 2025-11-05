@@ -65,9 +65,14 @@ teacher_slugify <- function(x) {
 
 #' Identify numeric-like columns in a character data frame.
 teacher_numeric_like <- function(x) {
-  vals <- x[!is.na(x) & nzchar(x)]
+  if (is.list(x)) return(FALSE)
+  if (is.numeric(x)) return(TRUE)
+  vals <- x[!is.na(x)]
   if (!length(vals)) return(TRUE)
-  parsed <- suppressWarnings(readr::parse_number(vals))
+  vals_chr <- as.character(vals)
+  vals_chr <- vals_chr[nzchar(vals_chr)]
+  if (!length(vals_chr)) return(TRUE)
+  parsed <- suppressWarnings(readr::parse_number(vals_chr))
   mean(is.na(parsed)) < 0.2
 }
 
