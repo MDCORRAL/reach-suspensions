@@ -7,6 +7,41 @@ test_that("teacher_slugify handles blanks", {
   expect_equal(teacher_slugify(NA_character_), "unknown")
 })
 
+test_that("teacher_longify_wide_counts pivots plain race columns", {
+  df <- tibble::tibble(
+    academic_year = "2023-24",
+    cds_school = "01000010100001",
+    total_staff_count = 15,
+    african_american = 5,
+    white = 10
+  )
+
+  res <- teacher_longify_wide_counts(df)
+
+  expect_true(all(c("race_ethnicity", "staff_count") %in% names(res)))
+  expect_equal(sort(unique(res$race_ethnicity)), sort(c("Black/African American", "White")))
+  expect_equal(res$staff_count[res$race_ethnicity == "Black/African American"], 5)
+  expect_equal(res$staff_count[res$race_ethnicity == "White"], 10)
+  expect_true(all(res$total_staff_count == 15))
+})
+
+test_that("teacher_longify_wide_counts handles suffixed metrics", {
+  df <- tibble::tibble(
+    academic_year = "2023-24",
+    cds_school = "01000010100001",
+    fte_african_american = 4,
+    fte_white = 6,
+    headcount_african_american = 5,
+    headcount_white = 7
+  )
+
+  res <- teacher_longify_wide_counts(df)
+
+  expect_true(all(c("fte", "headcount") %in% names(res)))
+  expect_equal(res$fte[res$race_ethnicity == "Black/African American"], 4)
+  expect_equal(res$headcount[res$race_ethnicity == "White"], 7)
+})
+
 test_that("teacher_summarise_long aggregates race and gender totals", {
   df <- tibble::tibble(
     academic_year = rep("2023-24", 5),

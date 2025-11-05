@@ -5,6 +5,7 @@ suppressPackageStartupMessages({
   library(readr)
   library(stringr)
   library(tidyr)
+  library(tibble)
 })
 
 #' Internal: lowercase helper that returns empty strings when column is missing.
@@ -74,6 +75,79 @@ teacher_numeric_like <- function(x) {
   if (!length(vals_chr)) return(TRUE)
   parsed <- suppressWarnings(readr::parse_number(vals_chr))
   mean(is.na(parsed)) < 0.2
+}
+
+#' Lookup table mapping known race suffixes to reporting metadata.
+teacher_race_suffix_lookup <- function() {
+  tibble::tibble(
+    race_suffix = c(
+      "african_american",
+      "american_indian_or_alaska_native",
+      "asian",
+      "filipino",
+      "hispanic_or_latino",
+      "pacific_islander",
+      "white",
+      "two_or_more_races",
+      "not_reported"
+    ),
+    reporting_category_code = c("RB", "RI", "RA", "RF", "RH", "RP", "RW", "RT", "RD"),
+    race_ethnicity_label = c(
+      "Black/African American",
+      "American Indian/Alaska Native",
+      "Asian",
+      "Filipino",
+      "Hispanic/Latino",
+      "Native Hawaiian/Pacific Islander",
+      "White",
+      "Two or More Races",
+      "Not Reported"
+    )
+  )
+}
+
+#' Convert wide race-suffixed columns into long form.
+#'
+#' @param df Data frame containing numeric columns encoded as
+#'   `<metric>_<race_suffix>` (or just `<race_suffix>`).
+#' @return Data frame with one row per race suffix and metric columns widened.
+teacher_longify_wide_counts <- function(df) {
+  lookup <- teacher_race_suffix_lookup()
+  suffixes <- lookup$race_suffix
+  pattern <- paste0("^(.*?)(?:_)?(", paste(suffixes, collapse = "|"), ")$")
+  race_cols <- grep(pattern, names(df), value = TRUE)
+  if (!length(race_cols)) return(df)
+
+  base_cols <- setdiff(names(df), race_cols)
+  existing_race <- "race_ethnicity" %in% base_cols
+  id_cols <- unique(c(if (existing_race) base_cols[base_cols != "race_ethnicity"] else base_cols,
+                      "race_ethnicity"))
+
+  df %>%
+    tidyr::pivot_longer(
+      cols = dplyr::all_of(race_cols),
+      names_to = c("metric", "race_suffix"),
+      names_pattern = pattern,
+      values_to = "value",
+      values_drop_na = FALSE
+    ) %>%
+    dplyr::mutate(
+      metric = dplyr::if_else(metric == "" | metric == "_", "staff_count", stringr::str_remove(metric, "^_"))
+    ) %>%
+    dplyr::left_join(lookup, by = "race_suffix") %>%
+    dplyr::mutate(
+      reporting_category = dplyr::coalesce(reporting_category, reporting_category_code),
+      reporting_category_description = dplyr::coalesce(
+        reporting_category_description, race_ethnicity_label
+      ),
+      race_ethnicity = dplyr::coalesce(race_ethnicity, race_ethnicity_label)
+    ) %>%
+    dplyr::select(-race_suffix, -reporting_category_code, -race_ethnicity_label) %>%
+    tidyr::pivot_wider(
+      id_cols = dplyr::all_of(id_cols),
+      names_from = metric,
+      values_from = value
+    )
 }
 
 #' Determine which value columns should be aggregated.

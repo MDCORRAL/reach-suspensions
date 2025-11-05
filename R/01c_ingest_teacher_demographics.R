@@ -10,6 +10,7 @@ suppressPackageStartupMessages({
   library(arrow)
   library(here)
   library(tibble)
+  library(tidyr)
 })
 
 source("R/ingest_helpers.R")
@@ -85,7 +86,18 @@ read_teacher_txt <- function(path) {
     }
   ) |> janitor::clean_names()
 
+  header_tokens <- c("academic year", "district code", "county code", "school code")
+  sg_col <- pick_col(raw, c("staff_gender_code", "staff_gender", "gender_code"), required = FALSE)
+  if (!is.na(sg_col)) {
+    sg_vals <- stringr::str_to_lower(dplyr::coalesce(raw[[sg_col]], ""))
+    raw <- raw[!sg_vals %in% header_tokens, , drop = FALSE]
+  }
+
   raw <- raw |> mutate(source_file = basename(path))
+
+  if ("school_grade_span" %in% names(raw)) {
+    raw <- raw |> mutate(school_grade_span = stringr::str_squish(as.character(school_grade_span)))
+  }
 
   year_info <- derive_year(raw)
   file_info <- derive_year_from_file(path)
@@ -152,7 +164,8 @@ read_teacher_txt <- function(path) {
   numeric_candidates <- names(raw)[vapply(raw, teacher_numeric_like, logical(1))]
   id_cols <- intersect(names(raw), c("county_code", "district_code", "school_code",
                                      "cds_district", "cds_school", "aggregate_level",
-                                     "charter_yn", "reporting_category", "staff_gender_code"))
+                                     "charter_yn", "reporting_category", "staff_gender_code",
+                                     "source_file", "school_grade_span"))
   numeric_cols <- setdiff(numeric_candidates, id_cols)
   if (length(numeric_cols)) {
     raw <- raw |> mutate(
@@ -201,6 +214,18 @@ teacher_all <- teacher_all |>
 teacher_all <- teacher_all |> mutate(
   staff_gender = teacher_gender_label(staff_gender_code, fallback = staff_gender)
 )
+
+teacher_all <- teacher_longify_wide_counts(teacher_all)
+
+if (all(c("total_staff", "total_staff_count") %in% names(teacher_all))) {
+  same_vals <- !is.na(teacher_all$total_staff) &
+    !is.na(teacher_all$total_staff_count) &
+    teacher_all$total_staff == teacher_all$total_staff_count
+  same_na <- is.na(teacher_all$total_staff) & is.na(teacher_all$total_staff_count)
+  if (all(same_vals | same_na)) {
+    teacher_all <- teacher_all |> select(-total_staff)
+  }
+}
 
 dir.create(dirname(OUT_PARQUET), recursive = TRUE, showWarnings = FALSE)
 write_parquet(teacher_all, OUT_PARQUET)
