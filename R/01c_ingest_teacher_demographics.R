@@ -91,18 +91,19 @@ read_teacher_txt <- function(path) {
         quote = ""
       ) |> tibble::as_tibble()
     }
-  ) |> janitor::clean_names()
+  )
 
-  # Log parsing issues fully
+  # *** Check problems IMMEDIATELY after reading, before transformations ***
   if (inherits(raw, "spec_tbl_df")) {
     pb <- tryCatch(problems(raw), error = function(e) NULL)
     if (!is.null(pb) && nrow(pb) > 0) {
-      warning(
-        "Parsing issues in ", basename(path), ":\n",
-        paste(capture.output(print(pb)), collapse = "\n")
-      )
+      message("    Parsing issues: ", nrow(pb), " problems detected")
+      message(paste(capture.output(print(pb, n = 10)), collapse = "\n"))
     }
   }
+
+  # Now apply transformations
+  raw <- raw |> janitor::clean_names()
 
   # Keep provenance
   raw <- raw |> mutate(source_file = basename(path))
@@ -154,7 +155,7 @@ read_teacher_txt <- function(path) {
     )), ~ stringr::str_squish(as.character(.x)))
   )
 
-  # Normalize charter; log dropped rows
+  # Normalize charter; log dropped rows with diagnostic detail
   if (!"charter_yn" %in% names(raw)) raw$charter_yn <- NA_character_
   n_before <- nrow(raw)
   raw <- raw |> mutate(
@@ -167,6 +168,17 @@ read_teacher_txt <- function(path) {
     )
   )
   if (!all(is.na(raw$charter_yn))) {
+    # Diagnose what we're dropping BEFORE filtering
+    missing_charter <- raw |> filter(is.na(charter_yn) | !charter_yn %in% c("Yes","No"))
+    if (nrow(missing_charter) > 0) {
+      message("    ", nrow(missing_charter), " rows have missing/invalid charter_yn")
+      if ("aggregate_level" %in% names(missing_charter)) {
+        agg_summary <- table(missing_charter$aggregate_level, useNA = "ifany")
+        message("      Aggregate levels: ", paste(names(agg_summary), "=", agg_summary, collapse = ", "))
+      }
+    }
+
+    # Now filter
     raw <- raw |> filter(charter_yn %in% c("Yes","No"))
     n_dropped <- n_before - nrow(raw)
     if (n_dropped > 0) {
@@ -193,9 +205,24 @@ read_teacher_txt <- function(path) {
 
   # Validate school grade span
   if (!"school_grade_span" %in% names(raw)) raw$school_grade_span <- NA_character_
+
+  # Log invalid grade spans BEFORE cleaning
   raw <- raw |> mutate(
     school_grade_span = stringr::str_to_upper(stringr::str_squish(school_grade_span)),
-    school_grade_span = ifelse(nzchar(school_grade_span), school_grade_span, NA_character_),
+    school_grade_span = ifelse(nzchar(school_grade_span), school_grade_span, NA_character_)
+  )
+  invalid_spans <- raw |>
+    filter(!is.na(school_grade_span) &
+           !(school_grade_span %in% ALLOWED_GRADE_SPANS)) |>
+    count(school_grade_span, name = "n_invalid")
+
+  if (nrow(invalid_spans) > 0) {
+    message("    Invalid school_grade_span values found in ", basename(path), ":")
+    message("      ", paste(paste0(invalid_spans$school_grade_span, " (", invalid_spans$n_invalid, ")"), collapse = ", "))
+  }
+
+  # Now clean invalid values
+  raw <- raw |> mutate(
     school_grade_span = ifelse(!(school_grade_span %in% ALLOWED_GRADE_SPANS), NA_character_, school_grade_span),
     school_grade_span = ifelse(aggregate_level == "S" & school_grade_span == "ALL", NA_character_, school_grade_span)
   )
@@ -223,19 +250,8 @@ read_teacher_txt <- function(path) {
   raw
 }
 
-# Read all files with detailed problem logging
-teacher_list <- purrr::map(files, function(path) {
-  df <- read_teacher_txt(path)
-  # problems() returns issues when using vroom
-  pb <- tryCatch(problems(df), error = function(e) NULL)
-  if (!is.null(pb) && nrow(pb) > 0) {
-    warning(
-      "Parsing issues in ", basename(path), ":\n",
-      paste(capture.output(print(pb)), collapse = "\n")
-    )
-  }
-  df
-})
+# Read all files (problems already logged in read_teacher_txt)
+teacher_list <- purrr::map(files, read_teacher_txt)
 teacher_all <- purrr::list_rbind(teacher_list)
 if (!nrow(teacher_all)) stop("Teacher TXT files yielded no rows.")
 
@@ -289,8 +305,30 @@ if (length(race_cols) && "total_staff_count" %in% names(teacher_all)) {
     total_staff_count = ifelse(backfilled, calc_total_from_race, total_staff_count)
   )
   backfilled_n <- sum(teacher_all$backfilled, na.rm = TRUE)
-  teacher_all <- teacher_all |> select(-calc_total_from_race, -backfilled)
   message("[01c] Backfilled total_staff_count for ", backfilled_n, " ALL gender rows")
+
+  # Verify backfill correctness: check if race columns sum to total_staff_count
+  validation_check <- teacher_all |>
+    filter(staff_gender_code == "ALL") |>
+    mutate(
+      sum_check = rowSums(across(all_of(race_cols)), na.rm = TRUE),
+      diff = abs(total_staff_count - sum_check)
+    ) |>
+    filter(diff > 1)  # Allow 1 unit difference for rounding
+
+  if (nrow(validation_check) > 0) {
+    message("[01c] WARNING: ", nrow(validation_check),
+            " ALL gender rows have race sum != total_staff_count (diff > 1)")
+    message("    Sample mismatches:")
+    validation_check |>
+      select(cds_school, academic_year, total_staff_count, sum_check, diff) |>
+      head(5) |>
+      print()
+  } else {
+    message("[01c] Backfill validation passed: race columns sum correctly")
+  }
+
+  teacher_all <- teacher_all |> select(-calc_total_from_race, -backfilled)
 }
 
 # Check for duplicates after aggregation
@@ -318,14 +356,27 @@ if (!length(race_cols)) {
   warning("[01c] No race columns found to pivot. Writing the summarised wide table as-is.")
   teacher_long <- teacher_all
 } else {
+  n_before_pivot <- nrow(teacher_all)
   teacher_long <- teacher_all |>
     select(-any_of("total_staff")) |>
     pivot_longer(
       cols = all_of(race_cols),
       names_to = "race_ethnicity",
       values_to = "staff_count"
-    ) |>
+    )
+
+  # Document zero/NA filtering impact
+  n_before_filter <- nrow(teacher_long)
+  teacher_long <- teacher_long |>
     filter(!is.na(staff_count) & staff_count > 0)
+  n_after_filter <- nrow(teacher_long)
+
+  n_dropped <- n_before_filter - n_after_filter
+  pct_dropped <- round(100 * n_dropped / n_before_filter, 1)
+  message("[01c] Pivoted ", n_before_pivot, " rows to ", n_before_filter, " long rows")
+  message("[01c] Filtered out ", comma(n_dropped),
+          " zero/NA staff_count rows (", pct_dropped, "% of pivoted data)")
+  message("[01c] Keeping ", comma(n_after_filter), " rows with staff_count > 0")
 }
 
 # Map race slugs to readable labels
@@ -353,6 +404,27 @@ teacher_long <- teacher_long |>
     )
   )
 
+# ---- Distribution and outlier checks ----
+message("[01c] Staff count distribution:")
+staff_summary <- summary(teacher_long$staff_count)
+print(staff_summary)
+
+# Check for extreme outliers (beyond 99th percentile)
+q99 <- quantile(teacher_long$staff_count, 0.99, na.rm = TRUE)
+outliers <- teacher_long |>
+  filter(staff_count > q99)
+
+if (nrow(outliers) > 0) {
+  message("[01c] ", nrow(outliers), " rows (", round(100 * nrow(outliers) / nrow(teacher_long), 2),
+          "%) have staff_count > 99th percentile (", round(q99, 1), ")")
+  message("    Top 5 largest staff counts:")
+  teacher_long |>
+    arrange(desc(staff_count)) |>
+    select(cds_school, academic_year, staff_gender_code, race_ethnicity, staff_count) |>
+    head(5) |>
+    print()
+}
+
 # ---- Summary diagnostics ----
 message("[01c] Final dataset summary:")
 message("  - Years: ", paste(sort(unique(teacher_long$academic_year)), collapse = ", "))
@@ -367,12 +439,6 @@ teacher_long |>
     pct_missing_gender = mean(is.na(staff_gender_code)) * 100
   ) |>
   print()
-
-# Count invalid grade spans (should be zero after cleaning)
-n_invalid <- sum(!(teacher_all$school_grade_span %in% ALLOWED_GRADE_SPANS), na.rm = TRUE)
-if (n_invalid > 0) {
-  message("[01c] Set ", n_invalid, " invalid school_grade_span values to NA")
-}
 
 # Final asserts
 stopifnot(
