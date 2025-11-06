@@ -94,13 +94,21 @@ read_teacher_txt <- function(path) {
   )
 
   # *** Check problems IMMEDIATELY after reading, before transformations ***
+  parsing_problems <- NULL
   if (inherits(raw, "spec_tbl_df")) {
     pb <- tryCatch(problems(raw), error = function(e) NULL)
     if (!is.null(pb) && nrow(pb) > 0) {
       message("    Parsing issues: ", nrow(pb), " problems detected")
       message(paste(capture.output(print(pb, n = 10)), collapse = "\n"))
+      # Store problems for later logging
+      parsing_problems <- pb |>
+        mutate(source_file = basename(path)) |>
+        select(source_file, everything())
     }
   }
+
+  # Store parsing problems as attribute
+  attr(raw, "parsing_problems") <- parsing_problems
 
   # Now apply transformations
   raw <- raw |> janitor::clean_names()
@@ -252,6 +260,30 @@ read_teacher_txt <- function(path) {
 
 # Read all files (problems already logged in read_teacher_txt)
 teacher_list <- purrr::map(files, read_teacher_txt)
+
+# === AUDIT TRAIL 1: Collect parsing issues log ===
+parsing_log <- purrr::map_df(teacher_list, function(df) {
+  pb <- attr(df, "parsing_problems")
+  if (!is.null(pb) && nrow(pb) > 0) {
+    pb |>
+      group_by(source_file) |>
+      summarise(
+        n_problems = n(),
+        problem_rows = paste(head(row, 5), collapse = ", "),
+        .groups = "drop"
+      )
+  } else {
+    tibble(
+      source_file = unique(df$source_file)[1],
+      n_problems = 0L,
+      problem_rows = ""
+    )
+  }
+})
+
+# Track initial row counts for lineage
+n_raw_total <- sum(purrr::map_int(teacher_list, nrow))
+
 teacher_all <- purrr::list_rbind(teacher_list)
 if (!nrow(teacher_all)) stop("Teacher TXT files yielded no rows.")
 
@@ -260,8 +292,12 @@ teacher_all <- teacher_all |> mutate(
   aggregate_level = coalesce(aggregate_level, "S")
 ) |> build_keys()
 
+# === LINEAGE TRACKING ===
+n_after_bind <- nrow(teacher_all)
+
 # Keep only campus-level rows
 teacher_all <- teacher_all |> filter_campus_only()
+n_after_campus_filter <- nrow(teacher_all)
 
 # Determine value columns for aggregation
 value_cols <- teacher_value_columns(teacher_all)
@@ -285,6 +321,8 @@ teacher_all <- teacher_all |>
     "academic_year","cds_school","reporting_category",
     "staff_gender_code","race_ethnicity"
   ))))
+
+n_after_aggregation <- nrow(teacher_all)
 
 # Fill gender labels
 teacher_all <- teacher_all |> mutate(
@@ -447,6 +485,59 @@ stopifnot(
   "Missing cds_school values" = !any(is.na(teacher_long$cds_school)),
   "staff_count should be positive" = all(teacher_long$staff_count > 0)
 )
+
+# === AUDIT TRAIL 2: Create data lineage summary ===
+data_lineage <- tibble(
+  step = c(
+    "1. Raw files loaded",
+    "2. After list_rbind",
+    "3. After campus filtering",
+    "4. After aggregation",
+    "5. After pivot to long",
+    "6. Final (zeros removed)"
+  ),
+  n_rows = c(
+    n_raw_total,
+    n_after_bind,
+    n_after_campus_filter,
+    n_after_aggregation,
+    n_before_filter,
+    n_after_filter
+  ),
+  pct_retained = c(
+    100,
+    round(100 * n_after_bind / n_raw_total, 1),
+    round(100 * n_after_campus_filter / n_raw_total, 1),
+    round(100 * n_after_aggregation / n_raw_total, 1),
+    round(100 * n_before_filter / n_raw_total, 1),
+    round(100 * n_after_filter / n_raw_total, 1)
+  )
+)
+
+lineage_path <- here("data-stage", "teacher_data_lineage.csv")
+write_csv(data_lineage, lineage_path)
+message("[01c] Wrote data lineage summary to ", lineage_path)
+
+# === AUDIT TRAIL 3: Flag large schools for verification ===
+verification_needed <- teacher_long |>
+  filter(staff_count > 1000) |>
+  select(cds_school, academic_year, staff_gender_code, race_ethnicity, staff_count) |>
+  arrange(desc(staff_count))
+
+if (nrow(verification_needed) > 0) {
+  verification_path <- here("data-stage", "teacher_large_schools_to_verify.csv")
+  write_csv(verification_needed, verification_path)
+  message("[01c] Flagged ", nrow(verification_needed),
+          " school-year-category combinations with staff_count > 1000 for verification")
+  message("[01c] Wrote verification list to ", verification_path)
+} else {
+  message("[01c] No schools with staff_count > 1000 found")
+}
+
+# === AUDIT TRAIL 4: Write parsing issues log ===
+parsing_log_path <- here("data-stage", "teacher_parsing_log.csv")
+write_csv(parsing_log, parsing_log_path)
+message("[01c] Wrote parsing issues log to ", parsing_log_path)
 
 # Write Parquet
 dir.create(dirname(OUT_PARQUET), recursive = TRUE, showWarnings = FALSE)
