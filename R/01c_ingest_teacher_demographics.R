@@ -177,7 +177,7 @@ read_teacher_txt <- function(path) {
   # Keep provenance
   raw <- raw |> mutate(source_file = basename(path))
 
-  # Normalize and drop leaked header rows
+  # Normalize and drop leaked header rows from staff_gender_code
   if ("staff_gender_code" %in% names(raw)) {
     raw <- raw |>
       mutate(
@@ -186,6 +186,41 @@ read_teacher_txt <- function(path) {
       filter(!staff_gender_code %in% c(
         "ACADEMIC YEAR","DISTRICT CODE","COUNTY CODE","SCHOOL CODE","STAFF_GENDER_CODE"
       ))
+  }
+
+  # Normalize and filter invalid values in reporting_category (Staff Type)
+  # NOTE: Raw data contains header leaks (e.g., "Aggregate Level") and
+  #       data entry errors (e.g., numeric codes like "122", "284")
+  if ("reporting_category" %in% names(raw)) {
+    n_before_staff_filter <- nrow(raw)
+
+    # Normalize to upper case
+    raw <- raw |>
+      mutate(
+        reporting_category = stringr::str_to_upper(stringr::str_squish(reporting_category))
+      )
+
+    # Identify invalid values BEFORE filtering (for diagnostic logging)
+    invalid_staff_types <- raw |>
+      filter(!is.na(reporting_category)) |>
+      filter(!reporting_category %in% c("ALL", "ADM", "PSV", "TCH", "OTH")) |>
+      count(reporting_category, name = "n_invalid")
+
+    if (nrow(invalid_staff_types) > 0) {
+      message("    Invalid reporting_category values found in ", basename(path), ":")
+      message("      ", paste(paste0(invalid_staff_types$reporting_category,
+                                     " (", invalid_staff_types$n_invalid, ")"),
+                             collapse = ", "))
+    }
+
+    # Filter to keep only valid CDE staff type codes
+    raw <- raw |>
+      filter(is.na(reporting_category) | reporting_category %in% c("ALL", "ADM", "PSV", "TCH", "OTH"))
+
+    n_dropped_staff <- n_before_staff_filter - nrow(raw)
+    if (n_dropped_staff > 0) {
+      message("    Dropped ", n_dropped_staff, " rows with invalid reporting_category")
+    }
   }
 
   # Derive year fields
