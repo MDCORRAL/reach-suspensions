@@ -188,41 +188,6 @@ read_teacher_txt <- function(path) {
       ))
   }
 
-  # Normalize and filter invalid values in reporting_category (Staff Type)
-  # NOTE: Raw data contains header leaks (e.g., "Aggregate Level") and
-  #       data entry errors (e.g., numeric codes like "122", "284")
-  if ("reporting_category" %in% names(raw)) {
-    n_before_staff_filter <- nrow(raw)
-
-    # Normalize to upper case
-    raw <- raw |>
-      mutate(
-        reporting_category = stringr::str_to_upper(stringr::str_squish(reporting_category))
-      )
-
-    # Identify invalid values BEFORE filtering (for diagnostic logging)
-    invalid_staff_types <- raw |>
-      filter(!is.na(reporting_category)) |>
-      filter(!reporting_category %in% c("ALL", "ADM", "PSV", "TCH", "OTH")) |>
-      count(reporting_category, name = "n_invalid")
-
-    if (nrow(invalid_staff_types) > 0) {
-      message("    Invalid reporting_category values found in ", basename(path), ":")
-      message("      ", paste(paste0(invalid_staff_types$reporting_category,
-                                     " (", invalid_staff_types$n_invalid, ")"),
-                             collapse = ", "))
-    }
-
-    # Filter to keep only valid CDE staff type codes
-    raw <- raw |>
-      filter(is.na(reporting_category) | reporting_category %in% c("ALL", "ADM", "PSV", "TCH", "OTH"))
-
-    n_dropped_staff <- n_before_staff_filter - nrow(raw)
-    if (n_dropped_staff > 0) {
-      message("    Dropped ", n_dropped_staff, " rows with invalid reporting_category")
-    }
-  }
-
   # Derive year fields
   year_info <- derive_year(raw)
   file_info <- derive_year_from_file(path)
@@ -269,6 +234,41 @@ read_teacher_txt <- function(path) {
       "school_name","county_name","academic_year","school_grade_span"
     )), ~ stringr::str_squish(as.character(.x)))
   )
+
+  # Normalize and filter invalid values in reporting_category (Staff Type)
+  # NOTE: Raw data contains header leaks (e.g., "Aggregate Level") and
+  #       data entry errors (e.g., numeric codes like "122", "284")
+  if ("reporting_category" %in% names(raw)) {
+    n_before_staff_filter <- nrow(raw)
+
+    # Normalize to upper case
+    raw <- raw |>
+      mutate(
+        reporting_category = stringr::str_to_upper(stringr::str_squish(reporting_category))
+      )
+
+    # Identify invalid values BEFORE filtering (for diagnostic logging)
+    invalid_staff_types <- raw |>
+      filter(!is.na(reporting_category)) |>
+      filter(!reporting_category %in% c("ALL", "ADM", "PSV", "TCH", "OTH")) |>
+      count(reporting_category, name = "n_invalid")
+
+    if (nrow(invalid_staff_types) > 0) {
+      message("    Invalid reporting_category values found in ", basename(path), ":")
+      message("      ", paste(paste0(invalid_staff_types$reporting_category,
+                                     " (", invalid_staff_types$n_invalid, ")"),
+                             collapse = ", "))
+    }
+
+    # Filter to keep only valid CDE staff type codes
+    raw <- raw |>
+      filter(is.na(reporting_category) | reporting_category %in% c("ALL", "ADM", "PSV", "TCH", "OTH"))
+
+    n_dropped_staff <- n_before_staff_filter - nrow(raw)
+    if (n_dropped_staff > 0) {
+      message("    Dropped ", n_dropped_staff, " rows with invalid reporting_category")
+    }
+  }
 
   # Normalize charter; log dropped rows with diagnostic detail
   if (!"charter_yn" %in% names(raw)) raw$charter_yn <- NA_character_
@@ -511,8 +511,19 @@ if (length(race_cols) && "total_staff_count" %in% names(teacher_all)) {
   teacher_all <- teacher_all |> select(-calc_total_from_race, -backfilled)
 }
 
-# === Validate Staff Type dimension ===
+# === Validate and clean Staff Type dimension ===
 message("[01c] Validating Staff Type (reporting_category) values:")
+
+# Safety filter: Remove any invalid staff type codes that slipped through
+valid_staff_types <- c("ALL", "ADM", "PSV", "TCH", "OTH")
+n_before_final_filter <- nrow(teacher_all)
+teacher_all <- teacher_all |>
+  filter(is.na(reporting_category) | reporting_category %in% valid_staff_types)
+
+n_dropped_final <- n_before_final_filter - nrow(teacher_all)
+if (n_dropped_final > 0) {
+  message("  Dropped ", n_dropped_final, " rows with invalid reporting_category in final cleanup")
+}
 
 staff_type_dist <- teacher_all |>
   count(reporting_category, sort = TRUE) |>
@@ -521,13 +532,12 @@ staff_type_dist <- teacher_all |>
 message("  Distribution after aggregation:")
 print(staff_type_dist)
 
-# Validate against CDE codes
-valid_staff_types <- c("ALL", "ADM", "PSV", "TCH", "OTH")
+# Verify all remaining values are valid
 actual_types <- unique(teacher_all$reporting_category) |> na.omit()
 invalid_types <- setdiff(actual_types, valid_staff_types)
 
 if (length(invalid_types) > 0) {
-  stop("[01c] INVALID staff type codes found: ",
+  stop("[01c] CRITICAL: Invalid staff type codes remain after filtering: ",
        paste(invalid_types, collapse = ", "))
 }
 
