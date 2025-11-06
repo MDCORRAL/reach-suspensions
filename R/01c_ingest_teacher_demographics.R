@@ -45,7 +45,7 @@ rename_first <- function(df, new_name, candidates) {
 }
 
 derive_year_from_file <- function(path) {
-  digits <- stringr::str_extract(basename(path), "(?<=stre)\d{4}")
+  digits <- stringr::str_extract(basename(path), "(?<=stre)\\d{4}")
   if (is.na(digits)) return(list(year = NA_integer_, academic_year = NA_character_))
   start <- suppressWarnings(as.integer(paste0("20", substr(digits, 1, 2))))
   end   <- suppressWarnings(as.integer(paste0("20", substr(digits, 3, 4))))
