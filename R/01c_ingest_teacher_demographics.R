@@ -14,12 +14,22 @@
 # - Charter Status: Yes/No (excludes aggregate "ALL")
 #   * CDE rule: "Charter = ALL is not applicable for Aggregate Level = S"
 #   * Script removes rows with charter="ALL" (district/county/state aggregates)
-# - Staff Type: ALL/ADM/PSV/TCH/OTH (via reporting_category)
-#   * ALL = All Staff
-#   * ADM = Administrators
-#   * PSV = Pupil Services Staff
-#   * TCH = Teachers
-#   * OTH = Other Non-Instructional Support Staff
+# - Staff Type: ALL/ADM/PSV/TCH/OTH (via reporting_category field)
+#   * ALL = All Staff (aggregate across all staff types)
+#   * ADM = Administrators (principals, assistant principals, district administrators)
+#   * PSV = Pupil Services Staff (counselors, psychologists, social workers, nurses)
+#   * TCH = Teachers (classroom teachers, instructional staff)
+#   * OTH = Other Non-Instructional Support Staff (clerical, custodial, etc.)
+#   * SOURCE: Raw data column "Staff Type" → renamed to "reporting_category"
+#   * CRITICAL DIMENSION: Essential for equity analysis
+#     - Teacher demographics affect daily student-staff interactions
+#     - Administrator demographics signal leadership representation
+#     - Different policy implications for recruitment and retention
+#   * ANALYTICAL USES:
+#     - "What % of teachers are Black at high-Black-enrollment schools?"
+#     - "What % of administrators are Black at the same schools?"
+#     - "Are Black students more likely to have Black teachers or Black admins?"
+#     - "How does racial diversity differ between teachers and administrators?"
 # - School Grade Span: GS_K6/GS_69/GS_912/GS_K12 (excludes aggregate "ALL")
 #   * GS_K6 = Grade K–6 schools
 #   * GS_69 = Grade 6–9 schools (middle schools)
@@ -48,6 +58,7 @@
 # - Grade span "ALL" values set to NA at school-level ✓
 # - All race/ethnicity labels match CDE exact terminology ✓
 # - Staff gender codes validated against CDE definitions ✓
+# - Staff type codes validated against CDE definitions ✓
 # - Invalid grade spans logged and set to NA ✓
 # =========================================
 
@@ -197,12 +208,23 @@ read_teacher_txt <- function(path) {
     rename_first("county_name", c("county","county_nm")) |>
     rename_first("district_name", c("district","district_nm")) |>
     rename_first("school_name", c("school","school_nm")) |>
-    rename_first("reporting_category", c("teacher_reporting_category","report_cat")) |>
-    rename_first("reporting_category_description", c("reporting_category_desc","report_desc")) |>
+    # CRITICAL: Staff Type dimension for teacher vs. administrator analysis
+    rename_first("reporting_category", c("staff_type","teacher_reporting_category","report_cat")) |>
+    # Note: No description field exists in raw data for staff_type
     rename_first("charter_yn", c("charter_school","charter")) |>
     rename_first("staff_gender_code", c("staff_gender","gender_code")) |>
     rename_first("race_ethnicity", c("teacher_race_ethnicity","ethnicity","race")) |>
     rename_first("school_grade_span", c("grade_span","grade_span_code","school_grade_span_code"))
+
+  # === DIAGNOSTIC: Verify staff_type was renamed to reporting_category ===
+  if (basename(path) == "stre1920.txt") {
+    if ("reporting_category" %in% names(raw)) {
+      message("    ✓ staff_type successfully renamed to reporting_category")
+      message("      Values: ", paste(sort(unique(raw$reporting_category)), collapse = ", "))
+    } else {
+      stop("    ✗ FAILED to rename staff_type to reporting_category")
+    }
+  }
 
   raw <- raw |> mutate(
     across(any_of(c(
@@ -311,6 +333,27 @@ read_teacher_txt <- function(path) {
 # Read all files (problems already logged in read_teacher_txt)
 teacher_list <- purrr::map(files, read_teacher_txt)
 
+# === DIAGNOSTIC: Verify reporting_category capture across all files ===
+message("[01c] Verifying reporting_category (Staff Type) capture across all files:")
+all_have_col <- TRUE
+for (i in seq_along(teacher_list)) {
+  df <- teacher_list[[i]]
+  src <- unique(df$source_file)[1]
+
+  if ("reporting_category" %in% names(df)) {
+    unique_vals <- sort(unique(df$reporting_category))
+    message("  ✓ ", src, " (values: ", paste(unique_vals, collapse = ", "), ")")
+  } else {
+    message("  ✗ ", src, " - MISSING reporting_category")
+    all_have_col <- FALSE
+  }
+}
+
+if (!all_have_col) {
+  stop("[01c] CRITICAL: reporting_category missing from one or more files")
+}
+message("[01c] All files contain reporting_category ✓\n")
+
 # === AUDIT TRAIL 1: Collect parsing issues log ===
 parsing_log <- purrr::map_df(teacher_list, function(df) {
   pb <- attr(df, "parsing_problems")
@@ -337,6 +380,10 @@ n_raw_total <- sum(purrr::map_int(teacher_list, nrow))
 teacher_all <- purrr::list_rbind(teacher_list)
 if (!nrow(teacher_all)) stop("Teacher TXT files yielded no rows.")
 
+# Check column survived list_rbind
+stopifnot("reporting_category must survive list_rbind" =
+          "reporting_category" %in% names(teacher_all))
+
 teacher_all <- teacher_all |> mutate(
   academic_year = stringr::str_squish(as.character(academic_year)),
   aggregate_level = coalesce(aggregate_level, "S")
@@ -348,6 +395,11 @@ n_after_bind <- nrow(teacher_all)
 # Keep only campus-level rows
 teacher_all <- teacher_all |> filter_campus_only()
 n_after_campus_filter <- nrow(teacher_all)
+
+# Check column survived campus filter
+stopifnot("reporting_category must survive campus filter" =
+          "reporting_category" %in% names(teacher_all))
+message("[01c] reporting_category survived campus filtering ✓")
 
 # Determine value columns for aggregation
 value_cols <- teacher_value_columns(teacher_all)
@@ -373,6 +425,11 @@ teacher_all <- teacher_all |>
   ))))
 
 n_after_aggregation <- nrow(teacher_all)
+
+# Check column survived aggregation
+stopifnot("reporting_category must survive aggregation" =
+          "reporting_category" %in% names(teacher_all))
+message("[01c] reporting_category survived aggregation ✓")
 
 # Fill gender labels
 teacher_all <- teacher_all |> mutate(
@@ -417,6 +474,45 @@ if (length(race_cols) && "total_staff_count" %in% names(teacher_all)) {
   }
 
   teacher_all <- teacher_all |> select(-calc_total_from_race, -backfilled)
+}
+
+# === Validate Staff Type dimension ===
+message("[01c] Validating Staff Type (reporting_category) values:")
+
+staff_type_dist <- teacher_all |>
+  count(reporting_category, sort = TRUE) |>
+  mutate(pct = round(100 * n / sum(n), 1))
+
+message("  Distribution after aggregation:")
+print(staff_type_dist)
+
+# Validate against CDE codes
+valid_staff_types <- c("ALL", "ADM", "PSV", "TCH", "OTH")
+actual_types <- unique(teacher_all$reporting_category) |> na.omit()
+invalid_types <- setdiff(actual_types, valid_staff_types)
+
+if (length(invalid_types) > 0) {
+  stop("[01c] INVALID staff type codes found: ",
+       paste(invalid_types, collapse = ", "))
+}
+
+message("  ✓ All staff type codes are valid CDE codes")
+
+# Check for missing values
+n_missing_staff_type <- sum(is.na(teacher_all$reporting_category))
+if (n_missing_staff_type > 0) {
+  warning("[01c] ", n_missing_staff_type, " rows have missing reporting_category")
+} else {
+  message("  ✓ No missing values in reporting_category")
+}
+
+# Document disaggregation capability
+if (length(actual_types) > 1 && "TCH" %in% actual_types && "ADM" %in% actual_types) {
+  message("  ✓ Multiple staff types present - can disaggregate teachers vs. administrators")
+} else if (length(actual_types) == 1 && actual_types[1] == "ALL") {
+  message("  NOTE: Only 'ALL' staff type present - cannot disaggregate by role")
+} else {
+  message("  WARNING: Unexpected staff type distribution")
 }
 
 # Check for duplicates after aggregation
@@ -465,6 +561,11 @@ if (!length(race_cols)) {
   message("[01c] Filtered out ", comma(n_dropped),
           " zero/NA staff_count rows (", pct_dropped, "% of pivoted data)")
   message("[01c] Keeping ", comma(n_after_filter), " rows with staff_count > 0")
+
+  # Check column survived pivot
+  stopifnot("reporting_category must survive pivot" =
+            "reporting_category" %in% names(teacher_long))
+  message("[01c] reporting_category present in final dataset ✓")
 }
 
 # Map race slugs to readable labels (matching CDE official terminology)
@@ -521,14 +622,54 @@ message("  - Gender codes: ", paste(sort(unique(teacher_long$staff_gender_code))
 message("  - Race categories: ", n_distinct(teacher_long$race_ethnicity))
 message("  - Total staff count: ", comma(sum(teacher_long$staff_count, na.rm = TRUE)))
 
-# Verify Staff Type dimension (reporting_category)
-message("[01c] Staff type (reporting_category) distribution:")
+# Verify Staff Type dimension in final dataset
+message("[01c] Staff Type (reporting_category) in final dataset:")
+
 if ("reporting_category" %in% names(teacher_long)) {
+  # Show distribution
+  staff_dist_final <- teacher_long |>
+    count(reporting_category, sort = TRUE) |>
+    mutate(
+      pct = round(100 * n / sum(n), 1),
+      n_formatted = comma(n)
+    )
+
+  print(staff_dist_final)
+
+  # Cross-tabulation with gender
+  message("\n[01c] Staff Type × Gender cross-tabulation:")
   teacher_long |>
-    count(reporting_category, reporting_category_description, sort = TRUE) |>
-    print(n = 20)
+    filter(staff_gender_code != "ALL") |>  # Exclude aggregate
+    count(reporting_category, staff_gender_code) |>
+    tidyr::pivot_wider(
+      names_from = staff_gender_code,
+      values_from = n,
+      values_fill = 0
+    ) |>
+    print()
+
+  # Sample: Teachers vs. Administrators by race (2024-25)
+  if ("2024-25" %in% teacher_long$academic_year) {
+    message("\n[01c] Sample: Teachers vs. Administrators by race (2024-25):")
+    teacher_long |>
+      filter(
+        academic_year == "2024-25",
+        reporting_category %in% c("TCH", "ADM"),
+        staff_gender_code == "ALL"  # Use aggregate for cleaner example
+      ) |>
+      group_by(reporting_category, race_ethnicity) |>
+      summarise(total_staff = sum(staff_count, na.rm = TRUE), .groups = "drop") |>
+      tidyr::pivot_wider(
+        names_from = reporting_category,
+        values_from = total_staff,
+        values_fill = 0
+      ) |>
+      mutate(TCH_to_ADM_ratio = round(TCH / pmax(ADM, 1), 2)) |>
+      print(n = 20)
+  }
+
 } else {
-  message("  WARNING: reporting_category column not found in dataset")
+  stop("[01c] CRITICAL: reporting_category missing from final dataset!")
 }
 teacher_long |>
   summarise(
@@ -615,6 +756,28 @@ if ("race_ethnicity" %in% names(teacher_long)) {
       all(as.character(teacher_long$race_ethnicity) %in% valid_race_categories)
   )
   message("  ✓ Race/ethnicity validation passed: All categories match CDE standards")
+}
+
+# 5. Verify staff type codes match CDE standards
+if ("reporting_category" %in% names(teacher_long)) {
+  valid_staff_types <- c("ALL", "ADM", "PSV", "TCH", "OTH")
+
+  invalid_types <- teacher_long |>
+    filter(!reporting_category %in% valid_staff_types) |>
+    distinct(reporting_category)
+
+  if (nrow(invalid_types) > 0) {
+    stop("[01c] Invalid staff type codes found: ",
+         paste(invalid_types$reporting_category, collapse = ", "))
+  }
+
+  stopifnot(
+    "Only valid CDE staff type codes allowed" =
+      all(teacher_long$reporting_category %in% valid_staff_types)
+  )
+  message("  ✓ Staff type validation passed: All codes are valid CDE codes")
+} else {
+  stop("[01c] CRITICAL: reporting_category missing - cannot validate staff types")
 }
 
 message("[01c] All CDE compliance validation checks passed ✓")
