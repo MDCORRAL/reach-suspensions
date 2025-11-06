@@ -11,6 +11,7 @@ suppressPackageStartupMessages({
   library(here)
   library(tibble)
   library(tidyr)
+  library(scales)  # for comma formatting
 })
 
 source("R/ingest_helpers.R")
@@ -29,13 +30,14 @@ if (!dir.exists(TEACHER_RAW_DIR)) {
        "\nSet TEACHER_RAW_DIR or place stre*.txt under data-raw/.")
 }
 
-files <- list.files(TEACHER_RAW_DIR, pattern = "^stre\d{4}\.txt$", full.names = TRUE)
+# Note: double-escape \d and \.
+files <- list.files(TEACHER_RAW_DIR, pattern = "^stre\\d{4}\\.txt$", full.names = TRUE)
 if (!length(files)) {
   stop("No stre*.txt teacher files located under ", TEACHER_RAW_DIR)
 }
-
 message("[01c] Found ", length(files), " teacher TXT files.")
 
+# Utility: rename first matching column
 rename_first <- function(df, new_name, candidates) {
   hit <- pick_col(df, c(new_name, candidates), required = FALSE)
   if (!is.na(hit) && hit != new_name) {
@@ -44,6 +46,7 @@ rename_first <- function(df, new_name, candidates) {
   df
 }
 
+# Derive academic year from file name
 derive_year_from_file <- function(path) {
   digits <- stringr::str_extract(basename(path), "(?<=stre)\\d{4}")
   if (is.na(digits)) return(list(year = NA_integer_, academic_year = NA_character_))
@@ -56,9 +59,10 @@ derive_year_from_file <- function(path) {
   )
 }
 
-# CDE-allowed grade span codes
+# Allowed CDE grade spans
 ALLOWED_GRADE_SPANS <- c("ALL","GS_K6","GS_69","GS_912","GS_K12")
 
+# Read and clean a single file
 read_teacher_txt <- function(path) {
   message("  - reading ", basename(path))
   raw <- tryCatch(
@@ -88,29 +92,35 @@ read_teacher_txt <- function(path) {
       ) |> tibble::as_tibble()
     }
   ) |> janitor::clean_names()
-  
-  # Log parsing issues
+
+  # Log parsing issues fully
   if (inherits(raw, "spec_tbl_df")) {
     pb <- tryCatch(problems(raw), error = function(e) NULL)
-    if (!is.null(pb) && nrow(pb)) {
-      message("    NOTE: ", nrow(pb), " parsing issue(s) in ", basename(path), " (use problems() to inspect).")
+    if (!is.null(pb) && nrow(pb) > 0) {
+      warning(
+        "Parsing issues in ", basename(path), ":\n",
+        paste(capture.output(print(pb)), collapse = "\n")
+      )
     }
   }
-  
+
   # Keep provenance
   raw <- raw |> mutate(source_file = basename(path))
-  
-  # Normalize and drop header lines that leaked
+
+  # Normalize and drop leaked header rows
   if ("staff_gender_code" %in% names(raw)) {
     raw <- raw |>
-      mutate(staff_gender_code = stringr::str_to_upper(stringr::str_squish(staff_gender_code))) |>
-      filter(!staff_gender_code %in% c("ACADEMIC YEAR","DISTRICT CODE","COUNTY CODE","SCHOOL CODE"))
+      mutate(
+        staff_gender_code = stringr::str_to_upper(stringr::str_squish(staff_gender_code))
+      ) |>
+      filter(!staff_gender_code %in% c(
+        "ACADEMIC YEAR","DISTRICT CODE","COUNTY CODE","SCHOOL CODE","STAFF_GENDER_CODE"
+      ))
   }
-  
+
   # Derive year fields
   year_info <- derive_year(raw)
   file_info <- derive_year_from_file(path)
-  
   if (!"year" %in% names(raw) || all(is.na(raw$year))) {
     raw$year <- year_info$year
   }
@@ -119,35 +129,37 @@ read_teacher_txt <- function(path) {
   }
   if (all(is.na(raw$year))) raw$year <- file_info$year
   if (all(is.na(raw$academic_year))) raw$academic_year <- file_info$academic_year
-  
-  # Canonicalize columns
+
+  # Canonicalize column names
   raw <- raw |>
-    rename_first("county_code", c("county_cd", "cnty_cd", "countyid")) |>
-    rename_first("district_code", c("district_cd", "districtid", "dist_cd")) |>
-    rename_first("school_code", c("school_cd", "schoolid", "sch_cd")) |>
-    rename_first("county_name", c("county", "county_nm")) |>
-    rename_first("district_name", c("district", "district_nm")) |>
-    rename_first("school_name", c("school", "school_nm")) |>
-    rename_first("reporting_category", c("teacher_reporting_category", "report_cat")) |>
-    rename_first("reporting_category_description", c("reporting_category_desc", "report_desc")) |>
-    rename_first("charter_yn", c("charter_school", "charter")) |>
-    rename_first("staff_gender_code", c("staff_gender", "gender_code")) |>
-    rename_first("race_ethnicity", c("teacher_race_ethnicity", "ethnicity", "race")) |>
-    rename_first("school_grade_span", c("grade_span", "grade_span_code", "school_grade_span_code"))
-  
+    rename_first("county_code", c("county_cd","cnty_cd","countyid")) |>
+    rename_first("district_code", c("district_cd","districtid","dist_cd")) |>
+    rename_first("school_code", c("school_cd","schoolid","sch_cd")) |>
+    rename_first("county_name", c("county","county_nm")) |>
+    rename_first("district_name", c("district","district_nm")) |>
+    rename_first("school_name", c("school","school_nm")) |>
+    rename_first("reporting_category", c("teacher_reporting_category","report_cat")) |>
+    rename_first("reporting_category_description", c("reporting_category_desc","report_desc")) |>
+    rename_first("charter_yn", c("charter_school","charter")) |>
+    rename_first("staff_gender_code", c("staff_gender","gender_code")) |>
+    rename_first("race_ethnicity", c("teacher_race_ethnicity","ethnicity","race")) |>
+    rename_first("school_grade_span", c("grade_span","grade_span_code","school_grade_span_code"))
+
   raw <- raw |> mutate(
-    across(any_of(c("county_code", "district_code", "school_code", "aggregate_level",
-                    "charter_yn", "reporting_category", "reporting_category_description",
-                    "race_ethnicity", "staff_gender_code", "district_name",
-                    "school_name", "county_name", "academic_year", "school_grade_span")),
-           ~ stringr::str_squish(as.character(.x)))
+    across(any_of(c(
+      "county_code","district_code","school_code","aggregate_level",
+      "charter_yn","reporting_category","reporting_category_description",
+      "race_ethnicity","staff_gender_code","district_name",
+      "school_name","county_name","academic_year","school_grade_span"
+    )), ~ stringr::str_squish(as.character(.x)))
   )
-  
-  # Normalize charter
+
+  # Normalize charter; log dropped rows
   if (!"charter_yn" %in% names(raw)) raw$charter_yn <- NA_character_
+  n_before <- nrow(raw)
   raw <- raw |> mutate(
     charter_yn = stringr::str_to_lower(charter_yn),
-    charter_yn = dplyr::case_when(
+    charter_yn = case_when(
       charter_yn %in% c("yes","y") ~ "Yes",
       charter_yn %in% c("no","n")  ~ "No",
       charter_yn %in% c("all","a") ~ NA_character_,
@@ -156,36 +168,39 @@ read_teacher_txt <- function(path) {
   )
   if (!all(is.na(raw$charter_yn))) {
     raw <- raw |> filter(charter_yn %in% c("Yes","No"))
+    n_dropped <- n_before - nrow(raw)
+    if (n_dropped > 0) {
+      message("    Dropped ", n_dropped, " rows with missing charter_yn in ", basename(path))
+    }
   }
-  
-  # Aggregate level to 'S'
-  raw <- raw |> rename_first("aggregate_level", c("aggregation_level", "aggregation_type", "agg_level"))
+
+  # Normalize aggregate level
+  raw <- raw |> rename_first("aggregate_level", c("aggregation_level","aggregation_type","agg_level"))
   if (!"aggregate_level" %in% names(raw)) raw$aggregate_level <- NA_character_
   raw <- raw |> mutate(
     aggregate_level = stringr::str_squish(stringr::str_to_upper(aggregate_level)),
-    aggregate_level = dplyr::case_when(
+    aggregate_level = case_when(
       aggregate_level %in% c("S","SCH","SCHOOL","SCHOOL LEVEL","SCHOOL-LEVEL") ~ "S",
       TRUE ~ aggregate_level
     )
   )
-  
+
   # Staff gender label
   raw <- raw |> mutate(
-    staff_gender_code = stringr::str_to_upper(dplyr::coalesce(staff_gender_code, "")),
+    staff_gender_code = stringr::str_to_upper(coalesce(staff_gender_code, "")),
     staff_gender = teacher_gender_label(staff_gender_code)
   )
-  
+
   # Validate school grade span
   if (!"school_grade_span" %in% names(raw)) raw$school_grade_span <- NA_character_
-  raw <- raw |>
-    mutate(
-      school_grade_span = stringr::str_to_upper(stringr::str_squish(school_grade_span)),
-      school_grade_span = ifelse(nzchar(school_grade_span), school_grade_span, NA_character_),
-      school_grade_span = ifelse(!(school_grade_span %in% ALLOWED_GRADE_SPANS), NA_character_, school_grade_span),
-      school_grade_span = ifelse(aggregate_level == "S" & school_grade_span == "ALL", NA_character_, school_grade_span)
-    )
-  
-  # Numeric parsing: exclude ID and text columns
+  raw <- raw |> mutate(
+    school_grade_span = stringr::str_to_upper(stringr::str_squish(school_grade_span)),
+    school_grade_span = ifelse(nzchar(school_grade_span), school_grade_span, NA_character_),
+    school_grade_span = ifelse(!(school_grade_span %in% ALLOWED_GRADE_SPANS), NA_character_, school_grade_span),
+    school_grade_span = ifelse(aggregate_level == "S" & school_grade_span == "ALL", NA_character_, school_grade_span)
+  )
+
+  # Parse numeric columns (excluding IDs/text)
   numeric_candidates <- names(raw)[vapply(raw, teacher_numeric_like, logical(1))]
   id_cols <- intersect(names(raw), c(
     "county_code","district_code","school_code","cds_district","cds_school",
@@ -196,47 +211,53 @@ read_teacher_txt <- function(path) {
   numeric_cols <- setdiff(numeric_candidates, id_cols)
   if (length(numeric_cols)) {
     raw <- raw |> mutate(
-      across(
-        all_of(numeric_cols),
-        ~ suppressWarnings(readr::parse_number(as.character(.x)))
-      )
+      across(all_of(numeric_cols), ~ suppressWarnings(parse_number(as.character(.x))))
     )
   }
-  
+
   raw <- raw |> mutate(
     year = suppressWarnings(as.integer(year)),
     source_file = as.character(source_file)
   )
-  
+
   raw
 }
 
-teacher_list <- purrr::map(files, read_teacher_txt)
-teacher_all  <- purrr::list_rbind(teacher_list)
-
+# Read all files with detailed problem logging
+teacher_list <- purrr::map(files, function(path) {
+  df <- read_teacher_txt(path)
+  # problems() returns issues when using vroom
+  pb <- tryCatch(problems(df), error = function(e) NULL)
+  if (!is.null(pb) && nrow(pb) > 0) {
+    warning(
+      "Parsing issues in ", basename(path), ":\n",
+      paste(capture.output(print(pb)), collapse = "\n")
+    )
+  }
+  df
+})
+teacher_all <- purrr::list_rbind(teacher_list)
 if (!nrow(teacher_all)) stop("Teacher TXT files yielded no rows.")
 
-teacher_all <- teacher_all |>
-  mutate(
-    academic_year = stringr::str_squish(as.character(academic_year)),
-    aggregate_level = dplyr::coalesce(aggregate_level, "S")
-  ) |>
-  build_keys()
+teacher_all <- teacher_all |> mutate(
+  academic_year = stringr::str_squish(as.character(academic_year)),
+  aggregate_level = coalesce(aggregate_level, "S")
+) |> build_keys()
 
-# Only campus rows
+# Keep only campus-level rows
 teacher_all <- teacher_all |> filter_campus_only()
 
-# Determine numeric value columns
+# Determine value columns for aggregation
 value_cols <- teacher_value_columns(teacher_all)
 
 key_cols <- intersect(names(teacher_all), c(
   "academic_year","year","county_code","district_code","school_code",
   "cds_school","aggregate_level","charter_yn","reporting_category",
-  "reporting_category_description","race_ethnicity","staff_gender_code","staff_gender",
-  "school_grade_span"
+  "reporting_category_description","race_ethnicity","staff_gender_code",
+  "staff_gender","school_grade_span"
 ))
 
-# Aggregate and preserve provenance
+# Aggregate and keep provenance
 teacher_all <- teacher_all |>
   group_by(across(all_of(key_cols))) |>
   summarise(
@@ -244,66 +265,61 @@ teacher_all <- teacher_all |>
     source_file = paste(unique(source_file), collapse = ";"),
     .groups = "drop"
   ) |>
-  arrange(dplyr::across(dplyr::any_of(c(
+  arrange(across(any_of(c(
     "academic_year","cds_school","reporting_category",
     "staff_gender_code","race_ethnicity"
   ))))
 
-# Ensure gender labels filled
+# Fill gender labels
 teacher_all <- teacher_all |> mutate(
   staff_gender = teacher_gender_label(staff_gender_code, fallback = staff_gender)
 )
 
-# Backfill totals for ALL gender rows from race components
+# Backfill total_staff_count on ALL rows; count how many rows affected
 race_cols <- intersect(names(teacher_all), c(
-  "african_american",
-  "american_indian_or_alaska_native",
-  "asian",
-  "filipino",
-  "hispanic_or_latino",
-  "pacific_islander",
-  "white",
-  "two_or_more_races",
-  "not_reported"
+  "african_american","american_indian_or_alaska_native","asian","filipino",
+  "hispanic_or_latino","pacific_islander","white","two_or_more_races","not_reported"
 ))
-
+backfilled_n <- 0L
 if (length(race_cols) && "total_staff_count" %in% names(teacher_all)) {
-  teacher_all <- teacher_all |>
-    mutate(
-      calc_total_from_race = rowSums(across(all_of(race_cols)), na.rm = TRUE),
-      total_staff_count = ifelse(
-        staff_gender_code == "ALL" & (is.na(total_staff_count) | total_staff_count == 0),
-        calc_total_from_race,
-        total_staff_count
-      )
-    ) |>
-    select(-calc_total_from_race)
+  teacher_all <- teacher_all |> mutate(
+    calc_total_from_race = rowSums(across(all_of(race_cols)), na.rm = TRUE),
+    backfilled = staff_gender_code == "ALL" &
+                 (is.na(total_staff_count) | total_staff_count == 0),
+    total_staff_count = ifelse(backfilled, calc_total_from_race, total_staff_count)
+  )
+  backfilled_n <- sum(teacher_all$backfilled, na.rm = TRUE)
+  teacher_all <- teacher_all |> select(-calc_total_from_race, -backfilled)
+  message("[01c] Backfilled total_staff_count for ", backfilled_n, " ALL gender rows")
 }
 
-# Optional: sanity check gender codes
-valid_gender <- c("ALL","GF","GM","GX","GZ")
-gn_extra <- setdiff(unique(teacher_all$staff_gender_code), valid_gender)
-if (length(gn_extra)) {
-  warning("[01c] Unexpected staff_gender_code values: ", paste(gn_extra, collapse = ", "))
+# Check for duplicates after aggregation
+duplicates <- teacher_all |>
+  group_by(across(all_of(key_cols))) |>
+  filter(n() > 1) |>
+  ungroup()
+if (nrow(duplicates) > 0) {
+  warning("[01c] ", nrow(duplicates), " duplicate rows remain after aggregation")
+  print(head(duplicates))
 }
 
-# Drop redundant total_staff if duplicates total_staff_count
+# Drop redundant total_staff if duplicated
 if (all(c("total_staff","total_staff_count") %in% names(teacher_all))) {
-  same <- teacher_all %>%
-    transmute(eq = (coalesce(total_staff, 0) == coalesce(total_staff_count, 0))) %>%
+  same <- teacher_all |>
+    transmute(eq = (coalesce(total_staff, 0) == coalesce(total_staff_count, 0))) |>
     pull(eq)
   if (all(same, na.rm = TRUE)) {
     teacher_all <- teacher_all |> select(-total_staff)
   }
 }
 
-# Pivot to long format
+# Pivot race columns to long format
 if (!length(race_cols)) {
   warning("[01c] No race columns found to pivot. Writing the summarised wide table as-is.")
   teacher_long <- teacher_all
 } else {
   teacher_long <- teacher_all |>
-    select(-dplyr::any_of("total_staff")) |>
+    select(-any_of("total_staff")) |>
     pivot_longer(
       cols = all_of(race_cols),
       names_to = "race_ethnicity",
@@ -312,7 +328,7 @@ if (!length(race_cols)) {
     filter(!is.na(staff_count) & staff_count > 0)
 }
 
-# Map race slugs to labels and factor levels
+# Map race slugs to readable labels
 race_map <- c(
   african_american                 = "Black/African American",
   american_indian_or_alaska_native = "American Indian/Alaska Native",
@@ -324,10 +340,9 @@ race_map <- c(
   two_or_more_races                = "Two or More Races",
   not_reported                     = "Not Reported"
 )
-
 teacher_long <- teacher_long |>
   mutate(
-    race_ethnicity = dplyr::recode(race_ethnicity, !!!race_map),
+    race_ethnicity = recode(race_ethnicity, !!!race_map),
     race_ethnicity = factor(
       race_ethnicity,
       levels = c(
@@ -338,10 +353,37 @@ teacher_long <- teacher_long |>
     )
   )
 
-# Write output
+# ---- Summary diagnostics ----
+message("[01c] Final dataset summary:")
+message("  - Years: ", paste(sort(unique(teacher_long$academic_year)), collapse = ", "))
+message("  - Schools: ", n_distinct(teacher_long$cds_school))
+message("  - Gender codes: ", paste(sort(unique(teacher_long$staff_gender_code)), collapse = ", "))
+message("  - Race categories: ", n_distinct(teacher_long$race_ethnicity))
+message("  - Total staff count: ", comma(sum(teacher_long$staff_count, na.rm = TRUE)))
+teacher_long |>
+  summarise(
+    pct_missing_year   = mean(is.na(academic_year)) * 100,
+    pct_missing_cds    = mean(is.na(cds_school)) * 100,
+    pct_missing_gender = mean(is.na(staff_gender_code)) * 100
+  ) |>
+  print()
+
+# Count invalid grade spans (should be zero after cleaning)
+n_invalid <- sum(!(teacher_all$school_grade_span %in% ALLOWED_GRADE_SPANS), na.rm = TRUE)
+if (n_invalid > 0) {
+  message("[01c] Set ", n_invalid, " invalid school_grade_span values to NA")
+}
+
+# Final asserts
+stopifnot(
+  "No rows in final dataset" = nrow(teacher_long) > 0,
+  "Missing academic_year values" = !any(is.na(teacher_long$academic_year)),
+  "Missing cds_school values" = !any(is.na(teacher_long$cds_school)),
+  "staff_count should be positive" = all(teacher_long$staff_count > 0)
+)
+
+# Write Parquet
 dir.create(dirname(OUT_PARQUET), recursive = TRUE, showWarnings = FALSE)
 write_parquet(teacher_long, OUT_PARQUET)
-
 message("[01c] Wrote ", OUT_PARQUET, " (rows: ", nrow(teacher_long), ")")
-
 invisible(TRUE)
