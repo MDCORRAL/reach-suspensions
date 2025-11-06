@@ -1,5 +1,55 @@
 # R/01c_ingest_teacher_demographics.R
 # Ingest teacher demographic TXT extracts, standardize, and stage as Parquet.
+#
+# === CDE DATA SOURCE DOCUMENTATION ===
+# Data Source: California Department of Education (CDE) Teacher Staff Demographics
+# File Pattern: stre{YYZZ}.txt (e.g., stre1920.txt for 2019-20 academic year)
+# Official Field Definitions: teacher_dem_definitions.xlsx
+#
+# KEY DIMENSIONS CAPTURED:
+# - Academic Year: 2019-20 through 2024-25
+# - Aggregate Level: S (School-level only)
+#   * T = State, C = County, D = District, S = School
+#   * Script filters to school-level (S) only
+# - Charter Status: Yes/No (excludes aggregate "ALL")
+#   * CDE rule: "Charter = ALL is not applicable for Aggregate Level = S"
+#   * Script removes rows with charter="ALL" (district/county/state aggregates)
+# - Staff Type: ALL/ADM/PSV/TCH/OTH (via reporting_category)
+#   * ALL = All Staff
+#   * ADM = Administrators
+#   * PSV = Pupil Services Staff
+#   * TCH = Teachers
+#   * OTH = Other Non-Instructional Support Staff
+# - School Grade Span: GS_K6/GS_69/GS_912/GS_K12 (excludes aggregate "ALL")
+#   * GS_K6 = Grade K–6 schools
+#   * GS_69 = Grade 6–9 schools (middle schools)
+#   * GS_912 = Grade 9–12 schools (high schools)
+#   * GS_K12 = Grade K–12 Other schools
+#   * CDE rule: "ALL" is valid only for aggregate-level, not school-level
+# - Staff Gender: ALL/GF/GM/GX (GZ=Missing not present in data)
+#   * ALL = All Staff
+#   * GF = Female
+#   * GM = Male
+#   * GX = Non-Binary
+#   * GZ = Missing (code exists but no records in data)
+# - Race/Ethnicity: 9 categories per CDE standard
+#   * African American
+#   * American Indian or Alaska Native
+#   * Asian
+#   * Filipino
+#   * Hispanic or Latino
+#   * Native Hawaiian/Pacific Islander
+#   * White
+#   * Two or More Races
+#   * Not Reported
+#
+# CDE COMPLIANCE VALIDATION:
+# - Charter "ALL" values removed at school-level ✓
+# - Grade span "ALL" values set to NA at school-level ✓
+# - All race/ethnicity labels match CDE exact terminology ✓
+# - Staff gender codes validated against CDE definitions ✓
+# - Invalid grade spans logged and set to NA ✓
+# =========================================
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -417,13 +467,13 @@ if (!length(race_cols)) {
   message("[01c] Keeping ", comma(n_after_filter), " rows with staff_count > 0")
 }
 
-# Map race slugs to readable labels
+# Map race slugs to readable labels (matching CDE official terminology)
 race_map <- c(
-  african_american                 = "Black/African American",
-  american_indian_or_alaska_native = "American Indian/Alaska Native",
+  african_american                 = "African American",
+  american_indian_or_alaska_native = "American Indian or Alaska Native",
   asian                            = "Asian",
   filipino                         = "Filipino",
-  hispanic_or_latino               = "Hispanic/Latino",
+  hispanic_or_latino               = "Hispanic or Latino",
   pacific_islander                 = "Native Hawaiian/Pacific Islander",
   white                            = "White",
   two_or_more_races                = "Two or More Races",
@@ -435,9 +485,9 @@ teacher_long <- teacher_long |>
     race_ethnicity = factor(
       race_ethnicity,
       levels = c(
-        "American Indian/Alaska Native","Asian","Filipino",
-        "Hispanic/Latino","Native Hawaiian/Pacific Islander",
-        "Black/African American","White","Two or More Races","Not Reported"
+        "American Indian or Alaska Native","Asian","Filipino",
+        "Hispanic or Latino","Native Hawaiian/Pacific Islander",
+        "African American","White","Two or More Races","Not Reported"
       )
     )
   )
@@ -470,6 +520,16 @@ message("  - Schools: ", n_distinct(teacher_long$cds_school))
 message("  - Gender codes: ", paste(sort(unique(teacher_long$staff_gender_code)), collapse = ", "))
 message("  - Race categories: ", n_distinct(teacher_long$race_ethnicity))
 message("  - Total staff count: ", comma(sum(teacher_long$staff_count, na.rm = TRUE)))
+
+# Verify Staff Type dimension (reporting_category)
+message("[01c] Staff type (reporting_category) distribution:")
+if ("reporting_category" %in% names(teacher_long)) {
+  teacher_long |>
+    count(reporting_category, reporting_category_description, sort = TRUE) |>
+    print(n = 20)
+} else {
+  message("  WARNING: reporting_category column not found in dataset")
+}
 teacher_long |>
   summarise(
     pct_missing_year   = mean(is.na(academic_year)) * 100,
@@ -478,13 +538,86 @@ teacher_long |>
   ) |>
   print()
 
-# Final asserts
+# Final asserts - Basic data quality
 stopifnot(
   "No rows in final dataset" = nrow(teacher_long) > 0,
   "Missing academic_year values" = !any(is.na(teacher_long$academic_year)),
   "Missing cds_school values" = !any(is.na(teacher_long$cds_school)),
   "staff_count should be positive" = all(teacher_long$staff_count > 0)
 )
+
+# Final asserts - CDE compliance validation
+message("[01c] Running CDE compliance validation checks...")
+
+# 1. Verify no "ALL" charter values remain at school level
+if ("charter_yn" %in% names(teacher_long) && "aggregate_level" %in% names(teacher_long)) {
+  stopifnot(
+    "Charter ALL should not exist at school level" =
+      !any(teacher_long$aggregate_level == "S" & teacher_long$charter_yn == "ALL", na.rm = TRUE)
+  )
+  message("  ✓ Charter validation passed: No 'ALL' values at school level")
+}
+
+# 2. Verify no "ALL" grade spans at school level
+if ("school_grade_span" %in% names(teacher_long)) {
+  stopifnot(
+    "Grade span ALL should not exist at school level" =
+      !any(teacher_long$school_grade_span == "ALL", na.rm = TRUE)
+  )
+  message("  ✓ Grade span validation passed: No 'ALL' values at school level")
+}
+
+# 3. Verify all gender codes are valid CDE codes
+if ("staff_gender_code" %in% names(teacher_long)) {
+  valid_gender_codes <- c("ALL", "GF", "GM", "GX", "GZ")
+  invalid_genders <- teacher_long |>
+    filter(!staff_gender_code %in% valid_gender_codes) |>
+    distinct(staff_gender_code)
+
+  if (nrow(invalid_genders) > 0) {
+    warning("[01c] Invalid gender codes found: ",
+            paste(invalid_genders$staff_gender_code, collapse = ", "))
+  }
+
+  stopifnot(
+    "Only valid CDE gender codes allowed" =
+      all(teacher_long$staff_gender_code %in% valid_gender_codes)
+  )
+  message("  ✓ Gender code validation passed: All codes are valid CDE codes")
+}
+
+# 4. Verify race/ethnicity categories match CDE standards
+if ("race_ethnicity" %in% names(teacher_long)) {
+  valid_race_categories <- c(
+    "African American",
+    "American Indian or Alaska Native",
+    "Asian",
+    "Filipino",
+    "Hispanic or Latino",
+    "Native Hawaiian/Pacific Islander",
+    "White",
+    "Two or More Races",
+    "Not Reported"
+  )
+
+  invalid_races <- teacher_long |>
+    mutate(race_ethnicity = as.character(race_ethnicity)) |>
+    filter(!race_ethnicity %in% valid_race_categories) |>
+    distinct(race_ethnicity)
+
+  if (nrow(invalid_races) > 0) {
+    warning("[01c] Invalid race/ethnicity categories found: ",
+            paste(invalid_races$race_ethnicity, collapse = ", "))
+  }
+
+  stopifnot(
+    "Only valid CDE race/ethnicity categories allowed" =
+      all(as.character(teacher_long$race_ethnicity) %in% valid_race_categories)
+  )
+  message("  ✓ Race/ethnicity validation passed: All categories match CDE standards")
+}
+
+message("[01c] All CDE compliance validation checks passed ✓")
 
 # === AUDIT TRAIL 2: Create data lineage summary ===
 data_lineage <- tibble(
