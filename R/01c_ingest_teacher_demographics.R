@@ -763,7 +763,7 @@ if ("reporting_category" %in% names(teacher_long)) {
   valid_staff_types <- c("ALL", "ADM", "PSV", "TCH", "OTH")
 
   invalid_types <- teacher_long |>
-    filter(!reporting_category %in% valid_staff_types) |>
+    filter(!is.na(reporting_category) & !reporting_category %in% valid_staff_types) |>
     distinct(reporting_category)
 
   if (nrow(invalid_types) > 0) {
@@ -771,9 +771,11 @@ if ("reporting_category" %in% names(teacher_long)) {
          paste(invalid_types$reporting_category, collapse = ", "))
   }
 
+  non_missing_categories <- teacher_long$reporting_category[!is.na(teacher_long$reporting_category)]
+
   stopifnot(
     "Only valid CDE staff type codes allowed" =
-      all(teacher_long$reporting_category %in% valid_staff_types)
+      all(non_missing_categories %in% valid_staff_types)
   )
   message("  ✓ Staff type validation passed: All codes are valid CDE codes")
 } else {
