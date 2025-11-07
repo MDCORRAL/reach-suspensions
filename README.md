@@ -49,6 +49,76 @@ rounding tolerance.
 The canonical analysis of Black student suspension rates by school racial composition lives at
 `Analysis/02_black_rates_by_quartiles.R`.
 
+## Teacher Demographics Integration
+
+The repository includes a complete pipeline for integrating teacher demographic data with student suspension data, enabling analyses of teacher-student demographic matching and staffing composition.
+
+### Data Source
+
+Teacher demographics come from CDE Teacher Staff Demographics TXT files following the pattern `stre{YYZZ}.txt` (e.g., `stre1920.txt` for the 2019-20 academic year). These files contain school-level data on staff by:
+
+- **Race/Ethnicity**: 9 CDE categories (African American, American Indian/Alaska Native, Asian, Filipino, Hispanic/Latino, Native Hawaiian/Pacific Islander, White, Two or More Races, Not Reported)
+- **Gender**: Female (GF), Male (GM), Non-Binary (GX), Missing (GZ), All Staff (ALL)
+- **Staff Type** (`reporting_category`):
+  - `TCH` = Teachers (classroom teachers, instructional staff)
+  - `ADM` = Administrators (principals, assistant principals)
+  - `PSV` = Pupil Services (counselors, psychologists, social workers, nurses)
+  - `OTH` = Other Non-Instructional Staff (clerical, custodial, etc.)
+  - `ALL` = All Staff (aggregate across all types)
+
+### Processing Pipeline
+
+**Step 1: Ingestion** (`R/01c_ingest_teacher_demographics.R`)
+- Reads TXT files, standardizes columns, validates against CDE specifications
+- Filters to school-level data (`aggregate_level = "S"`)
+- Aggregates by campus-year-race-gender-staff_type
+- Outputs: `data-stage/teacher_staff_long.parquet` (long format)
+
+**Step 2: Summarization** (`R/teacher_processing.R`)
+- `teacher_summarise_long()` aggregates to one row per school-year
+- Calculates totals, shares by race, shares by gender, shares by staff type
+- Outputs wide-format summary with columns like:
+  - `teacher_staff_count_total`
+  - `teacher_staff_count_african_american`, `teacher_staff_count_african_american_share`
+  - `teacher_staff_count_by_gender_female`, `teacher_staff_count_by_gender_female_share`
+  - `teacher_staff_count_by_type_teachers` (staff type breakdowns)
+
+**Step 3: Merging** (`Analysis/18_merge_teacher_student.R`)
+- LEFT JOIN to preserve all student suspension data
+- Join keys: `academic_year` + `cds_school` (14-digit CDS code)
+- Validates uniqueness, sanitizes NaN/Inf, reports coverage
+- Outputs: `data-stage/susp_v6_teacher_features.parquet`
+
+### Example Analysis
+
+```r
+# Load merged data
+library(arrow)
+library(dplyr)
+
+data <- read_parquet("data-stage/susp_v6_teacher_features.parquet")
+
+# Calculate teacher-student racial match rates
+data %>%
+  filter(!is.na(teacher_staff_count_african_american)) %>%
+  mutate(
+    black_student_share = black_share,
+    black_teacher_share = teacher_staff_count_african_american_share
+  ) %>%
+  select(academic_year, school_name, black_student_share, black_teacher_share)
+```
+
+### Key Features
+
+- **Staff Type Disaggregation**: Analyze teachers separately from administrators
+- **Zero-Value Retention**: Keeps schools with 0 staff in specific categories (meaningful for equity analysis)
+- **Comprehensive Validation**: Multiple checkpoints ensure staff type data is preserved throughout pipeline
+- **Audit Trails**: Data lineage tracking, parsing issue logs, outlier flagging
+
+### Data Retention
+
+The teacher merge uses a LEFT JOIN to ensure **100% of student suspension data is preserved**. Teacher coverage varies by school and year based on CDE reporting. Run `R/validate_data_retention.R` to generate a detailed retention report.
+
 ## Environment variables
 
 These optional environment variables allow the project to run without hard-coded paths. Set them in your shell or `.Renviron`.
@@ -57,4 +127,6 @@ These optional environment variables allow the project to run without hard-coded
 - `REACH_SUSPENSIONS_ROOT`: optional override for Python graph scripts. Defaults to the auto-detected repository root.
 - `REACH_DATA_DIR`: directory for staged data files. Defaults to `data-stage/` under the project root.
 - `RAW_PATH`: full path to the raw Excel file `copy_CDE_suspensions_1718-2324_sc_race.xlsx`. Defaults to `data-raw/` under the project root.
+- `TEACHER_RAW_DIR`: path to directory containing teacher TXT files (`stre*.txt`). Defaults to `data-raw/`.
+- `OTH_RAW_PATH`: path to the other demographics Excel file. Defaults to `data-raw/copy_CDE_suspensions_1718-2324_sc_oth.xlsx`.
 
