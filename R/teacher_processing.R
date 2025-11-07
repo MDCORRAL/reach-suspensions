@@ -69,6 +69,13 @@ teacher_reporting_category_label <- function(code, fallback = NA_character_) {
   dplyr::coalesce(mapped, fallback)
 }
 
+#' Map reporting_category codes to snake_case slugs.
+teacher_reporting_category_slug <- function(code, fallback = "unknown") {
+  label <- teacher_reporting_category_label(code, fallback = NA_character_)
+  raw   <- dplyr::coalesce(label, code, fallback)
+  teacher_slugify(raw)
+}
+
 #' Convert arbitrary text to a safe snake_case slug.
 teacher_slugify <- function(x) {
   slug <- stringr::str_squish(dplyr::coalesce(as.character(x), ""))
@@ -204,6 +211,17 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
                            "aggregate_level", "charter_yn"), names(df))
   if (!length(key_cols)) stop("teacher_summarise_long: no joinable key columns present")
 
+  has_staff_type <- "reporting_category" %in% names(df)
+  if (has_staff_type) {
+    df <- df %>%
+      mutate(
+        reporting_category = stringr::str_to_upper(dplyr::coalesce(reporting_category, "")),
+        reporting_category = ifelse(nzchar(reporting_category), reporting_category, NA_character_),
+        reporting_category_label = teacher_reporting_category_label(reporting_category, reporting_category),
+        reporting_category_slug  = teacher_reporting_category_slug(reporting_category, fallback = "unknown_staff_type")
+      )
+  }
+
   total_mask <- teacher_is_total_row(df)
   totals_src <- if (any(total_mask, na.rm = TRUE)) df[total_mask, , drop = FALSE] else df
   totals <- totals_src %>%
@@ -211,6 +229,22 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
     dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
                      .groups = "drop") %>%
     dplyr::rename_with(~ paste0("teacher_", ., "_total"), dplyr::all_of(value_cols))
+
+  totals_by_type <- NULL
+  if (has_staff_type) {
+    totals_by_type <- df %>%
+      dplyr::filter(!is.na(reporting_category_slug)) %>%
+      dplyr::group_by(dplyr::across(dplyr::all_of(c(key_cols, "reporting_category_slug")))) %>%
+      dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
+                       .groups = "drop") %>%
+      tidyr::pivot_wider(
+        id_cols    = dplyr::all_of(key_cols),
+        names_from = reporting_category_slug,
+        values_from = dplyr::all_of(value_cols),
+        names_glue = "teacher_{.value}_total_by_type_{reporting_category_slug}",
+        values_fill = 0
+      )
+  }
 
   # Create reporting_category_description if it doesn't exist
   if (!"reporting_category_description" %in% names(df)) {
@@ -237,6 +271,26 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
       values_fill = 0
     )
 
+  race_by_type_tbl <- NULL
+  if (has_staff_type) {
+    race_by_type_tbl <- df %>%
+      dplyr::filter(!is.na(reporting_category_slug)) %>%
+      dplyr::mutate(race_label = dplyr::coalesce(reporting_category_description, race_ethnicity),
+                    race_label = ifelse(is.na(race_label) | !nzchar(race_label), "Unknown", race_label),
+                    race_slug = teacher_slugify(race_label)) %>%
+      dplyr::filter(!race_slug %in% c("total", "all", "all_students", "all_staff")) %>%
+      dplyr::group_by(dplyr::across(dplyr::all_of(c(key_cols, "reporting_category_slug", "race_slug")))) %>%
+      dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
+                       .groups = "drop") %>%
+      tidyr::pivot_wider(
+        id_cols    = dplyr::all_of(key_cols),
+        names_from = c(reporting_category_slug, race_slug),
+        values_from = dplyr::all_of(value_cols),
+        names_glue = "teacher_{.value}_by_type_{reporting_category_slug}_{race_slug}",
+        values_fill = 0
+      )
+  }
+
   gender_tbl <- if ("staff_gender_code" %in% names(df) || "staff_gender" %in% names(df)) {
     df %>%
       dplyr::mutate(gender_code = stringr::str_to_upper(dplyr::coalesce(staff_gender_code, "")),
@@ -258,6 +312,27 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
     NULL
   }
 
+  gender_by_type_tbl <- NULL
+  if (has_staff_type && !is.null(gender_tbl)) {
+    gender_by_type_tbl <- df %>%
+      dplyr::filter(!is.na(reporting_category_slug)) %>%
+      dplyr::mutate(gender_code = stringr::str_to_upper(dplyr::coalesce(staff_gender_code, "")),
+                    gender_label = teacher_gender_label(gender_code,
+                                                        if ("staff_gender" %in% names(df)) staff_gender else NA_character_),
+                    gender_slug = teacher_slugify(gender_label)) %>%
+      dplyr::filter(!gender_slug %in% c("all_staff", "all", "total")) %>%
+      dplyr::group_by(dplyr::across(dplyr::all_of(c(key_cols, "reporting_category_slug", "gender_slug")))) %>%
+      dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
+                       .groups = "drop") %>%
+      tidyr::pivot_wider(
+        id_cols    = dplyr::all_of(key_cols),
+        names_from = c(reporting_category_slug, gender_slug),
+        values_from = dplyr::all_of(value_cols),
+        names_glue = "teacher_{.value}_by_type_{reporting_category_slug}_by_gender_{gender_slug}",
+        values_fill = 0
+      )
+  }
+
   summary <- totals %>%
     dplyr::left_join(race_tbl, by = key_cols)
 
@@ -265,13 +340,41 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
     summary <- summary %>% dplyr::left_join(gender_tbl, by = key_cols)
   }
 
+  if (!is.null(totals_by_type)) {
+    summary <- summary %>% dplyr::left_join(totals_by_type, by = key_cols)
+  }
+
+  if (!is.null(race_by_type_tbl)) {
+    summary <- summary %>% dplyr::left_join(race_by_type_tbl, by = key_cols)
+  }
+
+  if (!is.null(gender_by_type_tbl)) {
+    summary <- summary %>% dplyr::left_join(gender_by_type_tbl, by = key_cols)
+  }
+
   total_cols <- grep("^teacher_.*_total$", names(summary), value = TRUE)
   for (tc in total_cols) {
     metric <- stringr::str_match(tc, "^teacher_(.*)_total$")[, 2]
     if (is.na(metric)) next
-    race_cols <- grep(paste0("^teacher_", metric, "_(?!total)(?!by_gender_).+"),
+    race_cols <- grep(paste0("^teacher_", metric, "_(?!total)(?!by_gender_)(?!by_type_).+"),
                       names(summary), value = TRUE, perl = TRUE)
     gender_cols <- grep(paste0("^teacher_", metric, "_by_gender_.+"),
+                        names(summary), value = TRUE)
+    for (col in c(race_cols, gender_cols)) {
+      share_col <- paste0(col, "_share")
+      summary[[share_col]] <- teacher_safe_div(summary[[col]], summary[[tc]])
+    }
+  }
+
+  total_cols_by_type <- grep("^teacher_.*_total_by_type_.+$", names(summary), value = TRUE)
+  for (tc in total_cols_by_type) {
+    parts <- stringr::str_match(tc, "^teacher_(.*)_total_by_type_(.+)$")
+    metric <- parts[, 2]
+    type_slug <- parts[, 3]
+    if (is.na(metric) || is.na(type_slug)) next
+    race_cols <- grep(paste0("^teacher_", metric, "_by_type_", type_slug, "_(?!total)(?!share).+"),
+                      names(summary), value = TRUE, perl = TRUE)
+    gender_cols <- grep(paste0("^teacher_", metric, "_by_type_", type_slug, "_by_gender_.+"),
                         names(summary), value = TRUE)
     for (col in c(race_cols, gender_cols)) {
       share_col <- paste0(col, "_share")
