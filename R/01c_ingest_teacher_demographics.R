@@ -123,6 +123,10 @@ derive_year_from_file <- function(path) {
 # Allowed CDE grade spans
 ALLOWED_GRADE_SPANS <- c("ALL","GS_K6","GS_69","GS_912","GS_K12")
 
+# Data quality constants
+BACKFILL_TOLERANCE <- 1  # Allow 1 unit difference in race sum validation due to rounding
+OUTLIER_STAFF_THRESHOLD <- 1000  # Flag schools with >1000 staff for verification
+
 # Read and clean a single file
 read_teacher_txt <- function(path) {
   message("  - reading ", basename(path))
@@ -488,13 +492,15 @@ if (length(race_cols) && "total_staff_count" %in% names(teacher_all)) {
   message("[01c] Backfilled total_staff_count for ", backfilled_n, " ALL gender rows")
 
   # Verify backfill correctness: check if race columns sum to total_staff_count
+  # Tolerance accounts for rounding differences when CDE reports decimals
+  # (e.g., FTE values like 2.4 rounded differently in totals vs. race columns)
   validation_check <- teacher_all |>
     filter(staff_gender_code == "ALL") |>
     mutate(
       sum_check = rowSums(across(all_of(race_cols)), na.rm = TRUE),
       diff = abs(total_staff_count - sum_check)
     ) |>
-    filter(diff > 1)  # Allow 1 unit difference for rounding
+    filter(diff > BACKFILL_TOLERANCE)
 
   if (nrow(validation_check) > 0) {
     message("[01c] WARNING: ", nrow(validation_check),
@@ -560,14 +566,52 @@ if (length(actual_types) > 1 && "TCH" %in% actual_types && "ADM" %in% actual_typ
   message("  WARNING: Unexpected staff type distribution")
 }
 
+# === Additional data quality validations ===
+
+# Validation: Check for critical staff types
+# TCH (Teachers) and ADM (Administrators) are essential for equity analysis
+critical_staff_types <- c("TCH", "ADM")
+missing_critical <- setdiff(critical_staff_types, actual_types)
+if (length(missing_critical) > 0) {
+  warning("[01c] Critical staff types missing from data: ",
+          paste(missing_critical, collapse = ", "),
+          ". Equity analyses comparing teachers and administrators will be limited.")
+}
+
+# Validation: Temporal completeness check
+# Warn if there are gaps in the academic year sequence
+years_present <- sort(unique(teacher_all$academic_year))
+message("[01c] Academic years in dataset: ", paste(years_present, collapse = ", "))
+
+# Expected years based on file pattern (2019-20 through 2024-25)
+expected_years <- c("2019-20", "2020-21", "2021-22", "2022-23", "2023-24", "2024-25")
+missing_years <- setdiff(expected_years, years_present)
+if (length(missing_years) > 0) {
+  warning("[01c] Expected years missing from dataset: ",
+          paste(missing_years, collapse = ", "),
+          ". Time-series analyses may have gaps.")
+}
+
 # Check for duplicates after aggregation
+# CRITICAL: Duplicates indicate data quality issues and lead to double-counting
+# in downstream analyses. We must halt if any duplicates are detected.
 duplicates <- teacher_all |>
   group_by(across(all_of(key_cols))) |>
   filter(n() > 1) |>
   ungroup()
+
 if (nrow(duplicates) > 0) {
-  warning("[01c] ", nrow(duplicates), " duplicate rows remain after aggregation")
-  print(head(duplicates))
+  dup_summary <- duplicates |>
+    select(all_of(intersect(key_cols, names(duplicates)))) |>
+    head(10)
+
+  message("[01c] CRITICAL ERROR: ", nrow(duplicates), " duplicate rows detected after aggregation")
+  message("[01c] Sample duplicates (first 10):")
+  print(dup_summary)
+
+  stop("[01c] Duplicate key combinations found. This indicates inconsistent ",
+       "grouping in the aggregation step (lines 450-456). Review key_cols definition ",
+       "and ensure all dimension columns are included in the grouping.")
 }
 
 # Drop redundant total_staff if duplicated
@@ -595,17 +639,50 @@ if (!length(race_cols)) {
     )
 
   # Document zero/NA filtering impact
+  # CRITICAL: Keep rows with staff_count = 0, as these indicate absence of staff
+  # in specific demographic categories (e.g., "0 Black teachers" is meaningful
+  # data for equity analysis). Only filter out NA values.
   n_before_filter <- nrow(teacher_long)
+  n_zeros <- sum(teacher_long$staff_count == 0, na.rm = TRUE)
+  n_na <- sum(is.na(teacher_long$staff_count))
+
   teacher_long <- teacher_long |>
-    filter(!is.na(staff_count) & staff_count > 0)
+    filter(!is.na(staff_count) & staff_count >= 0)
   n_after_filter <- nrow(teacher_long)
 
   n_dropped <- n_before_filter - n_after_filter
   pct_dropped <- round(100 * n_dropped / n_before_filter, 1)
   message("[01c] Pivoted ", n_before_pivot, " rows to ", n_before_filter, " long rows")
   message("[01c] Filtered out ", comma(n_dropped),
-          " zero/NA staff_count rows (", pct_dropped, "% of pivoted data)")
-  message("[01c] Keeping ", comma(n_after_filter), " rows with staff_count > 0")
+          " NA staff_count rows (", pct_dropped, "% of pivoted data)")
+  message("[01c] Keeping ", comma(n_after_filter), " rows (including ", comma(n_zeros), " with staff_count = 0)")
+
+  # Track school-year combinations to detect if entire school-years were removed
+  schools_before <- teacher_all |>
+    distinct(cds_school, academic_year) |>
+    nrow()
+  schools_after <- teacher_long |>
+    distinct(cds_school, academic_year) |>
+    nrow()
+
+  if (schools_before != schools_after) {
+    n_lost_school_years <- schools_before - schools_after
+    message("[01c] WARNING: ", n_lost_school_years,
+            " school-year combinations completely removed (all race/gender categories had NA staff_count)")
+
+    # Identify which school-years were lost
+    lost_school_years <- teacher_all |>
+      distinct(cds_school, academic_year) |>
+      anti_join(
+        teacher_long |> distinct(cds_school, academic_year),
+        by = c("cds_school", "academic_year")
+      )
+
+    if (nrow(lost_school_years) > 0 && nrow(lost_school_years) <= 20) {
+      message("[01c] Lost school-years:")
+      print(lost_school_years)
+    }
+  }
 
   # Check column survived pivot
   stopifnot("reporting_category must survive pivot" =
@@ -729,7 +806,7 @@ stopifnot(
   "No rows in final dataset" = nrow(teacher_long) > 0,
   "Missing academic_year values" = !any(is.na(teacher_long$academic_year)),
   "Missing cds_school values" = !any(is.na(teacher_long$cds_school)),
-  "staff_count should be positive" = all(teacher_long$staff_count > 0)
+  "staff_count should be non-negative" = all(teacher_long$staff_count >= 0)
 )
 
 # Final asserts - CDE compliance validation
@@ -869,7 +946,7 @@ message("[01c] Wrote data lineage summary to ", lineage_path)
 
 # === AUDIT TRAIL 3: Flag large schools for verification ===
 verification_needed <- teacher_long |>
-  filter(staff_count > 1000) |>
+  filter(staff_count > OUTLIER_STAFF_THRESHOLD) |>
   select(cds_school, academic_year, staff_gender_code, race_ethnicity, staff_count) |>
   arrange(desc(staff_count))
 
@@ -877,10 +954,10 @@ if (nrow(verification_needed) > 0) {
   verification_path <- here("data-stage", "teacher_large_schools_to_verify.csv")
   write_csv(verification_needed, verification_path)
   message("[01c] Flagged ", nrow(verification_needed),
-          " school-year-category combinations with staff_count > 1000 for verification")
+          " school-year-category combinations with staff_count > ", OUTLIER_STAFF_THRESHOLD, " for verification")
   message("[01c] Wrote verification list to ", verification_path)
 } else {
-  message("[01c] No schools with staff_count > 1000 found")
+  message("[01c] No schools with staff_count > ", OUTLIER_STAFF_THRESHOLD, " found")
 }
 
 # === AUDIT TRAIL 4: Write parsing issues log ===
