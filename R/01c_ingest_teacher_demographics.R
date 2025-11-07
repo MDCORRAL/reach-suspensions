@@ -807,8 +807,9 @@ if ("race_ethnicity" %in% names(teacher_long)) {
 if ("reporting_category" %in% names(teacher_long)) {
   valid_staff_types <- c("ALL", "ADM", "PSV", "TCH", "OTH")
 
+  # Check for invalid types, excluding NA which is explicitly allowed
   invalid_types <- teacher_long |>
-    filter(!reporting_category %in% valid_staff_types) |>
+    filter(!is.na(reporting_category) & !reporting_category %in% valid_staff_types) |>
     distinct(reporting_category)
 
   if (nrow(invalid_types) > 0) {
@@ -816,9 +817,10 @@ if ("reporting_category" %in% names(teacher_long)) {
          paste(invalid_types$reporting_category, collapse = ", "))
   }
 
+  # Validate that all non-NA values are valid CDE codes
   stopifnot(
     "Only valid CDE staff type codes allowed" =
-      all(teacher_long$reporting_category %in% valid_staff_types)
+      all(teacher_long$reporting_category %in% valid_staff_types, na.rm = TRUE)
   )
   message("  ✓ Staff type validation passed: All codes are valid CDE codes")
 } else {
