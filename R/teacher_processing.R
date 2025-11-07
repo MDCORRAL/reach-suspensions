@@ -55,6 +55,20 @@ teacher_gender_label <- function(code, fallback = NA_character_) {
   dplyr::coalesce(mapped, fallback)
 }
 
+#' Map reporting_category codes to readable labels.
+teacher_reporting_category_label <- function(code, fallback = NA_character_) {
+  code_upper <- stringr::str_to_upper(dplyr::coalesce(code, ""))
+  mapped <- dplyr::case_when(
+    code_upper == "ALL" ~ "All Staff",
+    code_upper == "TCH" ~ "Teachers",
+    code_upper == "ADM" ~ "Administrators",
+    code_upper == "PSV" ~ "Pupil Services",
+    code_upper == "OTH" ~ "Other Staff",
+    TRUE                ~ NA_character_
+  )
+  dplyr::coalesce(mapped, fallback)
+}
+
 #' Convert arbitrary text to a safe snake_case slug.
 teacher_slugify <- function(x) {
   slug <- stringr::str_squish(dplyr::coalesce(as.character(x), ""))
@@ -198,9 +212,13 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
                      .groups = "drop") %>%
     dplyr::rename_with(~ paste0("teacher_", ., "_total"), dplyr::all_of(value_cols))
 
-  race_label <- dplyr::coalesce(df$reporting_category_description, df$race_ethnicity)
-  if (!"race_ethnicity" %in% names(df)) {
-    df$race_ethnicity <- race_label
+  # Create reporting_category_description if it doesn't exist
+  if (!"reporting_category_description" %in% names(df)) {
+    if ("reporting_category" %in% names(df)) {
+      df$reporting_category_description <- teacher_reporting_category_label(df$reporting_category)
+    } else {
+      df$reporting_category_description <- NA_character_
+    }
   }
 
   race_tbl <- df %>%
