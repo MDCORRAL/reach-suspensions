@@ -21,6 +21,8 @@ suppressPackageStartupMessages({
   library(here)
   library(readr)
   library(tibble)
+  library(stringr)
+  library(tidyr)
 })
 
 message("[VALIDATE] Starting data retention validation...")
