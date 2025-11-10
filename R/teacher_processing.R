@@ -223,7 +223,9 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
   }
 
   total_mask <- teacher_is_total_row(df)
-  totals_src <- if (any(total_mask, na.rm = TRUE)) df[total_mask, , drop = FALSE] else df
+  total_mask <- total_mask %in% TRUE
+  df$.teacher_total_row <- total_mask
+  totals_src <- if (any(df$.teacher_total_row, na.rm = TRUE)) df[df$.teacher_total_row, , drop = FALSE] else df
   totals <- totals_src %>%
     dplyr::group_by(dplyr::across(dplyr::all_of(key_cols))) %>%
     dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
@@ -235,6 +237,7 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
     totals_by_type <- df %>%
       dplyr::filter(!is.na(reporting_category_slug)) %>%
       dplyr::group_by(dplyr::across(dplyr::all_of(c(key_cols, "reporting_category_slug")))) %>%
+      dplyr::filter(if (any(.teacher_total_row, na.rm = TRUE)) .teacher_total_row else TRUE) %>%
       dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
                        .groups = "drop") %>%
       tidyr::pivot_wider(
@@ -245,6 +248,8 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
         values_fill = 0
       )
   }
+
+  df$.teacher_total_row <- NULL
 
   # Create reporting_category_description if it doesn't exist
   if (!"reporting_category_description" %in% names(df)) {
