@@ -178,6 +178,14 @@ read_teacher_txt <- function(path) {
   # Now apply transformations
   raw <- raw |> janitor::clean_names()
 
+  # Standardise key columns that need early cleaning before downstream renames.
+  # Staff gender headers sometimes leak into the data as literal values (e.g.,
+  # "ACADEMIC YEAR"). Those leaks were previously filtered only when the
+  # column name already matched `staff_gender_code`, meaning alternate header
+  # spellings like `staff_gender` slipped through and caused invalid gender
+  # codes later in the pipeline. Rename here so the filter always applies.
+  raw <- raw |> rename_first("staff_gender_code", c("staff_gender", "gender_code"))
+
   # Keep provenance
   raw <- raw |> mutate(source_file = basename(path))
 
