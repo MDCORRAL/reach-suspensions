@@ -38,23 +38,37 @@ black_quartile_colors <- setNames(
 # === 2) Load and validate data ================================================
 message("=== 21: Weighted Teacher Diversity by Black Enrollment Quartile ===")
 
-# Load student data (wide format with one row per school-year)
-V6_FEATURES_PATH <- here::here("data-stage", "susp_v6_features.parquet")
+# Load student data (long format, will aggregate to school level)
+V6_LONG_PATH <- here::here("data-stage", "susp_v6_long.parquet")
 TEACHER_PATH <- here::here("data-stage", "teacher_staff_long.parquet")
 
-if (!file.exists(V6_FEATURES_PATH)) {
-  stop("Missing susp_v6_features.parquet. Run run_pipeline.R first.")
+if (!file.exists(V6_LONG_PATH)) {
+  stop("Missing susp_v6_long.parquet. Run run_pipeline.R first.")
 }
 if (!file.exists(TEACHER_PATH)) {
   stop("Missing teacher_staff_long.parquet. Run R/01c_ingest_teacher_demographics.R first.")
 }
 
-message(">>> Loading student suspension data (wide format)...")
-df_students <- arrow::read_parquet(V6_FEATURES_PATH) %>%
+message(">>> Loading student suspension data (long format)...")
+df_students_raw <- arrow::read_parquet(V6_LONG_PATH) %>%
   janitor::clean_names() %>%
-  build_keys()
+  build_keys() %>%
+  filter(
+    aggregate_level == "S" | tolower(aggregate_level) == "school",  # Campus level only
+    !school_code %in% SPECIAL_SCHOOL_CODES  # Exclude special codes
+  )
 
-# Verify uniqueness (should be one row per school-year)
+# Aggregate to school level (one row per school-year) using "All Students" rows
+message(">>> Aggregating to school level...")
+df_students <- df_students_raw %>%
+  filter(
+    category_type == "Race/Ethnicity",
+    canon_race_label(subgroup) == "All Students"
+  ) %>%
+  # Keep only one row per school-year (should already be unique, but verify)
+  distinct(cds_school, academic_year, .keep_all = TRUE)
+
+# Verify uniqueness
 df_students <- assert_unique_campus(df_students, campus_col = "cds_school", year_col = "academic_year")
 
 message(">>> Loading and summarizing teacher data...")
