@@ -38,20 +38,54 @@ black_quartile_colors <- setNames(
 # === 2) Load and validate data ================================================
 message("=== 21: Weighted Teacher Diversity by Black Enrollment Quartile ===")
 
-TEACHER_FEATURES_PATH <- here::here("data-stage", "susp_v6_teacher_features.parquet")
+# Load student data (has enrollment and suspension data)
+V6_LONG_PATH <- here::here("data-stage", "susp_v6_long.parquet")
+TEACHER_PATH <- here::here("data-stage", "teacher_staff_long.parquet")
 
-if (!file.exists(TEACHER_FEATURES_PATH)) {
-  stop(
-    "Missing susp_v6_teacher_features.parquet. ",
-    "Run Analysis/18_merge_teacher_student.R first."
-  )
+if (!file.exists(V6_LONG_PATH)) {
+  stop("Missing susp_v6_long.parquet. Run run_pipeline.R first.")
+}
+if (!file.exists(TEACHER_PATH)) {
+  stop("Missing teacher_staff_long.parquet. Run R/01c_ingest_teacher_demographics.R first.")
 }
 
-message(">>> Loading merged teacher-student data...")
-df <- arrow::read_parquet(TEACHER_FEATURES_PATH) %>%
+message(">>> Loading student suspension data...")
+df_students <- arrow::read_parquet(V6_LONG_PATH) %>%
   janitor::clean_names() %>%
   build_keys() %>%
   filter_campus_only()
+
+# Filter to "All Students" rows for school-level aggregates
+df_students <- df_students %>%
+  filter(
+    category_type == "Race/Ethnicity",
+    canon_race_label(subgroup) == "All Students"
+  )
+
+message(">>> Loading and summarizing teacher data...")
+source(here::here("R", "teacher_processing.R"))
+
+teacher_long <- arrow::read_parquet(TEACHER_PATH) %>%
+  janitor::clean_names() %>%
+  build_keys()
+
+teacher_summary <- teacher_summarise_long(teacher_long)
+
+# Sanitize NaN/Inf in teacher data
+teacher_summary <- teacher_summary %>%
+  mutate(across(where(is.numeric), ~ {
+    out <- .x
+    out[is.nan(out)] <- NA_real_
+    dplyr::na_if(out, Inf)
+  }))
+
+message(">>> Joining teacher and student data...")
+df <- df_students %>%
+  left_join(
+    teacher_summary,
+    by = c("academic_year", "cds_school"),
+    relationship = "one-to-one"
+  )
 
 # Check required columns
 required_cols <- c(
