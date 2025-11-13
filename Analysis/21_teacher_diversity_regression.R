@@ -54,10 +54,15 @@ convert_parquet_to_csv <- function(parquet_path, csv_path, csv_hint = NULL) {
       python_bin,
       args = c(
         "-c",
-        "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('pyarrow') else 1)"
+        paste(
+          "import importlib.util",
+          "import sys",
+          "sys.exit(0 if importlib.util.find_spec(\"pyarrow\") else 1)",
+          sep = "\n"
+        )
       ),
-      stdout = FALSE,
-      stderr = FALSE
+      stdout = NULL,
+      stderr = NULL
     )
   )
 
