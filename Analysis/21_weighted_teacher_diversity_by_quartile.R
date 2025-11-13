@@ -214,7 +214,17 @@ message("\n>>> Computing weighted aggregations by quartile...")
 # Debug: Show all teacher columns to understand naming pattern
 all_teacher_cols <- grep("^teacher_staff_count_", names(analysis_df), value = TRUE)
 message(">>> DEBUG: All teacher_staff_count_* columns (", length(all_teacher_cols), " total):")
-message(">>> ", paste(head(all_teacher_cols, 20), collapse = "\n>>> "))
+message(">>> ", paste(all_teacher_cols, collapse = "\n>>> "))
+
+# Also check for ANY column with race keywords
+race_keyword_cols <- grep("(african|white|hispanic|asian|latino|black|race|ethnicity)",
+                           names(analysis_df), value = TRUE, ignore.case = TRUE)
+message("\n>>> Columns with race/ethnicity keywords (", length(race_keyword_cols), " total):")
+if (length(race_keyword_cols) > 0) {
+  message(">>> ", paste(race_keyword_cols, collapse = "\n>>> "))
+} else {
+  message(">>> NONE FOUND - Teacher data does not include race/ethnicity breakdowns")
+}
 
 # Dynamically find teacher race columns
 # Look for columns with race/ethnicity names (not staff types like administrators, teachers, etc.)
@@ -229,21 +239,26 @@ teacher_race_cols <- grep(
 teacher_race_cols <- grep("_share$", teacher_race_cols, value = TRUE, invert = TRUE, perl = TRUE)
 
 message(">>> Found ", length(teacher_race_cols), " teacher race columns")
-if (length(teacher_race_cols) > 0) {
-  message(">>> Race columns: ", paste(head(teacher_race_cols, 10), collapse = ", "))
+
+# Check if we have the data needed for this analysis
+if (length(teacher_race_cols) == 0) {
+  message("\n>>> ERROR: Cannot proceed with teacher diversity analysis")
+  message(">>> The teacher data does not include race/ethnicity breakdowns.")
+  message(">>> ")
+  message(">>> Available teacher data includes:")
+  message(">>>   - Total staff counts by position (teachers, administrators, etc.)")
+  message(">>>   - Gender breakdowns (female, male, non-binary)")
+  message(">>>   - Combinations of position and gender")
+  message(">>> ")
+  message(">>> To complete this analysis, you would need:")
+  message(">>>   - Teacher demographic data with race/ethnicity breakdowns")
+  message(">>>   - Columns like: teacher_staff_count_african_american, teacher_staff_count_white, etc.")
+  message(">>> ")
+  message(">>> Check the source teacher TXT files (stre*.txt) to see if race/ethnicity")
+  message(">>> data is available but not being processed by teacher_processing.R")
+
+  stop("Teacher race/ethnicity data not available. Cannot compute diversity metrics.")
 }
-
-# Identify specific columns for later use (search more broadly)
-col_african_american <- grep("african", teacher_race_cols, value = TRUE)[1]
-col_white <- grep("white", teacher_race_cols, value = TRUE)[1]
-col_hispanic <- grep("hispanic", teacher_race_cols, value = TRUE)[1]
-col_asian <- grep("asian", teacher_race_cols, value = TRUE)[1]
-
-message(">>> Identified key columns:")
-message(">>>   African American: ", ifelse(is.na(col_african_american), "NOT FOUND", col_african_american))
-message(">>>   White: ", ifelse(is.na(col_white), "NOT FOUND", col_white))
-message(">>>   Hispanic: ", ifelse(is.na(col_hispanic), "NOT FOUND", col_hispanic))
-message(">>>   Asian: ", ifelse(is.na(col_asian), "NOT FOUND", col_asian))
 
 # Aggregate by quartile and year
 weighted_summary <- analysis_df %>%
