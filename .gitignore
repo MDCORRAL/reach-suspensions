@@ -6,7 +6,11 @@ data/*
 !data/dashboard_data.json
 data-raw/
 data-stage/
+!data-stage/
+# Legacy parquet artifacts that were checked in before these rules remain in history.
+# Only explicitly whitelisted files below will be addable going forward.
 *.parquet
+!data-stage/susp_v6_teacher_features.parquet
 *.duckdb
 *.xlsx
 *.csv
