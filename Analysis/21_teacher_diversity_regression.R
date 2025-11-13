@@ -20,6 +20,24 @@ clean_names <- function(x) {
   cleaned
 }
 
+PYTHON_BIN <- NULL
+
+detect_python <- function() {
+  if (!is.null(PYTHON_BIN)) {
+    return(PYTHON_BIN)
+  }
+  candidates <- Sys.which(c("python", "python3"))
+  candidates <- candidates[nzchar(candidates)]
+  if (!length(candidates)) {
+    stop(
+      "Python interpreter not found. Install Python 3 with the pyarrow package ",
+      "or convert the parquet file to CSV manually before running this script."
+    )
+  }
+  PYTHON_BIN <<- candidates[1]
+  PYTHON_BIN
+}
+
 convert_parquet_to_csv <- function(parquet_path, csv_path) {
   script_path <- tempfile(fileext = ".py")
   on.exit(unlink(script_path), add = TRUE)
@@ -38,56 +56,28 @@ convert_parquet_to_csv <- function(parquet_path, csv_path) {
     ),
     con = script_path
   )
-  python_paths <- get_python_paths()
-  existing <- Sys.getenv("PYTHONPATH")
-  combined <- c(python_paths, if (nzchar(existing)) existing else NULL)
-  env <- if (length(combined)) sprintf("PYTHONPATH=%s", paste(combined, collapse = ":")) else character(0)
-  status <- system2("python", args = c(script_path, parquet_path, csv_path), env = env)
-  if (!identical(status, 0L)) {
-    stop("Failed to convert ", parquet_path, " using Python (status ", status, ")")
-  }
-}
-
-PYTHON_SITE_CACHE <- NULL
-
-get_python_paths <- function() {
-  if (!is.null(PYTHON_SITE_CACHE)) {
-    return(PYTHON_SITE_CACHE)
-  }
-  script_path <- tempfile(fileext = ".py")
-  on.exit(unlink(script_path), add = TRUE)
-  writeLines(
-    c(
-      "import site",
-      "import sysconfig",
-      "printed = set()",
-      "for path in site.getsitepackages():",
-      "    if path and path not in printed:",
-      "        print(path)",
-      "        printed.add(path)",
-      "for key in (\"purelib\", \"platlib\"):",
-      "    path = sysconfig.get_paths().get(key)",
-      "    if path and path not in printed:",
-      "        print(path)",
-      "        printed.add(path)"
-    ),
-    con = script_path
-  )
+  python_bin <- detect_python()
   output <- suppressWarnings(
     system2(
-      "python",
-      args = script_path,
+      python_bin,
+      args = c(script_path, parquet_path, csv_path),
       stdout = TRUE,
       stderr = TRUE
     )
   )
-  if (!length(output)) {
-    PYTHON_SITE_CACHE <<- character(0)
-    return(PYTHON_SITE_CACHE)
+  status <- attr(output, "status")
+  if (is.null(status)) {
+    status <- 0L
   }
-  paths <- output[nzchar(output)]
-  PYTHON_SITE_CACHE <<- paths
-  paths
+  if (!identical(status, 0L)) {
+    if (length(output)) {
+      message(paste(output, collapse = "\n"))
+    }
+    stop(
+      "Failed to convert ", parquet_path, " using ", python_bin,
+      " (exit status ", status, "). Ensure pyarrow is installed."
+    )
+  }
 }
 
 read_parquet <- function(path) {

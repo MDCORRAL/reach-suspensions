@@ -3,8 +3,8 @@
 This note documents the R workflow that explores school-level suspension
 rates as a function of teacher and administrator diversity. The
 analysis now relies on `21_teacher_diversity_regression.R`, which uses
-base R plus a lightweight Python bridge (via the system `python`
-executable) to load parquet files, run data-quality diagnostics, and fit
+base R plus a lightweight Python bridge (via the system `python` or
+`python3` executable) to load parquet files, run data-quality diagnostics, and fit
 weighted linear models when staff diversity inputs exist.
 
 ## Data availability
@@ -42,6 +42,10 @@ and fit a weighted least squares model.
    `R/01c_ingest_teacher_demographics.R` followed by
    `Analysis/18_merge_teacher_student.R` once the raw CDE teacher TXT
    files are available under `data-raw/`.
+   - If your machine only exposes `python3`, the script detects it
+     automatically. Should neither `python` nor `python3` be available,
+     convert the parquet file to CSV manually (or install Python 3 with
+     `pyarrow`) before rerunning the R analysis.
 3. Review small-enrollment schools flagged by the script to decide
    whether to pool, trim, or interpret with caution.
 
