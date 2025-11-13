@@ -5,7 +5,10 @@ rates as a function of teacher and administrator diversity. The
 analysis now relies on `21_teacher_diversity_regression.R`, which uses
 base R plus a lightweight Python bridge (via the system `python` or
 `python3` executable) to load parquet files, run data-quality diagnostics, and fit
-weighted linear models when staff diversity inputs exist.
+weighted linear models when staff diversity inputs exist. When Python lacks
+`pyarrow`, the script now falls back to an existing CSV export (for example
+`data-stage/susp_v6_teacher_features.csv`) so analysts can still run the
+workflow after manually converting the parquet file.
 
 ## Data availability
 
@@ -44,8 +47,9 @@ and fit a weighted least squares model.
    files are available under `data-raw/`.
    - If your machine only exposes `python3`, the script detects it
      automatically. Should neither `python` nor `python3` be available,
-     convert the parquet file to CSV manually (or install Python 3 with
-     `pyarrow`) before rerunning the R analysis.
+     or if Python lacks the `pyarrow` package, manually convert the
+     parquet file to CSV (e.g., `data-stage/susp_v6_teacher_features.csv`)
+     before rerunning the R analysis.
 3. Review small-enrollment schools flagged by the script to decide
    whether to pool, trim, or interpret with caution.
 

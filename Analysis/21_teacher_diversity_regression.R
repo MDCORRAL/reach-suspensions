@@ -5,10 +5,16 @@
 # and modeling intent.
 
 TEACHER_PATH <- file.path("data-stage", "susp_v6_teacher_features.parquet")
+TEACHER_CSV_PATH <- file.path("data-stage", "susp_v6_teacher_features.csv")
 FALLBACK_PATH <- file.path("data-stage", "susp_v6_features.parquet")
+FALLBACK_CSV_PATH <- file.path("data-stage", "susp_v6_features.csv")
 
 format_number <- function(x) {
   format(x, big.mark = ",", scientific = FALSE, trim = TRUE)
+}
+
+`%||%` <- function(x, y) {
+  if (!is.null(x)) x else y
 }
 
 clean_names <- function(x) {
@@ -38,9 +44,37 @@ detect_python <- function() {
   PYTHON_BIN
 }
 
-convert_parquet_to_csv <- function(parquet_path, csv_path) {
+convert_parquet_to_csv <- function(parquet_path, csv_path, csv_hint = NULL) {
   script_path <- tempfile(fileext = ".py")
   on.exit(unlink(script_path), add = TRUE)
+  python_bin <- detect_python()
+
+  pyarrow_check <- suppressWarnings(
+    system2(
+      python_bin,
+      args = c(
+        "-c",
+        "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('pyarrow') else 1)"
+      ),
+      stdout = FALSE,
+      stderr = FALSE
+    )
+  )
+
+  if (!identical(pyarrow_check, 0L)) {
+    manual_msg <- if (is.null(csv_hint)) {
+      paste0(dirname(parquet_path), "/", tools::file_path_sans_ext(basename(parquet_path)), ".csv")
+    } else {
+      csv_hint
+    }
+    stop(
+      "Python interpreter ", python_bin, " is missing the pyarrow package needed to convert ",
+      basename(parquet_path), ". Install pyarrow (e.g., `pip install pyarrow`) or supply a CSV copy at ",
+      manual_msg, " before rerunning.",
+      call. = FALSE
+    )
+  }
+
   writeLines(
     c(
       "import sys",
@@ -56,7 +90,6 @@ convert_parquet_to_csv <- function(parquet_path, csv_path) {
     ),
     con = script_path
   )
-  python_bin <- detect_python()
   output <- suppressWarnings(
     system2(
       python_bin,
@@ -75,26 +108,45 @@ convert_parquet_to_csv <- function(parquet_path, csv_path) {
     }
     stop(
       "Failed to convert ", parquet_path, " using ", python_bin,
-      " (exit status ", status, "). Ensure pyarrow is installed."
+      " (exit status ", status, "). Ensure pyarrow is installed.",
+      call. = FALSE
     )
   }
 }
 
-read_parquet <- function(path) {
+read_parquet <- function(path, csv_hint = NULL) {
   csv_tmp <- tempfile(fileext = ".csv")
   on.exit(unlink(csv_tmp), add = TRUE)
-  convert_parquet_to_csv(path, csv_tmp)
-  utils::read.csv(csv_tmp, stringsAsFactors = FALSE, check.names = FALSE)
+  tryCatch({
+    convert_parquet_to_csv(path, csv_tmp, csv_hint)
+    df <- utils::read.csv(csv_tmp, stringsAsFactors = FALSE, check.names = FALSE)
+    attr(df, "source_path") <- path
+    df
+  }, error = function(err) {
+    if (!is.null(csv_hint) && file.exists(csv_hint)) {
+      message(conditionMessage(err))
+      message("Falling back to existing CSV file: ", basename(csv_hint))
+      df <- utils::read.csv(csv_hint, stringsAsFactors = FALSE, check.names = FALSE)
+      attr(df, "source_path") <- csv_hint
+      return(df)
+    }
+    stop(conditionMessage(err), call. = FALSE)
+  })
 }
 
 load_features <- function() {
-  if (file.exists(TEACHER_PATH)) {
-    df <- read_parquet(TEACHER_PATH)
-    meta <- list(source = basename(TEACHER_PATH), teacher_columns = "present")
-  } else if (file.exists(FALLBACK_PATH)) {
-    df <- read_parquet(FALLBACK_PATH)
+  teacher_available <- file.exists(TEACHER_PATH) || file.exists(TEACHER_CSV_PATH)
+  fallback_available <- file.exists(FALLBACK_PATH) || file.exists(FALLBACK_CSV_PATH)
+
+  if (teacher_available) {
+    df <- read_parquet(TEACHER_PATH, TEACHER_CSV_PATH)
+    source_path <- attr(df, "source_path") %||% TEACHER_PATH
+    meta <- list(source = basename(source_path), teacher_columns = "present")
+  } else if (fallback_available) {
+    df <- read_parquet(FALLBACK_PATH, FALLBACK_CSV_PATH)
+    source_path <- attr(df, "source_path") %||% FALLBACK_PATH
     meta <- list(
-      source = basename(FALLBACK_PATH),
+      source = basename(source_path),
       teacher_columns = "missing",
       note = "Teacher merge parquet not found; loaded student features only."
     )
