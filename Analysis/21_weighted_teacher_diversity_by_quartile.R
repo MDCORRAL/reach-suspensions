@@ -211,25 +211,39 @@ message("\n>>> Computing weighted aggregations by quartile...")
 # Method 1: Aggregate counts, then calculate proportions
 # This is the CORRECT way to weight by school size
 
+# Debug: Show all teacher columns to understand naming pattern
+all_teacher_cols <- grep("^teacher_staff_count_", names(analysis_df), value = TRUE)
+message(">>> DEBUG: All teacher_staff_count_* columns (", length(all_teacher_cols), " total):")
+message(">>> ", paste(head(all_teacher_cols, 20), collapse = "\n>>> "))
+
 # Dynamically find teacher race columns
-# Pattern: teacher_staff_count_{race} but exclude _total and _share variants
+# Look for columns with race/ethnicity names (not staff types like administrators, teachers, etc.)
 teacher_race_cols <- grep(
-  "^teacher_staff_count_(?!.*_total$)(?!.*_share$)(?!.*by_)(?!total$)[a-z_]+$",
+  "^teacher_staff_count_(african|american_indian|asian|filipino|hispanic|pacific|white|two_or_more|not_reported)",
   names(analysis_df),
   value = TRUE,
   perl = TRUE
 )
 
+# Exclude _share columns (we want raw counts)
+teacher_race_cols <- grep("_share$", teacher_race_cols, value = TRUE, invert = TRUE, perl = TRUE)
+
 message(">>> Found ", length(teacher_race_cols), " teacher race columns")
 if (length(teacher_race_cols) > 0) {
-  message(">>> Sample columns: ", paste(head(teacher_race_cols, 5), collapse = ", "))
+  message(">>> Race columns: ", paste(head(teacher_race_cols, 10), collapse = ", "))
 }
 
-# Identify specific columns for later use (with fallback if names differ)
-col_african_american <- grep("teacher_staff_count_african_american", teacher_race_cols, value = TRUE)[1]
-col_white <- grep("teacher_staff_count_white", teacher_race_cols, value = TRUE)[1]
-col_hispanic <- grep("teacher_staff_count_hispanic", teacher_race_cols, value = TRUE)[1]
-col_asian <- grep("teacher_staff_count_asian", teacher_race_cols, value = TRUE)[1]
+# Identify specific columns for later use (search more broadly)
+col_african_american <- grep("african", teacher_race_cols, value = TRUE)[1]
+col_white <- grep("white", teacher_race_cols, value = TRUE)[1]
+col_hispanic <- grep("hispanic", teacher_race_cols, value = TRUE)[1]
+col_asian <- grep("asian", teacher_race_cols, value = TRUE)[1]
+
+message(">>> Identified key columns:")
+message(">>>   African American: ", ifelse(is.na(col_african_american), "NOT FOUND", col_african_american))
+message(">>>   White: ", ifelse(is.na(col_white), "NOT FOUND", col_white))
+message(">>>   Hispanic: ", ifelse(is.na(col_hispanic), "NOT FOUND", col_hispanic))
+message(">>>   Asian: ", ifelse(is.na(col_asian), "NOT FOUND", col_asian))
 
 # Aggregate by quartile and year
 weighted_summary <- analysis_df %>%
