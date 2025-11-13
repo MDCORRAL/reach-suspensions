@@ -52,8 +52,7 @@ if (!file.exists(TEACHER_PATH)) {
 message(">>> Loading student suspension data (wide format)...")
 df_students <- arrow::read_parquet(V6_FEATURES_PATH) %>%
   janitor::clean_names() %>%
-  build_keys() %>%
-  filter_campus_only()
+  build_keys()
 
 # Verify uniqueness (should be one row per school-year)
 df_students <- assert_unique_campus(df_students, campus_col = "cds_school", year_col = "academic_year")
