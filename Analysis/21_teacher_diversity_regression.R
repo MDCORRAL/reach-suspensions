@@ -28,57 +28,79 @@ clean_names <- function(x) {
 
 PYTHON_BIN <- NULL
 
-detect_python <- function() {
+python_has_pyarrow <- function(python_bin) {
+  identical(
+    suppressWarnings(
+      system2(
+        python_bin,
+        args = c(
+          "-c",
+          "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('pyarrow') else 1)"
+        ),
+        stdout = FALSE,
+        stderr = FALSE
+      )
+    ),
+    0L
+  )
+}
+
+detect_python <- function(require_pyarrow = FALSE) {
   if (!is.null(PYTHON_BIN)) {
-    return(PYTHON_BIN)
+    if (!require_pyarrow || python_has_pyarrow(PYTHON_BIN)) {
+      return(PYTHON_BIN)
+    }
   }
+
   candidates <- Sys.which(c("python", "python3"))
-  candidates <- candidates[nzchar(candidates)]
+  candidates <- unique(candidates[nzchar(candidates)])
+
   if (!length(candidates)) {
     stop(
       "Python interpreter not found. Install Python 3 with the pyarrow package ",
       "or convert the parquet file to CSV manually before running this script."
     )
   }
-  PYTHON_BIN <<- candidates[1]
-  PYTHON_BIN
+
+  if (!require_pyarrow) {
+    PYTHON_BIN <<- candidates[1]
+    return(PYTHON_BIN)
+  }
+
+  for (candidate in candidates) {
+    if (python_has_pyarrow(candidate)) {
+      PYTHON_BIN <<- candidate
+      return(candidate)
+    }
+  }
+
+  stop(
+    "Python interpreter(s) found (",
+    paste(basename(candidates), collapse = ", "),
+    ") are missing the pyarrow package."
+  )
 }
 
 convert_parquet_to_csv <- function(parquet_path, csv_path, csv_hint = NULL) {
   script_path <- tempfile(fileext = ".py")
   on.exit(unlink(script_path), add = TRUE)
-  python_bin <- detect_python()
-
-  pyarrow_check <- suppressWarnings(
-    system2(
-      python_bin,
-      args = c(
-        "-c",
-        paste(
-          "import importlib.util",
-          "import sys",
-          "sys.exit(0 if importlib.util.find_spec(\"pyarrow\") else 1)",
-          sep = "\n"
-        )
-      ),
-      stdout = NULL,
-      stderr = NULL
-    )
-  )
-
-  if (!identical(pyarrow_check, 0L)) {
-    manual_msg <- if (is.null(csv_hint)) {
-      paste0(dirname(parquet_path), "/", tools::file_path_sans_ext(basename(parquet_path)), ".csv")
-    } else {
-      csv_hint
+  python_bin <- tryCatch(
+    detect_python(require_pyarrow = TRUE),
+    error = function(err) {
+      manual_msg <- if (is.null(csv_hint)) {
+        paste0(dirname(parquet_path), "/", tools::file_path_sans_ext(basename(parquet_path)), ".csv")
+      } else {
+        csv_hint
+      }
+      stop(
+        conditionMessage(err),
+        " Install pyarrow (e.g., `pip install pyarrow`) or supply a CSV copy at ",
+        manual_msg,
+        " before rerunning.",
+        call. = FALSE
+      )
     }
-    stop(
-      "Python interpreter ", python_bin, " is missing the pyarrow package needed to convert ",
-      basename(parquet_path), ". Install pyarrow (e.g., `pip install pyarrow`) or supply a CSV copy at ",
-      manual_msg, " before rerunning.",
-      call. = FALSE
-    )
-  }
+  )
 
   writeLines(
     c(
