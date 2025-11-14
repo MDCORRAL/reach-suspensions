@@ -240,6 +240,8 @@ teacher_race_cols <- grep("_share$", teacher_race_cols, value = TRUE, invert = T
 
 message(">>> Found ", length(teacher_race_cols), " teacher race columns")
 
+has_teacher_race_data <- length(teacher_race_cols) > 0
+
 # Recreate canonical column bindings used downstream for readability
 find_primary_teacher_race_col <- function(patterns) {
   if (!length(teacher_race_cols)) {
@@ -268,23 +270,10 @@ message(">>>   Hispanic: ", ifelse(is.na(col_hispanic), "NOT FOUND", col_hispani
 message(">>>   Asian: ", ifelse(is.na(col_asian), "NOT FOUND", col_asian))
 
 # Check if we have the data needed for this analysis
-if (length(teacher_race_cols) == 0) {
-  message("\n>>> ERROR: Cannot proceed with teacher diversity analysis")
-  message(">>> The teacher data does not include race/ethnicity breakdowns.")
-  message(">>> ")
-  message(">>> Available teacher data includes:")
-  message(">>>   - Total staff counts by position (teachers, administrators, etc.)")
-  message(">>>   - Gender breakdowns (female, male, non-binary)")
-  message(">>>   - Combinations of position and gender")
-  message(">>> ")
-  message(">>> To complete this analysis, you would need:")
-  message(">>>   - Teacher demographic data with race/ethnicity breakdowns")
-  message(">>>   - Columns like: teacher_staff_count_african_american, teacher_staff_count_white, etc.")
-  message(">>> ")
-  message(">>> Check the source teacher TXT files (stre*.txt) to see if race/ethnicity")
-  message(">>> data is available but not being processed by teacher_processing.R")
-
-  stop("Teacher race/ethnicity data not available. Cannot compute diversity metrics.")
+if (!has_teacher_race_data) {
+  message("\n>>> WARNING: Teacher race/ethnicity data not available")
+  message(">>> Continuing with aggregated totals only; race-specific metrics will be NA")
+  message(">>> To enable full analysis, ensure teacher_processing.R outputs race/ethnicity counts")
 }
 
 # Aggregate by quartile and year
@@ -484,8 +473,14 @@ if ("pct_teachers_white" %in% names(overall_summary)) {
 message("\n>>> Overall summary by quartile:")
 print(overall_summary %>%
         select(black_prop_q_label, n_unique_schools, total_teachers,
-               pct_teachers_white, pct_teachers_non_white,
-               pct_teachers_african_american, suspension_rate))
+               any_of(c(
+                 "pct_teachers_white",
+                 "pct_teachers_non_white",
+                 "pct_teachers_african_american",
+                 "pct_teachers_hispanic",
+                 "pct_teachers_asian"
+               )),
+               suspension_rate))
 
 # === 7) Distribution analysis within quartiles ===============================
 message("\n>>> Analyzing distributions within quartiles...")
@@ -526,34 +521,39 @@ if (!is.na(col_african_american) && col_african_american %in% names(school_level
 }
 
 # Distribution statistics by quartile
-distribution_summary <- school_level_diversity %>%
-  group_by(black_prop_q, black_prop_q_label) %>%
-  summarise(
-    n_schools = n(),
+if (has_teacher_race_data && "school_pct_white" %in% names(school_level_diversity)) {
+  distribution_summary <- school_level_diversity %>%
+    group_by(black_prop_q, black_prop_q_label) %>%
+    summarise(
+      n_schools = n(),
 
-    # White teacher distribution
-    mean_pct_white = mean(school_pct_white, na.rm = TRUE),
-    median_pct_white = median(school_pct_white, na.rm = TRUE),
-    sd_pct_white = sd(school_pct_white, na.rm = TRUE),
-    q25_pct_white = quantile(school_pct_white, 0.25, na.rm = TRUE),
-    q75_pct_white = quantile(school_pct_white, 0.75, na.rm = TRUE),
+      # White teacher distribution
+      mean_pct_white = mean(school_pct_white, na.rm = TRUE),
+      median_pct_white = median(school_pct_white, na.rm = TRUE),
+      sd_pct_white = sd(school_pct_white, na.rm = TRUE),
+      q25_pct_white = quantile(school_pct_white, 0.25, na.rm = TRUE),
+      q75_pct_white = quantile(school_pct_white, 0.75, na.rm = TRUE),
 
-    # Non-White teacher distribution
-    mean_pct_non_white = mean(school_pct_non_white, na.rm = TRUE),
-    median_pct_non_white = median(school_pct_non_white, na.rm = TRUE),
-    sd_pct_non_white = sd(school_pct_non_white, na.rm = TRUE),
+      # Non-White teacher distribution
+      mean_pct_non_white = mean(school_pct_non_white, na.rm = TRUE),
+      median_pct_non_white = median(school_pct_non_white, na.rm = TRUE),
+      sd_pct_non_white = sd(school_pct_non_white, na.rm = TRUE),
 
-    # African American teacher distribution
-    mean_pct_african_american = mean(school_pct_african_american, na.rm = TRUE),
-    median_pct_african_american = median(school_pct_african_american, na.rm = TRUE),
-    sd_pct_african_american = sd(school_pct_african_american, na.rm = TRUE),
+      # African American teacher distribution
+      mean_pct_african_american = mean(school_pct_african_american, na.rm = TRUE),
+      median_pct_african_american = median(school_pct_african_american, na.rm = TRUE),
+      sd_pct_african_american = sd(school_pct_african_american, na.rm = TRUE),
 
-    .groups = "drop"
-  ) %>%
-  arrange(black_prop_q)
+      .groups = "drop"
+    ) %>%
+    arrange(black_prop_q)
 
-message("\n>>> Distribution summary:")
-print(distribution_summary)
+  message("\n>>> Distribution summary:")
+  print(distribution_summary)
+} else {
+  message("\n>>> Skipping distribution summary; teacher race percentages unavailable")
+  distribution_summary <- tibble::tibble()
+}
 
 # === 8) Save summary tables ===================================================
 message("\n>>> Saving summary tables...")
@@ -590,158 +590,193 @@ message("\n>>> Creating visualizations...")
 dir.create(here::here("outputs", "graphs"), showWarnings = FALSE, recursive = TRUE)
 
 # Plot 1: Teacher diversity by quartile (overall)
-p1 <- overall_summary %>%
-  select(black_prop_q_label, pct_teachers_white, pct_teachers_non_white,
-         pct_teachers_african_american, pct_teachers_hispanic, pct_teachers_asian) %>%
-  pivot_longer(
-    cols = starts_with("pct_teachers_"),
-    names_to = "race_group",
-    values_to = "percentage"
-  ) %>%
-  mutate(
-    race_group = case_when(
-      race_group == "pct_teachers_white" ~ "White",
-      race_group == "pct_teachers_non_white" ~ "Non-White (All)",
-      race_group == "pct_teachers_african_american" ~ "African American",
-      race_group == "pct_teachers_hispanic" ~ "Hispanic/Latino",
-      race_group == "pct_teachers_asian" ~ "Asian",
-      TRUE ~ race_group
-    ),
-    race_group = factor(race_group, levels = c(
-      "White", "Non-White (All)", "African American", "Hispanic/Latino", "Asian"
-    ))
-  ) %>%
-  ggplot(aes(x = black_prop_q_label, y = percentage, fill = race_group)) +
-  geom_col(position = "dodge", alpha = 0.8) +
-  geom_text(
-    aes(label = sprintf("%.1f%%", percentage)),
-    position = position_dodge(width = 0.9),
-    vjust = -0.5,
-    size = 3
-  ) +
-  scale_fill_brewer(palette = "Set2", name = "Teacher Race/Ethnicity") +
-  scale_y_continuous(
-    labels = function(x) paste0(x, "%"),
-    expand = expansion(mult = c(0, 0.1))
-  ) +
-  labs(
-    title = "Teacher Diversity by School Black Enrollment Quartile",
-    subtitle = "Weighted averages (schools weighted by staff count) | 2018-19 onwards",
-    x = "School Black Student Proportion Quartile",
-    y = "Percentage of Teachers",
-    caption = "Note: Schools with >5 teachers included. Quartiles based on Black student enrollment share."
-  ) +
-  theme(
-    legend.position = "bottom",
-    plot.title = element_text(face = "bold", size = 14),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
-
-ggsave(
-  here::here("outputs", "graphs", "21_teacher_diversity_by_quartile.png"),
-  p1, width = 12, height = 8, dpi = 300, bg = "white"
+plot1_cols <- intersect(
+  c(
+    "pct_teachers_white",
+    "pct_teachers_non_white",
+    "pct_teachers_african_american",
+    "pct_teachers_hispanic",
+    "pct_teachers_asian"
+  ),
+  names(overall_summary)
 )
-message(">>> Saved: outputs/graphs/21_teacher_diversity_by_quartile.png")
+
+if (has_teacher_race_data && length(plot1_cols) > 0) {
+  p1 <- overall_summary %>%
+    select(black_prop_q_label, any_of(plot1_cols)) %>%
+    pivot_longer(
+      cols = starts_with("pct_teachers_"),
+      names_to = "race_group",
+      values_to = "percentage"
+    ) %>%
+    mutate(
+      race_group = case_when(
+        race_group == "pct_teachers_white" ~ "White",
+        race_group == "pct_teachers_non_white" ~ "Non-White (All)",
+        race_group == "pct_teachers_african_american" ~ "African American",
+        race_group == "pct_teachers_hispanic" ~ "Hispanic/Latino",
+        race_group == "pct_teachers_asian" ~ "Asian",
+        TRUE ~ race_group
+      ),
+      race_group = factor(race_group, levels = c(
+        "White", "Non-White (All)", "African American", "Hispanic/Latino", "Asian"
+      ))
+    ) %>%
+    ggplot(aes(x = black_prop_q_label, y = percentage, fill = race_group)) +
+    geom_col(position = "dodge", alpha = 0.8) +
+    geom_text(
+      aes(label = sprintf("%.1f%%", percentage)),
+      position = position_dodge(width = 0.9),
+      vjust = -0.5,
+      size = 3
+    ) +
+    scale_fill_brewer(palette = "Set2", name = "Teacher Race/Ethnicity") +
+    scale_y_continuous(
+      labels = function(x) paste0(x, "%"),
+      expand = expansion(mult = c(0, 0.1))
+    ) +
+    labs(
+      title = "Teacher Diversity by School Black Enrollment Quartile",
+      subtitle = "Weighted averages (schools weighted by staff count) | 2018-19 onwards",
+      x = "School Black Student Proportion Quartile",
+      y = "Percentage of Teachers",
+      caption = "Note: Schools with >5 teachers included. Quartiles based on Black student enrollment share."
+    ) +
+    theme(
+      legend.position = "bottom",
+      plot.title = element_text(face = "bold", size = 14),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+
+  ggsave(
+    here::here("outputs", "graphs", "21_teacher_diversity_by_quartile.png"),
+    p1, width = 12, height = 8, dpi = 300, bg = "white"
+  )
+  message(">>> Saved: outputs/graphs/21_teacher_diversity_by_quartile.png")
+} else {
+  message(">>> Skipping overall teacher diversity plot; race metrics unavailable")
+}
 
 # Plot 2: Trends over time
-p2 <- weighted_summary %>%
-  select(academic_year, black_prop_q_label, pct_teachers_white, pct_teachers_non_white) %>%
-  pivot_longer(
-    cols = c(pct_teachers_white, pct_teachers_non_white),
-    names_to = "measure",
-    values_to = "percentage"
-  ) %>%
-  mutate(
-    measure = if_else(measure == "pct_teachers_white", "White Teachers", "Non-White Teachers")
-  ) %>%
-  ggplot(aes(x = academic_year, y = percentage, color = black_prop_q_label, group = black_prop_q_label)) +
-  geom_line(linewidth = 1.2) +
-  geom_point(size = 2.5) +
-  facet_wrap(~ measure, ncol = 1, scales = "free_y") +
-  scale_color_manual(values = black_quartile_colors, name = "School Black Student Proportion") +
-  scale_y_continuous(
-    labels = function(x) paste0(x, "%"),
-    expand = expansion(mult = c(0.05, 0.1))
-  ) +
-  labs(
-    title = "Teacher Diversity Trends by Black Enrollment Quartile",
-    subtitle = "Weighted averages over time",
-    x = "Academic Year",
-    y = "Percentage of Teachers"
-  ) +
-  theme(
-    legend.position = "bottom",
-    plot.title = element_text(face = "bold", size = 14),
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    strip.text = element_text(face = "bold")
-  )
+if (has_teacher_race_data && all(c("pct_teachers_white", "pct_teachers_non_white") %in% names(weighted_summary))) {
+  p2 <- weighted_summary %>%
+    select(academic_year, black_prop_q_label, pct_teachers_white, pct_teachers_non_white) %>%
+    pivot_longer(
+      cols = c(pct_teachers_white, pct_teachers_non_white),
+      names_to = "measure",
+      values_to = "percentage"
+    ) %>%
+    mutate(
+      measure = if_else(measure == "pct_teachers_white", "White Teachers", "Non-White Teachers")
+    ) %>%
+    ggplot(aes(x = academic_year, y = percentage, color = black_prop_q_label, group = black_prop_q_label)) +
+    geom_line(linewidth = 1.2) +
+    geom_point(size = 2.5) +
+    facet_wrap(~ measure, ncol = 1, scales = "free_y") +
+    scale_color_manual(values = black_quartile_colors, name = "School Black Student Proportion") +
+    scale_y_continuous(
+      labels = function(x) paste0(x, "%"),
+      expand = expansion(mult = c(0.05, 0.1))
+    ) +
+    labs(
+      title = "Teacher Diversity Trends by Black Enrollment Quartile",
+      subtitle = "Weighted averages over time",
+      x = "Academic Year",
+      y = "Percentage of Teachers"
+    ) +
+    theme(
+      legend.position = "bottom",
+      plot.title = element_text(face = "bold", size = 14),
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.text = element_text(face = "bold")
+    )
 
-ggsave(
-  here::here("outputs", "graphs", "21_teacher_diversity_trends.png"),
-  p2, width = 12, height = 10, dpi = 300, bg = "white"
-)
-message(">>> Saved: outputs/graphs/21_teacher_diversity_trends.png")
+  ggsave(
+    here::here("outputs", "graphs", "21_teacher_diversity_trends.png"),
+    p2, width = 12, height = 10, dpi = 300, bg = "white"
+  )
+  message(">>> Saved: outputs/graphs/21_teacher_diversity_trends.png")
+} else {
+  message(">>> Skipping teacher diversity trends plot; race metrics unavailable")
+}
 
 # Plot 3: Distribution boxplots
-p3 <- school_level_diversity %>%
-  filter(!is.na(school_pct_non_white)) %>%
-  ggplot(aes(x = black_prop_q_label, y = school_pct_non_white, fill = black_prop_q_label)) +
-  geom_boxplot(alpha = 0.7, outlier.alpha = 0.3) +
-  geom_jitter(width = 0.2, alpha = 0.1, size = 0.5) +
-  scale_fill_manual(values = black_quartile_colors, guide = "none") +
-  scale_y_continuous(
-    labels = function(x) paste0(x, "%"),
-    limits = c(0, 100)
-  ) +
-  labs(
-    title = "Distribution of Non-White Teacher Percentage by Black Enrollment Quartile",
-    subtitle = "Each point is a school-year | Schools with ≥5 teachers",
-    x = "School Black Student Proportion Quartile",
-    y = "Non-White Teachers (%)",
-    caption = "Box shows median and interquartile range. Points show individual schools."
-  ) +
-  theme(
-    plot.title = element_text(face = "bold", size = 14),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
+if (has_teacher_race_data && "school_pct_non_white" %in% names(school_level_diversity)) {
+  p3 <- school_level_diversity %>%
+    filter(!is.na(school_pct_non_white)) %>%
+    ggplot(aes(x = black_prop_q_label, y = school_pct_non_white, fill = black_prop_q_label)) +
+    geom_boxplot(alpha = 0.7, outlier.alpha = 0.3) +
+    geom_jitter(width = 0.2, alpha = 0.1, size = 0.5) +
+    scale_fill_manual(values = black_quartile_colors, guide = "none") +
+    scale_y_continuous(
+      labels = function(x) paste0(x, "%"),
+      limits = c(0, 100)
+    ) +
+    labs(
+      title = "Distribution of Non-White Teacher Percentage by Black Enrollment Quartile",
+      subtitle = "Each point is a school-year | Schools with ≥5 teachers",
+      x = "School Black Student Proportion Quartile",
+      y = "Non-White Teachers (%)",
+      caption = "Box shows median and interquartile range. Points show individual schools."
+    ) +
+    theme(
+      plot.title = element_text(face = "bold", size = 14),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
 
-ggsave(
-  here::here("outputs", "graphs", "21_teacher_diversity_distribution.png"),
-  p3, width = 10, height = 8, dpi = 300, bg = "white"
-)
-message(">>> Saved: outputs/graphs/21_teacher_diversity_distribution.png")
+  ggsave(
+    here::here("outputs", "graphs", "21_teacher_diversity_distribution.png"),
+    p3, width = 10, height = 8, dpi = 300, bg = "white"
+  )
+  message(">>> Saved: outputs/graphs/21_teacher_diversity_distribution.png")
+} else {
+  message(">>> Skipping teacher diversity distribution plot; race metrics unavailable")
+}
 
 # Plot 4: Suspension rates vs teacher diversity
-p4 <- overall_summary %>%
-  ggplot(aes(x = pct_teachers_non_white, y = suspension_rate)) +
-  geom_point(aes(color = black_prop_q_label, size = total_teachers), alpha = 0.8) +
-  geom_text(
-    aes(label = black_prop_q_label),
-    nudge_y = 0.3,
-    size = 3.5,
-    fontface = "bold"
-  ) +
-  scale_color_manual(values = black_quartile_colors, name = "Black Student Quartile") +
-  scale_size_continuous(name = "Total Teachers", labels = comma) +
-  scale_x_continuous(labels = function(x) paste0(x, "%")) +
-  scale_y_continuous(labels = function(x) paste0(x, "%")) +
-  labs(
-    title = "Suspension Rates vs Teacher Diversity by Black Enrollment Quartile",
-    subtitle = "Weighted averages | Point size indicates total teacher count",
-    x = "Non-White Teachers (%)",
-    y = "Student Suspension Rate (%)",
-    caption = "Note: Correlation does not imply causation. Many unobserved factors influence outcomes."
-  ) +
-  theme(
-    legend.position = "bottom",
-    plot.title = element_text(face = "bold", size = 14)
-  )
+if (has_teacher_race_data && "pct_teachers_non_white" %in% names(overall_summary)) {
+  p4 <- overall_summary %>%
+    ggplot(aes(x = pct_teachers_non_white, y = suspension_rate)) +
+    geom_point(aes(color = black_prop_q_label, size = total_teachers), alpha = 0.8) +
+    geom_text(
+      aes(label = black_prop_q_label),
+      nudge_y = 0.3,
+      size = 3.5,
+      fontface = "bold"
+    ) +
+    scale_color_manual(values = black_quartile_colors, name = "Black Student Quartile") +
+    scale_size_continuous(name = "Total Teachers", labels = comma) +
+    scale_x_continuous(labels = function(x) paste0(x, "%")) +
+    scale_y_continuous(labels = function(x) paste0(x, "%")) +
+    labs(
+      title = "Suspension Rates vs Teacher Diversity by Black Enrollment Quartile",
+      subtitle = "Weighted averages | Point size indicates total teacher count",
+      x = "Non-White Teachers (%)",
+      y = "Student Suspension Rate (%)",
+      caption = "Note: Correlation does not imply causation. Many unobserved factors influence outcomes."
+    ) +
+    theme(
+      legend.position = "bottom",
+      plot.title = element_text(face = "bold", size = 14)
+    )
 
-ggsave(
-  here::here("outputs", "graphs", "21_suspension_vs_diversity.png"),
-  p4, width = 10, height = 8, dpi = 300, bg = "white"
-)
-message(">>> Saved: outputs/graphs/21_suspension_vs_diversity.png")
+  ggsave(
+    here::here("outputs", "graphs", "21_suspension_vs_diversity.png"),
+    p4, width = 10, height = 8, dpi = 300, bg = "white"
+  )
+  message(">>> Saved: outputs/graphs/21_suspension_vs_diversity.png")
+} else {
+  message(">>> Skipping suspension vs diversity plot; race metrics unavailable")
+}
+
+# Helper for safe rounding in summary messages
+safe_round <- function(df, col, idx, digits = 1) {
+  if (col %in% names(df) && idx <= nrow(df) && !is.na(df[[col]][idx])) {
+    round(df[[col]][idx], digits)
+  } else {
+    NA_real_
+  }
+}
 
 # === 10) Final summary report =================================================
 message("\n=== ANALYSIS COMPLETE ===")
@@ -750,9 +785,9 @@ message("1. Analyzed ", n_distinct(analysis_df$cds_school), " unique schools acr
         length(unique(analysis_df$academic_year)), " academic years")
 message("2. Used weighted averages (schools weighted by staff count)")
 message("3. Q1 (Lowest % Black) teacher diversity: ",
-        round(overall_summary$pct_teachers_non_white[1], 1), "% non-White")
+        safe_round(overall_summary, "pct_teachers_non_white", 1), "% non-White")
 message("4. Q4 (Highest % Black) teacher diversity: ",
-        round(overall_summary$pct_teachers_non_white[4], 1), "% non-White")
+        safe_round(overall_summary, "pct_teachers_non_white", 4), "% non-White")
 message("5. Q1 suspension rate: ", round(overall_summary$suspension_rate[1], 2), "%")
 message("6. Q4 suspension rate: ", round(overall_summary$suspension_rate[4], 2), "%")
 
