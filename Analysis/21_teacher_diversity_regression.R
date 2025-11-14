@@ -13,15 +13,14 @@
 suppressPackageStartupMessages({
   library(dplyr)
   library(arrow)
-  library(here)
 })
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
-TEACHER_PATH <- here("data-stage", "susp_v6_teacher_features.parquet")
-FALLBACK_PATH <- here("data-stage", "susp_v6_features.parquet")
+TEACHER_PATH <- file.path("data-stage", "susp_v6_teacher_features.parquet")
+FALLBACK_PATH <- file.path("data-stage", "susp_v6_features.parquet")
 
 # Race patterns to detect (matching teacher_slugify() output)
 TEACHER_RACE_SLUGS <- c(
