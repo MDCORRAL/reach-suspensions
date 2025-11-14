@@ -211,22 +211,81 @@ message("\n>>> Computing weighted aggregations by quartile...")
 # Method 1: Aggregate counts, then calculate proportions
 # This is the CORRECT way to weight by school size
 
-# First, identify key teacher race columns
-teacher_race_cols <- c(
-  "teacher_staff_count_african_american",
-  "teacher_staff_count_american_indian_or_alaska_native",
-  "teacher_staff_count_asian",
-  "teacher_staff_count_filipino",
-  "teacher_staff_count_hispanic_or_latino",
-  "teacher_staff_count_native_hawaiian_pacific_islander",
-  "teacher_staff_count_white",
-  "teacher_staff_count_two_or_more_races",
-  "teacher_staff_count_not_reported"
+# Debug: Show all teacher columns to understand naming pattern
+all_teacher_cols <- grep("^teacher_staff_count_", names(analysis_df), value = TRUE)
+message(">>> DEBUG: All teacher_staff_count_* columns (", length(all_teacher_cols), " total):")
+message(">>> ", paste(all_teacher_cols, collapse = "\n>>> "))
+
+# Also check for ANY column with race keywords
+race_keyword_cols <- grep("(african|white|hispanic|asian|latino|black|race|ethnicity)",
+                           names(analysis_df), value = TRUE, ignore.case = TRUE)
+message("\n>>> Columns with race/ethnicity keywords (", length(race_keyword_cols), " total):")
+if (length(race_keyword_cols) > 0) {
+  message(">>> ", paste(race_keyword_cols, collapse = "\n>>> "))
+} else {
+  message(">>> NONE FOUND - Teacher data does not include race/ethnicity breakdowns")
+}
+
+# Dynamically find teacher race columns
+# Look for columns with race/ethnicity names (not staff types like administrators, teachers, etc.)
+teacher_race_cols <- grep(
+  "^teacher_staff_count_(african|american_indian|asian|filipino|hispanic|pacific|white|two_or_more|not_reported)",
+  names(analysis_df),
+  value = TRUE,
+  perl = TRUE
 )
 
-# Check which columns exist
-teacher_race_cols <- intersect(teacher_race_cols, names(analysis_df))
-message(">>> Using ", length(teacher_race_cols), " teacher race columns")
+# Exclude _share columns (we want raw counts)
+teacher_race_cols <- grep("_share$", teacher_race_cols, value = TRUE, invert = TRUE, perl = TRUE)
+
+message(">>> Found ", length(teacher_race_cols), " teacher race columns")
+
+# Recreate canonical column bindings used downstream for readability
+find_primary_teacher_race_col <- function(patterns) {
+  if (!length(teacher_race_cols)) {
+    return(NA_character_)
+  }
+
+  for (pattern in patterns) {
+    matches <- grep(pattern, teacher_race_cols, value = TRUE)
+    if (length(matches)) {
+      return(matches[[1]])
+    }
+  }
+
+  NA_character_
+}
+
+col_african_american <- find_primary_teacher_race_col(c("african_american$", "black$"))
+col_white <- find_primary_teacher_race_col(c("white$"))
+col_hispanic <- find_primary_teacher_race_col(c("hispanic_or_latino$", "hispanic$", "latino$"))
+col_asian <- find_primary_teacher_race_col(c("asian$"))
+
+message(">>> Identified key columns:")
+message(">>>   African American: ", ifelse(is.na(col_african_american), "NOT FOUND", col_african_american))
+message(">>>   White: ", ifelse(is.na(col_white), "NOT FOUND", col_white))
+message(">>>   Hispanic: ", ifelse(is.na(col_hispanic), "NOT FOUND", col_hispanic))
+message(">>>   Asian: ", ifelse(is.na(col_asian), "NOT FOUND", col_asian))
+
+# Check if we have the data needed for this analysis
+if (length(teacher_race_cols) == 0) {
+  message("\n>>> ERROR: Cannot proceed with teacher diversity analysis")
+  message(">>> The teacher data does not include race/ethnicity breakdowns.")
+  message(">>> ")
+  message(">>> Available teacher data includes:")
+  message(">>>   - Total staff counts by position (teachers, administrators, etc.)")
+  message(">>>   - Gender breakdowns (female, male, non-binary)")
+  message(">>>   - Combinations of position and gender")
+  message(">>> ")
+  message(">>> To complete this analysis, you would need:")
+  message(">>>   - Teacher demographic data with race/ethnicity breakdowns")
+  message(">>>   - Columns like: teacher_staff_count_african_american, teacher_staff_count_white, etc.")
+  message(">>> ")
+  message(">>> Check the source teacher TXT files (stre*.txt) to see if race/ethnicity")
+  message(">>> data is available but not being processed by teacher_processing.R")
+
+  stop("Teacher race/ethnicity data not available. Cannot compute diversity metrics.")
+}
 
 # Aggregate by quartile and year
 weighted_summary <- analysis_df %>%
@@ -259,38 +318,67 @@ weighted_summary <- analysis_df %>%
       total_students > 0,
       total_suspensions / total_students,
       NA_real_
-    ),
+    )
+  )
 
-    # Calculate teacher race proportions from aggregated counts
-    pct_teachers_african_american = if_else(
-      "teacher_staff_count_african_american_sum" %in% names(.) & total_teachers > 0,
-      teacher_staff_count_african_american_sum / total_teachers * 100,
-      NA_real_
-    ),
-    pct_teachers_white = if_else(
-      "teacher_staff_count_white_sum" %in% names(.) & total_teachers > 0,
-      teacher_staff_count_white_sum / total_teachers * 100,
-      NA_real_
-    ),
-    pct_teachers_hispanic = if_else(
-      "teacher_staff_count_hispanic_or_latino_sum" %in% names(.) & total_teachers > 0,
-      teacher_staff_count_hispanic_or_latino_sum / total_teachers * 100,
-      NA_real_
-    ),
-    pct_teachers_asian = if_else(
-      "teacher_staff_count_asian_sum" %in% names(.) & total_teachers > 0,
-      teacher_staff_count_asian_sum / total_teachers * 100,
-      NA_real_
-    ),
+# Add teacher race percentages dynamically
+if (!is.na(col_african_american)) {
+  sum_col <- paste0(col_african_american, "_sum")
+  if (sum_col %in% names(weighted_summary)) {
+    weighted_summary <- weighted_summary %>%
+      mutate(pct_teachers_african_american = if_else(
+        total_teachers > 0,
+        !!sym(sum_col) / total_teachers * 100,
+        NA_real_
+      ))
+  }
+}
 
-    # Calculate non-White teacher percentage
-    # Non-White = 100% - White%
-    pct_teachers_non_white = if_else(
+if (!is.na(col_white)) {
+  sum_col <- paste0(col_white, "_sum")
+  if (sum_col %in% names(weighted_summary)) {
+    weighted_summary <- weighted_summary %>%
+      mutate(pct_teachers_white = if_else(
+        total_teachers > 0,
+        !!sym(sum_col) / total_teachers * 100,
+        NA_real_
+      ))
+  }
+}
+
+if (!is.na(col_hispanic)) {
+  sum_col <- paste0(col_hispanic, "_sum")
+  if (sum_col %in% names(weighted_summary)) {
+    weighted_summary <- weighted_summary %>%
+      mutate(pct_teachers_hispanic = if_else(
+        total_teachers > 0,
+        !!sym(sum_col) / total_teachers * 100,
+        NA_real_
+      ))
+  }
+}
+
+if (!is.na(col_asian)) {
+  sum_col <- paste0(col_asian, "_sum")
+  if (sum_col %in% names(weighted_summary)) {
+    weighted_summary <- weighted_summary %>%
+      mutate(pct_teachers_asian = if_else(
+        total_teachers > 0,
+        !!sym(sum_col) / total_teachers * 100,
+        NA_real_
+      ))
+  }
+}
+
+# Calculate non-White percentage
+if ("pct_teachers_white" %in% names(weighted_summary)) {
+  weighted_summary <- weighted_summary %>%
+    mutate(pct_teachers_non_white = if_else(
       !is.na(pct_teachers_white),
       100 - pct_teachers_white,
       NA_real_
-    )
-  )
+    ))
+}
 
 message(">>> Weighted summary computed for ", nrow(weighted_summary), " quartile-year combinations")
 
@@ -330,36 +418,68 @@ overall_summary <- analysis_df %>%
       total_students > 0,
       total_suspensions / total_students * 100,  # As percentage
       NA_real_
-    ),
-
-    # Calculate teacher race proportions
-    pct_teachers_african_american = if_else(
-      "teacher_staff_count_african_american_sum" %in% names(.) & total_teachers > 0,
-      teacher_staff_count_african_american_sum / total_teachers * 100,
-      NA_real_
-    ),
-    pct_teachers_white = if_else(
-      "teacher_staff_count_white_sum" %in% names(.) & total_teachers > 0,
-      teacher_staff_count_white_sum / total_teachers * 100,
-      NA_real_
-    ),
-    pct_teachers_hispanic = if_else(
-      "teacher_staff_count_hispanic_or_latino_sum" %in% names(.) & total_teachers > 0,
-      teacher_staff_count_hispanic_or_latino_sum / total_teachers * 100,
-      NA_real_
-    ),
-    pct_teachers_asian = if_else(
-      "teacher_staff_count_asian_sum" %in% names(.) & total_teachers > 0,
-      teacher_staff_count_asian_sum / total_teachers * 100,
-      NA_real_
-    ),
-    pct_teachers_non_white = if_else(
-      !is.na(pct_teachers_white),
-      100 - pct_teachers_white,
-      NA_real_
     )
   ) %>%
   arrange(black_prop_q)
+
+# Add teacher race percentages dynamically
+if (!is.na(col_african_american)) {
+  sum_col <- paste0(col_african_american, "_sum")
+  if (sum_col %in% names(overall_summary)) {
+    overall_summary <- overall_summary %>%
+      mutate(pct_teachers_african_american = if_else(
+        total_teachers > 0,
+        !!sym(sum_col) / total_teachers * 100,
+        NA_real_
+      ))
+  }
+}
+
+if (!is.na(col_white)) {
+  sum_col <- paste0(col_white, "_sum")
+  if (sum_col %in% names(overall_summary)) {
+    overall_summary <- overall_summary %>%
+      mutate(pct_teachers_white = if_else(
+        total_teachers > 0,
+        !!sym(sum_col) / total_teachers * 100,
+        NA_real_
+      ))
+  }
+}
+
+if (!is.na(col_hispanic)) {
+  sum_col <- paste0(col_hispanic, "_sum")
+  if (sum_col %in% names(overall_summary)) {
+    overall_summary <- overall_summary %>%
+      mutate(pct_teachers_hispanic = if_else(
+        total_teachers > 0,
+        !!sym(sum_col) / total_teachers * 100,
+        NA_real_
+      ))
+  }
+}
+
+if (!is.na(col_asian)) {
+  sum_col <- paste0(col_asian, "_sum")
+  if (sum_col %in% names(overall_summary)) {
+    overall_summary <- overall_summary %>%
+      mutate(pct_teachers_asian = if_else(
+        total_teachers > 0,
+        !!sym(sum_col) / total_teachers * 100,
+        NA_real_
+      ))
+  }
+}
+
+# Calculate non-White percentage
+if ("pct_teachers_white" %in% names(overall_summary)) {
+  overall_summary <- overall_summary %>%
+    mutate(pct_teachers_non_white = if_else(
+      !is.na(pct_teachers_white),
+      100 - pct_teachers_white,
+      NA_real_
+    ))
+}
 
 message("\n>>> Overall summary by quartile:")
 print(overall_summary %>%
@@ -375,25 +495,35 @@ school_level_diversity <- analysis_df %>%
   filter(
     !is.na(teacher_staff_count_total),
     teacher_staff_count_total >= 5  # Minimum threshold for stable proportions
-  ) %>%
-  mutate(
-    # Calculate school-level percentages
-    school_pct_white = if_else(
-      teacher_staff_count_total > 0 & !is.na(teacher_staff_count_white),
-      teacher_staff_count_white / teacher_staff_count_total * 100,
-      NA_real_
-    ),
-    school_pct_non_white = if_else(
-      !is.na(school_pct_white),
-      100 - school_pct_white,
-      NA_real_
-    ),
-    school_pct_african_american = if_else(
-      teacher_staff_count_total > 0 & !is.na(teacher_staff_count_african_american),
-      teacher_staff_count_african_american / teacher_staff_count_total * 100,
-      NA_real_
-    )
   )
+
+# Add school-level percentages dynamically
+if (!is.na(col_white) && col_white %in% names(school_level_diversity)) {
+  school_level_diversity <- school_level_diversity %>%
+    mutate(
+      school_pct_white = if_else(
+        teacher_staff_count_total > 0 & !is.na(!!sym(col_white)),
+        !!sym(col_white) / teacher_staff_count_total * 100,
+        NA_real_
+      ),
+      school_pct_non_white = if_else(
+        !is.na(school_pct_white),
+        100 - school_pct_white,
+        NA_real_
+      )
+    )
+}
+
+if (!is.na(col_african_american) && col_african_american %in% names(school_level_diversity)) {
+  school_level_diversity <- school_level_diversity %>%
+    mutate(
+      school_pct_african_american = if_else(
+        teacher_staff_count_total > 0 & !is.na(!!sym(col_african_american)),
+        !!sym(col_african_american) / teacher_staff_count_total * 100,
+        NA_real_
+      )
+    )
+}
 
 # Distribution statistics by quartile
 distribution_summary <- school_level_diversity %>%
