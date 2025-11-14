@@ -261,10 +261,10 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
   }
 
   race_tbl <- df %>%
-    dplyr::mutate(race_label = dplyr::coalesce(reporting_category_description, race_ethnicity),
+    dplyr::mutate(race_label = dplyr::coalesce(race_ethnicity, reporting_category_description),  # FIX: Use race_ethnicity first, not staff type
                   race_label = ifelse(is.na(race_label) | !nzchar(race_label), "Unknown", race_label),
                   race_slug = teacher_slugify(race_label)) %>%
-    dplyr::filter(!race_slug %in% c("total", "all", "all_students", "all_staff")) %>%
+    dplyr::filter(!race_slug %in% c("total", "all", "all_students", "all_staff", "teachers", "administrators", "pupil_services", "other_staff", "all_staff")) %>%  # Also filter out staff types
     dplyr::group_by(dplyr::across(dplyr::all_of(c(key_cols, "race_slug")))) %>%
     dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
                      .groups = "drop") %>%
@@ -280,10 +280,10 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
   if (has_staff_type) {
     race_by_type_tbl <- df %>%
       dplyr::filter(!is.na(reporting_category_slug)) %>%
-      dplyr::mutate(race_label = dplyr::coalesce(reporting_category_description, race_ethnicity),
+      dplyr::mutate(race_label = dplyr::coalesce(race_ethnicity, reporting_category_description),  # FIX: Use race_ethnicity first, not staff type
                     race_label = ifelse(is.na(race_label) | !nzchar(race_label), "Unknown", race_label),
                     race_slug = teacher_slugify(race_label)) %>%
-      dplyr::filter(!race_slug %in% c("total", "all", "all_students", "all_staff")) %>%
+      dplyr::filter(!race_slug %in% c("total", "all", "all_students", "all_staff", "teachers", "administrators", "pupil_services", "other_staff")) %>%  # Also filter out staff types
       dplyr::group_by(dplyr::across(dplyr::all_of(c(key_cols, "reporting_category_slug", "race_slug")))) %>%
       dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
                        .groups = "drop") %>%
