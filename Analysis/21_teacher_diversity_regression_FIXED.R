@@ -297,8 +297,8 @@ prepare_regression_frame <- function(df, student_group = NULL) {
   admin_race <- extract_admin_race_nonwhite_share(df)
 
   # Diagnostic messages
-  message("\n", describe_diversity_source(teacher_race, "Teacher"))
-  message(describe_diversity_source(admin_race, "Administrator"))
+  message("\n", describe_diversity_source(teacher_race$meta, "Teacher"))
+  message(describe_diversity_source(admin_race$meta, "Administrator"))
 
   # CRITICAL CHECK: Ensure we're using RACE, not gender
   if (is.null(teacher_race) || is.null(admin_race)) {
