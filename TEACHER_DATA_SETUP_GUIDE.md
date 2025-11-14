@@ -106,47 +106,28 @@ Rscript Analysis/18_merge_teacher_student.R
 
 ### Step 4: Verify Race/Ethnicity Data
 
-After ingestion, verify that race/ethnicity data is captured:
+After ingestion, run the automated diagnostic to confirm that the staged parquet
+files expose the race columns required by `Analysis/21`:
 
-```r
-library(arrow)
-library(dplyr)
-
-# Check teacher_staff_long.parquet
-teacher <- read_parquet("data-stage/teacher_staff_long.parquet")
-
-# Should show 9 CDE race/ethnicity categories:
-print(unique(teacher$race_ethnicity))
-# Expected output:
-# [1] American Indian or Alaska Native
-# [2] Asian
-# [3] Filipino
-# [4] Hispanic or Latino
-# [5] Native Hawaiian/Pacific Islander
-# [6] African American
-# [7] White
-# [8] Two or More Races
-# [9] Not Reported
-
-# Check reporting_category (Staff Type) dimension
-print(table(teacher$reporting_category))
-# Expected output:
-#  ADM   ALL   OTH   PSV   TCH
-# Should see all 5 staff types
-
-# Check merged data has race columns
-merged <- read_parquet("data-stage/susp_v6_teacher_features.parquet")
-
-# Should find columns like:
-# - teacher_staff_count_african_american
-# - teacher_staff_count_african_american_share
-# - teacher_staff_count_white
-# - teacher_staff_count_white_share
-# etc.
-race_cols <- grep("teacher.*african|teacher.*white|teacher.*hispanic|teacher.*asian",
-                  names(merged), value = TRUE)
-print(race_cols)
+```bash
+Rscript R/check_teacher_race_columns.R
 ```
+
+Sample success output:
+
+```
+[teacher-check] Reading /.../data-stage/teacher_staff_long.parquet
+[teacher-check] Summarising teacher data to wide format ...
+[teacher-check] ✔ Found 9 race count columns in teacher summary.
+                 Examples: teacher_staff_count_african_american, ...
+[teacher-check] ✔ Merged dataset includes 9 race columns.
+```
+
+If the script stops with an error, re-run `R/01c_ingest_teacher_demographics.R`
+after confirming that the `stre*.txt` files include race/ethnicity detail. When
+the teacher summary contains the columns but the merged features do not, re-run
+`Analysis/18_merge_teacher_student.R` so the race fields flow into
+`susp_v6_teacher_features.parquet`.
 
 ### Step 5: Run Analysis/21
 

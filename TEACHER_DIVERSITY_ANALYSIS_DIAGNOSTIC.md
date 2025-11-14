@@ -161,7 +161,7 @@ Thank you,
    cp stre*.txt /home/user/reach-suspensions/data-raw/
    ```
 
-3. Verify files contain race/ethnicity columns:
+3. Spot-check one file for the race/ethnicity headers (optional but quick sanity check):
    ```bash
    head -n 1 data-raw/stre1920.txt | tr '\t' '\n' | grep -i "african\|hispanic\|asian\|white"
    ```
@@ -192,42 +192,18 @@ Rscript Analysis/18_merge_teacher_student.R
 
 ### Step 3: Verify Data
 
-After ingestion, verify race/ethnicity columns are present:
+After ingestion, run the automated diagnostic (added in `R/check_teacher_race_columns.R`) to
+confirm the staged parquet files expose race columns:
 
-```r
-library(arrow)
-library(dplyr)
-
-# Check raw teacher data
-teacher <- read_parquet("data-stage/teacher_staff_long.parquet")
-print("Race/ethnicity categories:")
-print(unique(teacher$race_ethnicity))
-
-# Should show 9 categories:
-# - African American
-# - American Indian or Alaska Native
-# - Asian
-# - Filipino
-# - Hispanic or Latino
-# - Native Hawaiian/Pacific Islander
-# - White
-# - Two or More Races
-# - Not Reported
-
-# Check merged data
-merged <- read_parquet("data-stage/susp_v6_teacher_features.parquet")
-race_cols <- grep("teacher.*african|teacher.*white|teacher.*hispanic",
-                  names(merged), value = TRUE)
-print("\nTeacher race columns in merged data:")
-print(race_cols)
-
-# Should show columns like:
-# - teacher_staff_count_african_american
-# - teacher_staff_count_white
-# - teacher_staff_count_hispanic_or_latino
-# - teacher_staff_count_asian
-# ... (and _share variants)
+```bash
+Rscript R/check_teacher_race_columns.R
 ```
+
+Successful output will show checkmarks for both the teacher summary and the
+merged features parquet. If the script errors, re-run the ingestion script after
+confirming the `stre*.txt` files include race/ethnicity detail. If the teacher
+summary passes but the merged dataset is missing the columns, rerun
+`Analysis/18_merge_teacher_student.R`.
 
 ### Step 4: Run Teacher Diversity Analysis
 
