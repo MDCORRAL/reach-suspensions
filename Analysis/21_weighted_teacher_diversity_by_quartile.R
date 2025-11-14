@@ -241,19 +241,31 @@ teacher_race_cols <- grep("_share$", teacher_race_cols, value = TRUE, invert = T
 message(">>> Found ", length(teacher_race_cols), " teacher race columns")
 
 # Recreate canonical column bindings used downstream for readability
-get_primary_teacher_race_col <- function(pattern) {
-  matches <- grep(pattern, teacher_race_cols, value = TRUE)
-  if (length(matches)) {
-    matches[[1]]
-  } else {
-    NA_character_
+find_primary_teacher_race_col <- function(patterns) {
+  if (!length(teacher_race_cols)) {
+    return(NA_character_)
   }
+
+  for (pattern in patterns) {
+    matches <- grep(pattern, teacher_race_cols, value = TRUE)
+    if (length(matches)) {
+      return(matches[[1]])
+    }
+  }
+
+  NA_character_
 }
 
-col_african_american <- get_primary_teacher_race_col("african_american$")
-col_white <- get_primary_teacher_race_col("white$")
-col_hispanic <- get_primary_teacher_race_col("hispanic$")
-col_asian <- get_primary_teacher_race_col("asian$")
+col_african_american <- find_primary_teacher_race_col(c("african_american$", "black$"))
+col_white <- find_primary_teacher_race_col(c("white$"))
+col_hispanic <- find_primary_teacher_race_col(c("hispanic_or_latino$", "hispanic$", "latino$"))
+col_asian <- find_primary_teacher_race_col(c("asian$"))
+
+message(">>> Identified key columns:")
+message(">>>   African American: ", ifelse(is.na(col_african_american), "NOT FOUND", col_african_american))
+message(">>>   White: ", ifelse(is.na(col_white), "NOT FOUND", col_white))
+message(">>>   Hispanic: ", ifelse(is.na(col_hispanic), "NOT FOUND", col_hispanic))
+message(">>>   Asian: ", ifelse(is.na(col_asian), "NOT FOUND", col_asian))
 
 # Check if we have the data needed for this analysis
 if (length(teacher_race_cols) == 0) {
