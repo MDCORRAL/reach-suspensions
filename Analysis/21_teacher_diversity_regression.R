@@ -61,6 +61,28 @@ ALLOWED_RACE_GROUPS <- c(
   "Two or More Races"
 )
 
+TEACHER_RACE_PATTERNS <- c(
+  "african_american",
+  "black_african_american",
+  "american_indian_or_alaska_native",
+  "american_indian_alaska_native",
+  "asian",
+  "filipino",
+  "hispanic_or_latino",
+  "latino",
+  "pacific_islander",
+  "native_hawaiian",
+  "hawaiian",
+  "two_or_more_races",
+  "two_or_more",
+  "all_other_races",
+  "other_races",
+  "not_reported",
+  "unknown",
+  "white",
+  "white_not_hispanic"
+)
+
 PYTHON_BIN <- NULL
 
 python_has_pyarrow <- function(python_bin) {
@@ -417,51 +439,140 @@ extract_race_nonwhite_share <- function(df, cols) {
     return(NULL)
   }
 
+  race_pattern <- paste0("(", paste(TEACHER_RACE_PATTERNS, collapse = "|"), ")")
+  race_cols <- race_cols[grepl(race_pattern, race_cols, ignore.case = TRUE)]
+  if (!length(race_cols)) {
+    return(NULL)
+  }
+
+  to_numeric <- function(column) suppressWarnings(as.numeric(df[[column]]))
+  build_matrix <- function(columns) {
+    if (!length(columns)) {
+      return(NULL)
+    }
+    values <- lapply(columns, to_numeric)
+    names(values) <- columns
+    mat <- do.call(cbind, values)
+    if (is.null(mat)) {
+      return(NULL)
+    }
+    if (!is.matrix(mat)) {
+      mat <- matrix(mat, ncol = 1)
+      colnames(mat) <- columns[1]
+    } else {
+      colnames(mat) <- columns
+    }
+    mat
+  }
+
   share_cols <- race_cols[grepl("_share$", race_cols)]
   direct <- share_cols[grepl("non_white|nonwhite", share_cols, ignore.case = TRUE)]
   if (length(direct)) {
     return(list(
-      values = df[[direct[1]]],
-      meta = list(type = "race_share", column = direct[1], method = "direct_non_white_share")
+      values = to_numeric(direct[1]),
+      meta = list(type = "race_share", columns = direct[1], method = "direct_non_white_share")
     ))
   }
 
-  for (suffix in c("_white_share", "_white_not_hispanic_share", "_white_not_reported_share")) {
-    candidate <- race_cols[grepl(paste0(suffix, "$"), race_cols, ignore.case = TRUE)]
-    if (length(candidate)) {
+  race_share_cols <- share_cols[grepl(race_pattern, share_cols, ignore.case = TRUE)]
+  non_white_share_cols <- race_share_cols[
+    !grepl("white", race_share_cols, ignore.case = TRUE) &
+      !grepl("not_reported|unknown", race_share_cols, ignore.case = TRUE)
+  ]
+  if (length(non_white_share_cols)) {
+    mat <- build_matrix(non_white_share_cols)
+    if (!is.null(mat)) {
+      values <- rowSums(mat, na.rm = TRUE)
+      all_missing <- apply(is.na(mat), 1, all)
+      values[all_missing] <- NA_real_
       return(list(
-        values = 1 - df[[candidate[1]]],
-        meta = list(type = "race_share", column = candidate[1], method = "derived_from_white_share")
+        values = values,
+        meta = list(
+          type = "race_share",
+          columns = non_white_share_cols,
+          method = "sum_of_race_shares"
+        )
       ))
     }
   }
 
-  white_like <- share_cols[grepl("white", share_cols, ignore.case = TRUE)]
+  for (suffix in c("_white_share", "_white_not_hispanic_share", "_white_not_reported_share")) {
+    candidate <- race_share_cols[grepl(paste0(suffix, "$"), race_share_cols, ignore.case = TRUE)]
+    if (length(candidate)) {
+      values <- 1 - to_numeric(candidate[1])
+      return(list(
+        values = values,
+        meta = list(type = "race_share", columns = candidate[1], method = "derived_from_white_share")
+      ))
+    }
+  }
+
+  white_like <- race_share_cols[grepl("white", race_share_cols, ignore.case = TRUE)]
   if (length(white_like)) {
+    white <- to_numeric(white_like[1])
+    values <- 1 - white
+    nr_cols <- race_share_cols[grepl("not_reported|unknown", race_share_cols, ignore.case = TRUE)]
+    used_columns <- white_like[1]
+    if (length(nr_cols)) {
+      not_reported <- to_numeric(nr_cols[1])
+      values <- values - not_reported
+      used_columns <- c(used_columns, nr_cols[1])
+    }
+    values[!is.finite(values)] <- NA_real_
     return(list(
-      values = 1 - df[[white_like[1]]],
-      meta = list(type = "race_share", column = white_like[1], method = "derived_from_white_share")
+      values = values,
+      meta = list(
+        type = "race_share",
+        columns = used_columns,
+        method = if (length(nr_cols)) {
+          "derived_from_white_and_not_reported_shares"
+        } else {
+          "derived_from_white_share"
+        }
+      )
     ))
   }
 
   count_cols <- race_cols[grepl("_(count|fte|total)$", race_cols)]
+  count_cols <- count_cols[grepl(race_pattern, count_cols, ignore.case = TRUE)]
   if (length(count_cols)) {
-    white_counts <- count_cols[grepl("white", count_cols, ignore.case = TRUE)]
-    total_candidates <- count_cols[grepl("total$", count_cols, ignore.case = TRUE)]
-    if (length(white_counts) && length(total_candidates)) {
-      white <- suppressWarnings(as.numeric(df[[white_counts[1]]]))
-      total <- suppressWarnings(as.numeric(df[[total_candidates[1]]]))
-      share <- suppressWarnings(1 - (white / total))
-      share[!is.finite(share)] <- NA_real_
-      return(list(
-        values = share,
-        meta = list(
-          type = "race_share",
-          column = white_counts[1],
-          method = "derived_from_counts",
-          total_column = total_candidates[1]
+    non_white_counts <- count_cols[
+      !grepl("white", count_cols, ignore.case = TRUE) &
+        !grepl("not_reported|unknown", count_cols, ignore.case = TRUE)
+    ]
+    if (length(non_white_counts)) {
+      mat <- build_matrix(non_white_counts)
+      if (!is.null(mat)) {
+        numerator <- rowSums(mat, na.rm = TRUE)
+        all_missing <- apply(is.na(mat), 1, all)
+        numerator[all_missing] <- NA_real_
+        total_candidates <- intersect(
+          c(
+            "teacher_total_staff_count_total",
+            "teacher_staff_count_total",
+            "teacher_total_staff_count_total_by_type_all_staff",
+            "teacher_staff_count_total_by_type_all_staff"
+          ),
+          names(df)
         )
-      ))
+        if (!length(total_candidates)) {
+          total_candidates <- count_cols[grepl("total$", count_cols, ignore.case = TRUE)]
+        }
+        if (length(total_candidates)) {
+          total <- to_numeric(total_candidates[1])
+          share <- suppressWarnings(numerator / total)
+          share[!is.finite(share)] <- NA_real_
+          return(list(
+            values = share,
+            meta = list(
+              type = "race_share",
+              columns = non_white_counts,
+              method = "derived_from_race_counts",
+              total_column = total_candidates[1]
+            )
+          ))
+        }
+      }
     }
   }
 
@@ -594,16 +705,28 @@ describe_share_source <- function(meta, label) {
     return(paste(label, "diversity source: unknown"))
   }
 
+  collapse_columns <- function(columns, fallback_label) {
+    cols <- columns
+    if (is.null(cols)) {
+      cols <- character()
+    }
+    cols <- cols[!is.na(cols)]
+    if (!length(cols)) {
+      return(fallback_label)
+    }
+    paste0("`", paste(cols, collapse = "`, `"), "`")
+  }
+
   if (identical(meta$type, "race_share")) {
-    return(paste0(label, " diversity derived from race column `", meta$column, "` (", meta$method, ")"))
+    column_desc <- collapse_columns(c(meta$columns, meta$column), "race columns")
+    if (!is.null(meta$total_column) && !is.na(meta$total_column)) {
+      column_desc <- paste0(column_desc, "; total reference `", meta$total_column, "`")
+    }
+    return(paste0(label, " diversity derived from ", column_desc, " (", meta$method, ")"))
   }
 
   if (identical(meta$type, "gender_share")) {
-    columns <- meta$columns
-    if (is.null(columns)) {
-      columns <- NA_character_
-    }
-    column_desc <- if (all(is.na(columns))) "gender columns" else paste(columns, collapse = ", ")
+    column_desc <- collapse_columns(meta$columns, "gender columns")
     if (!is.null(meta$total_column) && !is.na(meta$total_column)) {
       column_desc <- paste0(column_desc, "; total reference `", meta$total_column, "`")
     }
