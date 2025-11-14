@@ -271,9 +271,11 @@ message(">>>   Asian: ", ifelse(is.na(col_asian), "NOT FOUND", col_asian))
 
 # Check if we have the data needed for this analysis
 if (!has_teacher_race_data) {
-  message("\n>>> WARNING: Teacher race/ethnicity data not available")
-  message(">>> Continuing with aggregated totals only; race-specific metrics will be NA")
-  message(">>> To enable full analysis, ensure teacher_processing.R outputs race/ethnicity counts")
+  message("\n>>> ERROR: Cannot proceed with teacher diversity analysis")
+  message(">>> The merged teacher dataset does not include race/ethnicity counts.")
+  message(">>> Expected columns like teacher_staff_count_african_american, teacher_staff_count_white, etc.")
+  message(">>> Run R/01c_ingest_teacher_demographics.R and Analysis/18_merge_teacher_student.R after placing stre*.txt files under data-raw/.")
+  stop("Teacher race/ethnicity breakdowns missing. See TEACHER_DATA_SETUP_GUIDE.md for acquisition steps.")
 }
 
 # Aggregate by quartile and year
