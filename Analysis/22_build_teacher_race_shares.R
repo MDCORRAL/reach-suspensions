@@ -37,9 +37,9 @@ if (!file.exists(TEACHER_PATH)) {
 }
 
 message("[22] Loading teacher demographics...")
-teacher_long <- read_parquet(TEACHER_PATH) %>%
-  clean_names() %>%
-  build_keys()
+# Note: teacher_staff_long.parquet was already processed during ingestion
+# (clean_names and build_keys already applied), so just read directly
+teacher_long <- read_parquet(TEACHER_PATH)
 
 message("[22] Teacher data: ", format(nrow(teacher_long), big.mark = ","), " rows")
 message("[22] Columns: ", paste(head(names(teacher_long), 10), collapse = ", "), "...\n")
@@ -72,9 +72,9 @@ if (!file.exists(STUDENT_PATH)) {
 }
 
 message("\n[22] Loading student suspension data...")
-student_long <- read_parquet(STUDENT_PATH) %>%
-  clean_names() %>%
-  build_keys()
+# Note: susp_v6_long.parquet was already processed during pipeline
+# (clean_names and build_keys already applied), so just read directly
+student_long <- read_parquet(STUDENT_PATH)
 
 message("[22] Student data: ", format(nrow(student_long), big.mark = ","), " rows")
 
