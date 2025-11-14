@@ -29,20 +29,25 @@ clean_names <- function(x) {
 PYTHON_BIN <- NULL
 
 python_has_pyarrow <- function(python_bin) {
-  identical(
-    suppressWarnings(
-      system2(
-        python_bin,
-        args = c(
-          "-c",
-          "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('pyarrow') else 1)"
-        ),
-        stdout = FALSE,
-        stderr = FALSE
-      )
+  script_path <- tempfile(fileext = ".py")
+  on.exit(unlink(script_path), add = TRUE)
+  writeLines(
+    c(
+      "import importlib.util",
+      "import sys",
+      "sys.exit(0 if importlib.util.find_spec(\"pyarrow\") else 1)"
     ),
-    0L
+    con = script_path
   )
+  status <- suppressWarnings(
+    system2(
+      python_bin,
+      args = script_path,
+      stdout = FALSE,
+      stderr = FALSE
+    )
+  )
+  identical(status, 0L)
 }
 
 detect_python <- function(require_pyarrow = FALSE) {
@@ -142,9 +147,18 @@ convert_parquet_to_csv <- function(parquet_path, csv_path, csv_hint = NULL) {
 }
 
 read_parquet <- function(path, csv_hint = NULL) {
+  if (file.exists(path) && requireNamespace("arrow", quietly = TRUE)) {
+    df <- as.data.frame(arrow::read_parquet(path))
+    attr(df, "source_path") <- path
+    return(df)
+  }
+
   csv_tmp <- tempfile(fileext = ".csv")
   on.exit(unlink(csv_tmp), add = TRUE)
   tryCatch({
+    if (!file.exists(path)) {
+      stop(path, " not found.")
+    }
     convert_parquet_to_csv(path, csv_tmp, csv_hint)
     df <- utils::read.csv(csv_tmp, stringsAsFactors = FALSE, check.names = FALSE)
     attr(df, "source_path") <- path
