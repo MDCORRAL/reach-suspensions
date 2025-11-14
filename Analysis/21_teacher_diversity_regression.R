@@ -29,7 +29,8 @@ TEACHER_RACE_SLUGS <- c(
   "filipino",
   "hispanic_or_latino",
   "american_indian_or_alaska_native",
-  "pacific_islander",
+  "native_hawaiian_pacific_islander",
+  "pacific_islander",  # legacy slug still appears in some historical files
   "white",
   "two_or_more_races",
   "not_reported"
@@ -93,6 +94,19 @@ extract_teacher_race_nonwhite_share <- function(df, prefix = "^teacher") {
                                ")_share$")
 
   race_share_cols <- grep(race_share_pattern, names(df), value = TRUE, ignore.case = TRUE)
+
+  if (!length(race_share_cols)) {
+    # Broaden the search to any teacher share column that is not obviously gender based.
+    fallback_pattern <- paste0(prefix, ".*_share$")
+    fallback_cols <- grep(fallback_pattern, names(df), value = TRUE, ignore.case = TRUE)
+    fallback_cols <- fallback_cols[!grepl("by_gender|gender_", fallback_cols, ignore.case = TRUE)]
+
+    if (length(fallback_cols)) {
+      message(">>> Fallback activated: using generic teacher share columns (",
+              length(fallback_cols), ")")
+      race_share_cols <- fallback_cols
+    }
+  }
 
   if (!length(race_share_cols)) {
     message(">>> No teacher race share columns found matching pattern: ", race_share_pattern)
