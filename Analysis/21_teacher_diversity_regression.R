@@ -8,6 +8,8 @@ TEACHER_PATH <- file.path("data-stage", "susp_v6_teacher_features.parquet")
 TEACHER_CSV_PATH <- file.path("data-stage", "susp_v6_teacher_features.csv")
 FALLBACK_PATH <- file.path("data-stage", "susp_v6_features.parquet")
 FALLBACK_CSV_PATH <- file.path("data-stage", "susp_v6_features.csv")
+LONG_PATH <- file.path("data-stage", "susp_v6_long.parquet")
+LONG_CSV_PATH <- file.path("data-stage", "susp_v6_long.csv")
 
 format_number <- function(x) {
   format(x, big.mark = ",", scientific = FALSE, trim = TRUE)
@@ -25,6 +27,39 @@ clean_names <- function(x) {
   cleaned[nchar(cleaned) == 0] <- "col"
   cleaned
 }
+
+canonicalize_race_label <- function(x) {
+  labels <- rep(NA_character_, length(x))
+  clean <- tolower(trimws(as.character(x)))
+
+  assign_label <- function(indices, value) {
+    labels[indices & is.na(labels)] <<- value
+  }
+
+  assign_label(clean %in% c("ta", "total", "all students", "all_students"), "All Students")
+  assign_label(clean %in% c("ra", "asian"), "Asian")
+  assign_label(clean %in% c("rb", "black", "african american", "black/african american", "african_american"), "Black/African American")
+  assign_label(clean %in% c("rf", "filipino"), "Filipino")
+  assign_label(clean %in% c("rh", "rl", "hispanic", "latino", "hispanic/latino", "hispanic_latino"), "Hispanic/Latino")
+  assign_label(clean %in% c("ri", "american indian", "alaska native", "american indian/alaska native", "native american"), "American Indian/Alaska Native")
+  assign_label(clean %in% c("rp", "pacific islander", "native hawaiian"), "Native Hawaiian/Pacific Islander")
+  assign_label(clean %in% c("rt", "two or more", "two or more races", "multirace", "multiple"), "Two or More Races")
+  assign_label(clean %in% c("rw", "white"), "White")
+  assign_label(clean %in% c("rd", "not reported", "not_reported", "notreported"), "Not Reported")
+
+  labels
+}
+
+ALLOWED_RACE_GROUPS <- c(
+  "Black/African American",
+  "White",
+  "Hispanic/Latino",
+  "American Indian/Alaska Native",
+  "Asian",
+  "Filipino",
+  "Native Hawaiian/Pacific Islander",
+  "Two or More Races"
+)
 
 PYTHON_BIN <- NULL
 
@@ -196,7 +231,146 @@ load_features <- function() {
   }
 
   names(df) <- clean_names(names(df))
+  attach <- attach_suspension_outcomes(df)
+  df <- attach$data
+  if (!is.null(attach$note)) {
+    meta$note <- if (is.null(meta$note)) attach$note else paste(meta$note, attach$note, sep = " | ")
+  }
+
   list(data = df, meta = meta)
+}
+
+attach_suspension_outcomes <- function(df) {
+  outcome_cols <- intersect(
+    c("suspension_rate_percent_total", "susp_all_rate", "susp_all", "susp_rate"),
+    names(df)
+  )
+  enrollment_cols <- intersect(
+    c("cumulative_enrollment", "sup_cumulative_enrollment", "all_enroll", "enroll_all"),
+    names(df)
+  )
+
+  if (length(outcome_cols) && length(enrollment_cols)) {
+    return(list(data = df, note = NULL))
+  }
+
+  if (!file.exists(LONG_PATH) && !file.exists(LONG_CSV_PATH)) {
+    message(
+      "Suspension outcomes unavailable in the main dataset and ",
+      basename(LONG_PATH),
+      " is not present."
+    )
+    return(list(
+      data = df,
+      note = "Suspension outcomes missing; susp_v6_long.parquet unavailable for join."
+    ))
+  }
+
+  long_df <- read_parquet(LONG_PATH, LONG_CSV_PATH)
+  names(long_df) <- clean_names(names(long_df))
+  source_path <- attr(long_df, "source_path") %||% LONG_PATH
+
+  key_cols <- c("cds_school", "academic_year")
+  if (!all(key_cols %in% names(long_df))) {
+    message("susp_v6_long.parquet missing keys cds_school/academic_year; cannot attach suspension rates.")
+    return(list(
+      data = df,
+      note = "Suspension outcomes missing; susp_v6_long.parquet lacks school-year keys."
+    ))
+  }
+
+  filtered <- long_df
+  if ("aggregate_level" %in% names(filtered)) {
+    agg <- tolower(as.character(filtered$aggregate_level))
+    filtered <- filtered[!is.na(agg) & agg %in% c("s", "school"), , drop = FALSE]
+  }
+  if ("category_type" %in% names(filtered)) {
+    cat_type <- tolower(as.character(filtered$category_type))
+    filtered <- filtered[!is.na(cat_type) & cat_type %in% c("race/ethnicity", "race_ethnicity"), , drop = FALSE]
+  }
+
+  if (!nrow(filtered)) {
+    message("susp_v6_long.parquet has no race-specific school rows after filtering.")
+    return(list(
+      data = df,
+      note = "Suspension outcomes missing; no race-specific school rows in susp_v6_long.parquet."
+    ))
+  }
+
+  subgroup_values <- if ("subgroup" %in% names(filtered)) {
+    filtered$subgroup
+  } else {
+    rep(NA_character_, nrow(filtered))
+  }
+  if ("reporting_category" %in% names(filtered)) {
+    missing_subgroup <- is.na(subgroup_values) | !nzchar(trimws(as.character(subgroup_values)))
+    subgroup_values[missing_subgroup] <- filtered$reporting_category[missing_subgroup]
+  }
+  group_labels <- canonicalize_race_label(subgroup_values)
+
+  filtered$student_group <- group_labels
+  keep_groups <- !is.na(filtered$student_group) &
+    filtered$student_group %in% ALLOWED_RACE_GROUPS
+  filtered <- filtered[keep_groups, , drop = FALSE]
+
+  if (!nrow(filtered)) {
+    message("susp_v6_long.parquet does not contain race-specific student groups needed for the join.")
+    return(list(
+      data = df,
+      note = "Suspension outcomes missing; race-specific student groups unavailable in susp_v6_long.parquet."
+    ))
+  }
+
+  if (!"suspension_rate_percent_total" %in% names(filtered)) {
+    message("susp_v6_long.parquet lacks suspension_rate_percent_total after filtering; suspension outcomes remain missing.")
+    return(list(
+      data = df,
+      note = "Suspension outcomes missing; suspension_rate_percent_total absent in susp_v6_long.parquet."
+    ))
+  }
+
+  value_cols <- intersect(
+    c("total_suspensions", "cumulative_enrollment", "suspension_rate_percent_total"),
+    names(filtered)
+  )
+  new_cols <- setdiff(value_cols, names(df))
+  if (!"student_group" %in% names(df)) {
+    new_cols <- c(new_cols, "student_group")
+  }
+  new_cols <- unique(new_cols)
+  if (!length(new_cols)) {
+    return(list(data = df, note = NULL))
+  }
+  filtered <- filtered[, unique(c(key_cols, new_cols)), drop = FALSE]
+
+  if (!nrow(filtered)) {
+    message("susp_v6_long.parquet does not contain usable race-specific rows after selecting columns.")
+    return(list(
+      data = df,
+      note = "Suspension outcomes missing; no race-specific data remained after column selection."
+    ))
+  }
+
+  ord <- do.call(order, filtered[c(key_cols, "student_group")])
+  filtered <- filtered[ord, , drop = FALSE]
+  dup <- duplicated(filtered[, c(key_cols, "student_group"), drop = FALSE])
+  filtered <- filtered[!dup, , drop = FALSE]
+
+  df$.__rowid <- seq_len(nrow(df))
+  merged <- merge(df, filtered, by = key_cols, all.x = TRUE, sort = FALSE)
+  if ("student_group" %in% names(merged)) {
+    order_group <- ifelse(is.na(merged$student_group), "\uFFFF", merged$student_group)
+    merged <- merged[order(merged$.__rowid, order_group), , drop = FALSE]
+  } else {
+    merged <- merged[order(merged$.__rowid), , drop = FALSE]
+  }
+  merged$.__rowid <- NULL
+
+  message("Attached race-specific suspension outcomes from ", basename(source_path), ".")
+  list(
+    data = merged,
+    note = "Attached race-specific suspension outcomes from susp_v6_long.parquet."
+  )
 }
 
 summarise_data <- function(df, meta) {
@@ -207,7 +381,15 @@ summarise_data <- function(df, meta) {
   key_cols <- intersect(c("cds_school", "academic_year"), names(df))
   if (length(key_cols) == 2) {
     dup_count <- sum(duplicated(df[, key_cols, drop = FALSE]))
-    message("Duplicate school-year rows: ", format_number(dup_count))
+    if (dup_count > 0 && "student_group" %in% names(df)) {
+      message(
+        "Duplicate school-year rows: ",
+        format_number(dup_count),
+        " (expected when student_group is present)."
+      )
+    } else {
+      message("Duplicate school-year rows: ", format_number(dup_count))
+    }
   } else {
     message("Key columns cds_school/academic_year unavailable for duplicate check.")
   }
@@ -431,7 +613,18 @@ describe_share_source <- function(meta, label) {
   paste(label, "diversity source: unspecified")
 }
 
-prepare_regression_frame <- function(df) {
+prepare_regression_frame_single <- function(df, student_group = NULL) {
+  if (!is.null(student_group)) {
+    if (!"student_group" %in% names(df)) {
+      return(NULL)
+    }
+    df <- df[df$student_group == student_group, , drop = FALSE]
+    if (!nrow(df)) {
+      return(NULL)
+    }
+    message("\n--- Student group: ", student_group, " ---")
+  }
+
   teacher_info <- find_diversity_share(df, c("^teacher"))
   admin_info <- find_diversity_share(
     df,
@@ -530,8 +723,34 @@ prepare_regression_frame <- function(df) {
     sed_col = sed_col,
     charter_col = charter_col,
     grade_col = grade_col,
-    diversity_meta = list(teacher = teacher_info$meta, administrator = admin_info$meta)
+    diversity_meta = list(teacher = teacher_info$meta, administrator = admin_info$meta),
+    student_group = student_group
   )
+}
+
+prepare_regression_frames <- function(df) {
+  if ("student_group" %in% names(df)) {
+    groups <- unique(df$student_group)
+    groups <- groups[!is.na(groups)]
+    ordered <- intersect(ALLOWED_RACE_GROUPS, groups)
+    extras <- setdiff(groups, ordered)
+    groups <- c(ordered, sort(extras))
+    results <- vector("list", length = 0L)
+    for (group in groups) {
+      info <- prepare_regression_frame_single(df, student_group = group)
+      if (!is.null(info)) {
+        results[[length(results) + 1L]] <- info
+      }
+    }
+    return(results)
+  }
+
+  info <- prepare_regression_frame_single(df, student_group = NULL)
+  if (is.null(info)) {
+    list()
+  } else {
+    list(info)
+  }
 }
 
 format_coefficient_table <- function(fit) {
@@ -569,7 +788,12 @@ run_regression <- function(model_info) {
   formula <- stats::as.formula(paste("suspension_rate ~", paste(predictors, collapse = " + ")))
   fit <- stats::lm(formula, data = model_df, weights = model_df$weights)
 
-  message("\n=== Weighted Linear Regression ===")
+  group_label <- model_info$student_group
+  if (!is.null(group_label) && !is.na(group_label)) {
+    message("\n=== Weighted Linear Regression: ", group_label, " ===")
+  } else {
+    message("\n=== Weighted Linear Regression ===")
+  }
   print(summary(fit))
 
   message("\nCoefficient table (with 95% CI):")
@@ -587,13 +811,15 @@ main <- function() {
   meta <- features$meta
 
   summarise_data(df, meta)
-  model_info <- prepare_regression_frame(df)
-  if (is.null(model_info)) {
+  model_infos <- prepare_regression_frames(df)
+  if (!length(model_infos)) {
     message("Regression model not executed because required columns were unavailable.")
     return(invisible(NULL))
   }
 
-  run_regression(model_info)
+  for (model_info in model_infos) {
+    run_regression(model_info)
+  }
   message("\nReminder: Associations are descriptive. Do not infer causality from these coefficients.")
 }
 
