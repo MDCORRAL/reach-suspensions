@@ -1,14 +1,14 @@
-# Analysis/21_teacher_diversity_regression_FIXED.R
-# FIXED VERSION: Properly uses teacher RACIAL diversity (not gender)
+# Analysis/21_teacher_diversity_regression.R
 #
-# This script analyzes associations between teacher/administrator racial diversity
+# Analyzes associations between teacher/administrator racial diversity
 # and student suspension rates, stratified by student race/ethnicity.
 #
-# Key improvements:
-# - Explicitly prioritizes RACE shares over gender shares
-# - Better detection of teacher race columns
-# - Clear diagnostic messages showing which diversity measure is used
-# - Validates that race data is being used before running regressions
+# Key features:
+# - Uses teacher RACIAL diversity (proportion non-white staff)
+# - Explicit race column detection with validation
+# - Weighted linear regressions (weighted by student enrollment)
+# - Stratified by student racial/ethnic group
+# - Controls for SED rate, charter status, and school level
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -67,9 +67,10 @@ canonicalize_race_label <- function(x) {
   labels[clean %in% c("rf", "filipino")] <- "Filipino"
   labels[clean %in% c("rh", "rl", "hispanic", "latino", "hispanic/latino")] <- "Hispanic/Latino"
   labels[clean %in% c("ri", "american indian", "alaska native", "american indian/alaska native")] <- "American Indian/Alaska Native"
-  labels[clean %in% c("rp", "pacific islander", "native hawaiian")] <- "Native Hawaiian/Pacific Islander"
+  labels[clean %in% c("rp", "pacific islander", "native hawaiian", "native hawaiian/pacific islander")] <- "Native Hawaiian/Pacific Islander"
   labels[clean %in% c("rt", "two or more", "two or more races")] <- "Two or More Races"
   labels[clean %in% c("rw", "white")] <- "White"
+  # Note: RD (Not Reported) and TA (Total/All) return NA and are filtered out
 
   labels
 }
@@ -235,9 +236,11 @@ load_features <- function() {
 
   message("Dimensions: ", format_number(nrow(df)), " rows × ", ncol(df), " columns")
 
-  # Check for student_group column
+  # Check for student_group column and canonicalize race codes
   if ("student_group" %in% names(df)) {
-    groups <- sort(unique(df$student_group))
+    # Canonicalize the student_group column (converts CDE codes like RA, RB to full labels)
+    df$student_group <- canonicalize_race_label(df$student_group)
+    groups <- sort(unique(df$student_group[!is.na(df$student_group)]))
     message("Student groups: ", paste(groups, collapse = ", "))
   } else if ("reporting_category" %in% names(df)) {
     df$student_group <- canonicalize_race_label(df$reporting_category)
