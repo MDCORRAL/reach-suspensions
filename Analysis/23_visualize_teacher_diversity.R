@@ -66,9 +66,7 @@ message("[VIZ] Student groups: ", paste(sort(unique(df$student_group)), collapse
 # =============================================================================
 
 compute_teacher_nonwhite_share <- function(df) {
-  """
-  Compute teacher non-white share from individual race columns.
-  """
+  # Compute teacher non-white share from individual race columns.
 
   race_share_cols <- grep("^teacher_staff_count_(african_american|asian|hispanic_or_latino|filipino|pacific_islander|american_indian_or_alaska_native|two_or_more_races)_share$",
                           names(df), value = TRUE, ignore.case = TRUE)
@@ -89,9 +87,7 @@ compute_teacher_nonwhite_share <- function(df) {
 }
 
 compute_admin_nonwhite_share <- function(df) {
-  """
-  Compute administrator non-white share.
-  """
+  # Compute administrator non-white share.
 
   race_share_cols <- grep("^teacher_staff_count_by_type_administrators_(african_american|asian|hispanic_or_latino|filipino|pacific_islander|american_indian_or_alaska_native|two_or_more_races)_share$",
                           names(df), value = TRUE, ignore.case = TRUE)
