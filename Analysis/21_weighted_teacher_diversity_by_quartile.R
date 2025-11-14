@@ -240,6 +240,21 @@ teacher_race_cols <- grep("_share$", teacher_race_cols, value = TRUE, invert = T
 
 message(">>> Found ", length(teacher_race_cols), " teacher race columns")
 
+# Recreate canonical column bindings used downstream for readability
+get_primary_teacher_race_col <- function(pattern) {
+  matches <- grep(pattern, teacher_race_cols, value = TRUE)
+  if (length(matches)) {
+    matches[[1]]
+  } else {
+    NA_character_
+  }
+}
+
+col_african_american <- get_primary_teacher_race_col("african_american$")
+col_white <- get_primary_teacher_race_col("white$")
+col_hispanic <- get_primary_teacher_race_col("hispanic$")
+col_asian <- get_primary_teacher_race_col("asian$")
+
 # Check if we have the data needed for this analysis
 if (length(teacher_race_cols) == 0) {
   message("\n>>> ERROR: Cannot proceed with teacher diversity analysis")
