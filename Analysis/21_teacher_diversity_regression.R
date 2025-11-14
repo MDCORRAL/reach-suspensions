@@ -293,7 +293,10 @@ extract_gender_non_male_share <- function(df, cols) {
   }
 
   share_cols <- gender_cols[grepl("_share$", gender_cols)]
-  male_share <- share_cols[grepl("gender.*male_share$", share_cols, ignore.case = TRUE)]
+  male_share <- share_cols[
+    grepl("male_share$", share_cols, ignore.case = TRUE) &
+      !grepl("female", share_cols, ignore.case = TRUE)
+  ]
   if (length(male_share)) {
     values <- 1 - suppressWarnings(as.numeric(df[[male_share[1]]]))
     return(list(
@@ -331,7 +334,10 @@ extract_gender_non_male_share <- function(df, cols) {
   count_cols <- gender_cols[!grepl("_share$", gender_cols)]
   female_counts <- count_cols[grepl("gender_female$", count_cols, ignore.case = TRUE)]
   nb_counts <- count_cols[grepl("gender_non_binary$", count_cols, ignore.case = TRUE)]
-  male_counts <- count_cols[grepl("gender_male$", count_cols, ignore.case = TRUE)]
+  male_counts <- count_cols[
+    grepl("gender_male$", count_cols, ignore.case = TRUE) &
+      !grepl("female", count_cols, ignore.case = TRUE)
+  ]
   has_female_counts <- length(female_counts) > 0
   has_nb_counts <- length(nb_counts) > 0
   if (has_female_counts || has_nb_counts) {
