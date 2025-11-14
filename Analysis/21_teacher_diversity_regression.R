@@ -229,58 +229,222 @@ summarise_data <- function(df, meta) {
   invisible(df)
 }
 
-find_non_white_share <- function(df, prefix) {
-  cols <- grep(paste0("^", prefix), names(df), value = TRUE)
-  if (!length(cols)) {
+extract_race_nonwhite_share <- function(df, cols) {
+  race_cols <- cols[!grepl("gender", cols, ignore.case = TRUE)]
+  if (!length(race_cols)) {
     return(NULL)
   }
 
-  share_cols <- cols[grepl("_share$", cols)]
-  direct <- share_cols[grepl("non_white|nonwhite", share_cols)]
+  share_cols <- race_cols[grepl("_share$", race_cols)]
+  direct <- share_cols[grepl("non_white|nonwhite", share_cols, ignore.case = TRUE)]
   if (length(direct)) {
-    return(df[[direct[1]]])
+    return(list(
+      values = df[[direct[1]]],
+      meta = list(type = "race_share", column = direct[1], method = "direct_non_white_share")
+    ))
   }
 
   for (suffix in c("_white_share", "_white_not_hispanic_share", "_white_not_reported_share")) {
-    candidate <- paste0(prefix, suffix)
-    if (candidate %in% share_cols) {
-      return(1 - df[[candidate]])
+    candidate <- race_cols[grepl(paste0(suffix, "$"), race_cols, ignore.case = TRUE)]
+    if (length(candidate)) {
+      return(list(
+        values = 1 - df[[candidate[1]]],
+        meta = list(type = "race_share", column = candidate[1], method = "derived_from_white_share")
+      ))
     }
   }
 
-  white_like <- share_cols[grepl("white", share_cols)]
+  white_like <- share_cols[grepl("white", share_cols, ignore.case = TRUE)]
   if (length(white_like)) {
-    return(1 - df[[white_like[1]]])
+    return(list(
+      values = 1 - df[[white_like[1]]],
+      meta = list(type = "race_share", column = white_like[1], method = "derived_from_white_share")
+    ))
   }
 
-  count_cols <- cols[grepl("_(count|fte|total)$", cols)]
+  count_cols <- race_cols[grepl("_(count|fte|total)$", race_cols)]
   if (length(count_cols)) {
-    white_counts <- count_cols[grepl("white", count_cols)]
-    total_candidates <- count_cols[grepl("total$", count_cols)]
+    white_counts <- count_cols[grepl("white", count_cols, ignore.case = TRUE)]
+    total_candidates <- count_cols[grepl("total$", count_cols, ignore.case = TRUE)]
     if (length(white_counts) && length(total_candidates)) {
       white <- suppressWarnings(as.numeric(df[[white_counts[1]]]))
       total <- suppressWarnings(as.numeric(df[[total_candidates[1]]]))
       share <- suppressWarnings(1 - (white / total))
       share[!is.finite(share)] <- NA_real_
-      return(share)
+      return(list(
+        values = share,
+        meta = list(
+          type = "race_share",
+          column = white_counts[1],
+          method = "derived_from_counts",
+          total_column = total_candidates[1]
+        )
+      ))
     }
   }
 
   NULL
 }
 
-prepare_regression_frame <- function(df) {
-  teacher_share <- find_non_white_share(df, "teacher")
-  admin_share <- NULL
-  for (prefix in c("administrator", "admin", "teacher_staff_count_by_type_adm", "adm")) {
-    admin_share <- find_non_white_share(df, prefix)
-    if (!is.null(admin_share)) break
+extract_gender_non_male_share <- function(df, cols) {
+  gender_cols <- cols[grepl("gender", cols, ignore.case = TRUE)]
+  if (!length(gender_cols)) {
+    return(NULL)
   }
 
-  if (is.null(teacher_share) || is.null(admin_share)) {
+  share_cols <- gender_cols[grepl("_share$", gender_cols)]
+  male_share <- share_cols[
+    grepl("male_share$", share_cols, ignore.case = TRUE) &
+      !grepl("female", share_cols, ignore.case = TRUE)
+  ]
+  if (length(male_share)) {
+    values <- 1 - suppressWarnings(as.numeric(df[[male_share[1]]]))
+    return(list(
+      values = values,
+      meta = list(type = "gender_share", columns = male_share[1], method = "1_minus_male_share")
+    ))
+  }
+
+  female_share <- share_cols[grepl("gender.*female_share$", share_cols, ignore.case = TRUE)]
+  nb_share <- share_cols[grepl("gender.*non_binary_share$", share_cols, ignore.case = TRUE)]
+  has_female <- length(female_share) > 0
+  has_nb <- length(nb_share) > 0
+  if (has_female || has_nb) {
+    female <- if (has_female) suppressWarnings(as.numeric(df[[female_share[1]]])) else rep(NA_real_, nrow(df))
+    nb <- if (has_nb) suppressWarnings(as.numeric(df[[nb_share[1]]])) else rep(NA_real_, nrow(df))
+    components <- cbind(female, nb)
+    values <- rowSums(components, na.rm = TRUE)
+    all_missing <- apply(is.na(components), 1, all)
+    values[all_missing] <- NA_real_
+    used_columns <- c(if (has_female) female_share[1] else NA_character_, if (has_nb) nb_share[1] else NA_character_)
+    used_columns <- used_columns[!is.na(used_columns)]
+    if (!length(used_columns)) {
+      used_columns <- NA_character_
+    }
+    return(list(
+      values = values,
+      meta = list(
+        type = "gender_share",
+        columns = used_columns,
+        method = "female_plus_non_binary_share"
+      )
+    ))
+  }
+
+  count_cols <- gender_cols[!grepl("_share$", gender_cols)]
+  female_counts <- count_cols[grepl("gender_female$", count_cols, ignore.case = TRUE)]
+  nb_counts <- count_cols[grepl("gender_non_binary$", count_cols, ignore.case = TRUE)]
+  male_counts <- count_cols[
+    grepl("gender_male$", count_cols, ignore.case = TRUE) &
+      !grepl("female", count_cols, ignore.case = TRUE)
+  ]
+  has_female_counts <- length(female_counts) > 0
+  has_nb_counts <- length(nb_counts) > 0
+  if (has_female_counts || has_nb_counts) {
+    n <- nrow(df)
+    female <- if (has_female_counts) suppressWarnings(as.numeric(df[[female_counts[1]]])) else rep(NA_real_, n)
+    nb <- if (has_nb_counts) suppressWarnings(as.numeric(df[[nb_counts[1]]])) else rep(NA_real_, n)
+    male <- if (length(male_counts)) suppressWarnings(as.numeric(df[[male_counts[1]]])) else rep(NA_real_, n)
+    components <- cbind(female, nb, male)
+    total_candidates <- cols[!grepl("gender", cols, ignore.case = TRUE) & grepl("(total$|all_staff$|administrators$)", cols)]
+    if (length(total_candidates)) {
+      total <- suppressWarnings(as.numeric(df[[total_candidates[1]]]))
+    } else {
+      total <- rowSums(components, na.rm = TRUE)
+      total[apply(is.na(components), 1, all)] <- NA_real_
+    }
+    numerator <- rowSums(cbind(female, nb), na.rm = TRUE)
+    numerator[apply(is.na(cbind(female, nb)), 1, all)] <- NA_real_
+    share <- suppressWarnings(numerator / total)
+    share[!is.finite(share)] <- NA_real_
+    used_columns <- c(
+      if (has_female_counts) female_counts[1] else NA_character_,
+      if (has_nb_counts) nb_counts[1] else NA_character_
+    )
+    used_columns <- used_columns[!is.na(used_columns)]
+    if (!length(used_columns)) {
+      used_columns <- NA_character_
+    }
+    return(list(
+      values = share,
+      meta = list(
+        type = "gender_share",
+        columns = used_columns,
+        method = "derived_from_gender_counts",
+        total_column = if (length(total_candidates)) total_candidates[1] else NA_character_
+      )
+    ))
+  }
+
+  NULL
+}
+
+find_diversity_share <- function(df, patterns) {
+  for (pattern in patterns) {
+    cols <- grep(pattern, names(df), value = TRUE)
+    if (!length(cols)) {
+      next
+    }
+
+    race <- extract_race_nonwhite_share(df, cols)
+    if (!is.null(race)) {
+      return(race)
+    }
+  }
+
+  for (pattern in patterns) {
+    cols <- grep(pattern, names(df), value = TRUE)
+    if (!length(cols)) {
+      next
+    }
+
+    gender <- extract_gender_non_male_share(df, cols)
+    if (!is.null(gender)) {
+      return(gender)
+    }
+  }
+
+  NULL
+}
+
+describe_share_source <- function(meta, label) {
+  if (is.null(meta)) {
+    return(paste(label, "diversity source: unknown"))
+  }
+
+  if (identical(meta$type, "race_share")) {
+    return(paste0(label, " diversity derived from race column `", meta$column, "` (", meta$method, ")"))
+  }
+
+  if (identical(meta$type, "gender_share")) {
+    columns <- meta$columns
+    if (is.null(columns)) {
+      columns <- NA_character_
+    }
+    column_desc <- if (all(is.na(columns))) "gender columns" else paste(columns, collapse = ", ")
+    if (!is.null(meta$total_column) && !is.na(meta$total_column)) {
+      column_desc <- paste0(column_desc, "; total reference `", meta$total_column, "`")
+    }
+    return(paste0(label, " diversity derived from ", column_desc, " (", meta$method, ")"))
+  }
+
+  paste(label, "diversity source: unspecified")
+}
+
+prepare_regression_frame <- function(df) {
+  teacher_info <- find_diversity_share(df, c("^teacher"))
+  admin_info <- find_diversity_share(
+    df,
+    c("teacher.*administrators", "^administrators?", "^admin\\b")
+  )
+
+  if (is.null(teacher_info) || is.null(admin_info)) {
     message("\nTeacher or administrator diversity columns not located; regression skipped.")
     return(NULL)
   }
+
+  message(describe_share_source(teacher_info$meta, "Teacher"))
+  message(describe_share_source(admin_info$meta, "Administrator"))
 
   enrollment_candidates <- intersect(
     c("cumulative_enrollment", "sup_cumulative_enrollment", "all_enroll", "enroll_all"),
@@ -315,8 +479,8 @@ prepare_regression_frame <- function(df) {
 
   model_df <- data.frame(
     suspension_rate = suspension_rate,
-    teacher_non_white_share = suppressWarnings(as.numeric(teacher_share)),
-    admin_non_white_share = suppressWarnings(as.numeric(admin_share)),
+    teacher_non_white_share = suppressWarnings(as.numeric(teacher_info$values)),
+    admin_non_white_share = suppressWarnings(as.numeric(admin_info$values)),
     stringsAsFactors = FALSE
   )
 
@@ -365,7 +529,8 @@ prepare_regression_frame <- function(df) {
     enrollment_col = enrollment_col,
     sed_col = sed_col,
     charter_col = charter_col,
-    grade_col = grade_col
+    grade_col = grade_col,
+    diversity_meta = list(teacher = teacher_info$meta, administrator = admin_info$meta)
   )
 }
 
