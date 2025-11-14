@@ -79,14 +79,12 @@ canonicalize_race_label <- function(x) {
 # =============================================================================
 
 extract_teacher_race_nonwhite_share <- function(df, prefix = "^teacher") {
-  """
-  Extract teacher non-white share from race-specific columns.
-
-  Returns list with:
-    - values: numeric vector of non-white shares
-    - meta: metadata about which columns were used
-    - NULL if no race columns found
-  """
+  # Extract teacher non-white share from race-specific columns.
+  #
+  # Returns list with:
+  #   - values: numeric vector of non-white shares
+  #   - meta: metadata about which columns were used
+  #   - NULL if no race columns found
 
   # Step 1: Find ALL teacher race share columns
   race_share_pattern <- paste0(prefix, ".*_(",
@@ -172,10 +170,8 @@ extract_teacher_race_nonwhite_share <- function(df, prefix = "^teacher") {
 }
 
 extract_admin_race_nonwhite_share <- function(df) {
-  """
-  Extract administrator non-white share from race-specific columns.
-  Looks specifically for _by_type_administrators_ columns.
-  """
+  # Extract administrator non-white share from race-specific columns.
+  # Looks specifically for _by_type_administrators_ columns.
 
   extract_teacher_race_nonwhite_share(df, prefix = "^teacher.*by_type_administrators")
 }
