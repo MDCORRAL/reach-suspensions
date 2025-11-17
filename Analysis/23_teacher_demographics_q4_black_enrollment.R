@@ -26,6 +26,7 @@ source(here("R", "00_paths.R"))
 message("=== 23: Teacher Demographics in Q4 Black Enrollment Schools ===")
 
 # Ensure output subdirectories exist
+dir.create(dp_out, recursive = TRUE, showWarnings = FALSE)
 tables_dir <- file.path(dp_out, "tables")
 graphs_dir <- file.path(dp_out, "graphs")
 dir.create(tables_dir, recursive = TRUE, showWarnings = FALSE)
