@@ -32,8 +32,8 @@ graphs_dir <- file.path(dp_out, "graphs")
 dir.create(tables_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(graphs_dir, recursive = TRUE, showWarnings = FALSE)
 
-# Read merged student-teacher data
-TEACHER_DATA_PATH <- here("data-stage", "susp_v6_teacher_long.parquet")
+# Read merged student-teacher data (teacher features aggregated at the school level)
+TEACHER_DATA_PATH <- here("data-stage", "susp_v6_teacher_features.parquet")
 FEATURES_PATH <- here("data-stage", "susp_v6_features.parquet")
 
 if (!file.exists(TEACHER_DATA_PATH)) {
@@ -48,7 +48,11 @@ if (!file.exists(FEATURES_PATH)) {
 message(">>> Loading merged student-teacher data...")
 df <- read_parquet(TEACHER_DATA_PATH) %>%
   clean_names() %>%
-  build_keys()  # Ensure cds_school exists for joining
+  build_keys() %>%  # Ensure cds_school exists for joining
+  mutate(
+    # Standardize suspension rate column name used downstream
+    suspension_rate = suspension_rate_percent_total
+  )
 
 message(">>> Loading school features (for is_traditional flag and aggregates)...")
 features <- read_parquet(FEATURES_PATH) %>%
