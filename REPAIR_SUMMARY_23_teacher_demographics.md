@@ -3,9 +3,11 @@
 **Date**: 2025-11-17
 **Status**: REPAIRED
 
-## Problem
+## Problems Encountered
 
-The script failed with the error:
+The script encountered three sequential errors during repair:
+
+### Error 1: Missing Column
 ```
 Error in `filter()`:
 ℹ In argument: `is_traditional == TRUE | is.na(is_traditional)`.
@@ -13,9 +15,30 @@ Caused by error:
 ! object 'is_traditional' not found
 ```
 
-## Root Cause
+### Error 2: Incorrect Join Key
+```
+Error in `left_join()`:
+! Join columns in `x` must be present in the data.
+✖ Problem with `school_code`.
+```
 
+### Error 3: Incorrect Column Name
+```
+Error in `select()`:
+! Can't select columns that don't exist.
+✖ Column `locale` doesn't exist.
+```
+
+## Root Causes
+
+### Issue 1: Missing `is_traditional` Column
 The `is_traditional` column exists in `susp_v6_features.parquet` (one row per school-year) but is **not present** in `susp_v6_long.parquet` (multiple rows per school-year, one per race/ethnicity group).
+
+### Issue 2: Wrong Join Key
+The script attempted to join on `school_code` (7-digit), but the data uses `cds_school` (14-digit) as the canonical school identifier.
+
+### Issue 3: Column Naming Inconsistency
+The script referenced `locale` but the actual column name is `locale_simple` throughout the pipeline.
 
 ### Why This Happened
 
@@ -152,14 +175,31 @@ Error in `left_join()`:
 2. Added `build_keys()` call after loading each dataset to ensure `cds_school` is properly constructed from component codes
 3. The `build_keys()` function (from `utils_keys_filters.R`) creates the 14-digit `cds_school` by concatenating county_code + district_code + school_code
 
+#### Issue 3: Incorrect Column Name - `locale` vs `locale_simple`
+
+After fixing the join issue, a third error appeared:
+```
+Error in `select()`:
+! Can't select columns that don't exist.
+✖ Column `locale` doesn't exist.
+```
+
+**Root Cause**: The script references a column named `locale`, but the actual column name in the data is `locale_simple` (as seen in the pipeline script `R/22_build_v6_features.R` line 88).
+
+**Fix Applied**:
+1. Changed all references from `locale` to `locale_simple` in the select statements
+2. Updated both occurrences (lines 88 and 140)
+
 ## Validation
 
 The repaired script should now:
 1. Successfully load both the teacher-student merged data and the features data
-2. Join `is_traditional` on `school_code` and `academic_year`
-3. Report coverage of the `is_traditional` flag
-4. Filter to traditional schools in Q4 Black enrollment
-5. Proceed with analysis without errors
+2. Build `cds_school` keys in both datasets using `build_keys()`
+3. Join `is_traditional` on `cds_school` and `academic_year`
+4. Report coverage of the `is_traditional` flag
+5. Filter to traditional schools in Q4 Black enrollment
+6. Select columns using correct names (`locale_simple` not `locale`)
+7. Proceed with analysis and generate all expected outputs without errors
 
 ## Recommendations
 

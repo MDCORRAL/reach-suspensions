@@ -85,7 +85,7 @@ school_summary <- df %>%
   # Keep only relevant columns
   select(
     academic_year, cds_school, county_name, district_name, school_name,
-    school_level, locale,
+    school_level, locale_simple,
     cumulative_enrollment, black_prop_q, black_share,
     total_suspensions, suspension_rate,
     # Teacher totals
@@ -137,7 +137,7 @@ school_annotations <- school_summary %>%
   ungroup() %>%
   select(
     academic_year, cds_school, county_name, district_name, school_name,
-    school_level, locale,
+    school_level, locale_simple,
     cumulative_enrollment, black_share, black_prop_q,
     total_suspensions, suspension_rate,
     teacher_staff_count_total,
