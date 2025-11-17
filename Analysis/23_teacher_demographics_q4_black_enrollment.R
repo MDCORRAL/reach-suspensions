@@ -25,6 +25,12 @@ source(here("R", "00_paths.R"))
 
 message("=== 23: Teacher Demographics in Q4 Black Enrollment Schools ===")
 
+# Ensure output subdirectories exist
+tables_dir <- file.path(dp_out, "tables")
+graphs_dir <- file.path(dp_out, "graphs")
+dir.create(tables_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(graphs_dir, recursive = TRUE, showWarnings = FALSE)
+
 # Read merged student-teacher data
 TEACHER_DATA_PATH <- here("data-stage", "susp_v6_teacher_long.parquet")
 if (!file.exists(TEACHER_DATA_PATH)) {
