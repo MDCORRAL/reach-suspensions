@@ -30,7 +30,8 @@ TEACHER_RACE_SLUGS <- c(
   "filipino",
   "hispanic_or_latino",
   "american_indian_or_alaska_native",
-  "pacific_islander",
+  "native_hawaiian_pacific_islander",
+  "pacific_islander",  # legacy slug still appears in some historical files
   "white",
   "two_or_more_races",
   "not_reported"
