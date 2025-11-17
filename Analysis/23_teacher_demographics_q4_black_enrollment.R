@@ -47,19 +47,21 @@ if (!file.exists(FEATURES_PATH)) {
 
 message(">>> Loading merged student-teacher data...")
 df <- read_parquet(TEACHER_DATA_PATH) %>%
-  clean_names()
+  clean_names() %>%
+  build_keys()  # Ensure cds_school exists for joining
 
 message(">>> Loading school features (for is_traditional flag)...")
 features <- read_parquet(FEATURES_PATH) %>%
   clean_names() %>%
-  select(school_code, academic_year, is_traditional)
+  build_keys() %>%  # Creates cds_school from county/district/school codes
+  select(cds_school, academic_year, is_traditional)
 
 # Join is_traditional from features file
 # Note: susp_v6_long.parquet doesn't include is_traditional, so we join it from features
 df <- df %>%
   left_join(
     features,
-    by = c("school_code", "academic_year")
+    by = c("cds_school", "academic_year")
   )
 
 message(">>> Total rows: ", nrow(df))
