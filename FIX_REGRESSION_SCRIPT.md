@@ -76,6 +76,9 @@ load_features <- function() {
 
   # Load teacher processing utilities
   source("R/teacher_processing.R")
+  # Helpers like build_keys(), canon_race_label(), and SPECIAL_SCHOOL_CODES
+  # live in utils_keys_filters, so source it before calling load_features()
+  source("R/utils_keys_filters.R")
 
   # Load and summarize teacher data
   message(">>> Loading teacher data...")
