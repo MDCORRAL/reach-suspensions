@@ -132,7 +132,7 @@ make_summary_table <- function(coef_df) {
     transmute(
       student_group,
       term_label,
-      effect = glue("{scales::number(pp_change_10, accuracy = 0.0001, prefix = ifelse(pp_change_10 >= 0, "+", ""))} ({scales::number(pp_low_10, accuracy = 0.0001)}, {scales::number(pp_high_10, accuracy = 0.0001)})"),
+      effect = glue("{scales::number(pp_change_10, accuracy = 0.0001, prefix = ifelse(pp_change_10 >= 0, \"+\", \"\"))} ({scales::number(pp_low_10, accuracy = 0.0001)}, {scales::number(pp_high_10, accuracy = 0.0001)})"),
       p_display = p_label
     ) |>
     pivot_wider(
