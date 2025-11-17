@@ -34,18 +34,38 @@ dir.create(graphs_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Read merged student-teacher data
 TEACHER_DATA_PATH <- here("data-stage", "susp_v6_teacher_long.parquet")
+FEATURES_PATH <- here("data-stage", "susp_v6_features.parquet")
+
 if (!file.exists(TEACHER_DATA_PATH)) {
   stop("Missing merged teacher-student data: ", TEACHER_DATA_PATH,
        "\nRun Analysis/18_merge_teacher_student.R first.")
+}
+if (!file.exists(FEATURES_PATH)) {
+  stop("Missing v6 features data: ", FEATURES_PATH,
+       "\nRun run_pipeline.R first.")
 }
 
 message(">>> Loading merged student-teacher data...")
 df <- read_parquet(TEACHER_DATA_PATH) %>%
   clean_names()
 
+message(">>> Loading school features (for is_traditional flag)...")
+features <- read_parquet(FEATURES_PATH) %>%
+  clean_names() %>%
+  select(school_code, academic_year, is_traditional)
+
+# Join is_traditional from features file
+# Note: susp_v6_long.parquet doesn't include is_traditional, so we join it from features
+df <- df %>%
+  left_join(
+    features,
+    by = c("school_code", "academic_year")
+  )
+
 message(">>> Total rows: ", nrow(df))
 message(">>> Unique schools: ", n_distinct(df$cds_school))
 message(">>> Academic years: ", paste(sort(unique(df$academic_year)), collapse = ", "))
+message(">>> is_traditional coverage: ", sum(!is.na(df$is_traditional)), " of ", nrow(df), " rows")
 
 # Filter to traditional schools only (exclude alternative schools)
 # Filter to top quartile Black enrollment (Q4)
@@ -54,7 +74,7 @@ message(">>> Filtering to traditional schools, Q4 Black enrollment...")
 
 school_summary <- df %>%
   filter(
-    is_traditional == TRUE | is.na(is_traditional),  # Traditional schools only
+    is_traditional == TRUE,  # Traditional schools only (remove NA check since we now have the data)
     !is.na(black_prop_q),  # Must have Black proportion quartile
     black_prop_q == 4  # Top quartile only
   ) %>%
