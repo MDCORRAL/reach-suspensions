@@ -42,6 +42,8 @@ The `race_long` data is never joined with `v6` to inherit the `is_traditional` f
 
 ### Code Changes
 
+#### Issue 1: Missing `is_traditional` Column
+
 **Before** (lines 35-56):
 ```r
 # Read merged student-teacher data
@@ -72,7 +74,7 @@ school_summary <- df %>%
   ) %>%
 ```
 
-**After** (lines 35-79):
+**After** (lines 35-82) - FINAL VERSION:
 ```r
 # Read merged student-teacher data
 TEACHER_DATA_PATH <- here("data-stage", "susp_v6_teacher_long.parquet")
@@ -89,19 +91,21 @@ if (!file.exists(FEATURES_PATH)) {
 
 message(">>> Loading merged student-teacher data...")
 df <- read_parquet(TEACHER_DATA_PATH) %>%
-  clean_names()
+  clean_names() %>%
+  build_keys()  # Ensure cds_school exists for joining
 
 message(">>> Loading school features (for is_traditional flag)...")
 features <- read_parquet(FEATURES_PATH) %>%
   clean_names() %>%
-  select(school_code, academic_year, is_traditional)
+  build_keys() %>%  # Creates cds_school from county/district/school codes
+  select(cds_school, academic_year, is_traditional)
 
 # Join is_traditional from features file
 # Note: susp_v6_long.parquet doesn't include is_traditional, so we join it from features
 df <- df %>%
   left_join(
     features,
-    by = c("school_code", "academic_year")
+    by = c("cds_school", "academic_year")
   )
 
 message(">>> Total rows: ", nrow(df))
@@ -127,9 +131,26 @@ school_summary <- df %>%
 1. **Added**: `FEATURES_PATH` variable to point to `susp_v6_features.parquet`
 2. **Added**: File existence check for features file
 3. **Added**: Loading of features file with `is_traditional` column
-4. **Added**: Left join to merge `is_traditional` into the main dataframe
-5. **Added**: Diagnostic message showing `is_traditional` coverage
-6. **Modified**: Filter logic to use `is_traditional == TRUE` (removed NA check)
+4. **Added**: `build_keys()` calls to ensure `cds_school` exists in both dataframes
+5. **Added**: Left join to merge `is_traditional` into the main dataframe using `cds_school`
+6. **Added**: Diagnostic message showing `is_traditional` coverage
+7. **Modified**: Filter logic to use `is_traditional == TRUE` (removed NA check)
+
+#### Issue 2: Incorrect Join Key
+
+After fixing the first issue, a second error appeared:
+```
+Error in `left_join()`:
+! Join columns in `x` must be present in the data.
+✖ Problem with `school_code`.
+```
+
+**Root Cause**: The join was using `school_code` (7-digit), but the merge script `Analysis/18_merge_teacher_student.R` uses `cds_school` (14-digit) as the join key.
+
+**Fix Applied**:
+1. Changed join key from `school_code` to `cds_school`
+2. Added `build_keys()` call after loading each dataset to ensure `cds_school` is properly constructed from component codes
+3. The `build_keys()` function (from `utils_keys_filters.R`) creates the 14-digit `cds_school` by concatenating county_code + district_code + school_code
 
 ## Validation
 
