@@ -97,7 +97,7 @@ summarize_coefficients <- function(models) {
 }
 
 make_coefficient_plot <- function(coef_df) {
-  plot_df <- coef_df |
+  plot_df <- coef_df |>
     mutate(
       student_group = fct_relevel(student_group, ALLOWED_RACE_GROUPS, after = Inf),
       student_group = fct_rev(fct_inorder(student_group)),
