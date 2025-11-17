@@ -50,14 +50,15 @@ df <- read_parquet(TEACHER_DATA_PATH) %>%
   clean_names() %>%
   build_keys()  # Ensure cds_school exists for joining
 
-message(">>> Loading school features (for is_traditional flag)...")
+message(">>> Loading school features (for is_traditional flag and aggregates)...")
 features <- read_parquet(FEATURES_PATH) %>%
   clean_names() %>%
   build_keys() %>%  # Creates cds_school from county/district/school codes
-  select(cds_school, academic_year, is_traditional)
+  select(cds_school, academic_year, is_traditional, black_share, white_share, hispanic_share)
 
-# Join is_traditional from features file
-# Note: susp_v6_long.parquet doesn't include is_traditional, so we join it from features
+# Join school-level features from features file
+# Note: susp_v6_long.parquet has race-specific rows, so we join school-level aggregates
+# (is_traditional, black_share, etc.) from the features file
 df <- df %>%
   left_join(
     features,

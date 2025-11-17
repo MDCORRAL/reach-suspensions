@@ -22,11 +22,18 @@ Error in `left_join()`:
 ✖ Problem with `school_code`.
 ```
 
-### Error 3: Incorrect Column Name
+### Error 3: Incorrect Column Name - `locale`
 ```
 Error in `select()`:
 ! Can't select columns that don't exist.
 ✖ Column `locale` doesn't exist.
+```
+
+### Error 4: Missing Column - `black_share`
+```
+Error in `select()`:
+! Can't select columns that don't exist.
+✖ Column `black_share` doesn't exist.
 ```
 
 ## Root Causes
@@ -39,6 +46,9 @@ The script attempted to join on `school_code` (7-digit), but the data uses `cds_
 
 ### Issue 3: Column Naming Inconsistency
 The script referenced `locale` but the actual column name is `locale_simple` throughout the pipeline.
+
+### Issue 4: Missing School-Level Aggregates
+The script attempted to select `black_share`, which is a school-level aggregate column that exists in the features file but not in the long-format data (which has one row per race/ethnicity subgroup).
 
 ### Why This Happened
 
@@ -149,15 +159,17 @@ school_summary <- df %>%
   ) %>%
 ```
 
-### Key Changes
+### Key Changes Summary
 
 1. **Added**: `FEATURES_PATH` variable to point to `susp_v6_features.parquet`
 2. **Added**: File existence check for features file
-3. **Added**: Loading of features file with `is_traditional` column
+3. **Added**: Loading of features file with school-level columns: `is_traditional`, `black_share`, `white_share`, `hispanic_share`
 4. **Added**: `build_keys()` calls to ensure `cds_school` exists in both dataframes
-5. **Added**: Left join to merge `is_traditional` into the main dataframe using `cds_school`
-6. **Added**: Diagnostic message showing `is_traditional` coverage
-7. **Modified**: Filter logic to use `is_traditional == TRUE` (removed NA check)
+5. **Modified**: Join key from `school_code` to `cds_school`
+6. **Added**: Left join to merge school-level features into the main dataframe
+7. **Added**: Diagnostic message showing `is_traditional` coverage
+8. **Modified**: Filter logic to use `is_traditional == TRUE` (removed NA check)
+9. **Modified**: Column references from `locale` to `locale_simple` (2 occurrences)
 
 #### Issue 2: Incorrect Join Key
 
@@ -190,16 +202,42 @@ Error in `select()`:
 1. Changed all references from `locale` to `locale_simple` in the select statements
 2. Updated both occurrences (lines 88 and 140)
 
+#### Issue 4: Missing School-Level Aggregates - `black_share`
+
+After fixing the locale column name, a fourth error appeared:
+```
+Error in `select()`:
+! Can't select columns that don't exist.
+✖ Column `black_share` doesn't exist.
+```
+
+**Root Cause**: The script attempts to select `black_share` and similar school-level aggregates, but these columns exist only in `susp_v6_features.parquet` (one row per school), not in `susp_v6_long.parquet` (one row per school-race combination). The `black_share` column represents the proportion of Black students in the entire school, which is a school-level aggregate.
+
+**Fix Applied**:
+1. Extended the features join to include school-level demographic shares: `black_share`, `white_share`, `hispanic_share`
+2. Updated the features selection from line 57 to include these additional columns
+3. Updated the comment to clarify that we're joining multiple school-level aggregates, not just `is_traditional`
+
 ## Validation
 
 The repaired script should now:
 1. Successfully load both the teacher-student merged data and the features data
 2. Build `cds_school` keys in both datasets using `build_keys()`
-3. Join `is_traditional` on `cds_school` and `academic_year`
+3. Join school-level features (`is_traditional`, `black_share`, etc.) on `cds_school` and `academic_year`
 4. Report coverage of the `is_traditional` flag
 5. Filter to traditional schools in Q4 Black enrollment
-6. Select columns using correct names (`locale_simple` not `locale`)
+6. Select columns using correct names (`locale_simple` not `locale`, `black_share` from joined features)
 7. Proceed with analysis and generate all expected outputs without errors
+
+**Expected Outputs**:
+- `outputs/tables/q4_black_enrollment_schools_annotations.csv`
+- `outputs/tables/q4_black_enrollment_overall_staff_stats.csv`
+- `outputs/tables/q4_black_enrollment_yearly_staff_stats.csv`
+- `outputs/tables/q4_black_enrollment_by_level_staff_stats.csv`
+- `outputs/graphs/q4_black_enrollment_teacher_race_trends.png`
+- `outputs/graphs/q4_black_enrollment_admin_race_trends.png`
+- `outputs/graphs/q4_black_enrollment_staff_comparison.png`
+- `outputs/graphs/q4_black_enrollment_staff_by_level.png`
 
 ## Recommendations
 
