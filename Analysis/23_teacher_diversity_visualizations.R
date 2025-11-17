@@ -97,7 +97,7 @@ summarize_coefficients <- function(models) {
 }
 
 make_coefficient_plot <- function(coef_df) {
-  plot_df <- coef_df |
+  plot_df <- coef_df |>
     mutate(
       student_group = fct_relevel(student_group, ALLOWED_RACE_GROUPS, after = Inf),
       student_group = fct_rev(fct_inorder(student_group)),
@@ -149,13 +149,13 @@ make_summary_table <- function(coef_df) {
     arrange(match(student_group, ALLOWED_RACE_GROUPS))
 
   gt_tbl <- wide_tbl |>
-    gt(rowname_col = "student_group") |
+    gt(rowname_col = "student_group") |>
     tab_header(
       title = "Effect of educator racial diversity on suspension rates",
       subtitle = "Change in suspension percentage points for a +10pp increase in non-white share"
-    ) |
-    fmt_number(columns = c(r.squared, adj.r.squared), decimals = 3) |
-    fmt_number(columns = c(n_obs, n_small), decimals = 0, use_seps = TRUE) |
+    ) |>
+    fmt_number(columns = c(r.squared, adj.r.squared), decimals = 3) |>
+    fmt_number(columns = c(n_obs, n_small), decimals = 0, use_seps = TRUE) |>
     cols_label(
       student_group = "Student group",
       `Teacher non-white share (effect)` = "Teacher effect (95% CI)",
@@ -167,13 +167,13 @@ make_summary_table <- function(coef_df) {
       n_obs = "N (schools)",
       n_small = "N < 50 students",
       weighting = "Weights"
-    ) |
+    ) |>
     tab_spanner(
       label = "Coefficient estimates",
       columns = c(`Teacher non-white share (effect)`, `Administrator non-white share (effect)`,
                   `Teacher non-white share (p_display)`, `Administrator non-white share (p_display)`)
-    ) |
-    cols_align(everything(), align = "center") |
+    ) |>
+    cols_align(everything(), align = "center") |>
     tab_source_note("Associations from weighted linear models; not causal estimates.")
 
   gt_tbl
