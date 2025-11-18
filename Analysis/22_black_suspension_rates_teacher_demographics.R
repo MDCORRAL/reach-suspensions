@@ -25,6 +25,11 @@ try(here::i_am("Analysis/22_black_suspension_rates_teacher_demographics.R"), sil
 # Load canonical definitions
 source(here::here("R", "utils_keys_filters.R"))
 
+# Safe division helper (handles zero denominators)
+safe_div <- function(num, denom, replace_na_with = NA_real_) {
+  ifelse(denom == 0 | is.na(denom), replace_na_with, num / denom)
+}
+
 theme_set(theme_minimal(base_size = 12))
 
 # Helper: flag when teacher demographic columns are inconsistent within a school-year
@@ -78,8 +83,15 @@ if (!file.exists(V6_TEACHER_PATH)) {
 message(">>> Loading merged student-teacher data from: ", basename(V6_TEACHER_PATH))
 df_raw <- arrow::read_parquet(V6_TEACHER_PATH) %>%
   janitor::clean_names() %>%
-  build_keys() %>%
-  filter_campus_only()  # Drop special codes
+  build_keys()
+
+# Apply campus filter if aggregate_level exists, otherwise just filter special codes
+if ("aggregate_level" %in% names(df_raw)) {
+  df_raw <- df_raw %>% filter_campus_only()
+} else {
+  message(">>> Note: aggregate_level not found; filtering only special school codes")
+  df_raw <- df_raw %>% filter(!school_code %in% SPECIAL_SCHOOL_CODES)
+}
 
 # Check required columns
 required_cols <- c(
