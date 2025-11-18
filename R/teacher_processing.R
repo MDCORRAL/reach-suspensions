@@ -250,8 +250,6 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
       )
   }
 
-  df$.teacher_total_row <- NULL
-
   # Create reporting_category_description if it doesn't exist
   if (!"reporting_category_description" %in% names(df)) {
     if ("reporting_category" %in% names(df)) {
@@ -342,6 +340,8 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
         values_fill = 0
       )
   }
+
+  df$.teacher_total_row <- NULL
 
   summary <- totals %>%
     dplyr::left_join(race_tbl, by = key_cols)
