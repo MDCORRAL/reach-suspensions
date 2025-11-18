@@ -55,6 +55,7 @@ Standard protocols, conventions, and reference documentation used throughout the
 | File | Description |
 |------|-------------|
 | `CITATION_STANDARD.md` | Standard citation format for all outputs |
+| `PROTOCOL_SCRIPT_REQUEST_REMINDER.md` | Checklist and response reminder to reference CLAUDE.md for any new/updated scripts |
 | `PROTOCOL_TEACHER_DATA_MERGE.md` | Protocol for merging teacher and student data |
 | `UCLA-Brand-Colors.md` | UCLA-branded color palette documentation |
 
