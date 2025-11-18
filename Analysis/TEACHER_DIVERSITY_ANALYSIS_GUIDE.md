@@ -540,9 +540,9 @@ source("Analysis/22_build_teacher_race_shares.R")
 
 ### Related Files
 
-- `TEACHER_DIVERSITY_ANALYSIS_DIAGNOSTIC.md`: Original diagnostic report
-- `TEACHER_DATA_SETUP_GUIDE.md`: Guide for obtaining CDE teacher data
-- `TEACHER_DEMOGRAPHIC_INTEGRATION_AUDIT.md`: Data quality audit
+- `docs/audits/TEACHER_DIVERSITY_ANALYSIS_DIAGNOSTIC.md`: Original diagnostic report
+- `docs/guides/TEACHER_DATA_SETUP_GUIDE.md`: Guide for obtaining CDE teacher data
+- `docs/audits/TEACHER_DEMOGRAPHIC_INTEGRATION_AUDIT.md`: Data quality audit
 
 ### CDE Documentation
 

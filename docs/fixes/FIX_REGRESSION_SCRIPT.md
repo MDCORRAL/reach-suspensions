@@ -3,7 +3,7 @@
 **Date:** 2025-11-14
 **Issue:** Script cannot identify teacher/administrator race/ethnicity factors
 **Root Cause:** Uses wrong data loading approach
-**Solution:** Apply the correct protocol from `PROTOCOL_TEACHER_DATA_MERGE.md`
+**Solution:** Apply the correct protocol from `docs/protocols/PROTOCOL_TEACHER_DATA_MERGE.md`
 
 ---
 
@@ -328,4 +328,4 @@ The core issue is that the script was trying to load a pre-merged file that may 
 3. **Add diagnostics** to show what columns are available
 4. **Fail gracefully** with actionable error messages
 
-This approach is validated by the working script `21_weighted_teacher_diversity_by_quartile.R` and documented in `PROTOCOL_TEACHER_DATA_MERGE.md`.
+This approach is validated by the working script `21_weighted_teacher_diversity_by_quartile.R` and documented in `docs/protocols/PROTOCOL_TEACHER_DATA_MERGE.md`.
