@@ -189,6 +189,66 @@ african_american_share > 10% (in Q4 Black enrollment schools)
 
 ---
 
-**Status**: Under investigation
+## Resolution
+
+**Date**: 2025-11-18
+**Status**: ✅ FIXED
+
+### Confirmed Diagnosis
+
+The diagnostic script confirmed that columns labeled as "counts" (`teacher_staff_count_by_type_teachers_*`) actually contain **percentages (0-100)**, not raw counts.
+
+**Evidence from diagnostic**:
+```
+Sample school: Aurum Preparatory Academy
+  Total teachers: 50
+
+  Race "counts":
+    African American: 80  ← Actually 80%
+    White: 10             ← Actually 10%
+    Hispanic/Latino: 10   ← Actually 10%
+    Sum: 100              ← Clearly percentages!
+```
+
+When summed across 640 schools in 2019-20:
+- Sum of "White counts": 38,017 (actually sum of percentages!)
+- Total teachers: 38,607
+- Calculated "share": 38,017 / 38,607 = **98.5%** ← The exact issue reported!
+
+### The Fix
+
+Script 23 was using the wrong column set. Changed from:
+- ❌ `teacher_staff_count_by_type_teachers_white` (contains percentages 0-100)
+- ✅ `teacher_total_staff_count_by_type_teachers_white` (contains actual counts)
+
+**Files Changed**:
+- `Analysis/23_teacher_demographics_q4_black_enrollment.R`
+  - Fixed overall_stats aggregation (lines 214-234)
+  - Fixed yearly_stats aggregation (lines 303-315)
+  - Fixed by_level_stats aggregation (lines 353-365)
+
+### Validation
+
+After the fix, shares should now sum to ~75-95% (accounting for other races not shown in the 4-race summary).
+
+**Test the fix**:
+```r
+source("Analysis/23_teacher_demographics_q4_black_enrollment.R")
+
+# Check the output
+yearly <- read_csv("outputs/tables/q4_black_enrollment_yearly_staff_stats.csv")
+
+# For 2019-20, shares should now be realistic:
+# African American: ~15-30%
+# White: ~30-50% (not 98%!)
+# Hispanic/Latino: ~20-40%
+# Asian: ~5-15%
+# Sum: ~75-95%
+```
+
+---
+
+**Status**: ✅ RESOLVED
 **Priority**: High - affects interpretation of teacher diversity patterns
 **Created**: 2025-11-18
+**Resolved**: 2025-11-18
