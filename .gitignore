@@ -22,6 +22,12 @@ dashboard/data/
 !dashboard/data/pareto_grade_setting_payload.json
 # macOS system files
 .DS_Store
+# Cloud sync metadata (Google Drive, Dropbox, etc.)
+.~lock.*
+~$*
+*.tmp
+*.gd
+desktop.ini
 # R/RStudio
 .Rproj.user/
 .Rhistory
