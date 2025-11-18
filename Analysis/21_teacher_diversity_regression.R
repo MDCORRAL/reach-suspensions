@@ -937,8 +937,12 @@ main <- function() {
   ))
 }
 
-# Run if called directly
-if (identical(environment(), globalenv()) &&
-    !isTRUE(getOption("teacher_regression_skip_main"))) {
+# =============================================================================
+# RUN ANALYSIS
+# =============================================================================
+
+# Execute the analysis when script is sourced
+# To load functions without running, use: options(teacher_regression_skip_main = TRUE)
+if (!isTRUE(getOption("teacher_regression_skip_main"))) {
   main()
 }
