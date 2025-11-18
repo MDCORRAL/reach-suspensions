@@ -2,6 +2,7 @@
 
 suppressPackageStartupMessages({
   library(dplyr)
+  library(rlang)
   library(readr)
   library(stringr)
   library(tidyr)
@@ -237,7 +238,7 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
     totals_by_type <- df %>%
       dplyr::filter(!is.na(reporting_category_slug)) %>%
       dplyr::group_by(dplyr::across(dplyr::all_of(c(key_cols, "reporting_category_slug")))) %>%
-      dplyr::filter(if (any(.teacher_total_row, na.rm = TRUE)) .teacher_total_row else TRUE) %>%
+      dplyr::filter(if (any(.data$.teacher_total_row, na.rm = TRUE)) .data$.teacher_total_row else TRUE) %>%
       dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
                        .groups = "drop") %>%
       tidyr::pivot_wider(
@@ -267,7 +268,7 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
     dplyr::filter(!race_slug %in% c("total", "all", "all_students", "all_staff", "teachers", "administrators", "pupil_services", "other_staff", "all_staff")) %>%  # Also filter out staff types
     dplyr::group_by(dplyr::across(dplyr::all_of(c(key_cols, "race_slug")))) %>%
     # FIX: Filter to total rows to avoid double-counting gender-specific + gender-total rows
-    dplyr::filter(if (any(.teacher_total_row, na.rm = TRUE)) .teacher_total_row else TRUE) %>%
+    dplyr::filter(if (any(.data$.teacher_total_row, na.rm = TRUE)) .data$.teacher_total_row else TRUE) %>%
     dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
                      .groups = "drop") %>%
     tidyr::pivot_wider(
@@ -288,7 +289,7 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
       dplyr::filter(!race_slug %in% c("total", "all", "all_students", "all_staff", "teachers", "administrators", "pupil_services", "other_staff")) %>%  # Also filter out staff types
       dplyr::group_by(dplyr::across(dplyr::all_of(c(key_cols, "reporting_category_slug", "race_slug")))) %>%
       # FIX: Filter to total rows to avoid double-counting gender-specific + gender-total rows
-      dplyr::filter(if (any(.teacher_total_row, na.rm = TRUE)) .teacher_total_row else TRUE) %>%
+      dplyr::filter(if (any(.data$.teacher_total_row, na.rm = TRUE)) .data$.teacher_total_row else TRUE) %>%
       dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
                        .groups = "drop") %>%
       tidyr::pivot_wider(
