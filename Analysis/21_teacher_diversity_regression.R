@@ -14,6 +14,9 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(arrow)
   library(here)
+  library(ggplot2)
+  library(tidyr)
+  library(writexl)
 })
 
 # =============================================================================
@@ -408,6 +411,309 @@ prepare_regression_frame <- function(df, student_group = NULL) {
 }
 
 # =============================================================================
+# RESULTS EXTRACTION AND INTERPRETATION
+# =============================================================================
+
+extract_regression_results <- function(fit, model_info) {
+  # Extract key coefficients and statistics from regression model
+
+  group_label <- model_info$student_group %||% "All Students"
+  coef_mat <- summary(fit)$coefficients
+  conf <- suppressWarnings(confint(fit))
+  s <- summary(fit)
+
+  # Extract teacher diversity results
+  teacher_results <- if ("teacher_non_white_share" %in% rownames(coef_mat)) {
+    list(
+      coefficient = coef_mat["teacher_non_white_share", "Estimate"],
+      std_error = coef_mat["teacher_non_white_share", "Std. Error"],
+      p_value = coef_mat["teacher_non_white_share", "Pr(>|t|)"],
+      ci_lower = conf["teacher_non_white_share", 1],
+      ci_upper = conf["teacher_non_white_share", 2]
+    )
+  } else {
+    list(coefficient = NA, std_error = NA, p_value = NA, ci_lower = NA, ci_upper = NA)
+  }
+
+  # Extract admin diversity results
+  admin_results <- if ("admin_non_white_share" %in% rownames(coef_mat)) {
+    list(
+      coefficient = coef_mat["admin_non_white_share", "Estimate"],
+      std_error = coef_mat["admin_non_white_share", "Std. Error"],
+      p_value = coef_mat["admin_non_white_share", "Pr(>|t|)"],
+      ci_lower = conf["admin_non_white_share", 1],
+      ci_upper = conf["admin_non_white_share", 2]
+    )
+  } else {
+    list(coefficient = NA, std_error = NA, p_value = NA, ci_lower = NA, ci_upper = NA)
+  }
+
+  data.frame(
+    student_group = group_label,
+    n_schools = stats::nobs(fit),
+    r_squared = s$r.squared,
+    adj_r_squared = s$adj.r.squared,
+
+    teacher_coefficient = teacher_results$coefficient,
+    teacher_std_error = teacher_results$std_error,
+    teacher_p_value = teacher_results$p_value,
+    teacher_ci_lower = teacher_results$ci_lower,
+    teacher_ci_upper = teacher_results$ci_upper,
+
+    admin_coefficient = admin_results$coefficient,
+    admin_std_error = admin_results$std_error,
+    admin_p_value = admin_results$p_value,
+    admin_ci_lower = admin_results$ci_lower,
+    admin_ci_upper = admin_results$ci_upper,
+
+    stringsAsFactors = FALSE
+  )
+}
+
+calculate_practical_effects <- function(results_df) {
+  # Calculate practical interpretations of effect sizes
+  # Effect of 10 percentage point increase in diversity (0.10)
+
+  results_df %>%
+    mutate(
+      # Convert to percentage point change in suspension rate for 10pp diversity increase
+      teacher_effect_10pp = teacher_coefficient * 0.10 * 100,
+      teacher_effect_10pp_lower = teacher_ci_lower * 0.10 * 100,
+      teacher_effect_10pp_upper = teacher_ci_upper * 0.10 * 100,
+
+      admin_effect_10pp = admin_coefficient * 0.10 * 100,
+      admin_effect_10pp_lower = admin_ci_lower * 0.10 * 100,
+      admin_effect_10pp_upper = admin_ci_upper * 0.10 * 100,
+
+      # Significance indicators
+      teacher_sig = case_when(
+        teacher_p_value < 0.001 ~ "***",
+        teacher_p_value < 0.01 ~ "**",
+        teacher_p_value < 0.05 ~ "*",
+        TRUE ~ ""
+      ),
+      admin_sig = case_when(
+        admin_p_value < 0.001 ~ "***",
+        admin_p_value < 0.01 ~ "**",
+        admin_p_value < 0.05 ~ "*",
+        TRUE ~ ""
+      ),
+
+      # Direction labels
+      teacher_direction = case_when(
+        teacher_p_value >= 0.05 ~ "No significant effect",
+        teacher_coefficient < 0 ~ "Lower suspension rates",
+        teacher_coefficient > 0 ~ "Higher suspension rates",
+        TRUE ~ "No significant effect"
+      ),
+      admin_direction = case_when(
+        admin_p_value >= 0.05 ~ "No significant effect",
+        admin_coefficient < 0 ~ "Lower suspension rates",
+        admin_coefficient > 0 ~ "Higher suspension rates",
+        TRUE ~ "No significant effect"
+      )
+    )
+}
+
+generate_interpretation_text <- function(results_df) {
+  # Generate plain-language interpretations for each student group
+
+  interpretations <- lapply(1:nrow(results_df), function(i) {
+    row <- results_df[i, ]
+
+    # Teacher interpretation
+    teacher_text <- if (row$teacher_p_value >= 0.05) {
+      sprintf(
+        "Teacher diversity shows NO statistically significant association with suspension rates (p=%.3f).",
+        row$teacher_p_value
+      )
+    } else {
+      direction <- ifelse(row$teacher_coefficient < 0, "DECREASE", "INCREASE")
+      abs_effect <- abs(row$teacher_effect_10pp)
+
+      sprintf(
+        "A 10 percentage point increase in teacher diversity (e.g., from 40%% to 50%% non-white teachers) is associated with a %.3f percentage point %s in suspension rates (95%% CI: %.3f to %.3f, p<%.3f). This is a %s but statistically significant effect.",
+        abs_effect,
+        direction,
+        abs(row$teacher_effect_10pp_lower),
+        abs(row$teacher_effect_10pp_upper),
+        row$teacher_p_value,
+        ifelse(abs_effect < 0.1, "VERY SMALL", ifelse(abs_effect < 0.5, "SMALL", "MODERATE"))
+      )
+    }
+
+    # Admin interpretation
+    admin_text <- if (row$admin_p_value >= 0.05) {
+      sprintf(
+        "Administrator diversity shows NO statistically significant association with suspension rates (p=%.3f).",
+        row$admin_p_value
+      )
+    } else {
+      direction <- ifelse(row$admin_coefficient < 0, "DECREASE", "INCREASE")
+      abs_effect <- abs(row$admin_effect_10pp)
+
+      sprintf(
+        "A 10 percentage point increase in administrator diversity is associated with a %.3f percentage point %s in suspension rates (95%% CI: %.3f to %.3f, p<%.3f). This is a %s but statistically significant effect.",
+        abs_effect,
+        direction,
+        abs(row$admin_effect_10pp_lower),
+        abs(row$admin_effect_10pp_upper),
+        row$admin_p_value,
+        ifelse(abs_effect < 0.1, "VERY SMALL", ifelse(abs_effect < 0.5, "SMALL", "MODERATE"))
+      )
+    }
+
+    # Practical example
+    example_text <- if (row$teacher_p_value < 0.05) {
+      baseline_rate <- 5.0  # Assume 5% baseline suspension rate
+      new_rate <- baseline_rate + row$teacher_effect_10pp
+
+      sprintf(
+        "\nPRACTICAL EXAMPLE: In a school where %s students have a 5%% suspension rate, increasing teacher diversity from 40%% to 50%% non-white would be associated with a suspension rate of approximately %.2f%% (a change of %.2f%%).",
+        row$student_group,
+        new_rate,
+        row$teacher_effect_10pp
+      )
+    } else {
+      ""
+    }
+
+    data.frame(
+      student_group = row$student_group,
+      teacher_interpretation = teacher_text,
+      admin_interpretation = admin_text,
+      practical_example = example_text,
+      stringsAsFactors = FALSE
+    )
+  })
+
+  bind_rows(interpretations)
+}
+
+create_coefficient_plot <- function(results_df, output_dir) {
+  # Create forest plot showing coefficients with confidence intervals
+
+  # Prepare data for plotting
+  plot_data <- results_df %>%
+    select(student_group, teacher_coefficient, teacher_ci_lower, teacher_ci_upper,
+           admin_coefficient, admin_ci_lower, admin_ci_upper,
+           teacher_p_value, admin_p_value) %>%
+    tidyr::pivot_longer(
+      cols = c(teacher_coefficient, admin_coefficient),
+      names_to = "variable",
+      values_to = "coefficient"
+    ) %>%
+    mutate(
+      ci_lower = ifelse(variable == "teacher_coefficient", teacher_ci_lower, admin_ci_lower),
+      ci_upper = ifelse(variable == "teacher_coefficient", teacher_ci_upper, admin_ci_upper),
+      p_value = ifelse(variable == "teacher_coefficient", teacher_p_value, admin_p_value),
+      significant = p_value < 0.05,
+      variable_label = ifelse(variable == "teacher_coefficient",
+                             "Teacher Diversity",
+                             "Administrator Diversity")
+    )
+
+  # Create forest plot
+  p <- ggplot(plot_data, aes(x = coefficient, y = student_group, color = variable_label)) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
+    geom_errorbarh(aes(xmin = ci_lower, xmax = ci_upper),
+                   height = 0.2, position = position_dodge(width = 0.5)) +
+    geom_point(aes(shape = significant, size = significant),
+               position = position_dodge(width = 0.5)) +
+    scale_shape_manual(values = c("TRUE" = 16, "FALSE" = 1),
+                      labels = c("TRUE" = "p < 0.05", "FALSE" = "Not significant")) +
+    scale_size_manual(values = c("TRUE" = 3, "FALSE" = 2),
+                     labels = c("TRUE" = "p < 0.05", "FALSE" = "Not significant")) +
+    scale_color_manual(values = c("Teacher Diversity" = "#2E86AB",
+                                  "Administrator Diversity" = "#A23B72")) +
+    labs(
+      title = "Association Between Staff Racial Diversity and Student Suspension Rates",
+      subtitle = "Coefficients with 95% Confidence Intervals",
+      x = "Coefficient (change in suspension rate per 1-unit increase in diversity)",
+      y = "Student Racial/Ethnic Group",
+      color = "Staff Type",
+      shape = "Significance",
+      size = "Significance",
+      caption = "Note: Negative coefficients indicate lower suspension rates with more diverse staff.\nWeighted by student enrollment. Controls: charter status, school level."
+    ) +
+    theme_minimal(base_size = 11) +
+    theme(
+      legend.position = "bottom",
+      plot.title = element_text(face = "bold", size = 13),
+      plot.caption = element_text(hjust = 0, size = 8, color = "gray40")
+    )
+
+  ggsave(
+    file.path(output_dir, "teacher_diversity_coefficients_forest_plot.png"),
+    p, width = 10, height = 7, dpi = 300
+  )
+
+  message("✓ Saved forest plot: teacher_diversity_coefficients_forest_plot.png")
+
+  invisible(p)
+}
+
+create_practical_effects_plot <- function(results_df, output_dir) {
+  # Create bar chart showing practical effect sizes
+
+  plot_data <- results_df %>%
+    filter(teacher_p_value < 0.05 | admin_p_value < 0.05) %>%
+    select(student_group, teacher_effect_10pp, admin_effect_10pp,
+           teacher_p_value, admin_p_value) %>%
+    tidyr::pivot_longer(
+      cols = c(teacher_effect_10pp, admin_effect_10pp),
+      names_to = "variable",
+      values_to = "effect"
+    ) %>%
+    mutate(
+      variable_label = ifelse(variable == "teacher_effect_10pp",
+                             "Teacher Diversity",
+                             "Administrator Diversity"),
+      p_value = ifelse(variable == "teacher_effect_10pp", teacher_p_value, admin_p_value),
+      significant = p_value < 0.05
+    ) %>%
+    filter(significant)
+
+  if (nrow(plot_data) == 0) {
+    message("⚠ No significant effects to plot")
+    return(invisible(NULL))
+  }
+
+  p <- ggplot(plot_data, aes(x = reorder(student_group, effect), y = effect, fill = variable_label)) +
+    geom_hline(yintercept = 0, linetype = "solid", color = "gray40") +
+    geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+    geom_text(aes(label = sprintf("%.3f", effect), hjust = ifelse(effect < 0, 1.1, -0.1)),
+              position = position_dodge(width = 0.8),
+              size = 3) +
+    scale_fill_manual(values = c("Teacher Diversity" = "#2E86AB",
+                                "Administrator Diversity" = "#A23B72")) +
+    coord_flip() +
+    labs(
+      title = "Practical Effects of Staff Racial Diversity on Suspension Rates",
+      subtitle = "Change in suspension rate for 10 percentage point increase in staff diversity (e.g., 40% → 50% non-white)",
+      x = "Student Racial/Ethnic Group",
+      y = "Change in Suspension Rate (percentage points)",
+      fill = "Staff Type",
+      caption = "Note: Only statistically significant effects shown (p < 0.05).\nNegative values = lower suspension rates with more diverse staff."
+    ) +
+    theme_minimal(base_size = 11) +
+    theme(
+      legend.position = "bottom",
+      plot.title = element_text(face = "bold", size = 13),
+      plot.caption = element_text(hjust = 0, size = 8, color = "gray40")
+    )
+
+  ggsave(
+    file.path(output_dir, "teacher_diversity_practical_effects.png"),
+    p, width = 10, height = 6, dpi = 300
+  )
+
+  message("✓ Saved practical effects plot: teacher_diversity_practical_effects.png")
+
+  invisible(p)
+}
+
+# =============================================================================
 # REGRESSION EXECUTION
 # =============================================================================
 
@@ -477,51 +783,158 @@ main <- function() {
   message("║     Association with Student Suspension Rates                 ║")
   message("║                                                                ║")
   message("╚════════════════════════════════════════════════════════════════╝")
-  
+
   result <- load_features()
   df <- result$data
-  
+
   # Prepare regressions for each student group
   groups <- if ("student_group" %in% names(df)) {
     unique(df$student_group[!is.na(df$student_group)])
   } else {
     NULL
   }
-  
+
+  # Storage for results
+  regression_fits <- list()
+  regression_summaries <- list()
+  model_infos <- list()
+
   if (!is.null(groups)) {
     # Prioritize important groups
     ordered <- intersect(ALLOWED_RACE_GROUPS, groups)
-    results <- list()
-    
+
     for (group in ordered) {
       model_info <- prepare_regression_frame(df, student_group = group)
       if (!is.null(model_info)) {
         fit <- run_regression(model_info)
-        results[[group]] <- fit
+        regression_fits[[group]] <- fit
+        model_infos[[group]] <- model_info
+
+        # Extract results for this group
+        regression_summaries[[group]] <- extract_regression_results(fit, model_info)
       }
     }
-    
+
   } else {
     # Aggregate analysis only
     model_info <- prepare_regression_frame(df, student_group = NULL)
     if (!is.null(model_info)) {
-      results <- list(run_regression(model_info))
-    } else {
-      results <- list()
+      fit <- run_regression(model_info)
+      regression_fits[["All Students"]] <- fit
+      model_infos[["All Students"]] <- model_info
+      regression_summaries[["All Students"]] <- extract_regression_results(fit, model_info)
     }
   }
-  
+
+  # Compile results into data frames
+  if (length(regression_summaries) > 0) {
+    message("\n╔════════════════════════════════════════════════════════════════╗")
+    message("║           GENERATING TABLES AND VISUALIZATIONS                ║")
+    message("╚════════════════════════════════════════════════════════════════╝\n")
+
+    # Combine all results
+    combined_results <- bind_rows(regression_summaries)
+
+    # Calculate practical effects
+    practical_results <- calculate_practical_effects(combined_results)
+
+    # Generate interpretations
+    interpretations <- generate_interpretation_text(practical_results)
+
+    # Create output directory
+    output_dir <- here("outputs", "teacher_diversity_analysis")
+    if (!dir.exists(output_dir)) {
+      dir.create(output_dir, recursive = TRUE)
+    }
+
+    # Save summary table (Excel)
+    summary_table <- practical_results %>%
+      select(
+        student_group,
+        n_schools,
+        r_squared,
+        adj_r_squared,
+        teacher_coefficient,
+        teacher_ci_lower,
+        teacher_ci_upper,
+        teacher_p_value,
+        teacher_sig,
+        teacher_direction,
+        teacher_effect_10pp,
+        admin_coefficient,
+        admin_ci_lower,
+        admin_ci_upper,
+        admin_p_value,
+        admin_sig,
+        admin_direction,
+        admin_effect_10pp
+      )
+
+    write_xlsx(
+      list(
+        "Summary" = summary_table,
+        "Interpretations" = interpretations,
+        "Technical_Details" = combined_results
+      ),
+      path = file.path(output_dir, "teacher_diversity_regression_results.xlsx")
+    )
+    message("✓ Saved Excel summary: teacher_diversity_regression_results.xlsx")
+
+    # Save CSV versions
+    write.csv(
+      summary_table,
+      file.path(output_dir, "teacher_diversity_summary.csv"),
+      row.names = FALSE
+    )
+    message("✓ Saved CSV summary: teacher_diversity_summary.csv")
+
+    write.csv(
+      interpretations,
+      file.path(output_dir, "teacher_diversity_interpretations.csv"),
+      row.names = FALSE
+    )
+    message("✓ Saved interpretations: teacher_diversity_interpretations.csv")
+
+    # Create visualizations
+    create_coefficient_plot(practical_results, output_dir)
+    create_practical_effects_plot(practical_results, output_dir)
+
+    # Print summary to console
+    message("\n╔════════════════════════════════════════════════════════════════╗")
+    message("║                    SUMMARY OF KEY FINDINGS                     ║")
+    message("╚════════════════════════════════════════════════════════════════╝\n")
+
+    for (i in 1:nrow(interpretations)) {
+      row <- interpretations[i, ]
+      message("\n", strrep("─", 64))
+      message("📊 ", row$student_group)
+      message(strrep("─", 64))
+      message("\nTEACHER DIVERSITY:")
+      message(strwrap(row$teacher_interpretation, width = 64, prefix = "  "), sep = "\n")
+      message("\nADMINISTRATOR DIVERSITY:")
+      message(strwrap(row$admin_interpretation, width = 64, prefix = "  "), sep = "\n")
+      if (nchar(row$practical_example) > 0) {
+        message(strwrap(row$practical_example, width = 64, prefix = "  "), sep = "\n")
+      }
+    }
+  }
+
   message("\n╔════════════════════════════════════════════════════════════════╗")
   message("║                       ANALYSIS COMPLETE                        ║")
   message("╚════════════════════════════════════════════════════════════════╝\n")
-  
-  message("⚠️  IMPORTANT REMINDERS:")
+
+  message("📁 Output files saved to: ", output_dir)
+  message("\n⚠️  IMPORTANT REMINDERS:")
   message("  • These are ASSOCIATIONS, not causal effects")
   message("  • Results describe correlations in observational data")
   message("  • Do not interpret coefficients as causal impacts")
   message("  • Multiple comparisons: consider adjusting significance thresholds\n")
-  
-  invisible(results)
+
+  invisible(list(
+    fits = regression_fits,
+    results = practical_results,
+    interpretations = interpretations
+  ))
 }
 
 # Run if called directly

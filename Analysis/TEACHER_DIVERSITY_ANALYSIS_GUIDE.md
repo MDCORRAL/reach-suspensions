@@ -287,6 +287,136 @@ For **Black/African American students**:
 
 ---
 
+## 📈 **NEW: Enhanced Outputs (Version 2.0)**
+
+The `21_teacher_diversity_regression.R` script now automatically generates comprehensive tables, visualizations, and plain-language interpretations!
+
+### Automated Output Files
+
+All files saved to: `outputs/teacher_diversity_analysis/`
+
+#### 1. Excel Workbook: `teacher_diversity_regression_results.xlsx`
+
+**Three sheets:**
+
+**a) Summary Sheet**
+- Complete results for all student groups in one table
+- Columns include:
+  - `student_group`: Student racial/ethnic group
+  - `n_schools`: Sample size
+  - `r_squared`, `adj_r_squared`: Model fit statistics
+  - `teacher_coefficient`: Raw regression coefficient
+  - `teacher_ci_lower/upper`: 95% confidence interval
+  - `teacher_p_value`: Significance level
+  - `teacher_sig`: Significance stars (*** / ** / *)
+  - `teacher_direction`: "Lower suspension rates" or "Higher suspension rates"
+  - **`teacher_effect_10pp`**: **Practical effect** in percentage points
+  - *(Same columns for `admin_*`)*
+
+**b) Interpretations Sheet**
+- Plain-language explanations for each student group
+- Example text for each group:
+  - Teacher diversity interpretation
+  - Administrator diversity interpretation
+  - Practical example with real numbers
+
+**c) Technical_Details Sheet**
+- Full regression statistics
+- All coefficients and standard errors
+
+#### 2. CSV Files (for easy import to other tools)
+- `teacher_diversity_summary.csv`: Main results table
+- `teacher_diversity_interpretations.csv`: Plain-language text
+
+#### 3. Visualizations (PNG files)
+
+**a) `teacher_diversity_coefficients_forest_plot.png`**
+- Forest plot with confidence intervals
+- Shows coefficients for all student groups
+- Separate colors for teacher vs. administrator diversity
+- Filled circles = statistically significant (p < 0.05)
+- Open circles = not significant
+
+**How to read:**
+- Points LEFT of zero → More diversity = LOWER suspension rates
+- Points RIGHT of zero → More diversity = HIGHER suspension rates
+- Horizontal lines show 95% confidence intervals (precision)
+
+**b) `teacher_diversity_practical_effects.png`**
+- Bar chart showing real-world impact
+- **Only displays statistically significant effects**
+- Y-axis shows change in suspension rate (percentage points) for a 10 percentage point increase in staff diversity
+- Easy to compare effect sizes across student groups
+
+**Example:**
+```
+Black/African American: -0.033
+```
+= A school going from 40% to 50% non-white teachers is associated with a 0.033 percentage point DECREASE in Black student suspension rates
+
+### Understanding the Practical Effects
+
+**What does `teacher_effect_10pp = -0.033` mean?**
+
+1. **The scenario**: A school increases teacher racial diversity by 10 percentage points
+   - Example: From 40% non-white teachers → 50% non-white teachers
+
+2. **The association**: Suspension rates for that student group change by **-0.033 percentage points**
+   - If baseline was 5.0%, new rate would be 4.967%
+
+3. **Is this large?**
+   - **Statistically significant** (we're confident it's real)
+   - **Practically small** (0.033 percentage points is tiny)
+   - Other factors (poverty, policies) have much larger effects
+
+### Plain-Language Interpretations
+
+The script automatically generates interpretations like:
+
+```
+TEACHER DIVERSITY:
+A 10 percentage point increase in teacher diversity (e.g., from 40% to 50%
+non-white teachers) is associated with a 0.033 percentage point DECREASE
+in suspension rates (95% CI: 0.030 to 0.036, p<0.001). This is a VERY
+SMALL but statistically significant effect.
+
+PRACTICAL EXAMPLE: In a school where Black/African American students have
+a 5% suspension rate, increasing teacher diversity from 40% to 50%
+non-white would be associated with a suspension rate of approximately
+4.97% (a change of -0.03%).
+```
+
+### Console Output Summary
+
+After running the script, you'll also see a formatted summary in the console:
+
+```
+╔════════════════════════════════════════════════════════════════╗
+║                    SUMMARY OF KEY FINDINGS                     ║
+╚════════════════════════════════════════════════════════════════╝
+
+────────────────────────────────────────────────────────────────
+📊 Black/African American
+────────────────────────────────────────────────────────────────
+
+TEACHER DIVERSITY:
+  A 10 percentage point increase in teacher diversity (e.g., from
+  40% to 50% non-white teachers) is associated with a 0.033
+  percentage point DECREASE in suspension rates...
+
+ADMINISTRATOR DIVERSITY:
+  A 10 percentage point increase in administrator diversity is
+  associated with a 0.034 percentage point DECREASE in suspension
+  rates...
+
+  PRACTICAL EXAMPLE: In a school where Black/African American
+  students have a 5% suspension rate, increasing teacher diversity
+  from 40% to 50% non-white would be associated with a suspension
+  rate of approximately 4.97%.
+```
+
+---
+
 ## 🔍 Interpreting Results
 
 ### What to Look For
@@ -451,5 +581,5 @@ If you encounter issues:
 
 ---
 
-**Last Updated**: 2025-11-14
-**Version**: 1.0 (Fixed racial diversity analysis)
+**Last Updated**: 2025-11-18
+**Version**: 2.0 (Enhanced with automated tables and visualizations)
