@@ -103,12 +103,12 @@ df <- df_students %>%
     relationship = "one-to-one"
   )
 
-# Load school features for is_traditional flag
-message(">>> Loading school features (for is_traditional flag)...")
+# Load school features for is_traditional flag and racial composition
+message(">>> Loading school features (for is_traditional flag and racial composition)...")
 features <- read_parquet(FEATURES_PATH) %>%
   clean_names() %>%
   build_keys() %>%
-  select(cds_school, academic_year, is_traditional)
+  select(cds_school, academic_year, is_traditional, black_share, white_share, hispanic_share)
 
 # Join school-level features
 df <- df %>%
