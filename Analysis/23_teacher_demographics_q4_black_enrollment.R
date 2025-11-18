@@ -212,22 +212,26 @@ overall_stats <- school_summary %>%
     total_administrators = sum(teacher_staff_count_total_by_type_administrators, na.rm = TRUE),
 
     # Staff racial composition (totals)
-    total_staff_african_american = sum(teacher_staff_count_african_american, na.rm = TRUE),
-    total_staff_white = sum(teacher_staff_count_white, na.rm = TRUE),
-    total_staff_hispanic = sum(teacher_staff_count_hispanic_or_latino, na.rm = TRUE),
-    total_staff_asian = sum(teacher_staff_count_asian, na.rm = TRUE),
+    # FIX: Use teacher_total_staff_count_* columns which contain actual counts
+    # The teacher_staff_count_* columns contain percentages (0-100), not counts
+    total_staff_african_american = sum(teacher_total_staff_count_african_american, na.rm = TRUE),
+    total_staff_white = sum(teacher_total_staff_count_white, na.rm = TRUE),
+    total_staff_hispanic = sum(teacher_total_staff_count_hispanic_or_latino, na.rm = TRUE),
+    total_staff_asian = sum(teacher_total_staff_count_asian, na.rm = TRUE),
 
     # Teacher racial composition
-    teachers_african_american = sum(teacher_staff_count_by_type_teachers_african_american, na.rm = TRUE),
-    teachers_white = sum(teacher_staff_count_by_type_teachers_white, na.rm = TRUE),
-    teachers_hispanic = sum(teacher_staff_count_by_type_teachers_hispanic_or_latino, na.rm = TRUE),
-    teachers_asian = sum(teacher_staff_count_by_type_teachers_asian, na.rm = TRUE),
+    # FIX: Use teacher_total_staff_count_by_type_teachers_* which contain actual counts
+    teachers_african_american = sum(teacher_total_staff_count_by_type_teachers_african_american, na.rm = TRUE),
+    teachers_white = sum(teacher_total_staff_count_by_type_teachers_white, na.rm = TRUE),
+    teachers_hispanic = sum(teacher_total_staff_count_by_type_teachers_hispanic_or_latino, na.rm = TRUE),
+    teachers_asian = sum(teacher_total_staff_count_by_type_teachers_asian, na.rm = TRUE),
 
     # Administrator racial composition
-    admins_african_american = sum(teacher_staff_count_by_type_administrators_african_american, na.rm = TRUE),
-    admins_white = sum(teacher_staff_count_by_type_administrators_white, na.rm = TRUE),
-    admins_hispanic = sum(teacher_staff_count_by_type_administrators_hispanic_or_latino, na.rm = TRUE),
-    admins_asian = sum(teacher_staff_count_by_type_administrators_asian, na.rm = TRUE)
+    # FIX: Use teacher_total_staff_count_by_type_administrators_* which contain actual counts
+    admins_african_american = sum(teacher_total_staff_count_by_type_administrators_african_american, na.rm = TRUE),
+    admins_white = sum(teacher_total_staff_count_by_type_administrators_white, na.rm = TRUE),
+    admins_hispanic = sum(teacher_total_staff_count_by_type_administrators_hispanic_or_latino, na.rm = TRUE),
+    admins_asian = sum(teacher_total_staff_count_by_type_administrators_asian, na.rm = TRUE)
   ) %>%
   mutate(
     # Calculate shares
@@ -297,16 +301,18 @@ yearly_stats <- school_summary %>%
     total_administrators = sum(teacher_staff_count_total_by_type_administrators, na.rm = TRUE),
 
     # Teacher racial composition
-    teachers_african_american = sum(teacher_staff_count_by_type_teachers_african_american, na.rm = TRUE),
-    teachers_white = sum(teacher_staff_count_by_type_teachers_white, na.rm = TRUE),
-    teachers_hispanic = sum(teacher_staff_count_by_type_teachers_hispanic_or_latino, na.rm = TRUE),
-    teachers_asian = sum(teacher_staff_count_by_type_teachers_asian, na.rm = TRUE),
+    # FIX: Use teacher_total_staff_count_by_type_teachers_* which contain actual counts
+    teachers_african_american = sum(teacher_total_staff_count_by_type_teachers_african_american, na.rm = TRUE),
+    teachers_white = sum(teacher_total_staff_count_by_type_teachers_white, na.rm = TRUE),
+    teachers_hispanic = sum(teacher_total_staff_count_by_type_teachers_hispanic_or_latino, na.rm = TRUE),
+    teachers_asian = sum(teacher_total_staff_count_by_type_teachers_asian, na.rm = TRUE),
 
     # Administrator racial composition
-    admins_african_american = sum(teacher_staff_count_by_type_administrators_african_american, na.rm = TRUE),
-    admins_white = sum(teacher_staff_count_by_type_administrators_white, na.rm = TRUE),
-    admins_hispanic = sum(teacher_staff_count_by_type_administrators_hispanic_or_latino, na.rm = TRUE),
-    admins_asian = sum(teacher_staff_count_by_type_administrators_asian, na.rm = TRUE),
+    # FIX: Use teacher_total_staff_count_by_type_administrators_* which contain actual counts
+    admins_african_american = sum(teacher_total_staff_count_by_type_administrators_african_american, na.rm = TRUE),
+    admins_white = sum(teacher_total_staff_count_by_type_administrators_white, na.rm = TRUE),
+    admins_hispanic = sum(teacher_total_staff_count_by_type_administrators_hispanic_or_latino, na.rm = TRUE),
+    admins_asian = sum(teacher_total_staff_count_by_type_administrators_asian, na.rm = TRUE),
 
     .groups = "drop"
   ) %>%
@@ -345,16 +351,18 @@ by_level_stats <- school_summary %>%
     total_administrators = sum(teacher_staff_count_total_by_type_administrators, na.rm = TRUE),
 
     # Teacher racial composition
-    teachers_african_american = sum(teacher_staff_count_by_type_teachers_african_american, na.rm = TRUE),
-    teachers_white = sum(teacher_staff_count_by_type_teachers_white, na.rm = TRUE),
-    teachers_hispanic = sum(teacher_staff_count_by_type_teachers_hispanic_or_latino, na.rm = TRUE),
-    teachers_asian = sum(teacher_staff_count_by_type_teachers_asian, na.rm = TRUE),
+    # FIX: Use teacher_total_staff_count_by_type_teachers_* which contain actual counts
+    teachers_african_american = sum(teacher_total_staff_count_by_type_teachers_african_american, na.rm = TRUE),
+    teachers_white = sum(teacher_total_staff_count_by_type_teachers_white, na.rm = TRUE),
+    teachers_hispanic = sum(teacher_total_staff_count_by_type_teachers_hispanic_or_latino, na.rm = TRUE),
+    teachers_asian = sum(teacher_total_staff_count_by_type_teachers_asian, na.rm = TRUE),
 
     # Administrator racial composition
-    admins_african_american = sum(teacher_staff_count_by_type_administrators_african_american, na.rm = TRUE),
-    admins_white = sum(teacher_staff_count_by_type_administrators_white, na.rm = TRUE),
-    admins_hispanic = sum(teacher_staff_count_by_type_administrators_hispanic_or_latino, na.rm = TRUE),
-    admins_asian = sum(teacher_staff_count_by_type_administrators_asian, na.rm = TRUE),
+    # FIX: Use teacher_total_staff_count_by_type_administrators_* which contain actual counts
+    admins_african_american = sum(teacher_total_staff_count_by_type_administrators_african_american, na.rm = TRUE),
+    admins_white = sum(teacher_total_staff_count_by_type_administrators_white, na.rm = TRUE),
+    admins_hispanic = sum(teacher_total_staff_count_by_type_administrators_hispanic_or_latino, na.rm = TRUE),
+    admins_asian = sum(teacher_total_staff_count_by_type_administrators_asian, na.rm = TRUE),
 
     .groups = "drop"
   ) %>%
