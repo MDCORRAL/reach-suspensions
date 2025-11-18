@@ -5,8 +5,14 @@
 #          with the highest concentration of Black students (Q4), to contextualize
 #          suspension rate patterns.
 #
-# Input:  susp_v6_teacher_long.parquet (merged student-teacher data)
+# Input:  susp_v6_teacher_features.parquet (merged student-teacher data)
 # Output: Summary tables, school annotations, and visualizations
+#
+# IMPORTANT: This script filters to "All Students" aggregate rows before creating
+#            school-level summaries. The teacher_features data contains multiple
+#            rows per school-year (one per student demographic group). We filter
+#            to "All Students" rows to get school-level suspension totals, not
+#            race-specific suspension counts.
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -79,12 +85,38 @@ message(">>> is_traditional coverage: ", sum(!is.na(df$is_traditional)), " of ",
 # Keep only one row per school-year (aggregate across race groups for school-level summary)
 message(">>> Filtering to traditional schools, Q4 Black enrollment...")
 
+# First, check what the reporting category column is called
+reporting_col <- if ("reporting_category" %in% names(df)) {
+  "reporting_category"
+} else if ("student_group" %in% names(df)) {
+  "student_group"
+} else {
+  NA_character_
+}
+
+if (!is.na(reporting_col)) {
+  message(">>> Reporting category column: ", reporting_col)
+  message(">>> Available categories: ", paste(sort(unique(df[[reporting_col]])), collapse = ", "))
+}
+
 school_summary <- df %>%
   filter(
     is_traditional == TRUE,  # Traditional schools only (remove NA check since we now have the data)
     !is.na(black_prop_q),  # Must have Black proportion quartile
     black_prop_q == 4  # Top quartile only
   ) %>%
+  # CRITICAL FIX: Filter to "All Students" aggregate data before distinct()
+  # This ensures we get school-level suspension totals, not race-specific rows
+  {
+    if (!is.na(reporting_col) && reporting_col %in% names(.)) {
+      # Filter to "All Students" rows which contain school-level aggregate suspension data
+      message(">>> Filtering to 'All Students' aggregate rows...")
+      filter(., !!sym(reporting_col) %in% c("All Students", "TA", "Total"))
+    } else {
+      message(">>> WARNING: No reporting category column found, using first row per school-year")
+      .
+    }
+  } %>%
   # Get one row per school-year for school-level summaries
   distinct(academic_year, cds_school, .keep_all = TRUE) %>%
   # Keep only relevant columns
