@@ -128,6 +128,14 @@ school_summary <- df %>%
     !is.na(black_prop_q),
     black_prop_q == 4
   ) %>%
+  # Calculate suspension_rate (not in the parquet file, must be derived)
+  mutate(
+    suspension_rate = if_else(
+      cumulative_enrollment > 0,
+      total_suspensions / cumulative_enrollment,
+      NA_real_
+    )
+  ) %>%
   # Keep only relevant columns
   select(
     academic_year, cds_school, county_name, district_name, school_name,
