@@ -77,6 +77,16 @@ if (length(missing)) {
   stop("Missing required columns: ", paste(missing, collapse = ", "))
 }
 
+# Check for unduplicated suspensions column (optional but recommended)
+has_unduplicated <- "unduplicated_suspensions" %in% names(df_raw)
+if (!has_unduplicated) {
+  message(">>> WARNING: unduplicated_suspensions column not found.")
+  message(">>> Only raw suspension rates (events) will be calculated.")
+  message(">>> To include unduplicated rates, ensure data includes unduplicated_suspensions column.")
+} else {
+  message(">>> Found unduplicated_suspensions column - will calculate both event and student rates")
+}
+
 # Identify teacher columns
 teacher_cols <- grep("^teacher_", names(df_raw), value = TRUE)
 if (!length(teacher_cols)) {
@@ -134,34 +144,70 @@ message(">>> Identified ", length(all_teacher_cols), " teacher demographic colum
 
 # Aggregate by quartile and year
 # Method: Sum counts first, then calculate rates (weighted approach)
-quartile_year_summary <- black_students %>%
-  group_by(academic_year, black_prop_q, black_prop_q_label) %>%
-  summarise(
-    # School counts
-    n_schools = n_distinct(cds_school),
+if (has_unduplicated) {
+  quartile_year_summary <- black_students %>%
+    group_by(academic_year, black_prop_q, black_prop_q_label) %>%
+    summarise(
+      # School counts
+      n_schools = n_distinct(cds_school),
 
-    # Student metrics (aggregated)
-    total_black_students = sum(cumulative_enrollment, na.rm = TRUE),
-    total_black_suspensions = sum(total_suspensions, na.rm = TRUE),
+      # Student metrics (aggregated)
+      total_black_students = sum(cumulative_enrollment, na.rm = TRUE),
+      total_black_suspensions = sum(total_suspensions, na.rm = TRUE),
+      total_black_students_suspended_unduplicated = sum(unduplicated_suspensions, na.rm = TRUE),
 
-    # Teacher metrics (aggregated counts) - only non-share columns
-    across(
-      all_of(grep("_share$", all_teacher_cols, value = TRUE, invert = TRUE)),
-      ~ sum(.x, na.rm = TRUE),
-      .names = "{.col}_sum"
-    ),
+      # Teacher metrics (aggregated counts) - only non-share columns
+      across(
+        all_of(grep("_share$", all_teacher_cols, value = TRUE, invert = TRUE)),
+        ~ sum(.x, na.rm = TRUE),
+        .names = "{.col}_sum"
+      ),
 
-    # Distribution metrics
-    median_black_enrollment = median(cumulative_enrollment, na.rm = TRUE),
-    mean_black_enrollment = mean(cumulative_enrollment, na.rm = TRUE),
+      # Distribution metrics
+      median_black_enrollment = median(cumulative_enrollment, na.rm = TRUE),
+      mean_black_enrollment = mean(cumulative_enrollment, na.rm = TRUE),
 
-    .groups = "drop"
-  ) %>%
-  mutate(
-    # Calculate weighted Black student suspension rate
-    black_suspension_rate = safe_div(total_black_suspensions, total_black_students)
-  ) %>%
-  arrange(academic_year, black_prop_q)
+      .groups = "drop"
+    ) %>%
+    mutate(
+      # Calculate weighted Black student suspension rates
+      # Events rate: can exceed 100% if students suspended multiple times
+      black_suspension_rate_events = safe_div(total_black_suspensions, total_black_students),
+      # Students rate: unduplicated, always ≤ 100%
+      black_suspension_rate_students = safe_div(total_black_students_suspended_unduplicated, total_black_students)
+    ) %>%
+    arrange(academic_year, black_prop_q)
+} else {
+  # Fallback if unduplicated data not available
+  quartile_year_summary <- black_students %>%
+    group_by(academic_year, black_prop_q, black_prop_q_label) %>%
+    summarise(
+      # School counts
+      n_schools = n_distinct(cds_school),
+
+      # Student metrics (aggregated)
+      total_black_students = sum(cumulative_enrollment, na.rm = TRUE),
+      total_black_suspensions = sum(total_suspensions, na.rm = TRUE),
+
+      # Teacher metrics (aggregated counts) - only non-share columns
+      across(
+        all_of(grep("_share$", all_teacher_cols, value = TRUE, invert = TRUE)),
+        ~ sum(.x, na.rm = TRUE),
+        .names = "{.col}_sum"
+      ),
+
+      # Distribution metrics
+      median_black_enrollment = median(cumulative_enrollment, na.rm = TRUE),
+      mean_black_enrollment = mean(cumulative_enrollment, na.rm = TRUE),
+
+      .groups = "drop"
+    ) %>%
+    mutate(
+      # Calculate weighted Black student suspension rate (events only)
+      black_suspension_rate_events = safe_div(total_black_suspensions, total_black_students)
+    ) %>%
+    arrange(academic_year, black_prop_q)
+}
 
 # Calculate teacher percentages from aggregated counts
 if ("teacher_staff_count_total_sum" %in% names(quartile_year_summary)) {
@@ -209,70 +255,131 @@ message(">>> Years covered: ", paste(sort(unique(quartile_year_summary$academic_
 message("\n>>> ANALYSIS 2: Identifying high suspension schools within each quartile")
 
 # Calculate school-level Black student suspension rates
-school_level <- black_students %>%
-  group_by(academic_year, cds_school, black_prop_q, black_prop_q_label) %>%
-  summarise(
-    school_black_enrollment = sum(cumulative_enrollment, na.rm = TRUE),
-    school_black_suspensions = sum(total_suspensions, na.rm = TRUE),
+if (has_unduplicated) {
+  school_level <- black_students %>%
+    group_by(academic_year, cds_school, black_prop_q, black_prop_q_label) %>%
+    summarise(
+      school_black_enrollment = sum(cumulative_enrollment, na.rm = TRUE),
+      school_black_suspensions = sum(total_suspensions, na.rm = TRUE),
+      school_black_students_suspended_unduplicated = sum(unduplicated_suspensions, na.rm = TRUE),
 
-    # Keep teacher demographics (should be consistent within school-year)
-    across(
-      all_of(grep("_share$", all_teacher_cols, value = TRUE, invert = TRUE)),
-      ~ first(.x),
-      .names = "{.col}"
-    ),
+      # Keep teacher demographics (should be consistent within school-year)
+      across(
+        all_of(grep("_share$", all_teacher_cols, value = TRUE, invert = TRUE)),
+        ~ first(.x),
+        .names = "{.col}"
+      ),
 
-    .groups = "drop"
-  ) %>%
-  mutate(
-    school_black_suspension_rate = safe_div(school_black_suspensions, school_black_enrollment)
-  ) %>%
-  filter(
-    !is.na(school_black_suspension_rate),
-    school_black_enrollment >= 10  # Minimum threshold for stable rates
-  )
+      .groups = "drop"
+    ) %>%
+    mutate(
+      school_black_suspension_rate_events = safe_div(school_black_suspensions, school_black_enrollment),
+      school_black_suspension_rate_students = safe_div(school_black_students_suspended_unduplicated, school_black_enrollment)
+    ) %>%
+    filter(
+      !is.na(school_black_suspension_rate_events),
+      school_black_enrollment >= 10  # Minimum threshold for stable rates
+    )
+} else {
+  school_level <- black_students %>%
+    group_by(academic_year, cds_school, black_prop_q, black_prop_q_label) %>%
+    summarise(
+      school_black_enrollment = sum(cumulative_enrollment, na.rm = TRUE),
+      school_black_suspensions = sum(total_suspensions, na.rm = TRUE),
+
+      # Keep teacher demographics (should be consistent within school-year)
+      across(
+        all_of(grep("_share$", all_teacher_cols, value = TRUE, invert = TRUE)),
+        ~ first(.x),
+        .names = "{.col}"
+      ),
+
+      .groups = "drop"
+    ) %>%
+    mutate(
+      school_black_suspension_rate_events = safe_div(school_black_suspensions, school_black_enrollment)
+    ) %>%
+    filter(
+      !is.na(school_black_suspension_rate_events),
+      school_black_enrollment >= 10  # Minimum threshold for stable rates
+    )
+}
 
 message(">>> Computed school-level rates for ", nrow(school_level), " school-year observations")
 
 # For each quartile-year, identify schools in top decile of Black suspension rates
 # (Q4 = schools with highest proportion of Black students)
+# Use events rate for ranking (more stringent measure)
 high_suspension_schools <- school_level %>%
   group_by(academic_year, black_prop_q, black_prop_q_label) %>%
   mutate(
-    suspension_rate_percentile = percent_rank(school_black_suspension_rate) * 100,
-    is_top_decile = suspension_rate_percentile >= 90
+    suspension_rate_percentile_events = percent_rank(school_black_suspension_rate_events) * 100,
+    is_top_decile = suspension_rate_percentile_events >= 90
   ) %>%
   filter(is_top_decile) %>%
   ungroup() %>%
-  arrange(academic_year, black_prop_q, desc(school_black_suspension_rate))
+  arrange(academic_year, black_prop_q, desc(school_black_suspension_rate_events))
 
 message(">>> Identified ", nrow(high_suspension_schools), " schools in top decile of Black suspension rates")
 
 # Aggregate teacher demographics for high suspension schools by quartile-year
-high_suspension_teacher_summary <- high_suspension_schools %>%
-  group_by(academic_year, black_prop_q, black_prop_q_label) %>%
-  summarise(
-    n_high_suspension_schools = n(),
+if (has_unduplicated) {
+  high_suspension_teacher_summary <- high_suspension_schools %>%
+    group_by(academic_year, black_prop_q, black_prop_q_label) %>%
+    summarise(
+      n_high_suspension_schools = n(),
 
-    # Suspension metrics
-    avg_black_suspension_rate = mean(school_black_suspension_rate, na.rm = TRUE),
-    median_black_suspension_rate = median(school_black_suspension_rate, na.rm = TRUE),
-    max_black_suspension_rate = max(school_black_suspension_rate, na.rm = TRUE),
+      # Suspension metrics - Events (total suspensions)
+      avg_black_suspension_rate_events = mean(school_black_suspension_rate_events, na.rm = TRUE),
+      median_black_suspension_rate_events = median(school_black_suspension_rate_events, na.rm = TRUE),
+      max_black_suspension_rate_events = max(school_black_suspension_rate_events, na.rm = TRUE),
 
-    # Student metrics
-    total_black_students = sum(school_black_enrollment, na.rm = TRUE),
-    total_black_suspensions = sum(school_black_suspensions, na.rm = TRUE),
+      # Suspension metrics - Students (unduplicated)
+      avg_black_suspension_rate_students = mean(school_black_suspension_rate_students, na.rm = TRUE),
+      median_black_suspension_rate_students = median(school_black_suspension_rate_students, na.rm = TRUE),
+      max_black_suspension_rate_students = max(school_black_suspension_rate_students, na.rm = TRUE),
 
-    # Teacher demographics (aggregated counts)
-    across(
-      all_of(grep("_share$", all_teacher_cols, value = TRUE, invert = TRUE)),
-      ~ sum(.x, na.rm = TRUE),
-      .names = "{.col}_sum"
-    ),
+      # Student metrics
+      total_black_students = sum(school_black_enrollment, na.rm = TRUE),
+      total_black_suspensions = sum(school_black_suspensions, na.rm = TRUE),
+      total_black_students_suspended_unduplicated = sum(school_black_students_suspended_unduplicated, na.rm = TRUE),
 
-    .groups = "drop"
-  ) %>%
-  arrange(academic_year, black_prop_q)
+      # Teacher demographics (aggregated counts)
+      across(
+        all_of(grep("_share$", all_teacher_cols, value = TRUE, invert = TRUE)),
+        ~ sum(.x, na.rm = TRUE),
+        .names = "{.col}_sum"
+      ),
+
+      .groups = "drop"
+    ) %>%
+    arrange(academic_year, black_prop_q)
+} else {
+  high_suspension_teacher_summary <- high_suspension_schools %>%
+    group_by(academic_year, black_prop_q, black_prop_q_label) %>%
+    summarise(
+      n_high_suspension_schools = n(),
+
+      # Suspension metrics - Events only
+      avg_black_suspension_rate_events = mean(school_black_suspension_rate_events, na.rm = TRUE),
+      median_black_suspension_rate_events = median(school_black_suspension_rate_events, na.rm = TRUE),
+      max_black_suspension_rate_events = max(school_black_suspension_rate_events, na.rm = TRUE),
+
+      # Student metrics
+      total_black_students = sum(school_black_enrollment, na.rm = TRUE),
+      total_black_suspensions = sum(school_black_suspensions, na.rm = TRUE),
+
+      # Teacher demographics (aggregated counts)
+      across(
+        all_of(grep("_share$", all_teacher_cols, value = TRUE, invert = TRUE)),
+        ~ sum(.x, na.rm = TRUE),
+        .names = "{.col}_sum"
+      ),
+
+      .groups = "drop"
+    ) %>%
+    arrange(academic_year, black_prop_q)
+}
 
 # Calculate teacher percentages for high suspension schools
 if ("teacher_staff_count_total_sum" %in% names(high_suspension_teacher_summary)) {
@@ -336,29 +443,63 @@ write.csv(
 message(">>> Saved: outputs/tables/22_high_suspension_schools_teacher_demographics.csv")
 
 # Table 3: Detailed list of high suspension schools
-write.csv(
-  high_suspension_schools %>%
-    select(academic_year, cds_school, black_prop_q_label,
-           school_black_enrollment, school_black_suspensions,
-           school_black_suspension_rate, suspension_rate_percentile,
-           starts_with("teacher_staff_count")),
-  here::here("outputs", "tables", "22_high_suspension_schools_detailed.csv"),
-  row.names = FALSE
-)
+if (has_unduplicated) {
+  write.csv(
+    high_suspension_schools %>%
+      select(academic_year, cds_school, black_prop_q_label,
+             school_black_enrollment, school_black_suspensions,
+             school_black_students_suspended_unduplicated,
+             school_black_suspension_rate_events,
+             school_black_suspension_rate_students,
+             suspension_rate_percentile_events,
+             starts_with("teacher_staff_count")),
+    here::here("outputs", "tables", "22_high_suspension_schools_detailed.csv"),
+    row.names = FALSE
+  )
+} else {
+  write.csv(
+    high_suspension_schools %>%
+      select(academic_year, cds_school, black_prop_q_label,
+             school_black_enrollment, school_black_suspensions,
+             school_black_suspension_rate_events,
+             suspension_rate_percentile_events,
+             starts_with("teacher_staff_count")),
+    here::here("outputs", "tables", "22_high_suspension_schools_detailed.csv"),
+    row.names = FALSE
+  )
+}
 message(">>> Saved: outputs/tables/22_high_suspension_schools_detailed.csv")
 
 # Export to Excel for easier exploration
-write_xlsx(
-  list(
-    "Quartile_Year_Summary" = quartile_year_summary,
-    "High_Suspension_Summary" = high_suspension_teacher_summary,
-    "High_Suspension_Schools" = high_suspension_schools %>%
-      select(academic_year, cds_school, black_prop_q_label,
-             school_black_enrollment, school_black_suspensions,
-             school_black_suspension_rate, starts_with("teacher_staff_count_total"))
-  ),
-  here::here("outputs", "tables", "22_black_suspension_teacher_analysis.xlsx")
-)
+if (has_unduplicated) {
+  write_xlsx(
+    list(
+      "Quartile_Year_Summary" = quartile_year_summary,
+      "High_Suspension_Summary" = high_suspension_teacher_summary,
+      "High_Suspension_Schools" = high_suspension_schools %>%
+        select(academic_year, cds_school, black_prop_q_label,
+               school_black_enrollment, school_black_suspensions,
+               school_black_students_suspended_unduplicated,
+               school_black_suspension_rate_events,
+               school_black_suspension_rate_students,
+               starts_with("teacher_staff_count_total"))
+    ),
+    here::here("outputs", "tables", "22_black_suspension_teacher_analysis.xlsx")
+  )
+} else {
+  write_xlsx(
+    list(
+      "Quartile_Year_Summary" = quartile_year_summary,
+      "High_Suspension_Summary" = high_suspension_teacher_summary,
+      "High_Suspension_Schools" = high_suspension_schools %>%
+        select(academic_year, cds_school, black_prop_q_label,
+               school_black_enrollment, school_black_suspensions,
+               school_black_suspension_rate_events,
+               starts_with("teacher_staff_count_total"))
+    ),
+    here::here("outputs", "tables", "22_black_suspension_teacher_analysis.xlsx")
+  )
+}
 message(">>> Saved: outputs/tables/22_black_suspension_teacher_analysis.xlsx")
 
 # === 6) Visualizations ========================================================
@@ -367,14 +508,23 @@ message("\n>>> Creating visualizations...")
 dir.create(here::here("outputs", "graphs"), showWarnings = FALSE, recursive = TRUE)
 
 # Plot 1: Black suspension rates by quartile over time
+# Use events rate for visualization (more conservative, can exceed 100%)
+plot1_rate_col <- if (has_unduplicated) "black_suspension_rate_events" else "black_suspension_rate_events"
+plot1_rate_label <- if (has_unduplicated) "Events per Student" else "Suspensions per Student"
+plot1_subtitle <- if (has_unduplicated) {
+  "Suspension events per student (can exceed 100% if students suspended multiple times)"
+} else {
+  "Weighted rates: Sum of suspensions ÷ Sum of enrollment"
+}
+
 p1 <- quartile_year_summary %>%
   filter(black_prop_q_label != "Unknown") %>%
-  ggplot(aes(x = academic_year, y = black_suspension_rate,
+  ggplot(aes(x = academic_year, y = .data[[plot1_rate_col]],
              color = black_prop_q_label, group = black_prop_q_label)) +
   geom_line(linewidth = 1.2) +
   geom_point(size = 2.5) +
   geom_text(
-    aes(label = scales::percent(black_suspension_rate, accuracy = 0.1)),
+    aes(label = scales::percent(.data[[plot1_rate_col]], accuracy = 0.1)),
     color = "black", size = 2.8, vjust = -0.8,
     show.legend = FALSE
   ) +
@@ -385,9 +535,9 @@ p1 <- quartile_year_summary %>%
   ) +
   labs(
     title = "Black Student Suspension Rates by School Racial Composition",
-    subtitle = "Weighted rates: Sum of suspensions ÷ Sum of enrollment",
+    subtitle = plot1_subtitle,
     x = "Academic Year",
-    y = "Black Student Suspension Rate",
+    y = paste("Black Student Suspension Rate -", plot1_rate_label),
     caption = "Note: Schools grouped by quartile of Black student enrollment share"
   ) +
   theme(
@@ -560,12 +710,24 @@ recent_summary <- quartile_year_summary %>%
   filter(academic_year == most_recent_year, black_prop_q_label != "Unknown") %>%
   arrange(black_prop_q)
 
-for (i in 1:nrow(recent_summary)) {
-  message(sprintf("   %s: %.2f%% (%.0f schools, %.0f students)",
-                  recent_summary$black_prop_q_label[i],
-                  recent_summary$black_suspension_rate[i] * 100,
-                  recent_summary$n_schools[i],
-                  recent_summary$total_black_students[i]))
+if (has_unduplicated) {
+  for (i in 1:nrow(recent_summary)) {
+    message(sprintf("   %s: %.2f%% events | %.2f%% students (%.0f schools, %.0f students)",
+                    recent_summary$black_prop_q_label[i],
+                    recent_summary$black_suspension_rate_events[i] * 100,
+                    recent_summary$black_suspension_rate_students[i] * 100,
+                    recent_summary$n_schools[i],
+                    recent_summary$total_black_students[i]))
+  }
+  message("   Note: 'events' = suspension events per student; 'students' = % students suspended (unduplicated)")
+} else {
+  for (i in 1:nrow(recent_summary)) {
+    message(sprintf("   %s: %.2f%% (%.0f schools, %.0f students)",
+                    recent_summary$black_prop_q_label[i],
+                    recent_summary$black_suspension_rate_events[i] * 100,
+                    recent_summary$n_schools[i],
+                    recent_summary$total_black_students[i]))
+  }
 }
 
 message("\n2. TEACHER DEMOGRAPHICS IN HIGH SUSPENSION SCHOOLS:")
@@ -591,11 +753,21 @@ high_counts <- high_suspension_teacher_summary %>%
   filter(academic_year == most_recent_year, black_prop_q_label != "Unknown") %>%
   arrange(black_prop_q)
 
-for (i in 1:nrow(high_counts)) {
-  message(sprintf("   %s: %d schools (avg rate: %.2f%%)",
-                  high_counts$black_prop_q_label[i],
-                  high_counts$n_high_suspension_schools[i],
-                  high_counts$avg_black_suspension_rate[i] * 100))
+if (has_unduplicated) {
+  for (i in 1:nrow(high_counts)) {
+    message(sprintf("   %s: %d schools (avg events rate: %.2f%% | avg student rate: %.2f%%)",
+                    high_counts$black_prop_q_label[i],
+                    high_counts$n_high_suspension_schools[i],
+                    high_counts$avg_black_suspension_rate_events[i] * 100,
+                    high_counts$avg_black_suspension_rate_students[i] * 100))
+  }
+} else {
+  for (i in 1:nrow(high_counts)) {
+    message(sprintf("   %s: %d schools (avg rate: %.2f%%)",
+                    high_counts$black_prop_q_label[i],
+                    high_counts$n_high_suspension_schools[i],
+                    high_counts$avg_black_suspension_rate_events[i] * 100))
+  }
 }
 
 message("\n=== ANALYSIS COMPLETE ===")
@@ -607,6 +779,13 @@ message("  - outputs/tables/22_black_suspension_teacher_analysis.xlsx")
 message("  - outputs/graphs/22_black_suspension_rates_by_quartile.png")
 message("  - outputs/graphs/22_teacher_demographics_comparison.png")
 message("  - outputs/graphs/22_admin_teacher_demographics_high_suspension.png")
+
+if (has_unduplicated) {
+  message("\nSUSPENSION RATE METRICS EXPLAINED:")
+  message("  - Events Rate: Total suspension events ÷ enrollment (can exceed 100%)")
+  message("  - Students Rate: Unduplicated students suspended ÷ enrollment (always ≤ 100%)")
+  message("  Both rates are included in all output tables for transparency and comparison.")
+}
 
 message("\nIMPORTANT: These are descriptive patterns only. Many factors influence outcomes.")
 
