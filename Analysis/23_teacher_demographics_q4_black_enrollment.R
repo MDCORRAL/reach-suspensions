@@ -167,6 +167,42 @@ school_summary <- df %>%
 message(">>> Filtered to ", nrow(school_summary), " school-years in Q4 Black enrollment")
 message(">>> Unique schools: ", n_distinct(school_summary$cds_school))
 
+# Normalize race counts when they exceed totals --------------------------------
+message(">>> Normalizing race counts to prevent percentages masquerading as counts...")
+
+normalize_race_counts <- function(data, race_cols, total_col) {
+  race_cols <- intersect(race_cols, names(data))
+  if (!length(race_cols) || !total_col %in% names(data)) return(data)
+
+  total_vals <- data[[total_col]]
+  race_matrix <- as.matrix(dplyr::select(data, dplyr::all_of(race_cols)))
+  race_sums <- rowSums(race_matrix, na.rm = TRUE)
+  needs_scaling <- !is.na(total_vals) & total_vals > 0 & race_sums > total_vals * 1.01
+  scale_factor <- ifelse(needs_scaling, total_vals / race_sums, 1)
+
+  data[race_cols] <- lapply(race_cols, function(col) {
+    vals <- data[[col]]
+    vals <- dplyr::if_else(needs_scaling, vals * scale_factor, vals)
+    vals
+  })
+
+  data
+}
+
+teacher_race_cols <- names(school_summary)[grepl("^teacher_staff_count_by_type_teachers_", names(school_summary)) &
+                                              !grepl("_share$", names(school_summary)) &
+                                              !grepl("_by_gender_", names(school_summary))]
+admin_race_cols <- names(school_summary)[grepl("^teacher_staff_count_by_type_administrators_", names(school_summary)) &
+                                           !grepl("_share$", names(school_summary)) &
+                                           !grepl("_by_gender_", names(school_summary))]
+overall_race_cols <- names(school_summary)[grepl("^teacher_staff_count_(african_american|white|hispanic_or_latino|asian)$",
+                                             names(school_summary))]
+
+school_summary <- school_summary %>%
+  normalize_race_counts(teacher_race_cols, "teacher_staff_count_total_by_type_teachers") %>%
+  normalize_race_counts(admin_race_cols, "teacher_staff_count_total_by_type_administrators") %>%
+  normalize_race_counts(overall_race_cols, "teacher_staff_count_total")
+
 # Check teacher data coverage
 teacher_coverage <- school_summary %>%
   summarise(
