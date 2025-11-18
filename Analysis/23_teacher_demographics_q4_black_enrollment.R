@@ -5,14 +5,12 @@
 #          with the highest concentration of Black students (Q4), to contextualize
 #          suspension rate patterns.
 #
-# Input:  susp_v6_teacher_features.parquet (merged student-teacher data)
+# Input:  susp_v6_long.parquet (student data) + teacher_staff_long.parquet (teacher data)
 # Output: Summary tables, school annotations, and visualizations
 #
-# IMPORTANT: This script filters to "All Students" aggregate rows before creating
-#            school-level summaries. The teacher_features data contains multiple
-#            rows per school-year (one per student demographic group). We filter
-#            to "All Students" rows to get school-level suspension totals, not
-#            race-specific suspension counts.
+# APPROACH: Like script 21, this loads raw data and creates fresh summaries to avoid
+#           using the pre-merged file which has corrupted teacher race columns.
+#           This ensures we get actual counts, not percentages.
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -27,6 +25,7 @@ suppressPackageStartupMessages({
 try(here::i_am("Analysis/23_teacher_demographics_q4_black_enrollment.R"), silent = TRUE)
 
 source(here("R", "utils_keys_filters.R"))
+source(here("R", "teacher_processing.R"))
 source(here("R", "00_paths.R"))
 
 message("=== 23: Teacher Demographics in Q4 Black Enrollment Schools ===")
@@ -38,87 +37,97 @@ graphs_dir <- file.path(dp_out, "graphs")
 dir.create(tables_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(graphs_dir, recursive = TRUE, showWarnings = FALSE)
 
-# Read merged student-teacher data (teacher features aggregated at the school level)
-TEACHER_DATA_PATH <- here("data-stage", "susp_v6_teacher_features.parquet")
+# ============================================================================
+# PART 0: Load and prepare data (like script 21)
+# ============================================================================
+
+# Define paths
+V6_LONG_PATH <- here("data-stage", "susp_v6_long.parquet")
+TEACHER_PATH <- here("data-stage", "teacher_staff_long.parquet")
 FEATURES_PATH <- here("data-stage", "susp_v6_features.parquet")
 
-if (!file.exists(TEACHER_DATA_PATH)) {
-  stop("Missing merged teacher-student data: ", TEACHER_DATA_PATH,
-       "\nRun Analysis/18_merge_teacher_student.R first.")
+if (!file.exists(V6_LONG_PATH)) {
+  stop("Missing susp_v6_long.parquet. Run run_pipeline.R first.")
+}
+if (!file.exists(TEACHER_PATH)) {
+  stop("Missing teacher_staff_long.parquet. Run R/01c_ingest_teacher_demographics.R first.")
 }
 if (!file.exists(FEATURES_PATH)) {
-  stop("Missing v6 features data: ", FEATURES_PATH,
-       "\nRun run_pipeline.R first.")
+  stop("Missing v6 features data: ", FEATURES_PATH)
 }
 
-message(">>> Loading merged student-teacher data...")
-df <- read_parquet(TEACHER_DATA_PATH) %>%
+# Load student suspension data (long format)
+message(">>> Loading student suspension data (long format)...")
+df_students_raw <- read_parquet(V6_LONG_PATH) %>%
   clean_names() %>%
-  build_keys() %>%  # Ensure cds_school exists for joining
-  mutate(
-    # Standardize suspension rate column name used downstream
-    suspension_rate = suspension_rate_percent_total
+  build_keys() %>%
+  filter(
+    aggregate_level == "S" | tolower(aggregate_level) == "school",  # Campus level only
+    !school_code %in% SPECIAL_SCHOOL_CODES  # Exclude special codes
   )
 
-message(">>> Loading school features (for is_traditional flag and aggregates)...")
+# Aggregate to school level using "All Students" rows (avoids the distinct() issue)
+message(">>> Aggregating to school level (All Students only)...")
+df_students <- df_students_raw %>%
+  filter(
+    category_type == "Race/Ethnicity",
+    canon_race_label(subgroup) == "All Students"
+  ) %>%
+  distinct(cds_school, academic_year, .keep_all = TRUE)
+
+# Verify uniqueness
+df_students <- assert_unique_campus(df_students, campus_col = "cds_school", year_col = "academic_year")
+
+# Load and summarize teacher data (creates fresh summaries with actual counts)
+message(">>> Loading and summarizing teacher data...")
+teacher_long <- read_parquet(TEACHER_PATH) %>%
+  clean_names() %>%
+  build_keys()
+
+teacher_summary <- teacher_summarise_long(teacher_long)
+
+# Sanitize NaN/Inf in teacher data
+teacher_summary <- teacher_summary %>%
+  mutate(across(where(is.numeric), ~ {
+    out <- .x
+    out[is.nan(out)] <- NA_real_
+    dplyr::na_if(out, Inf)
+  }))
+
+# Join teacher and student data
+message(">>> Joining teacher and student data...")
+df <- df_students %>%
+  left_join(
+    teacher_summary,
+    by = c("academic_year", "cds_school"),
+    relationship = "one-to-one"
+  )
+
+# Load school features for is_traditional flag
+message(">>> Loading school features (for is_traditional flag)...")
 features <- read_parquet(FEATURES_PATH) %>%
   clean_names() %>%
-  build_keys() %>%  # Creates cds_school from county/district/school codes
-  select(cds_school, academic_year, is_traditional, black_share, white_share, hispanic_share)
+  build_keys() %>%
+  select(cds_school, academic_year, is_traditional)
 
-# Join school-level features from features file
-# Note: susp_v6_long.parquet has race-specific rows, so we join school-level aggregates
-# (is_traditional, black_share, etc.) from the features file
+# Join school-level features
 df <- df %>%
-  left_join(
-    features,
-    by = c("cds_school", "academic_year")
-  )
+  left_join(features, by = c("cds_school", "academic_year"))
 
 message(">>> Total rows: ", nrow(df))
 message(">>> Unique schools: ", n_distinct(df$cds_school))
 message(">>> Academic years: ", paste(sort(unique(df$academic_year)), collapse = ", "))
 message(">>> is_traditional coverage: ", sum(!is.na(df$is_traditional)), " of ", nrow(df), " rows")
 
-# Filter to traditional schools only (exclude alternative schools)
-# Filter to top quartile Black enrollment (Q4)
-# Keep only one row per school-year (aggregate across race groups for school-level summary)
+# Filter to traditional schools and Q4 Black enrollment
 message(">>> Filtering to traditional schools, Q4 Black enrollment...")
-
-# First, check what the reporting category column is called
-reporting_col <- if ("reporting_category" %in% names(df)) {
-  "reporting_category"
-} else if ("student_group" %in% names(df)) {
-  "student_group"
-} else {
-  NA_character_
-}
-
-if (!is.na(reporting_col)) {
-  message(">>> Reporting category column: ", reporting_col)
-  message(">>> Available categories: ", paste(sort(unique(df[[reporting_col]])), collapse = ", "))
-}
 
 school_summary <- df %>%
   filter(
-    is_traditional == TRUE,  # Traditional schools only (remove NA check since we now have the data)
-    !is.na(black_prop_q),  # Must have Black proportion quartile
-    black_prop_q == 4  # Top quartile only
+    is_traditional == TRUE,
+    !is.na(black_prop_q),
+    black_prop_q == 4
   ) %>%
-  # CRITICAL FIX: Filter to "All Students" aggregate data before distinct()
-  # This ensures we get school-level suspension totals, not race-specific rows
-  {
-    if (!is.na(reporting_col) && reporting_col %in% names(.)) {
-      # Filter to "All Students" rows which contain school-level aggregate suspension data
-      message(">>> Filtering to 'All Students' aggregate rows...")
-      filter(., !!sym(reporting_col) %in% c("All Students", "TA", "Total"))
-    } else {
-      message(">>> WARNING: No reporting category column found, using first row per school-year")
-      .
-    }
-  } %>%
-  # Get one row per school-year for school-level summaries
-  distinct(academic_year, cds_school, .keep_all = TRUE) %>%
   # Keep only relevant columns
   select(
     academic_year, cds_school, county_name, district_name, school_name,
@@ -212,26 +221,25 @@ overall_stats <- school_summary %>%
     total_administrators = sum(teacher_staff_count_total_by_type_administrators, na.rm = TRUE),
 
     # Staff racial composition (totals)
-    # FIX: Use teacher_total_staff_count_* columns which contain actual counts
-    # The teacher_staff_count_* columns contain percentages (0-100), not counts
-    total_staff_african_american = sum(teacher_total_staff_count_african_american, na.rm = TRUE),
-    total_staff_white = sum(teacher_total_staff_count_white, na.rm = TRUE),
-    total_staff_hispanic = sum(teacher_total_staff_count_hispanic_or_latino, na.rm = TRUE),
-    total_staff_asian = sum(teacher_total_staff_count_asian, na.rm = TRUE),
+    # Using fresh summaries from teacher_summarise_long(), these are actual counts
+    total_staff_african_american = sum(teacher_staff_count_african_american, na.rm = TRUE),
+    total_staff_white = sum(teacher_staff_count_white, na.rm = TRUE),
+    total_staff_hispanic = sum(teacher_staff_count_hispanic_or_latino, na.rm = TRUE),
+    total_staff_asian = sum(teacher_staff_count_asian, na.rm = TRUE),
 
     # Teacher racial composition
-    # FIX: Use teacher_total_staff_count_by_type_teachers_* which contain actual counts
-    teachers_african_american = sum(teacher_total_staff_count_by_type_teachers_african_american, na.rm = TRUE),
-    teachers_white = sum(teacher_total_staff_count_by_type_teachers_white, na.rm = TRUE),
-    teachers_hispanic = sum(teacher_total_staff_count_by_type_teachers_hispanic_or_latino, na.rm = TRUE),
-    teachers_asian = sum(teacher_total_staff_count_by_type_teachers_asian, na.rm = TRUE),
+    # Using fresh summaries from teacher_summarise_long(), these are actual counts
+    teachers_african_american = sum(teacher_staff_count_by_type_teachers_african_american, na.rm = TRUE),
+    teachers_white = sum(teacher_staff_count_by_type_teachers_white, na.rm = TRUE),
+    teachers_hispanic = sum(teacher_staff_count_by_type_teachers_hispanic_or_latino, na.rm = TRUE),
+    teachers_asian = sum(teacher_staff_count_by_type_teachers_asian, na.rm = TRUE),
 
     # Administrator racial composition
-    # FIX: Use teacher_total_staff_count_by_type_administrators_* which contain actual counts
-    admins_african_american = sum(teacher_total_staff_count_by_type_administrators_african_american, na.rm = TRUE),
-    admins_white = sum(teacher_total_staff_count_by_type_administrators_white, na.rm = TRUE),
-    admins_hispanic = sum(teacher_total_staff_count_by_type_administrators_hispanic_or_latino, na.rm = TRUE),
-    admins_asian = sum(teacher_total_staff_count_by_type_administrators_asian, na.rm = TRUE)
+    # Using fresh summaries from teacher_summarise_long(), these are actual counts
+    admins_african_american = sum(teacher_staff_count_by_type_administrators_african_american, na.rm = TRUE),
+    admins_white = sum(teacher_staff_count_by_type_administrators_white, na.rm = TRUE),
+    admins_hispanic = sum(teacher_staff_count_by_type_administrators_hispanic_or_latino, na.rm = TRUE),
+    admins_asian = sum(teacher_staff_count_by_type_administrators_asian, na.rm = TRUE)
   ) %>%
   mutate(
     # Calculate shares
@@ -301,18 +309,18 @@ yearly_stats <- school_summary %>%
     total_administrators = sum(teacher_staff_count_total_by_type_administrators, na.rm = TRUE),
 
     # Teacher racial composition
-    # FIX: Use teacher_total_staff_count_by_type_teachers_* which contain actual counts
-    teachers_african_american = sum(teacher_total_staff_count_by_type_teachers_african_american, na.rm = TRUE),
-    teachers_white = sum(teacher_total_staff_count_by_type_teachers_white, na.rm = TRUE),
-    teachers_hispanic = sum(teacher_total_staff_count_by_type_teachers_hispanic_or_latino, na.rm = TRUE),
-    teachers_asian = sum(teacher_total_staff_count_by_type_teachers_asian, na.rm = TRUE),
+    # Using fresh summaries from teacher_summarise_long(), these are actual counts
+    teachers_african_american = sum(teacher_staff_count_by_type_teachers_african_american, na.rm = TRUE),
+    teachers_white = sum(teacher_staff_count_by_type_teachers_white, na.rm = TRUE),
+    teachers_hispanic = sum(teacher_staff_count_by_type_teachers_hispanic_or_latino, na.rm = TRUE),
+    teachers_asian = sum(teacher_staff_count_by_type_teachers_asian, na.rm = TRUE),
 
     # Administrator racial composition
-    # FIX: Use teacher_total_staff_count_by_type_administrators_* which contain actual counts
-    admins_african_american = sum(teacher_total_staff_count_by_type_administrators_african_american, na.rm = TRUE),
-    admins_white = sum(teacher_total_staff_count_by_type_administrators_white, na.rm = TRUE),
-    admins_hispanic = sum(teacher_total_staff_count_by_type_administrators_hispanic_or_latino, na.rm = TRUE),
-    admins_asian = sum(teacher_total_staff_count_by_type_administrators_asian, na.rm = TRUE),
+    # Using fresh summaries from teacher_summarise_long(), these are actual counts
+    admins_african_american = sum(teacher_staff_count_by_type_administrators_african_american, na.rm = TRUE),
+    admins_white = sum(teacher_staff_count_by_type_administrators_white, na.rm = TRUE),
+    admins_hispanic = sum(teacher_staff_count_by_type_administrators_hispanic_or_latino, na.rm = TRUE),
+    admins_asian = sum(teacher_staff_count_by_type_administrators_asian, na.rm = TRUE),
 
     .groups = "drop"
   ) %>%
@@ -351,18 +359,18 @@ by_level_stats <- school_summary %>%
     total_administrators = sum(teacher_staff_count_total_by_type_administrators, na.rm = TRUE),
 
     # Teacher racial composition
-    # FIX: Use teacher_total_staff_count_by_type_teachers_* which contain actual counts
-    teachers_african_american = sum(teacher_total_staff_count_by_type_teachers_african_american, na.rm = TRUE),
-    teachers_white = sum(teacher_total_staff_count_by_type_teachers_white, na.rm = TRUE),
-    teachers_hispanic = sum(teacher_total_staff_count_by_type_teachers_hispanic_or_latino, na.rm = TRUE),
-    teachers_asian = sum(teacher_total_staff_count_by_type_teachers_asian, na.rm = TRUE),
+    # Using fresh summaries from teacher_summarise_long(), these are actual counts
+    teachers_african_american = sum(teacher_staff_count_by_type_teachers_african_american, na.rm = TRUE),
+    teachers_white = sum(teacher_staff_count_by_type_teachers_white, na.rm = TRUE),
+    teachers_hispanic = sum(teacher_staff_count_by_type_teachers_hispanic_or_latino, na.rm = TRUE),
+    teachers_asian = sum(teacher_staff_count_by_type_teachers_asian, na.rm = TRUE),
 
     # Administrator racial composition
-    # FIX: Use teacher_total_staff_count_by_type_administrators_* which contain actual counts
-    admins_african_american = sum(teacher_total_staff_count_by_type_administrators_african_american, na.rm = TRUE),
-    admins_white = sum(teacher_total_staff_count_by_type_administrators_white, na.rm = TRUE),
-    admins_hispanic = sum(teacher_total_staff_count_by_type_administrators_hispanic_or_latino, na.rm = TRUE),
-    admins_asian = sum(teacher_total_staff_count_by_type_administrators_asian, na.rm = TRUE),
+    # Using fresh summaries from teacher_summarise_long(), these are actual counts
+    admins_african_american = sum(teacher_staff_count_by_type_administrators_african_american, na.rm = TRUE),
+    admins_white = sum(teacher_staff_count_by_type_administrators_white, na.rm = TRUE),
+    admins_hispanic = sum(teacher_staff_count_by_type_administrators_hispanic_or_latino, na.rm = TRUE),
+    admins_asian = sum(teacher_staff_count_by_type_administrators_asian, na.rm = TRUE),
 
     .groups = "drop"
   ) %>%

@@ -77,23 +77,26 @@ Sample school with **50 total teachers** showed:
 - Asian: **0** ← Actually 0%
 - **Sum: 100** ← Clearly percentages!
 
-### The Fix
-Changed all three aggregation sections to use the correct column set:
+### The Fix (Initial Approach)
+Initially fixed by changing to use `teacher_total_staff_count_*` columns which had actual counts.
 
-**Before (wrong)**:
-```r
-teachers_white = sum(teacher_staff_count_by_type_teachers_white, na.rm = TRUE)
-```
+### The Fix (Final Approach - BETTER!)
+**Refactored to load raw data like script 21**:
 
-**After (correct)**:
-```r
-teachers_white = sum(teacher_total_staff_count_by_type_teachers_white, na.rm = TRUE)
-```
+Script 23 now:
+1. Loads `susp_v6_long.parquet` (student data) instead of the pre-merged file
+2. Filters to "All Students" rows upfront (cleaner approach)
+3. Loads `teacher_staff_long.parquet` (raw teacher data)
+4. Calls `teacher_summarise_long()` to create **fresh summaries**
+5. Joins student + teacher data with one-to-one relationship
+6. Uses `teacher_staff_count_by_type_teachers_*` columns (actual counts from fresh summaries)
 
-Applied to:
-- `overall_stats` calculation (lines 214-234)
-- `yearly_stats` calculation (lines 303-315)
-- `by_level_stats` calculation (lines 353-365)
+**Why this is better**:
+- Bypasses the corrupted pre-merged file entirely
+- Same approach as script 21 (proven to work)
+- Cleaner "All Students" filtering (no need for complex distinct() logic)
+- Ensures we always get actual counts, not percentages
+- Future-proof: any changes to teacher_summarise_long() automatically apply
 
 ### Result
 Shares now sum to realistic values (~75-95%, accounting for other races not shown in the 4-race summary).
