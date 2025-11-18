@@ -396,7 +396,7 @@ When using this analysis in reports or publications, cite:
 
 > REACH Suspensions Analysis Pipeline. (2025). Weighted Teacher Diversity Analysis by School Racial Composition. California Department of Education suspension data, 2018-19 through 2023-24.
 
-See `CITATION_STANDARD.md` for full citation requirements.
+See `docs/protocols/CITATION_STANDARD.md` for full citation requirements.
 
 ---
 

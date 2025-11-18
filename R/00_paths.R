@@ -35,6 +35,12 @@ dir.create(dp_stage, showWarnings = FALSE, recursive = TRUE)
 dir.create(dp_out,   showWarnings = FALSE, recursive = TRUE)
 dir.create(dp_raw,   showWarnings = FALSE, recursive = TRUE)
 
+# Create organized output subdirectories
+dir.create(file.path(dp_out, "graphs"),     showWarnings = FALSE, recursive = TRUE)
+dir.create(file.path(dp_out, "tables"),     showWarnings = FALSE, recursive = TRUE)
+dir.create(file.path(dp_out, "data_audit"), showWarnings = FALSE, recursive = TRUE)
+dir.create(file.path(dp_out, "dashboards"), showWarnings = FALSE, recursive = TRUE)
+
 # --- Candidates for the main raw Excel file (first existing wins) ----------
 raw_candidates <- c(
   # 1) Optional override via environment variable RAW_PATH (set in ~/.Renviron or shell)

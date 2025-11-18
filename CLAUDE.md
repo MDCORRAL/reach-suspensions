@@ -1,6 +1,6 @@
 # CLAUDE.md: AI Assistant Guide for REACH Suspensions Analysis
 
-**Last Updated**: 2025-11-13
+**Last Updated**: 2025-11-18
 **Repository**: REACH Suspensions Analysis Pipeline
 **Primary Languages**: R (data processing), Python (visualization)
 
@@ -37,6 +37,7 @@ This repository implements a research-grade data analysis pipeline for analyzing
 - **Staged Processing**: Progressive data enrichment with validation at each step
 - **Dual-Language**: R for data processing, Python for publication graphics
 - **Transparent**: Comprehensive documentation and data lineage tracking
+- **Well-Organized**: Clean directory structure following data science best practices
 
 ### Technologies
 - **R**: dplyr, tidyr, arrow (parquet), ggplot2, testthat
@@ -52,7 +53,7 @@ This repository implements a research-grade data analysis pipeline for analyzing
 
 ```
 reach-suspensions/
-├── R/                          # Core data processing pipeline (5,408 lines)
+├── R/                          # Core data processing pipeline
 │   ├── 00_paths.R              # Path configuration (ALWAYS source first)
 │   ├── 01_ingest_*.R           # Data ingestion scripts
 │   ├── 02-06_feature_*.R       # Feature engineering stages
@@ -61,23 +62,36 @@ reach-suspensions/
 │   ├── teacher_processing.R    # Teacher demographic utilities
 │   ├── demographic_labels.R    # Demographic label mappings
 │   ├── ingest_helpers.R        # Shared ingestion utilities
-│   └── run_helper.R            # Pipeline execution utilities
+│   ├── run_helper.R            # Pipeline execution utilities
+│   └── validate_data_retention.R
 │
-├── Analysis/                   # Research-specific analyses (20+ scripts)
-│   ├── 02_black_rates_by_quartiles.R  # Canonical quartile analysis
+├── Analysis/                   # Research-specific analyses (30+ scripts)
+│   ├── data_processing_overview.md   # 660-line pipeline documentation
+│   ├── 02_black_rates_by_quartiles.R # Canonical quartile analysis
 │   ├── 15_merge_demographic_categories.R
 │   ├── 16_tail_concentration_analysis.R
 │   ├── 17_tail_concentration_by_level.R
 │   ├── 18_merge_teacher_student.R
-│   └── data_processing_overview.md   # 660-line pipeline documentation
+│   ├── 21_teacher_diversity_regression.R
+│   ├── 21_weighted_teacher_diversity_by_quartile.R
+│   ├── TEACHER_DIVERSITY_ANALYSIS_GUIDE.md
+│   └── 21_ANALYSIS_GUIDE.md
 │
 ├── graph_scripts/              # Python visualization pipeline
 │   ├── 06_statewide_trends.py  # Main trend generation
 │   ├── palette_utils.py        # UCLA-branded color palettes
 │   ├── data_sources.py         # Shared data loading utilities
-│   └── requirements.txt        # Python dependencies (pinned versions)
+│   ├── requirements.txt        # Python dependencies (pinned versions)
+│   └── README.md               # Graph scripts documentation
 │
-├── data-stage/                 # Staged datasets (Parquet files)
+├── data-raw/                   # Raw data files (NOT in git)
+│   ├── copy_CDE_suspensions_1718-2324_sc_race.xlsx
+│   ├── copy_CDE_suspensions_1718-2324_sc_oth.xlsx
+│   ├── stre1718.txt            # Teacher demographic files
+│   ├── stre1819.txt
+│   └── ...                     # Additional teacher files
+│
+├── data-stage/                 # Staged datasets (Parquet files, NOT in git)
 │   ├── susp_v0.parquet         # Raw ingestion
 │   ├── susp_v1.parquet         # + locale
 │   ├── susp_v2.parquet         # + enrollment quartiles
@@ -89,30 +103,131 @@ reach-suspensions/
 │   ├── teacher_staff_long.parquet  # Teacher demographics
 │   └── susp_v6_teacher_features.parquet  # Merged student + teacher data
 │
-├── outputs/                    # Analysis outputs
+├── outputs/                    # Analysis outputs (organized structure)
 │   ├── graphs/                 # PNG/SVG visualizations
-│   ├── tables/                 # Excel summaries
-│   └── data_audit/             # Validation reports
+│   ├── tables/                 # Excel/CSV summaries and exports
+│   ├── data_audit/             # Validation reports
+│   └── dashboards/             # Generated dashboard data (JSON/JS)
+│
+├── docs/                       # ALL DOCUMENTATION (organized)
+│   ├── README.md               # Documentation navigation guide
+│   ├── audits/                 # Audit reports and data quality assessments
+│   │   ├── AUDIT_REPORT_DATA_CONSISTENCY.md
+│   │   ├── COMPREHENSIVE_AUDIT_REPORT.md
+│   │   ├── TEACHER_DEMOGRAPHIC_INTEGRATION_AUDIT.md
+│   │   └── ...
+│   ├── guides/                 # Setup and usage guides
+│   │   ├── TEACHER_DATA_SETUP_GUIDE.md
+│   │   ├── session_startup_guide.rmd
+│   │   ├── reach_suspensions.Rmd
+│   │   └── GitHub Workflow in RStudio.Rmd
+│   ├── protocols/              # Standard protocols and conventions
+│   │   ├── CITATION_STANDARD.md
+│   │   ├── PROTOCOL_TEACHER_DATA_MERGE.md
+│   │   └── UCLA-Brand-Colors.md
+│   ├── fixes/                  # Fix summaries and diagnostic reports
+│   │   ├── FIX_REGRESSION_SCRIPT.md
+│   │   ├── TEACHER_RACE_DATA_FIX.md
+│   │   └── ...
+│   ├── data-explanations/      # Data documentation (DOCX files)
+│   │   ├── data_processing_overview.docx
+│   │   ├── susp_v6_data_explanation.docx
+│   │   └── quartile_alignment_plan (1).docx
+│   └── archive/                # Deprecated scripts and old documentation
+│       ├── 02_black_rates_by_quartiles.R
+│       ├── legacy_html_script.rhtml
+│       └── v34_suspension_dashboard.html
+│
+├── scripts/                    # Utility and diagnostic scripts
+│   ├── README.md               # Scripts documentation
+│   ├── diagnostics/            # Diagnostic and validation scripts
+│   │   ├── data_audit_analysis.R
+│   │   ├── data_audit_analysis.py
+│   │   └── diagnostic_q4_python.py
+│   └── utilities/              # Utility scripts for maintenance
+│       └── consolidate_regression_script.R
+│
+├── dashboard/                  # Interactive web dashboard
+│   ├── build_dashboard_data.py # Dashboard data preparation
+│   ├── build_suspension_overview.py
+│   ├── build_rates_by_race_year.py
+│   ├── data_sources.py         # Shared data loading
+│   ├── data/                   # JSON payloads for web app
+│   └── vendor/                 # Third-party JS libraries
 │
 ├── tests/testthat/             # Unit tests
 │   ├── test_utils_keys_filters.R
 │   ├── test_teacher_processing.R
-│   └── test_demographic_labels.R
+│   ├── test_demographic_labels.R
+│   └── test_statewide_school_type.R
 │
-├── dashboard/                  # Interactive web dashboard
-│   ├── build_data.py           # Dashboard data preparation
-│   └── data/                   # JSON payloads for web app
+├── renv/                       # R environment management
+│   ├── activate.R
+│   └── ...
 │
-├── run_all.R                   # Execute full pipeline
-├── run_pipeline.R              # Execute core pipeline only
-├── renv.lock                   # R package versions (196KB)
-└── .Renviron.example           # Environment variable template
+├── .vscode/                    # VS Code settings
+│
+├── [Root HTML Dashboards]      # Interactive dashboards (GitHub accessible)
+│   ├── index.html              # Main dashboard landing page
+│   ├── suspension_dashboard.html
+│   ├── quartile_suspension_dashboard.html
+│   ├── race_year_rates_dashboard.html
+│   ├── tail_concentration_dashboard.html
+│   └── suspension_categories_dashboard.html
+│
+├── [Root Configuration Files]
+│   ├── README.md               # Project README (main entry point)
+│   ├── CLAUDE.md               # This file - AI assistant guide
+│   ├── .Renviron.example       # Environment variable template
+│   ├── .Rprofile               # R session configuration
+│   ├── .gitignore              # Git ignore patterns
+│   ├── .gitattributes          # Git attributes
+│   ├── renv.lock               # R package versions (196KB)
+│   ├── reach-suspensions.Rproj # RStudio project file
+│   ├── run_all.R               # Execute full pipeline
+│   └── run_pipeline.R          # Execute core pipeline only
 ```
+
+### Key Directory Purposes
+
+| Directory | Purpose | Git Status | Notes |
+|-----------|---------|------------|-------|
+| `R/` | Core pipeline scripts | Tracked | Heart of data processing |
+| `Analysis/` | Research analyses | Tracked | Publication-ready analyses |
+| `graph_scripts/` | Python visualization | Tracked | Publication graphics |
+| `data-raw/` | Raw data files | **Ignored** | Place CDE data here |
+| `data-stage/` | Staged parquet files | **Ignored** | Generated by pipeline |
+| `outputs/` | All analysis outputs | **Ignored** | Generated visualizations/tables |
+| `docs/` | **All documentation** | Tracked | Organized documentation |
+| `scripts/` | Diagnostic/utility scripts | Tracked | Supporting tools |
+| `dashboard/` | Dashboard generation | Tracked | Interactive web dashboards |
+| `tests/` | Unit tests | Tracked | Test suite |
+| `renv/` | R package management | Tracked | Reproducible environment |
+
+### Why This Organization?
+
+**Before Reorganization (2025-11-13)**:
+- Audit reports, guides, protocols scattered in root directory
+- Fix summaries mixed with active code
+- No clear distinction between documentation types
+- Difficult to find relevant documentation
+- Root directory cluttered with 30+ files
+
+**After Reorganization (2025-11-18)**:
+- ✅ All documentation in `docs/` with logical subdirectories
+- ✅ All diagnostic scripts in `scripts/diagnostics/`
+- ✅ All utility scripts in `scripts/utilities/`
+- ✅ Organized `outputs/` with `graphs/`, `tables/`, `data_audit/`, `dashboards/`
+- ✅ HTML dashboards remain in root for GitHub Pages accessibility
+- ✅ Clean root directory with only essential configuration and entry point files
+- ✅ Easy navigation with README.md files in `docs/` and `scripts/`
+
+---
 
 ### Data Flow Architecture
 
 ```
-Raw CDE Excel Files
+Raw CDE Excel Files (data-raw/)
         ↓
 [01_ingest_v0.R] → susp_v0.parquet
         ↓
@@ -130,12 +245,16 @@ Raw CDE Excel Files
         ↓
 [22_build_v6_features.R] → susp_v6_features.parquet + susp_v6_long.parquet
         ↓
-[Analysis/*.R] → Visualizations, Tables, Reports
+[Analysis/*.R] → outputs/graphs/, outputs/tables/
+        ↓
+[graph_scripts/*.py] → outputs/graphs/
+        ↓
+[dashboard/*.py] → dashboard/data/ (JSON) + *.html (root)
 ```
 
 **Parallel Pipeline: Teacher Demographics**
 ```
-CDE Teacher TXT Files (stre*.txt)
+CDE Teacher TXT Files (data-raw/stre*.txt)
         ↓
 [01c_ingest_teacher_demographics.R] → teacher_staff_long.parquet
         ↓
@@ -175,6 +294,7 @@ CDE Teacher TXT Files (stre*.txt)
    - `copy_CDE_suspensions_1718-2324_sc_race.xlsx`
    - `copy_CDE_suspensions_1718-2324_sc_oth.xlsx`
    - Teacher TXT files: `stre1718.txt`, `stre1819.txt`, etc.
+   - See `docs/guides/TEACHER_DATA_SETUP_GUIDE.md` for teacher data acquisition
 
 ### Running the Pipeline
 
@@ -260,11 +380,45 @@ python 06_statewide_trends.py --diagnostics-only
    library(arrow)
    df <- read_parquet(file.path(dp_stage, "susp_v6_long.parquet"))
    ```
-4. **Output to `outputs/`**:
+4. **Output to organized `outputs/` subdirectories**:
    ```r
+   # Graphs go to outputs/graphs/
    ggsave(file.path(dp_out, "graphs", "your_plot.png"), plot, width = 10, height = 6)
+
+   # Tables go to outputs/tables/
+   write_csv(summary_table, file.path(dp_out, "tables", "your_summary.csv"))
    ```
 5. **Document in analysis script**: Add comments explaining purpose, methods, outputs
+
+#### Adding Documentation
+
+**Documentation now lives in organized `docs/` directory**:
+
+1. **Audit reports** → `docs/audits/`
+   ```bash
+   # Example: New data quality audit
+   vim docs/audits/AUDIT_NEW_FEATURE.md
+   ```
+
+2. **Guides** → `docs/guides/`
+   ```bash
+   # Example: New setup guide
+   vim docs/guides/SETUP_NEW_FEATURE.md
+   ```
+
+3. **Protocols** → `docs/protocols/`
+   ```bash
+   # Example: New standard protocol
+   vim docs/protocols/PROTOCOL_NEW_PROCESS.md
+   ```
+
+4. **Fix summaries** → `docs/fixes/`
+   ```bash
+   # Example: Bug fix documentation
+   vim docs/fixes/FIX_BUG_DESCRIPTION.md
+   ```
+
+5. **Update navigation**: Add entry to `docs/README.md`
 
 ### Adding Tests
 
@@ -314,6 +468,7 @@ This repository follows standard Git practices:
 3. **Progressive enrichment**: Each stage adds features without modifying prior stages
 4. **Validation at each step**: Print diagnostics (row counts, distributions, ranges)
 5. **Canonical definitions**: Use centralized constants from `utils_keys_filters.R`
+6. **Organized outputs**: Use appropriate `outputs/` subdirectories
 
 ### Naming Conventions
 
@@ -362,6 +517,8 @@ SPECIAL_SCHOOL_CODES <- c("0000000", "0000001")  # Exclude from analyses
 
 **DO NOT create ad-hoc labels or colors**. Always extend these canonical definitions.
 
+For color palettes, see `docs/protocols/UCLA-Brand-Colors.md`.
+
 ### Safe Calculation Utilities
 
 ```r
@@ -384,6 +541,33 @@ parse_supp <- function(x, replace_na_with = NA_real_) {
 4. **Uniqueness assertions**: Use `assert_unique_campus()`, `assert_unique_district()`
 5. **Range validation**: Rates must be in [0, 1]
 6. **NaN/Inf sanitization**: Replace with NA before writing outputs
+
+### Output Organization Standards
+
+**CRITICAL**: Use organized `outputs/` subdirectories created by `R/00_paths.R`:
+
+```r
+# Visualizations → outputs/graphs/
+ggsave(file.path(dp_out, "graphs", "my_plot.png"), plot)
+
+# Tables/exports → outputs/tables/
+write_csv(data, file.path(dp_out, "tables", "my_table.csv"))
+write_xlsx(data, file.path(dp_out, "tables", "my_workbook.xlsx"))
+
+# Data audits → outputs/data_audit/
+write_csv(audit_results, file.path(dp_out, "data_audit", "audit_report.csv"))
+
+# Dashboard data → dashboard/data/
+write(json, file.path(PROJ_ROOT, "dashboard", "data", "payload.json"))
+```
+
+The `R/00_paths.R` script automatically creates these subdirectories:
+- `outputs/graphs/`
+- `outputs/tables/`
+- `outputs/data_audit/`
+- `outputs/dashboards/` (for generated dashboard data)
+
+**Note**: HTML dashboards stay in root directory for GitHub Pages accessibility.
 
 ### Code Structure Template
 
@@ -436,8 +620,9 @@ if (!exists(".ran_XX_descriptive_name", envir = .GlobalEnv)) {
 1. **Inline comments**: Explain **why**, not what (code shows what)
 2. **Script headers**: Include purpose, inputs, outputs
 3. **Diagnostic messages**: Use `message()` for pipeline progress
-4. **Audit trails**: Document data transformations in analysis markdown files
-5. **Citation standard**: Follow `CITATION_STANDARD.md` for all outputs
+4. **Audit trails**: Document data transformations in `docs/audits/`
+5. **Citation standard**: Follow `docs/protocols/CITATION_STANDARD.md` for all outputs
+6. **Fix documentation**: Document bug fixes in `docs/fixes/`
 
 ---
 
@@ -522,6 +707,7 @@ if (!exists(".ran_XX_descriptive_name", envir = .GlobalEnv)) {
 
 #### Ingestion (`01c_ingest_teacher_demographics.R`)
 - **Input**: `data-raw/stre*.txt` (CDE teacher staff files)
+- **Setup**: See `docs/guides/TEACHER_DATA_SETUP_GUIDE.md` for data acquisition
 - **Operations**:
   - Read fixed-width TXT files
   - Standardize race/ethnicity codes (9 CDE categories)
@@ -534,6 +720,7 @@ if (!exists(".ran_XX_descriptive_name", envir = .GlobalEnv)) {
 
 #### Summarization (`teacher_processing.R::teacher_summarise_long()`)
 - **Input**: `teacher_staff_long.parquet`
+- **Protocol**: Follow `docs/protocols/PROTOCOL_TEACHER_DATA_MERGE.md`
 - **Operations**:
   - Aggregate to one row per school-year
   - Calculate totals, racial shares, gender shares, staff type breakdowns
@@ -543,6 +730,7 @@ if (!exists(".ran_XX_descriptive_name", envir = .GlobalEnv)) {
 
 #### Merging (`18_merge_teacher_student.R`)
 - **Input**: `susp_v6_long.parquet`, teacher summaries
+- **Protocol**: Follow `docs/protocols/PROTOCOL_TEACHER_DATA_MERGE.md`
 - **Join Keys**: `academic_year` + `cds_school` (14-digit code)
 - **Join Type**: LEFT JOIN (preserve all student data)
 - **Operations**:
@@ -563,10 +751,12 @@ if (!exists(".ran_XX_descriptive_name", envir = .GlobalEnv)) {
 | v4 | + School level | Grade-level analyses |
 | v5 | + Reason shares | Suspension reason analyses |
 | v6 | + Other demographics | Intersectional analyses |
+| v6_teacher | + Teacher demographics | Teacher diversity analyses |
 
 **When to use which version**:
 - **Analysis-specific features**: Use earliest version with required features
 - **Publication outputs**: Use v6 (most complete)
+- **Teacher diversity analyses**: Use v6_teacher
 - **Quick prototypes**: v0 or v1 (faster to load)
 
 ---
@@ -639,14 +829,35 @@ all.equal(r_rates$rate, py_rates$rate, tolerance = 1e-4)
 ```r
 source("R/validate_data_retention.R")
 # Generates detailed report of data retention across pipeline stages
+# Output: outputs/data_audit/
 ```
+
+### Diagnostic Scripts
+
+Located in `scripts/diagnostics/`:
+
+```r
+# R-based data audit
+source("scripts/diagnostics/data_audit_analysis.R")
+
+# Python-based data audit
+# bash: python scripts/diagnostics/data_audit_analysis.py
+
+# Q4 quartile diagnostic
+# bash: python scripts/diagnostics/diagnostic_q4_python.py
+```
+
+See `scripts/README.md` for detailed documentation.
 
 ### Audit Reports
 
-The repository includes comprehensive audit documentation:
+Comprehensive audit documentation is available in `docs/audits/`:
 - `AUDIT_REPORT_DATA_CONSISTENCY.md`: Data consistency checks
 - `COMPREHENSIVE_AUDIT_REPORT.md`: Full pipeline audit
 - `TEACHER_DEMOGRAPHIC_INTEGRATION_AUDIT.md`: Teacher merge validation
+- `AUDIT_TEACHER_DIVERSITY_REGRESSION.md`: Regression analysis audit
+
+See `docs/README.md` for complete listing.
 
 ---
 
@@ -710,7 +921,7 @@ p <- ggplot(plot_data, aes(x = black_prop_q, y = suspension_rate)) +
   ) +
   theme_minimal()
 
-# Save to outputs
+# Save to organized outputs/graphs/ directory
 ggsave(
   file.path(dp_out, "graphs", "custom_plot.png"),
   p, width = 10, height = 6, dpi = 300
@@ -791,7 +1002,7 @@ statewide_rates <- df %>%
     suspension_rate = safe_div(total_suspensions, total_enrollment)
   )
 
-# Write to outputs
+# Write to organized outputs/tables/ directory
 write_csv(
   statewide_rates,
   file.path(dp_out, "tables", "statewide_rates_by_race.csv")
@@ -827,6 +1038,23 @@ table(df$categorical_column, useNA = "always")
 # - Duplicate keys: df %>% count(key_column) %>% filter(n > 1)
 ```
 
+### Task 6: Document a Bug Fix
+
+When fixing a bug:
+
+1. **Fix the code** in the appropriate script
+2. **Document the fix** in `docs/fixes/`:
+   ```bash
+   vim docs/fixes/FIX_YOUR_BUG_DESCRIPTION.md
+   ```
+3. **Include in documentation**:
+   - Date of fix
+   - Root cause analysis
+   - Solution implemented
+   - Validation steps
+4. **Update `docs/README.md`** to list the new fix document
+5. **Reference in commit message**: "Fix [bug]. See docs/fixes/FIX_YOUR_BUG_DESCRIPTION.md"
+
 ---
 
 ## Key Files Reference
@@ -834,10 +1062,12 @@ table(df$categorical_column, useNA = "always")
 ### Must-Read Files for New Contributors
 
 1. **README.md**: Setup instructions, package management, key concepts
-2. **Analysis/data_processing_overview.md**: 660-line comprehensive pipeline documentation
-3. **R/utils_keys_filters.R**: Canonical definitions (CRITICAL)
-4. **R/00_paths.R**: Path configuration
-5. **CITATION_STANDARD.md**: Citation requirements for outputs
+2. **CLAUDE.md** (this file): Comprehensive AI assistant guide
+3. **Analysis/data_processing_overview.md**: 660-line comprehensive pipeline documentation
+4. **R/utils_keys_filters.R**: Canonical definitions (CRITICAL)
+5. **R/00_paths.R**: Path configuration
+6. **docs/protocols/CITATION_STANDARD.md**: Citation requirements for outputs
+7. **docs/README.md**: Documentation navigation guide
 
 ### Configuration Files
 
@@ -848,15 +1078,57 @@ table(df$categorical_column, useNA = "always")
 
 ### Documentation Files
 
+| File/Directory | Purpose |
+|----------------|---------|
+| `README.md` | Quick start, setup, key concepts |
+| `CLAUDE.md` | Comprehensive AI assistant guide (this file) |
+| `docs/README.md` | Documentation navigation |
+| `docs/audits/` | Audit reports and data quality assessments |
+| `docs/guides/` | Setup and usage guides |
+| `docs/protocols/` | Standard protocols and conventions |
+| `docs/fixes/` | Fix summaries and diagnostic reports |
+| `docs/data-explanations/` | Data documentation (DOCX files) |
+| `docs/archive/` | Deprecated documentation |
+| `Analysis/data_processing_overview.md` | Complete pipeline documentation |
+| `Analysis/TEACHER_DIVERSITY_ANALYSIS_GUIDE.md` | Teacher diversity analysis guide |
+| `Analysis/21_ANALYSIS_GUIDE.md` | Weighted teacher diversity guide |
+
+**For detailed documentation navigation, see `docs/README.md`.**
+
+### Key R Scripts
+
+| Script | Purpose | Critical? |
+|--------|---------|-----------|
+| `R/00_paths.R` | Path configuration | ⚠️ Source first in every script |
+| `R/utils_keys_filters.R` | Canonical definitions | ⚠️ Use for all labels/colors |
+| `R/01_ingest_v0.R` | Raw data ingestion | Pipeline start |
+| `R/22_build_v6_features.R` | Final dataset assembly | Pipeline end |
+| `R/teacher_processing.R` | Teacher data utilities | Teacher analyses |
+| `run_all.R` | Execute full pipeline | Main entry point |
+| `run_pipeline.R` | Execute core pipeline | Core processing |
+
+### Key Python Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `graph_scripts/06_statewide_trends.py` | Main trend visualizations |
+| `graph_scripts/palette_utils.py` | UCLA color palettes |
+| `dashboard/build_suspension_overview.py` | Dashboard data generation |
+
+### HTML Dashboards (Root Directory)
+
+**Important**: These files remain in root for GitHub Pages accessibility.
+
 | File | Purpose |
 |------|---------|
-| `README.md` | Quick start, setup, key concepts |
-| `Analysis/data_processing_overview.md` | Complete pipeline documentation |
-| `AUDIT_REPORT_DATA_CONSISTENCY.md` | Data consistency audit |
-| `COMPREHENSIVE_AUDIT_REPORT.md` | Full pipeline audit |
-| `TEACHER_DEMOGRAPHIC_INTEGRATION_AUDIT.md` | Teacher merge validation |
-| `CITATION_STANDARD.md` | Standard citation for outputs |
-| `UCLA-Brand-Colors.md` | Color palette documentation |
+| `index.html` | Main dashboard landing page |
+| `suspension_dashboard.html` | Comprehensive suspension dashboard |
+| `quartile_suspension_dashboard.html` | Quartile-focused dashboard |
+| `race_year_rates_dashboard.html` | Race/year trends dashboard |
+| `tail_concentration_dashboard.html` | Tail concentration analysis |
+| `suspension_categories_dashboard.html` | Suspension categories dashboard |
+
+To view dashboards locally, open HTML files in a web browser. For GitHub Pages deployment, ensure they remain in the root directory.
 
 ---
 
@@ -928,6 +1200,24 @@ right_df %>%
   filter(n > 1)
 ```
 
+#### Error: Teacher data issues
+
+**Solution**: See comprehensive guides:
+- `docs/guides/TEACHER_DATA_SETUP_GUIDE.md` - Data acquisition
+- `docs/protocols/PROTOCOL_TEACHER_DATA_MERGE.md` - Merge protocol
+- `docs/fixes/TEACHER_RACE_DATA_FIX.md` - Common teacher data fixes
+- `docs/audits/TEACHER_DEMOGRAPHIC_INTEGRATION_AUDIT.md` - Data quality audit
+
+#### Error: Output directory doesn't exist
+
+**Solution**: The `R/00_paths.R` script automatically creates output subdirectories:
+- `outputs/graphs/`
+- `outputs/tables/`
+- `outputs/data_audit/`
+- `outputs/dashboards/`
+
+If you encounter this error, ensure you've sourced `R/00_paths.R` first.
+
 ### Performance Issues
 
 #### Slow parquet reads
@@ -969,6 +1259,14 @@ write_csv(df, file, fileEncoding = "UTF-8")
 df.to_csv(file, encoding="utf-8")
 ```
 
+### Documentation and Fix References
+
+For specific issues, check:
+- **`docs/fixes/`** - Bug fix documentation
+- **`docs/audits/`** - Data quality audits
+- **`scripts/diagnostics/`** - Diagnostic scripts
+- **`docs/README.md`** - Complete documentation index
+
 ---
 
 ## Best Practices for AI Assistants
@@ -976,15 +1274,17 @@ df.to_csv(file, encoding="utf-8")
 ### When Working on This Codebase
 
 1. **Always start by understanding the data version**: Which `susp_vX.parquet` file is appropriate?
-2. **Source R/00_paths.R first**: Ensures consistent path handling
-3. **Use canonical definitions**: Don't create new labels/colors; extend existing ones
-4. **Validate at every step**: Print row counts, distributions, ranges
-5. **Preserve data retention**: Use LEFT JOINs when merging to preserve primary data
-6. **Document transformations**: Add comments explaining "why", not "what"
-7. **Test incrementally**: Run transformations line-by-line before full pipeline
-8. **Check audit trails**: Review existing audit reports before making breaking changes
-9. **Respect the staged architecture**: Don't skip stages; add new stages cleanly
-10. **Cross-validate**: When possible, verify R outputs against Python outputs
+2. **Source R/00_paths.R first**: Ensures consistent path handling and creates output directories
+3. **Use canonical definitions**: Don't create new labels/colors; extend existing ones in `utils_keys_filters.R`
+4. **Use organized outputs**: Write to appropriate `outputs/` subdirectories
+5. **Validate at every step**: Print row counts, distributions, ranges
+6. **Preserve data retention**: Use LEFT JOINs when merging to preserve primary data
+7. **Document transformations**: Add comments explaining "why", not "what"
+8. **Test incrementally**: Run transformations line-by-line before full pipeline
+9. **Check audit trails**: Review `docs/audits/` before making breaking changes
+10. **Respect the staged architecture**: Don't skip stages; add new stages cleanly
+11. **Cross-validate**: When possible, verify R outputs against Python outputs
+12. **Document fixes**: Add bug fix summaries to `docs/fixes/`
 
 ### When Suggesting Changes
 
@@ -992,29 +1292,106 @@ df.to_csv(file, encoding="utf-8")
 2. **Show full context**: Include sourcing, validation, and guard flags
 3. **Explain impacts**: "This will affect downstream scripts: 22, Analysis/02, Analysis/18"
 4. **Provide rollback plan**: "If issues arise, revert by removing line X and re-running from stage Y"
-5. **Reference documentation**: Link to relevant sections in data_processing_overview.md
+5. **Reference documentation**: Link to relevant sections in `docs/` or `Analysis/data_processing_overview.md`
+6. **Use organized structure**: Place documentation in appropriate `docs/` subdirectories
 
 ### When Debugging
 
 1. **Check pipeline sequence**: Has a prior stage failed?
 2. **Verify inputs exist**: Do the expected .parquet files exist in data-stage/?
 3. **Inspect intermediate outputs**: Read .parquet files at each stage
-4. **Compare with documentation**: Does behavior match data_processing_overview.md?
-5. **Review audit reports**: Are there known issues documented?
+4. **Compare with documentation**: Does behavior match `Analysis/data_processing_overview.md`?
+5. **Review audit reports**: Check `docs/audits/` for known issues
+6. **Check fix documentation**: See `docs/fixes/` for similar problems
+7. **Run diagnostic scripts**: Use tools in `scripts/diagnostics/`
+
+### When Adding Documentation
+
+1. **Choose correct location**:
+   - Audits → `docs/audits/`
+   - Guides → `docs/guides/`
+   - Protocols → `docs/protocols/`
+   - Fix summaries → `docs/fixes/`
+   - Data documentation → `docs/data-explanations/`
+   - Archive old files → `docs/archive/`
+
+2. **Update navigation**: Add entry to `docs/README.md`
+
+3. **Use correct paths in references**:
+   - OLD: `CITATION_STANDARD.md`
+   - NEW: `docs/protocols/CITATION_STANDARD.md`
+
+4. **Cross-reference related docs**: Link to related files in other `docs/` subdirectories
+
+---
+
+## Repository Reorganization (2025-11-18)
+
+### What Changed
+
+The repository was reorganized to improve maintainability and navigation:
+
+**New Structure**:
+- ✅ `docs/` - All documentation in organized subdirectories
+- ✅ `scripts/` - Diagnostic and utility scripts
+- ✅ `outputs/graphs/` - Visualizations
+- ✅ `outputs/tables/` - Data exports
+- ✅ `outputs/data_audit/` - Audit reports
+- ✅ HTML dashboards remain in root for GitHub Pages
+
+**Moved Files**:
+- Audit reports: root → `docs/audits/`
+- Guides: root → `docs/guides/`
+- Protocols: root → `docs/protocols/`
+- Fix summaries: root → `docs/fixes/`
+- Data explanations: `Data Explanations/` → `docs/data-explanations/`
+- Archive: `99. Archive/` → `docs/archive/`
+- Diagnostic scripts: root → `scripts/diagnostics/`
+- Utility scripts: root → `scripts/utilities/`
+
+**Updated Files**:
+- `R/00_paths.R` - Now creates organized output subdirectories
+- `CLAUDE.md` - This file, comprehensively updated
+- `docs/README.md` - New documentation navigation guide
+- `scripts/README.md` - New scripts documentation
+
+**Path Updates**:
+All cross-references updated to use new paths:
+- `CITATION_STANDARD.md` → `docs/protocols/CITATION_STANDARD.md`
+- `TEACHER_DATA_SETUP_GUIDE.md` → `docs/guides/TEACHER_DATA_SETUP_GUIDE.md`
+- `PROTOCOL_TEACHER_DATA_MERGE.md` → `docs/protocols/PROTOCOL_TEACHER_DATA_MERGE.md`
+- etc.
+
+### Migration Impact
+
+**No Impact on**:
+- Core pipeline (`R/` scripts) - No changes
+- Data processing - All `data-stage/` files unchanged
+- Analysis scripts - Continue working as before
+- Python visualization - No changes required
+
+**Benefits**:
+- Easier to find documentation
+- Cleaner root directory
+- Better organization for new contributors
+- Clear separation of concerns
+- Improved navigation with README files
 
 ---
 
 ## Contact and Resources
 
 - **Repository**: This repository (reach-suspensions)
+- **Documentation**: `docs/README.md` for navigation
 - **R Documentation**: https://www.rdocumentation.org/
 - **Arrow (Parquet)**: https://arrow.apache.org/docs/r/
 - **dplyr**: https://dplyr.tidyverse.org/
 - **ggplot2**: https://ggplot2.tidyverse.org/
 - **renv**: https://rstudio.github.io/renv/
+- **CDE Data**: https://www.cde.ca.gov/ds/sd/sd/
 
 ---
 
 **End of CLAUDE.md**
 
-*This document should be updated whenever major architectural changes occur, new conventions are established, or additional workflows are introduced.*
+*This document was comprehensively updated on 2025-11-18 to reflect the repository reorganization. It should be updated whenever major architectural changes occur, new conventions are established, or additional workflows are introduced.*

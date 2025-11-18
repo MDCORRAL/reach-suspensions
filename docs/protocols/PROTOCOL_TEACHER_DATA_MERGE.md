@@ -198,7 +198,7 @@ if (!has_teacher_race_data) {
   message(">>> The merged teacher dataset does not include race/ethnicity counts.")
   message(">>> Expected columns like teacher_staff_count_african_american, teacher_staff_count_white, etc.")
   message(">>> Run R/01c_ingest_teacher_demographics.R and Analysis/18_merge_teacher_student.R after placing stre*.txt files under data-raw/.")
-  stop("Teacher race/ethnicity breakdowns missing. See TEACHER_DATA_SETUP_GUIDE.md for acquisition steps.")
+  stop("Teacher race/ethnicity breakdowns missing. See docs/guides/TEACHER_DATA_SETUP_GUIDE.md for acquisition steps.")
 }
 ```
 
