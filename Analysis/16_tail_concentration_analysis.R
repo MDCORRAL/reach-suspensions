@@ -335,7 +335,7 @@ message("Years covered: ", paste(sort(unique(dat$year_num)), collapse = ", "))
 ps_year <- dat %>%
   group_by(year_num) %>%
   summarise(
-    pareto_results = list(pareto_shares(cur_data(), TOP_PCT)),
+    pareto_results = list(pareto_shares(pick(everything()), TOP_PCT)),
     .groups = "drop"
   ) %>%
   unnest(pareto_results) %>%
@@ -396,7 +396,7 @@ if (nrow(lg_year) > 0) {
   p_lorenz <- lg_year %>%
     filter(year_num == latest_year) %>%
     ggplot(aes(x = p, y = L)) +
-    geom_line(size = 1, color = "steelblue") +
+    geom_line(linewidth = 1, color = "steelblue") +
     geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray50") +
     scale_x_continuous(labels = scales::percent_format()) +
     scale_y_continuous(labels = scales::percent_format()) +
