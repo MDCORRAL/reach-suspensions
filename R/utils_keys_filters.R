@@ -142,9 +142,15 @@ build_keys <- function(df) {
 
 # strict campus-only filter (excludes special rows that mimic schools)
 filter_campus_only <- function(df) {
+  has_agg <- "aggregate_level" %in% names(df)
+
+  if (!has_agg) {
+    warning("Missing aggregate_level; assuming all rows are campus-level.")
+  }
+
   df %>%
     filter(
-      tolower(aggregate_level) %in% c("s", "school"),
+      if (has_agg) tolower(aggregate_level) %in% c("s", "school") else TRUE,
       !school_code %in% SPECIAL_SCHOOL_CODES
     )
 }
