@@ -1,9 +1,11 @@
 # Analysis 22: Black Student Suspension Rates and Teacher Demographics - Executive Summary
 
 **Analysis Date**: 2025-11-19
-**Data Period**: 2017-18 through 2023-24 Academic Years
-**Schools Analyzed**: 5,129 unique schools across California
-**Student Records**: 190,806 Black student observations
+**Data Period**: 2017-18 through 2023-24 academic years
+**Academic Years Included**: 2017-18, 2018-19, 2019-20, 2021-22, 2022-23, 2023-24 (6 years; 2020-21 excluded)
+**Total Schools Analyzed**: 5,129 unique schools across California
+**School-Year Observations**: 31,801 school-year records
+**Student Records**: 190,806 Black student school-year observations
 
 ---
 
@@ -104,21 +106,37 @@ This analysis reports **two complementary suspension rate metrics** for transpar
 - Students Rate: 30 unique students ÷ 100 students = **30%**
 - The 20-point gap reveals repeat suspensions drive the higher event rate
 
-### Data Scope
+### Data Scope and Time Period
 
-**Years Covered**: 2017-18, 2018-19, 2019-20, 2021-22, 2022-23, 2023-24
-- Note: 2020-21 excluded (COVID-19 disruption)
+**Analysis Date**: 2025-11-19
+**Data Collection Period**: 2017-18 through 2023-24 academic years
+**Academic Years Covered**: 2017-18, 2018-19, 2019-20, 2021-22, 2022-23, 2023-24 (6 years total)
+- **Note**: 2020-21 excluded due to COVID-19 disruption
 
-**Schools**: 31,801 school-year observations
-- Only schools with ≥10 Black students included
-- Campus-level data only (excludes district aggregates)
-- Special codes (0000000, 0000001) excluded
+**Sample Size**: Detailed breakdown
+- **Total observations**: 190,806 school-year-student_group records
+- **Unique schools**: 5,129 California public schools
+- **School-year combinations**: 31,801 school-year records
+- **Years per school**: Varies by school (1-6 years)
+- **Cumulative Black student enrollment**: Approximately 1,956,870 across all years
+
+**What Each Observation Represents**:
+Each record in the analysis represents:
+- **One school** (identified by 14-digit CDS code)
+- **One academic year** (e.g., "2023-24")
+- **Black/African American students** at that school in that year
+
+A single school can contribute up to 6 observations (one per year), but only years with ≥10 Black students are included.
 
 **Geographic Coverage**: Statewide California public schools
-
-**Student Focus**: Black/African American students only
-- 190,806 student-year-race records analyzed
-- Approximately 1,956,870 cumulative Black student enrollment across all years
+**Inclusion Criteria**:
+- Schools with ≥10 Black students in a given year
+- Campus-level data only (excludes district aggregates)
+- Special codes (0000000, 0000001) excluded
+**Exclusion Criteria**:
+- Schools with <10 Black students (for rate stability)
+- District-level aggregate records
+- Academic year 2020-21 (COVID-19 disruption)
 
 ### Teacher Demographics Available
 
@@ -326,14 +344,28 @@ Teacher data aggregated by:
 ## Contact and Questions
 
 For questions about:
-- **Methodology**: See `Analysis/22_ANALYSIS_GUIDE.md`
+- **Methodology**: See `Analysis/22_ANALYSIS_GUIDE.md` (if available)
 - **Data pipeline**: See `CLAUDE.md` (repository guide)
 - **Teacher data**: See `docs/guides/TEACHER_DATA_SETUP_GUIDE.md`
 - **Code review**: Script at `Analysis/22_black_suspension_rates_teacher_demographics.R`
+- **Related analyses**: See `outputs/summaries/README.md`
 
 ---
 
-**Document Version**: 1.0
+## Document Information
+
+**Document Version**: 2.0
+**Document Created**: 2025-11-19
 **Last Updated**: 2025-11-19
-**Analysis Script**: Analysis/22_black_suspension_rates_teacher_demographics.R
-**Output Location**: outputs/summaries/22_black_suspension_teacher_demographics_SUMMARY.md
+**Analysis Script**: `Analysis/22_black_suspension_rates_teacher_demographics.R`
+**Output Location**: `outputs/summaries/22_black_suspension_teacher_demographics_SUMMARY.md`
+**Word Version**: `outputs/summaries/22_black_suspension_teacher_demographics_SUMMARY.docx` (generated from .md)
+
+**Conversion Command**:
+```bash
+./scripts/utilities/convert_summary_to_word.sh 22_black_suspension_teacher_demographics_SUMMARY.md
+```
+
+---
+
+**END OF SUMMARY**
