@@ -104,13 +104,31 @@ if (length(missing)) {
 }
 
 # Check for unduplicated suspensions column (optional but recommended)
-has_unduplicated <- "unduplicated_suspensions" %in% names(df_raw)
-if (!has_unduplicated) {
-  message(">>> WARNING: unduplicated_suspensions column not found.")
+# Try multiple possible column names used across the pipeline
+unduplicated_col_options <- c(
+  "unduplicated_suspensions",
+  "unduplicated_count_of_students_suspended_total",
+  "unduplicated_count_students_suspended_total"
+)
+unduplicated_col <- intersect(unduplicated_col_options, names(df_raw))
+
+if (length(unduplicated_col) == 0) {
+  has_unduplicated <- FALSE
+  message(">>> WARNING: No unduplicated suspensions column found.")
+  message(">>> Searched for: ", paste(unduplicated_col_options, collapse = ", "))
   message(">>> Only raw suspension rates (events) will be calculated.")
-  message(">>> To include unduplicated rates, ensure data includes unduplicated_suspensions column.")
+  message(">>> To include unduplicated rates, ensure data includes one of the above columns.")
 } else {
-  message(">>> Found unduplicated_suspensions column - will calculate both event and student rates")
+  has_unduplicated <- TRUE
+  unduplicated_col <- unduplicated_col[1]  # Use first match
+  message(">>> Found unduplicated suspensions column: ", unduplicated_col)
+  message(">>> Will calculate both event and student rates")
+
+  # Standardize column name for easier reference
+  if (unduplicated_col != "unduplicated_suspensions") {
+    df_raw <- df_raw %>% rename(unduplicated_suspensions = !!sym(unduplicated_col))
+    message(">>> Standardized column name to: unduplicated_suspensions")
+  }
 }
 
 # Identify teacher columns
