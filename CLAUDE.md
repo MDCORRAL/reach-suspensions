@@ -1,6 +1,6 @@
 # CLAUDE.md: AI Assistant Guide for REACH Suspensions Analysis
 
-**Last Updated**: 2025-11-18
+**Last Updated**: 2025-11-19
 **Repository**: REACH Suspensions Analysis Pipeline
 **Primary Languages**: R (data processing), Python (visualization)
 
@@ -274,10 +274,25 @@ CDE Teacher TXT Files (data-raw/stre*.txt)
    renv::restore()  # Install exact package versions from renv.lock
    ```
 
-2. **Install Python dependencies**:
+2. **Set up Python virtual environment and install dependencies**:
    ```bash
+   # Create virtual environment
+   python -m venv venv
+
+   # Activate virtual environment
+   # On macOS/Linux:
+   source venv/bin/activate
+   # On Windows:
+   # venv\Scripts\activate
+
+   # Install dependencies
    pip install -r graph_scripts/requirements.txt
    ```
+
+   **Note**: Always activate the virtual environment before running Python scripts. This ensures:
+   - Isolated package dependencies (no conflicts with system Python)
+   - Reproducible Python environment
+   - Consistent pyarrow/arrow compatibility with R
 
 3. **Configure environment variables** (optional, creates `.Renviron`):
    ```bash
@@ -639,6 +654,48 @@ if (!exists(".ran_XX_descriptive_name", envir = .GlobalEnv)) {
   - Standardize academic year format
 - **Output**: `susp_v0.parquet`
 - **Validation**: Check row counts, missing values, CDS code format
+
+**Schema Validation (CRITICAL)**:
+The ingestion script should validate data formats immediately after loading to catch upstream CDE format changes:
+
+```r
+# Validate academic year format (YYYY-YY pattern)
+if (!all(grepl("^\\d{4}-\\d{2}$", df$academic_year))) {
+  stop("SCHEMA ERROR: academic_year format changed. Expected YYYY-YY (e.g., 2023-24)")
+}
+
+# Validate CDS codes are exactly 14 digits
+if (!all(nchar(df$cds_school) == 14)) {
+  invalid_cds <- df %>%
+    filter(nchar(cds_school) != 14) %>%
+    select(cds_school) %>%
+    distinct()
+  stop("SCHEMA ERROR: CDS codes must be 14 digits. Found invalid codes:\n",
+       paste(invalid_cds$cds_school, collapse = ", "))
+}
+
+# Validate expected column presence
+required_cols <- c("academic_year", "cds_school", "cumulative_enrollment",
+                   "total_suspensions", "race")
+missing_cols <- setdiff(required_cols, names(df))
+if (length(missing_cols) > 0) {
+  stop("SCHEMA ERROR: Missing required columns: ", paste(missing_cols, collapse = ", "))
+}
+
+# Validate numeric columns are actually numeric (not character due to format change)
+numeric_cols <- c("cumulative_enrollment", "total_suspensions")
+for (col in numeric_cols) {
+  if (!is.numeric(df[[col]])) {
+    stop("SCHEMA ERROR: Column '", col, "' should be numeric but is ", class(df[[col]]))
+  }
+}
+```
+
+**Why Schema Validation Matters**:
+- CDE may change data formats between years (e.g., "2023-24" → "2023-2024")
+- Column names or types may shift in updated Excel files
+- Early detection prevents silent failures downstream
+- Protects against broken pipelines when new data is ingested
 
 #### Stage 1: Locale Classification (`02_feature_locale_simple.R`)
 - **Input**: `susp_v0.parquet`
@@ -1394,4 +1451,8 @@ All cross-references updated to use new paths:
 
 **End of CLAUDE.md**
 
-*This document was comprehensively updated on 2025-11-18 to reflect the repository reorganization. It should be updated whenever major architectural changes occur, new conventions are established, or additional workflows are introduced.*
+*This document was last updated on 2025-11-19. Major updates:*
+- *2025-11-19: Added Python venv setup instructions and schema validation recommendations*
+- *2025-11-18: Comprehensive update to reflect repository reorganization*
+
+*This document should be updated whenever major architectural changes occur, new conventions are established, or additional workflows are introduced.*
