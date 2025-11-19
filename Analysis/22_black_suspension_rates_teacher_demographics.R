@@ -32,6 +32,32 @@ safe_div <- function(num, denom, replace_na_with = NA_real_) {
 
 theme_set(theme_minimal(base_size = 12))
 
+# Helper: flag when teacher demographic columns are inconsistent within a school-year
+warn_on_teacher_inconsistency <- function(df, group_vars, cols) {
+  inconsistencies <- df %>%
+    group_by(across(all_of(group_vars))) %>%
+    summarise(
+      across(all_of(cols), ~ n_distinct(na.omit(.x)), .names = "ndistinct_{.col}"),
+      .groups = "drop"
+    ) %>%
+    pivot_longer(
+      cols = starts_with("ndistinct_"),
+      names_to = "column",
+      values_to = "distinct_values"
+    ) %>%
+    mutate(column = sub("^ndistinct_", "", column)) %>%
+    filter(distinct_values > 1)
+
+  if (nrow(inconsistencies)) {
+    message(
+      "[WARN] Teacher demographic columns vary within some school-years; using first non-missing value."
+    )
+    message(
+      "       Check upstream merges if discrepancies persist."
+    )
+  }
+}
+
 # Color palette for quartiles (use canonical Black quartile colors)
 black_quartile_colors <- setNames(
   c("#FEE5D9", "#FCAE91", "#FB6A4A", "#CB181D"),
@@ -114,6 +140,11 @@ black_students <- black_students %>%
 
 message(">>> Filtered to ", nrow(black_students), " Black student records")
 
+# Ensure quartile values remain within expected bounds
+if (!all(black_students$black_prop_q %in% 1:4)) {
+  stop("Unexpected quartile values detected in black_prop_q; expected integers 1-4.")
+}
+
 # Identify teacher race columns (both totals and by staff type)
 teacher_race_cols <- grep(
   "^teacher_staff_count_(african_american|american_indian|asian|filipino|hispanic_or_latino|pacific_islander|white|two_or_more|not_reported)($|_share$)",
@@ -139,8 +170,16 @@ teacher_race_by_type_cols <- grep(
 )
 
 all_teacher_cols <- unique(c("teacher_staff_count_total", teacher_race_cols, teacher_type_cols, teacher_race_by_type_cols))
+teacher_count_cols <- unique(grep("_share$", all_teacher_cols, value = TRUE, invert = TRUE))
 
 message(">>> Identified ", length(all_teacher_cols), " teacher demographic columns to aggregate")
+
+# Warn if teacher columns vary within school-year groups (should be constant after merge)
+warn_on_teacher_inconsistency(
+  df = black_students,
+  group_vars = c("academic_year", "cds_school"),
+  cols = teacher_count_cols
+)
 
 # Aggregate by quartile and year
 # Method: Sum counts first, then calculate rates (weighted approach)
