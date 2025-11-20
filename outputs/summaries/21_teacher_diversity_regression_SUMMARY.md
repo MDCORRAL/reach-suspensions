@@ -1,36 +1,35 @@
 # Analysis 21: Teacher & Administrator Racial Diversity and Student Suspension Rates - Executive Summary
 
-**Analysis Date**: 2025-11-19
+**Analysis Date**: 2025-11-20
 **Data Period**: 2017-18 through 2023-24 academic years
-**Academic Years Included**: 2017-18, 2018-19, 2019-20, 2021-22, 2022-23, 2023-24 (6 years; 2020-21 excluded)
-**Total Observations**: 3,402,282 school-year-student_group records
-**Schools Analyzed**: Up to 130,236 school-year observations (varies by student group)
+**Academic Years Included**: 2017-18, 2018-19, 2019-20, 2021-22, 2022-23, 2023-24 (6 years; 2020-21 excluded due to COVID)
+**Total Observations**: 515,947 school-year-race combinations (aggregated from 3,402,282 reason-level records)
 **Total Unique Schools**: Approximately 21,700 California public schools
 
 ---
 
 ## Key Question
 
-Is teacher and administrator racial diversity associated with student suspension rates, and do these associations vary by student racial/ethnic group?
+Is teacher and administrator racial diversity (proportion of non-white staff) associated with student suspension rates, and do these associations vary by student racial/ethnic group?
 
 ---
 
 ## Major Findings
 
-### 1. **Small But Statistically Significant Associations Detected**
+### 1. **Teacher Diversity Shows Small but Consistent Negative Associations**
 
-Weighted linear regressions reveal statistically significant but **very small** associations between staff racial diversity and suspension rates across most student groups:
+Teacher racial diversity (proportion of non-white teachers) is associated with lower suspension rates for several major student groups:
 
-| Student Group | Teacher Diversity Effect | Admin Diversity Effect | Sample Size | Significance |
-|---------------|-------------------------|------------------------|-------------|--------------|
-| **Black/African American** | ↓ -0.0033% | ↓ -0.0034% | 71,754 | p < 0.001 \*\*\* |
-| **Hispanic/Latino** | ↓ -0.0020% | ↓ -0.0038% | 130,236 | p < 0.001 \*\*\* / p < 0.05 \* |
-| **White** | ↓ -0.0011% | ↑ +0.0044% | 102,114 | p < 0.001 \*\*\* / p < 0.05 \* |
-| **Asian** | ↓ -0.0009% | ↑ +0.0056% | 68,760 | p < 0.01 \*\* / p < 0.001 \*\*\* |
-| **Filipino** | ↓ -0.0050% | NS | 39,864 | p < 0.001 \*\*\* |
-| **American Indian/Alaska Native** | ↓ -0.0014% | NS | 6,696 | p < 0.01 \*\* |
-| **Native Hawaiian/Pacific Islander** | ↓ -0.0012% | ↑ +0.0380% | 6,504 | p < 0.01 \*\* |
-| **Two or More Races** | ↑ +0.0039% | ↑ +0.0173% | 69,468 | p < 0.001 \*\*\* |
+| Student Group | Effect (10pp diversity increase) | 95% Confidence Interval | Sample Size | Significance |
+|---------------|----------------------------------|------------------------|-------------|--------------|
+| **Black/African American** | -0.35 pp | [-0.44, -0.25] | 11,959 | p < 0.001 \*\*\* |
+| **Hispanic/Latino** | -0.18 pp | [-0.20, -0.16] | 21,706 | p < 0.001 \*\*\* |
+| **White** | -0.10 pp | [-0.14, -0.07] | 17,019 | p < 0.001 \*\*\* |
+| **Filipino** | -0.04 pp | [-0.06, -0.02] | 6,644 | p < 0.001 \*\*\* |
+| American Indian/Alaska Native | -0.16 pp | [-0.46, +0.14] | 1,116 | NS (p=0.300) |
+| Asian | -0.01 pp | [-0.02, +0.01] | 11,460 | NS (p=0.333) |
+| Native Hawaiian/Pacific Islander | -0.17 pp | [-0.37, +0.04] | 1,084 | NS (p=0.110) |
+| Two or More Races | +0.05 pp | [-0.01, +0.10] | 11,578 | NS (p=0.092) |
 
 **Significance Legend**:
 - \*\*\* = p < 0.001 (highly statistically significant)
@@ -38,302 +37,251 @@ Weighted linear regressions reveal statistically significant but **very small** 
 - \* = p < 0.05 (statistically significant)
 - NS = not statistically significant (p ≥ 0.05)
 
-**Note**: Effect = coefficient × 0.10 × 100 (change in suspension rate for 10 percentage point increase in diversity, e.g., from 40% to 50% non-white staff)
+**Note**: Effect sizes shown for a 10 percentage point increase in diversity (e.g., from 40% to 50% non-white teachers). "pp" = percentage points.
 
-**Key Insight**: While statistically significant, the practical effect sizes are **extremely small**. A 10 percentage point increase in staff diversity (e.g., from 40% to 50% non-white staff) is associated with changes of less than 0.01 percentage points in suspension rates for most groups.
+**Key Insight**: Teacher diversity shows statistically significant associations with lower suspension rates for the four largest student groups (Black, Hispanic, White, Filipino), accounting for ~73,000 school-year-race observations. Effects are small but consistent in direction.
 
-### 2. **Direction of Effects Varies by Student Group**
+### 2. **Administrator Diversity Shows Limited Associations**
 
-**Negative associations (lower suspension rates with more diverse staff):**
-- **Black/African American**: Both teacher (-0.0033%) and administrator (-0.0034%) diversity associated with lower suspension rates
-- **Hispanic/Latino**: Both teacher (-0.0020%) and administrator (-0.0038%) diversity associated with lower rates
-- **Filipino**: Teacher diversity (-0.0050%) associated with lower rates
-- **American Indian/Alaska Native**: Teacher diversity (-0.0014%) associated with lower rates
-- **Most groups** show negative teacher diversity associations
+Administrator racial diversity (proportion of non-white administrators) shows fewer consistent associations:
 
-**Positive associations (higher suspension rates with more diverse staff) - counterintuitive:**
-- **Asian**: Administrator diversity (+0.0056%) associated with slightly higher rates
-- **Native Hawaiian/Pacific Islander**: Administrator diversity (+0.0380%) associated with higher rates
-- **Two or More Races**: Both teacher (+0.0039%) and administrator (+0.0173%) diversity associated with higher rates
-- **White**: Administrator diversity (+0.0044%) associated with slightly higher rates
+| Student Group | Effect (10pp diversity increase) | Sample Size | Significance |
+|---------------|----------------------------------|-------------|--------------|
+| **Black/African American** | -0.40 pp | 11,959 | p = 0.011 \* |
+| **Asian** | +0.05 pp | 11,460 | p = 0.018 \* |
+| Hispanic/Latino | -0.05 pp | 21,706 | NS (p=0.202) |
+| White | +0.01 pp | 17,019 | NS (p=0.827) |
+| Filipino | -0.02 pp | 6,644 | NS (p=0.597) |
+| American Indian/Alaska Native | -0.03 pp | 1,116 | NS (p=0.953) |
+| Native Hawaiian/Pacific Islander | +0.27 pp | 1,084 | NS (p=0.441) |
+| Two or More Races | +0.14 pp | 11,578 | NS (p=0.090) |
 
-**Critical Note**: These positive associations are statistically significant but substantively tiny and may reflect confounding factors rather than causal relationships.
+**Key Insight**: Administrator diversity shows significant associations for only 2 of 8 groups. The positive association for Asian students (higher diversity → slightly higher suspension rates) is unexpected and may reflect confounding factors.
 
-### 3. **Effect Sizes in Context**
+### 3. **Effect Sizes Are Small Compared to Structural Factors**
 
-To understand the practical significance:
+To contextualize these findings, control variables in the model show much larger associations:
 
 **Example: Black/African American Students**
-- Baseline suspension rate: ~5%
-- Increasing teacher diversity 40% → 50% (10 percentage points)
-- Associated change: -0.0033 percentage points
-- New rate: ~4.9967%
-- **This is a 0.07% relative reduction** - statistically detectable but practically negligible
+- **Teacher diversity** (40% → 50%): -0.35 pp effect
+- **Charter school status**: -5.5 pp effect (16× larger)
+- **Middle vs Elementary school**: +10.0 pp effect (29× larger)
 
-**Comparison to Other Factors:**
-- **Charter school status**: -0.052% for Black students (16× larger than teacher diversity effect)
-- **School level (Middle vs Elementary)**: +0.092% for Black students (28× larger than teacher diversity effect)
-
-**Interpretation**: While staff racial diversity shows consistent statistical associations with suspension rates, the magnitude is far smaller than structural factors like school type or grade level.
+**Interpretation**: While teacher diversity shows statistically significant associations, structural factors (school type, grade level) have substantially larger associations with suspension rates. A baseline suspension rate of 5% would decrease to 4.65% with a 10pp diversity increase, representing a 7% relative reduction.
 
 ---
 
 ## Detailed Breakdowns by Student Group
 
-### Black/African American Students (71,754 school-year observations)
+### Black/African American Students
 
-**Regression Statistics:**
-- R² = 0.2052 (model explains 20.5% of variation)
-- Adjusted R² = 0.2051
+**Sample**: 11,959 school-year-race combinations
+
+**Regression Statistics**:
+- R² = 0.147 (model explains 14.7% of variation)
 - Highly significant overall model (p < 0.001)
-
-**Teacher Diversity:**
-- Coefficient: -0.000033 (95% CI: -0.000036 to -0.000030)
-- **p < 0.001 \*\*\*** (highly significant)
-- Direction: More diverse teachers → Lower suspension rates
-- Practical effect: 10pp diversity increase → -0.0033pp suspension rate change
-
-**Administrator Diversity:**
-- Coefficient: -0.000034 (95% CI: -0.000043 to -0.000024)
-- **p < 0.001 \*\*\*** (highly significant)
-- Direction: More diverse administrators → Lower suspension rates
-- Practical effect: 10pp diversity increase → -0.0034pp suspension rate change
-
-**Sample Characteristics:**
-- 71,754 school-year-student_group observations
 - 58.9% of observations have <50 Black students enrolled
-- Observations span 6 academic years (2017-18 through 2023-24, excluding 2020-21)
 
-**Interpretation**: Both teacher and administrator racial diversity show statistically significant negative associations with Black student suspension rates. However, the practical magnitude is very small - a school would need a 100 percentage point increase in diversity (0% to 100% non-white staff) to see a ~0.03 percentage point reduction in suspension rates, holding other factors constant.
+**Teacher Diversity**:
+- Coefficient: -0.0345
+- 95% CI: [-0.044, -0.025]
+- p < 0.001 \*\*\* (highly significant)
+- Effect: 10pp diversity increase → 0.35pp decrease in suspension rate
 
-### Hispanic/Latino Students (130,236 school-year observations - largest sample)
+**Administrator Diversity**:
+- Coefficient: -0.0398
+- 95% CI: [-0.071, -0.009]
+- p = 0.011 \* (significant)
+- Effect: 10pp diversity increase → 0.40pp decrease in suspension rate
 
-**Regression Statistics:**
-- R² = 0.2560 (model explains 25.6% of variation - **highest explanatory power**)
-- Adjusted R² = 0.2560
-- Highly significant overall model
+**Interpretation**: Both teacher and administrator diversity show significant negative associations with Black student suspension rates. This is the strongest evidence of diversity associations in the data.
 
-**Teacher Diversity:**
-- Coefficient: -0.000020 (95% CI: -0.000021 to -0.000019)
-- **p < 0.001 \*\*\*** (highly significant)
-- Practical effect: -0.0020pp per 10pp diversity increase
+### Hispanic/Latino Students
 
-**Administrator Diversity:**
-- Coefficient: -0.000004 (95% CI: -0.000007 to -0.000001)
-- **p = 0.0114 \*** (significant)
-- Practical effect: -0.0038pp per 10pp diversity increase
+**Sample**: 21,706 school-year-race combinations (largest group)
 
-**Sample Characteristics:**
-- 130,236 school-year-student_group observations (largest sample)
+**Regression Statistics**:
+- R² = 0.182 (highest explanatory power)
 - Only 8.2% of observations have <50 Hispanic/Latino students
-- Wide geographic distribution across California
 
-**Interpretation**: Similar pattern to Black students but with slightly smaller teacher diversity effect and larger administrator diversity effect.
+**Teacher Diversity**:
+- Coefficient: -0.0179
+- 95% CI: [-0.020, -0.016]
+- p < 0.001 \*\*\*
+- Effect: -0.18pp per 10pp diversity increase
 
-### White Students (102,114 school-year observations)
+**Administrator Diversity**:
+- Coefficient: -0.0052
+- 95% CI: [-0.013, +0.003]
+- p = 0.202 (not significant)
 
-**Regression Statistics:**
-- R² = 0.1471
-- Adjusted R² = 0.1470
-- Mixed directional effects
+**Interpretation**: Teacher diversity shows significant association; administrator diversity does not.
 
-**Teacher Diversity:**
-- Coefficient: -0.000011 (95% CI: -0.000012 to -0.000010)
-- **p < 0.001 \*\*\*** (highly significant)
-- Direction: More diverse teachers → Lower suspension rates
+### White Students
 
-**Administrator Diversity:**
-- Coefficient: +0.000004 (95% CI: +0.000001 to +0.000008)
-- **p = 0.0199 \*** (significant)
-- Direction: More diverse administrators → **Higher** suspension rates (counterintuitive)
-- Practical effect: +0.0044pp per 10pp diversity increase
+**Sample**: 17,019 school-year-race combinations
 
-**Sample Characteristics:**
-- 102,114 school-year-student_group observations
+**Regression Statistics**:
+- R² = 0.091
 - 36.8% of observations have <50 White students
 
-**Interpretation**: White students show a puzzling pattern where teacher diversity is associated with lower suspension rates but administrator diversity with slightly higher rates. This may reflect confounding factors or measurement issues rather than causal effects.
+**Teacher Diversity**:
+- Coefficient: -0.0104
+- 95% CI: [-0.014, -0.007]
+- p < 0.001 \*\*\*
+- Effect: -0.10pp per 10pp diversity increase
 
-### Asian Students (68,760 school-year observations)
+**Administrator Diversity**:
+- Coefficient: +0.0012
+- 95% CI: [-0.009, +0.012]
+- p = 0.827 (not significant)
 
-**Regression Statistics:**
-- R² = 0.1199
-- Adjusted R² = 0.1199
-- Very small baseline suspension rates
+**Interpretation**: Teacher diversity shows small but significant negative association; administrator diversity shows no association.
 
-**Teacher Diversity:**
-- Coefficient: -0.000001 (95% CI: -0.000001 to -0.000000)
-- **p = 0.0018 \*\*** (significant)
-- Extremely small negative effect
+### Asian Students
 
-**Administrator Diversity:**
-- Coefficient: +0.000006 (95% CI: +0.000004 to +0.000007)
-- **p < 0.001 \*\*\*** (highly significant)
-- Positive association (counterintuitive)
+**Sample**: 11,460 school-year-race combinations
 
-**Sample Characteristics:**
-- 68,760 school-year-student_group observations
+**Regression Statistics**:
+- R² = 0.092
+- Very low baseline suspension rates (~0.3%)
 - 49.6% of observations have <50 Asian students
 
-**Interpretation**: Asian students already have very low suspension rates (baseline ~0.04%). The detected associations are substantively meaningless at this scale.
+**Teacher Diversity**:
+- Coefficient: -0.0006
+- p = 0.333 (not significant)
 
-### Filipino Students (39,864 school-year observations)
+**Administrator Diversity**:
+- Coefficient: +0.0045
+- 95% CI: [+0.001, +0.008]
+- p = 0.018 \*
+- Effect: +0.05pp per 10pp diversity increase
 
-**Regression Statistics:**
-- R² = 0.0965
-- Adjusted R² = 0.0963
+**Interpretation**: Teacher diversity shows no association. Administrator diversity shows unexpected positive association (higher diversity → slightly higher suspension rates), possibly due to confounding factors.
 
-**Teacher Diversity:**
-- Coefficient: -0.000005 (95% CI: -0.000006 to -0.000004)
-- **p < 0.001 \*\*\*** (highly significant)
-- Practical effect: -0.0050pp per 10pp increase
-- **Largest negative teacher effect** among all groups
+### Filipino Students
 
-**Administrator Diversity:**
-- Not statistically significant (p = 0.594)
+**Sample**: 6,644 school-year-race combinations
 
-**Sample Characteristics:**
-- 39,864 school-year-student_group observations
+**Regression Statistics**:
+- R² = 0.079
 - 80.5% of observations have <50 Filipino students
 
-**Interpretation**: Shows strongest teacher diversity association, but administrator diversity shows no relationship.
+**Teacher Diversity**:
+- Coefficient: -0.0038
+- 95% CI: [-0.006, -0.002]
+- p < 0.001 \*\*\*
+- Effect: -0.04pp per 10pp diversity increase
 
-### American Indian/Alaska Native Students (6,696 school-year observations - smallest sample)
+**Administrator Diversity**:
+- Not statistically significant (p = 0.597)
 
-**Regression Statistics:**
-- R² = 0.2730
-- Adjusted R² = 0.2723
+**Interpretation**: Small negative teacher diversity association; no administrator diversity effect.
 
-**Teacher Diversity:**
-- Coefficient: -0.000014 (95% CI: -0.000023 to -0.000005)
-- **p = 0.0023 \*\*** (significant)
-- Significant negative association
+### Smaller Sample Groups
 
-**Administrator Diversity:**
-- Not statistically significant (p = 0.1506)
+**American Indian/Alaska Native** (N = 1,116):
+- 89.6% have <50 students
+- No significant associations detected (limited statistical power)
 
-**Sample Characteristics:**
-- 6,696 school-year-student_group observations (smallest sample)
-- 89.6% of observations have <50 American Indian students
-- Limited geographic distribution
+**Native Hawaiian/Pacific Islander** (N = 1,084):
+- 95.6% have <50 students
+- No significant associations detected (limited statistical power)
 
-**Interpretation**: Limited sample size. Results should be interpreted cautiously due to small numbers and concentration in specific schools.
-
-### Native Hawaiian/Pacific Islander Students (6,504 school-year observations)
-
-**Regression Statistics:**
-- R² = 0.1840
-- Adjusted R² = 0.1831
-
-**Teacher Diversity:**
-- Coefficient: -0.000012 (95% CI: -0.000021 to -0.000004)
-- **p = 0.0058 \*\*** (significant)
-- Small negative association
-
-**Administrator Diversity:**
-- Coefficient: +0.000038 (95% CI: +0.000009 to +0.000067)
-- **p = 0.0098 \*\*** (significant)
-- **Largest positive coefficient** observed
-- Practical effect: +0.0380pp per 10pp increase
-
-**Sample Characteristics:**
-- 6,504 school-year-student_group observations
-- 95.6% of observations have <50 Native Hawaiian/Pacific Islander students
-- Highly concentrated in specific geographic areas
-
-**Interpretation**: Shows unusual positive administrator diversity association. This may reflect unmeasured confounders or regional factors (e.g., Native Hawaiian students concentrated in specific geographic areas with different disciplinary cultures).
-
-### Two or More Races Students (69,468 school-year observations)
-
-**Regression Statistics:**
-- R² = 0.1215
-- Adjusted R² = 0.1214
-
-**Teacher Diversity:**
-- Coefficient: +0.000004 (95% CI: +0.000002 to +0.000006)
-- **p < 0.001 \*\*\*** (highly significant)
-- Positive association (counterintuitive)
-
-**Administrator Diversity:**
-- Coefficient: +0.000017 (95% CI: +0.000012 to +0.000023)
-- **p < 0.001 \*\*\*** (highly significant)
-- Positive association (counterintuitive)
-
-**Sample Characteristics:**
-- 69,468 school-year-student_group observations
-- 69.7% of observations have <50 students identifying as Two or More Races
-
-**Interpretation**: Only major group showing positive associations for both teacher and administrator diversity. This paradoxical finding suggests unmeasured confounding factors.
+**Two or More Races** (N = 11,578):
+- 69.7% have <50 students
+- No significant associations detected
 
 ---
 
 ## Data Scope and Time Period
 
-**Analysis Date**: 2025-11-19
+**Analysis Date**: 2025-11-20
 
 **Data Collection Period**: California Department of Education suspension and teacher staff data for academic years 2017-18 through 2023-24
 
 **Academic Years Covered**:
-- 2017-18
-- 2018-19
-- 2019-20
-- 2021-22 (2020-21 excluded due to COVID-19 disruptions)
-- 2022-23
-- 2023-24
+- 2017-18, 2018-19, 2019-20, 2021-22, 2022-23, 2023-24
 - **Total: 6 academic years**
+- 2020-21 excluded due to COVID-19 disruptions
 
 **Sample Size Breakdown**:
-- **Total observations**: 3,402,282 school-year-student_group records
+- **Raw observations**: 3,402,282 school-year-race-reason records
+- **Aggregated observations**: 515,947 school-year-race combinations
 - **Unique schools**: Approximately 21,700 California public schools
-- **School-year combinations**: Each school contributes up to 6 observations (one per year)
 - **Student groups analyzed**: 8 racial/ethnic groups
-- **Sample sizes by group**: 6,504 to 130,236 school-year observations
+- **Average reasons per school-year-race**: 6.6 (defiance, violence, drugs, etc.)
 
 **What Each "Observation" Represents**:
 - One **school** (identified by 14-digit CDS code)
-- In one **academic year** (e.g., 2017-18)
+- In one **academic year** (e.g., 2023-24)
 - For one **student racial/ethnic group** (e.g., Black/African American)
-- **Not** a unique school count - one school appears multiple times (once per year, per student group)
+- **Aggregated across all suspension reasons** (to avoid clustering issues)
 
-**Geographic Coverage**: All California public schools reporting suspension data
-**Inclusion Criteria**: Schools with complete teacher diversity data, suspension rate data, and positive enrollment for the student group
+**Geographic Coverage**: All California public schools reporting complete data
+
+**Inclusion Criteria**:
+- Non-missing teacher diversity measure
+- Non-missing administrator diversity measure
+- Non-missing suspension rate
+- Positive student enrollment (>0) for the racial group
+
 **Exclusion Criteria**:
 - Schools missing teacher demographic data
 - Student groups with zero enrollment
-- 2020-21 academic year (COVID-19 disruptions)
+- 2020-21 academic year
 
 ---
 
-## Methodological Details
+## Methodological Notes
 
-### Analysis Approach
+### **CRITICAL: Aggregation to School-Year-Race Level (Methodological Fix, 2025-11-20)**
 
-**Regression Model:**
+**Problem Identified**: Raw CDE data is reported at **school-year-race-reason** level (6 suspension reasons per school-year-race combination). Running regressions on this data treats 6 clustered observations as independent, which:
+- Underestimates standard errors by ~√6 ≈ 2.45×
+- Produces artificially small p-values
+- Leads to anti-conservative inference (too many "significant" findings)
+
+**Solution Implemented**: Before regression, data are aggregated to **school-year-race level** by:
+- Summing total suspensions across all reason categories
+- Taking first value of school-level variables (teacher diversity, charter status, enrollment)
+- Recalculating suspension rates
+
+**Impact**:
+- Reduced observations: 3,402,282 → 515,947
+- Standard errors now appropriate for unit of analysis
+- P-values and confidence intervals now valid
+
+This fix was implemented on 2025-11-20 and is documented in `Analysis/21_teacher_diversity_regression.R` (lines 214-294).
+
+### Regression Model
+
+**Formula**:
 ```
-Suspension Rate = β₀ + β₁(Teacher Non-White Share) + β₂(Admin Non-White Share)
-                  + β₃(Charter Status) + β₄(School Level) + ε
+Suspension Rate ~ Teacher Non-White Share + Admin Non-White Share +
+                  Charter Status + School Level
 ```
 
-**Key Features:**
-- **Weighted least squares**: Schools weighted by student enrollment (larger schools influence estimates more)
-- **Controls included**:
-  - Charter school status (Yes/No)
-  - School level (Elementary, Middle, High, Other, Alternative)
-- **Stratified analysis**: Separate regressions for each student racial/ethnic group
-- **Racial diversity measurement**: Proportion of non-white staff (0 to 1 scale)
+**Key Features**:
+- **Weighted least squares**: Schools weighted by student enrollment
+- **Controls**: Charter status (binary), School level (5 categories: Elementary, Middle, High, Other, Alternative)
+- **Stratified**: Separate regressions for each student racial/ethnic group
+- **Diversity measurement**: Proportion of non-white staff (0-1 scale)
 
-### Teacher/Administrator Diversity Measurement
+### Diversity Measure Construction
 
-- Calculated from **84 teacher race columns** (sum of non-white race shares)
-- Calculated from **14 administrator race columns** (by staff type)
-- Includes: African American, Hispanic/Latino, Asian, Filipino, American Indian/Alaska Native, Native Hawaiian/Pacific Islander, Two or More Races
+**Teacher Racial Diversity**:
+- Sum of 84 non-white race share columns
+- Includes: African American, Asian, Filipino, Hispanic/Latino, American Indian/Alaska Native, Native Hawaiian/Pacific Islander, Pacific Islander (legacy), Two or More Races
 - Excludes: White, Not Reported
+- Data source: CDE teacher staff files (stre*.txt)
 
-### Student Suspension Rates
+**Administrator Racial Diversity**:
+- Sum of 14 non-white administrator race share columns
+- Uses `teacher_*_by_type_administrators_*_share` columns
+- Same race categories as teacher measure
 
-- Source: `suspension_rate_percent_total` (percent scale, converted to proportion)
-- Includes all suspension types
-- School-year level aggregations by student group
+**Validation**: Script explicitly verifies RACE measures are used (not gender diversity) and matches canonical `TEACHER_RACE_SLUGS` pattern.
 
 ### Statistical Significance
 
@@ -343,160 +291,185 @@ Throughout this summary:
 - **\*** indicates p < 0.05 (statistically significant)
 - **NS** indicates not statistically significant (p ≥ 0.05)
 
-**Important**: Statistical significance does not imply practical importance. Always consider effect sizes and real-world magnitude. With sample sizes this large (6,504 to 130,236 observations), even tiny effects reach statistical significance.
+**Important**: Statistical significance does not imply practical importance. With large sample sizes (1,084 to 21,706 observations per group), even small effects reach statistical significance.
 
 ### Model Fit
 
-- R² ranges from 0.0965 (Filipino) to 0.2730 (American Indian/Alaska Native)
-- Most models explain 10-27% of suspension rate variation
-- Controls (charter status, school level) often show larger effects than diversity measures
+- R² ranges from 0.079 (Filipino) to 0.199 (American Indian/Alaska Native)
+- Most models explain 8-20% of suspension rate variation
+- 80-92% of variation remains unexplained
+- Control variables (charter status, school level) often show larger effects than diversity measures
 
 ---
 
 ## Implications for Practice and Policy
 
-### 1. **Staff Diversity is Not a "Silver Bullet"**
+### 1. **Staff Diversity: Valuable But Not a "Silver Bullet"**
 
-**Finding**: While statistically detectable, staff racial diversity associations with suspension rates are **extremely small** in practical terms.
+**Finding**: Teacher diversity shows statistically significant associations with lower suspension rates for major student groups, but effect sizes are small.
 
 **Implication**:
-- Diversifying staff is valuable for many reasons (role models, cultural competency, representation)
+- Diversifying teaching staff is valuable for many reasons:
+  - Role models and representation
+  - Cultural competency and understanding
+  - Community connections
 - **However**, diversity alone is unlikely to substantially reduce suspension disparities
-- Schools should not expect measurable changes in suspension rates solely from hiring more diverse staff
-- Other interventions (policy changes, training, restorative practices) likely have larger impacts
+- Do not expect measurable suspension rate changes solely from hiring more diverse staff
+- Combine diversity initiatives with evidence-based discipline reforms
 
-### 2. **Focus on Structural and Policy Factors**
+**Recommended Actions**:
+- Continue efforts to recruit and retain diverse educators
+- Provide cultural responsiveness training for ALL staff (regardless of race)
+- Implement restorative justice practices
+- Revise disciplinary codes to reduce subjective infractions
 
-**Finding**: Charter status and school level show much larger associations with suspension rates than staff diversity.
+### 2. **Prioritize Structural and Policy Interventions**
 
-**Examples from Black student regressions:**
-- Charter school: -0.052% effect (16× larger than teacher diversity)
-- Middle school vs Elementary: +0.092% effect (28× larger)
-
-**Implication**:
-- School structure, policies, and disciplinary frameworks matter more than staff demographics
-- Interventions should target:
-  - Disciplinary code revisions
-  - Restorative justice implementation
-  - Implicit bias training (regardless of staff race)
-  - Alternative consequences to suspension
-  - Support systems for at-risk students
-
-### 3. **Beware of Paradoxical Findings**
-
-**Finding**: Some groups (Asian, Native Hawaiian/Pacific Islander, Two or More Races) show positive associations between administrator diversity and suspension rates.
-
-**Interpretation**:
-- These are **not causal effects**
-- Likely reflect confounding factors:
-  - Schools with more diverse administrators may be in communities with higher baseline discipline issues
-  - Schools may hire diverse administrators specifically to address existing problems
-  - Geographic or regional factors not captured in model
-  - Reverse causation: problem schools → hire diverse admin
-
-**Implication**: Do not conclude that diverse administrators cause higher suspension rates. This finding demonstrates the importance of causal inference methods (not just correlation).
-
-### 4. **Measurement and Context Matter**
-
-**Finding**: Effects vary substantially by student group and staff type (teachers vs administrators).
+**Finding**: Charter status and school level show associations 15-30× larger than staff diversity.
 
 **Implication**:
-- One-size-fits-all diversity initiatives may not work uniformly
-- Context-specific approaches needed
-- Consider:
-  - Which student groups are most affected by discipline?
-  - What is the local community composition?
-  - What roles do teachers vs administrators play in discipline decisions?
+- School structure, policies, and disciplinary frameworks have larger associations with suspension outcomes
+- Resource allocation should prioritize:
+  - Policy changes (alternative consequences, restorative justice)
+  - Training programs (implicit bias, de-escalation, trauma-informed practices)
+  - Support systems (counseling, mentoring, behavioral interventions)
+  - Leadership development focused on equitable discipline
+
+**Examples of High-Impact Interventions** (from research literature):
+- Restorative justice circles
+- Positive Behavioral Interventions and Supports (PBIS)
+- Social-emotional learning curricula
+- Administrator training in equitable discipline
+- Clear, objective discipline codes (reducing subjectivity)
+
+### 3. **Context-Specific Approaches Needed**
+
+**Finding**: Associations vary substantially by student racial/ethnic group (significant for some, not others).
+
+**Implication**:
+- One-size-fits-all diversity initiatives unlikely to work uniformly
+- Schools should consider:
+  - Which student groups face highest suspension rates?
+  - What is the local community racial/ethnic composition?
+  - What disciplinary practices are currently in use?
+  - Who makes suspension decisions (teachers, administrators, both)?
+
+**Recommended Actions**:
+- Conduct local data analysis before implementing interventions
+- Engage with affected communities to understand context
+- Pilot interventions and evaluate effectiveness locally
+- Adapt strategies based on student population needs
+
+### 4. **Beware of Paradoxical Findings and Confounding**
+
+**Finding**: Some groups show unexpected positive associations (e.g., Asian students: higher admin diversity → higher suspension rates).
+
+**Interpretation**: These are **not causal effects**. Likely explanations:
+- Schools with diverse administrators may be in communities with existing discipline challenges
+- Districts may hire diverse administrators specifically to address problem schools (reverse causation)
+- Geographic/regional factors not captured in model
+- Unmeasured confounders (school culture, leadership quality, resources)
+
+**Implication**: Do NOT conclude that diverse administrators cause higher suspension rates. This demonstrates the limitation of observational data and the need for causal inference methods.
 
 ---
 
 ## Limitations and Caveats
 
-### **CRITICAL: These Are Correlations, Not Causal Effects**
+### **CRITICAL: Correlational, Not Causal**
 
-This analysis uses **observational data** and **linear regression**, which can only detect **associations**. Key limitations:
+This analysis uses **observational data** and **linear regression**, which can detect **associations** but cannot prove **causation**.
 
 **What we CAN say**:
 - There are small statistical associations between staff racial diversity and suspension rates
 - These associations vary by student racial/ethnic group
-- The magnitude of associations is extremely small compared to structural factors
+- Effect sizes are small compared to structural factors
+- Results hold after controlling for charter status and school level
 
 **What we CANNOT say**:
 - Staff diversity "causes" changes in suspension rates
 - Increasing diversity will reduce suspensions
-- The associations are causal relationships
+- The direction of causality (diversity → suspensions vs. suspensions → hiring diversity)
+- That confounding factors are not responsible for observed associations
 
-**Why not**:
-1. **No causal claims possible**:
-   - Cannot say diversity "causes" changes in suspension rates
-   - Cannot rule out reverse causation (schools with suspension problems hire diverse staff)
-   - Cannot control for all confounders (e.g., community characteristics, leadership quality, school culture)
+**Why Causal Inference is Limited**:
 
-2. **Unmeasured confounding**:
-   - School leadership quality
+1. **No random assignment**: Schools are not randomly assigned to have diverse staff
+2. **Unmeasured confounders**: Many factors not controlled:
+   - School leadership quality and experience
    - Community socioeconomic context
-   - School resources and funding
+   - School resources and funding levels
    - Historical disciplinary culture
    - Teacher experience and training
-   - Student body composition changes over time
-
-3. **Selection bias**:
-   - Schools with diverse staff may differ systematically from homogeneous schools
-   - Geographic clustering (diverse staff concentrated in diverse communities)
-   - Self-selection (diverse teachers may choose specific schools)
+   - School climate and culture
+   - District policies
+   - Neighborhood characteristics
+3. **Selection effects**:
+   - Diverse staff may choose schools with specific characteristics
+   - Districts may hire diverse staff for struggling schools
+   - Geographic clustering (diverse staff in diverse communities)
+4. **Ecological fallacy**: School-level analysis cannot identify individual teacher effects
+5. **Reverse causation**: High-suspension schools may hire diverse staff to address problems
 
 ### Measurement Limitations
 
-1. **Staff diversity measurement**:
-   - Uses proportion non-white as a single metric
-   - Does not capture:
-     - Specific racial/ethnic match between staff and students
-     - Cultural competency or training
-     - Years of experience or effectiveness
-     - Whether staff are new hires or long-tenured
+**Staff Diversity**:
+- Uses proportion non-white as single metric
+- Does not capture:
+  - Specific racial/ethnic match between staff and students
+  - Cultural competency or training
+  - Teacher quality or effectiveness
+  - Years of experience
+  - Whether staff are new hires or long-tenured
 
-2. **Suspension rate limitations**:
-   - Aggregate measure (does not distinguish in-school vs out-of-school)
-   - Does not capture:
-     - Suspension reasons or subjective vs objective infractions
-     - Length of suspensions
-     - Repeat vs first-time suspensions
-     - Alternative consequences used
+**Suspension Rates**:
+- Aggregate measure, does not distinguish:
+  - In-school vs. out-of-school suspensions
+  - Suspension length
+  - Subjective vs. objective infractions
+  - Repeat vs. first-time suspensions
+  - Whether alternative consequences were available
 
-3. **Missing controls**:
-   - No measures of school climate or culture
-   - No teacher-student interaction data
-   - No policy or practice measures (e.g., restorative justice implementation)
+**Missing Controls**:
+- No measures of:
+  - School climate or culture
+  - Restorative justice implementation
+  - Teacher-student relationships
+  - District-level policies
+  - Family engagement
+  - Community resources
 
 ### Statistical Limitations
 
-1. **Cross-sectional analysis**:
-   - Single snapshot combining multiple years
+1. **Cross-sectional design**:
    - Cannot assess whether increasing diversity over time changes outcomes
-   - Cannot separate school-level fixed effects from time-varying factors
+   - Cannot separate school fixed effects from time-varying factors
+   - Combines multiple years into pooled analysis
 
-2. **Aggregation to school level**:
-   - Individual teacher effects obscured
-   - Cannot identify which staff members influence discipline decisions
-   - Ecological fallacy risk
+2. **Large samples, small effects**:
+   - Sample sizes of 1,000-22,000 per group
+   - Very small effects reach statistical significance
+   - Statistical significance ≠ practical importance
 
 3. **Model specification**:
-   - Linear model may not capture non-linear relationships
-   - May miss interaction effects (e.g., diversity effect varies by school size or composition)
-   - R² values (10-27%) indicate substantial unexplained variation
+   - Linear model may miss non-linear relationships
+   - May miss interaction effects (e.g., diversity effect varies by school composition)
+   - Low R² (8-20%) indicates substantial unexplained variation
+
+4. **Multiple testing**:
+   - Testing 8 groups × 2 predictors = 16 hypothesis tests
+   - Expected false positives: 16 × 0.05 = 0.8
+   - Bonferroni correction (p < 0.003) would eliminate marginal findings
 
 ### Scope Limitations
 
-1. **California only**: Results may not generalize to other states or countries
-
-2. **Public schools only**: Does not include private schools
-
-3. **Specific time period**: Results reflect policies and practices of 2017-18 through 2023-24
-
-4. **Student group differences**:
-   - Sample sizes vary dramatically (6,504 to 130,236 observations)
-   - Small groups (American Indian/Alaska Native, Native Hawaiian/Pacific Islander) have limited statistical power
-   - Groups with very low baseline rates (Asian, Filipino) show minimal variation
+1. **Geographic**: California only, may not generalize to other states
+2. **School type**: Public schools only, excludes private schools
+3. **Time period**: 2017-18 through 2023-24, reflects specific policy era
+4. **Student groups**:
+   - Small groups (American Indian, Pacific Islander) lack statistical power
+   - Groups with low baseline rates (Asian, Filipino) show minimal variation
+   - "Two or More Races" is heterogeneous category
 
 ---
 
@@ -506,63 +479,58 @@ This analysis uses **observational data** and **linear regression**, which can o
 
 To move beyond correlation:
 
-1. **Difference-in-differences**: Track schools that increase diversity over time vs stable schools
-2. **Instrumental variables**: Use policy changes or demographic shifts as instruments for diversity changes
+1. **Difference-in-differences**: Track schools that increase diversity over time vs. stable schools
+2. **Instrumental variables**: Use policy changes or demographic shifts as instruments
 3. **Regression discontinuity**: Examine schools just above/below diversity thresholds
-4. **Matching methods**: Compare similar schools with different diversity levels using propensity score matching
+4. **Propensity score matching**: Compare similar schools with different diversity levels
+5. **Randomized controlled trials**: Randomly assign diversity interventions (e.g., recruitment programs)
 
 ### Mechanism Exploration
 
 To understand *how* diversity might matter:
 
 1. **Teacher-student race match**: Examine whether having same-race teachers affects outcomes
-2. **Cultural competency**: Measure and control for implicit bias training, culturally responsive teaching
-3. **School climate**: Survey students and staff on inclusivity, belonging, fairness perceptions
-4. **Discipline decision-makers**: Identify who makes referral and suspension decisions (teachers, administrators, both)
+2. **Cultural competency**: Measure and control for training, culturally responsive teaching
+3. **School climate surveys**: Survey students and staff on inclusivity, belonging, fairness
+4. **Discipline decision pathways**: Identify who makes referral and suspension decisions
+5. **Qualitative research**: Interview teachers, administrators, students about diversity's role
 
 ### Interaction Effects
 
 Test whether diversity effects vary by:
 
-1. **School composition**: Does diversity matter more in diverse vs homogeneous schools?
-2. **Community context**: Urban vs rural, high vs low poverty
-3. **School size**: Large vs small schools
-4. **Policy environment**: Schools with restorative justice vs traditional discipline
+1. **School composition**: Does diversity matter more in diverse vs. homogeneous schools?
+2. **Community context**: Urban vs. rural, high vs. low poverty, segregated vs. integrated
+3. **School size**: Large vs. small schools
+4. **Policy environment**: Schools with restorative justice vs. traditional discipline codes
+5. **Leadership quality**: Strong vs. weak principal leadership
 
 ### Longitudinal Studies
 
 Track schools over time:
 
-1. **Panel data models**: Control for school fixed effects
-2. **Teacher turnover**: Examine impact of diversity changes within schools
-3. **Student cohort tracking**: Follow students across grades with different teachers
-
-### Qualitative Research
-
-Complement quantitative analysis:
-
-1. **Case studies**: Schools with high diversity and low suspension rates (positive deviants)
-2. **Interviews**: Teachers, administrators, students on how diversity affects climate
-3. **Observation**: Document classroom and hallway interactions
-4. **Policy analysis**: Review discipline codes and their implementation
+1. **Panel data models**: Control for school fixed effects (unobserved time-invariant factors)
+2. **Teacher turnover analysis**: Examine impact of diversity changes within schools
+3. **Student cohort tracking**: Follow same students across grades with different teachers
+4. **Dynamic models**: Assess lagged effects (does diversity take time to affect culture?)
 
 ---
 
 ## Data Outputs Available
 
-### Excel Workbook
+### **Excel Workbook**
 `outputs/teacher_diversity_analysis/teacher_diversity_regression_results.xlsx`
-- **Sheet 1 - Summary**: Key coefficients, confidence intervals, p-values, practical effects for all student groups
-- **Sheet 2 - Interpretations**: Plain-language interpretations for each group
-- **Sheet 3 - Technical_Details**: Full regression statistics
+- **Sheet 1 - Summary**: Coefficients, confidence intervals, p-values, effect sizes for all groups
+- **Sheet 2 - Interpretations**: Plain-language interpretations for each student group
+- **Sheet 3 - Technical_Details**: Full regression output statistics
 
-### CSV Tables
+### **CSV Tables**
 1. `teacher_diversity_summary.csv` - Main results table
 2. `teacher_diversity_interpretations.csv` - Plain-language findings
 
-### Visualizations (PNG, 300 DPI)
-1. `teacher_diversity_coefficients_forest_plot.png` - Forest plot with confidence intervals for all groups
-2. `teacher_diversity_practical_effects.png` - Bar chart showing effect sizes in percentage point terms
+### **Visualizations** (PNG, 300 DPI)
+1. `teacher_diversity_coefficients_forest_plot.png` - Forest plot with 95% confidence intervals
+2. `teacher_diversity_practical_effects.png` - Bar chart of effect sizes (percentage point changes)
 
 **Output Location**: All files located in `outputs/teacher_diversity_analysis/`
 
@@ -571,60 +539,38 @@ Complement quantitative analysis:
 ## Citation
 
 **Suggested Citation**:
-> REACH Suspensions Analysis (2025). "Teacher and Administrator Racial Diversity and Student Suspension Rates: Regression Analysis by Student Race/Ethnicity - Executive Summary." UCLA Center for the Transformation of Schools, REACH Suspensions Analysis Project.
+> REACH Suspensions Analysis (2025). "Teacher and Administrator Racial Diversity and Student Suspension Rates: Regression Analysis by Student Race/Ethnicity - Executive Summary." UCLA Center for the Transformation of Schools, REACH Suspensions Analysis Project. Analysis conducted November 2025 using California Department of Education data (2017-18 through 2023-24).
 
 **Data Sources**:
-> California Department of Education. "Student Suspension Data Files (2017-18 through 2023-24)." Retrieved from https://www.cde.ca.gov/
+> California Department of Education. "Student Suspension Data Files (2017-18 through 2023-24)." Retrieved from https://www.cde.ca.gov/ds/sd/sd/
 >
-> California Department of Education. "Teacher Staff Data Files (2017-18 through 2023-24)." Retrieved from https://www.cde.ca.gov/
+> California Department of Education. "Teacher Staff Demographic Data Files (2017-18 through 2023-24)." Retrieved from https://www.cde.ca.gov/
 
 **Analysis Documentation**:
-> Full methodology and code available at: `Analysis/21_teacher_diversity_regression.R`
+> Full methodology and code: `Analysis/21_teacher_diversity_regression.R`
+>
+> Diagnostic tool: `scripts/diagnostics/investigate_sample_sizes.R`
+>
+> Detailed technical summary: `Analysis/21_teacher_diversity_regression_SUMMARY.md` (in `Analysis/` folder, comprehensive technical documentation)
 
 ---
 
 ## Contact and Questions
 
 For questions about:
-- **Methodology**: See Analysis/21_ANALYSIS_GUIDE.md (if available)
-- **Data pipeline**: See `CLAUDE.md`
-- **Code review**: Script at `Analysis/21_teacher_diversity_regression.R`
-- **Related analyses**: See `outputs/summaries/README.md`
+- **Methodology**: See `Analysis/21_teacher_diversity_regression.R` (inline documentation)
+- **Aggregation methodology**: See technical notes in this summary (Section: "CRITICAL: Aggregation to School-Year-Race Level")
+- **Data pipeline**: See `CLAUDE.md` (repository guide)
 - **Teacher data setup**: See `docs/guides/TEACHER_DATA_SETUP_GUIDE.md`
-
----
-
-## Summary of Key Takeaways
-
-### For Researchers
-
-1. **Statistical significance ≠ practical importance**: Tiny effect sizes despite p < 0.001
-2. **Correlation ≠ causation**: Observational design limits inference
-3. **Mixed directional effects**: Some paradoxical positive associations suggest confounding
-4. **Structural factors dominate**: School type and level matter far more than staff diversity
-5. **Need for causal methods**: RCTs, quasi-experiments, or instrumental variables needed for policy guidance
-
-### For Practitioners
-
-1. **Diversity is valuable but not sufficient**: Hire diverse staff for representation and inclusion, not primarily to reduce suspensions
-2. **Focus on policies and practices**: Disciplinary codes, restorative justice, implicit bias training likely more impactful
-3. **Context matters**: Effects vary by student group and community
-4. **Holistic approach needed**: Combine diversity initiatives with structural reforms
-
-### For Policymakers
-
-1. **Do not overpromise**: Diversity mandates unlikely to produce measurable suspension reductions
-2. **Invest in evidence-based interventions**: Policy changes, training, alternative consequences
-3. **Support rigorous evaluation**: Fund causal studies to guide resource allocation
-4. **Avoid simplistic interpretations**: Regression coefficients do not imply causation
+- **Related analyses**: See `outputs/summaries/README.md`
 
 ---
 
 ## Document Information
 
-**Document Version**: 2.0
-**Document Created**: 2025-11-19
-**Last Updated**: 2025-11-19
+**Document Version**: 3.0 (Corrected Methodology)
+**Document Created**: 2025-11-19 (v1.0)
+**Last Updated**: 2025-11-20 (v3.0 - implemented aggregation fix)
 **Analysis Script**: `Analysis/21_teacher_diversity_regression.R`
 **Output Location**: `outputs/summaries/21_teacher_diversity_regression_SUMMARY.md`
 **Word Version**: `outputs/summaries/21_teacher_diversity_regression_SUMMARY.docx` (generate using conversion script)
@@ -635,8 +581,11 @@ For questions about:
 ```
 
 **Change Log**:
-- v2.0 (2025-11-19): Updated with explicit academic years, escaped significance markers, enhanced metadata, document information section
+- v3.0 (2025-11-20): **MAJOR UPDATE** - Implemented aggregation to school-year-race level to properly handle clustering. Updated all sample sizes, effect sizes, and standard errors. Results now reflect corrected methodology.
+- v2.0 (2025-11-19): Updated with explicit academic years, escaped significance markers, enhanced metadata
 - v1.0 (2025-11-19): Initial summary created
+
+**Methodological Note**: Version 3.0 (2025-11-20) represents a significant methodological improvement. Previous versions (v1.0, v2.0) ran regressions on reason-level data, which treated clustered observations as independent and resulted in underestimated standard errors. Version 3.0 aggregates to school-year-race level before regression, ensuring valid statistical inference. Effect size estimates are similar, but standard errors and p-values are now correct.
 
 ---
 
