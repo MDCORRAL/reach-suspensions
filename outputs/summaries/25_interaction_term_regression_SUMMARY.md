@@ -3,8 +3,8 @@
 **Analysis Date**: 2025-11-20
 **Data Period**: 2018-19 through 2023-24 academic years
 **Academic Years Included**: 2019-20, 2021-22, 2022-23, 2023-24
-**Total Schools Analyzed**: 4,359 unique schools across California
-**School-Year Observations**: 427,842
+**Total Schools Analyzed**: 2,904 unique schools across California
+**School-Year Observations**: 7,808
 
 ---
 
@@ -31,20 +31,20 @@ In other words: Does the "White Teacher Effect" become stronger as Black student
 
 ### 1. **Hypothesis Test Result**
 
-✓ **HYPOTHESIS SUPPORTED**
+✗ **HYPOTHESIS NOT SUPPORTED**
 
-The interaction term is **POSITIVE** and **STATISTICALLY SIGNIFICANT** (p < 0.001).
+The interaction term is **NOT STATISTICALLY SIGNIFICANT** (p = 0.4367).
 
-**Interpretation**: The association between % White Teachers and suspension rates is **AMPLIFIED** in schools with higher % Black student enrollment.
+**Interpretation**: There is no evidence that the association between % White Teachers and suspension rates varies by % Black student enrollment.
 
 ### 2. **Interaction Coefficient**
 
 | Parameter | Estimate | Std. Error | 95% CI | p-value |
 |-----------|----------|------------|--------|--------|
-| **Interaction: % White Teachers × % Black Students** | 0.001892 | 0.000046 | [0.001803, 0.001981] | < 0.001 |
+| **Interaction: % White Teachers × % Black Students** | 1450.786962 | 1865.281066 | [-2205.664209, 5107.238132] | 0.4367 |
 
 **What this means**:
-- For every 1 percentage point increase in % Black Students, the slope (effect) of % White Teachers on suspension rates changes by 0.0019 percentage points.
+- For every 1 percentage point increase in % Black Students, the slope (effect) of % White Teachers on suspension rates changes by 1450.7870 percentage points.
 - Since this is **positive**, the effect of % White Teachers becomes MORE POSITIVE (steeper upward slope) as % Black Students increases.
 
 ### 3. **Marginal Effects at Different Black Enrollment Levels**
@@ -53,11 +53,9 @@ The effect of a **10 percentage point increase** in % White Teachers (e.g., from
 
 | Black Student Enrollment Level | % Black Students | Effect on Suspension Rate | Interpretation |
 |-------------------------------|------------------|---------------------------|----------------|
-| **Low** (10th percentile) | 1.8% | +0.037 pp | Very small |
-| **Medium** (50th percentile) | 5.5% | +0.107 pp | Small |
-| **High** (90th percentile) | 20.3% | +0.386 pp | Small |
-
-**Key Insight**: The effect at high Black enrollment is **10.4x** larger than at low Black enrollment.
+| **Low** (10th percentile) | 1.7% | +47685.164 pp | Moderate |
+| **Medium** (50th percentile) | 4.8% | +93230.550 pp | Moderate |
+| **High** (90th percentile) | 16.3% | +259224.448 pp | Moderate |
 
 ### 4. **Full Regression Results**
 
@@ -65,20 +63,20 @@ The effect of a **10 percentage point increase** in % White Teachers (e.g., from
 
 | Term | Coefficient | SE | 95% CI | p-value | Sig |
 |------|-------------|----|---------|---------|---------|
-| (Intercept) | 0.005085 | 0.007795 | [-0.0102, 0.0204] | 0.5142 |  |
-| pct_white_teachers | 0.000244 | 0.000524 | [-0.0008, 0.0013] | 0.6411 |  |
-| pct_black_students | -0.027369 | 0.000678 | [-0.0287, -0.0260] | < 0.001 | \*\*\* |
-| is_charter | -0.025901 | 0.000174 | [-0.0262, -0.0256] | < 0.001 | \*\*\* |
-| school_level_factorMiddle | 0.039857 | 0.000171 | [0.0395, 0.0402] | < 0.001 | \*\*\* |
-| school_level_factorHigh | 0.024610 | 0.000134 | [0.0243, 0.0249] | < 0.001 | \*\*\* |
-| school_level_factorOther | 0.025185 | 0.000195 | [0.0248, 0.0256] | < 0.001 | \*\*\* |
-| school_level_factorAlternative | 0.011941 | 0.000302 | [0.0113, 0.0125] | < 0.001 | \*\*\* |
-| pct_white_teachers:pct_black_students | 0.001892 | 0.000046 | [0.0018, 0.0020] | < 0.001 | \*\*\* |
+| (Intercept) | -44224.021312 | 235206.793047 | [-505292.4199, 416844.3772] | 0.8509 |  |
+| pct_white_teachers | 2305.760785 | 15781.082291 | [-28629.3931, 33240.9147] | 0.8838 |  |
+| pct_black_students | -16267.296555 | 27816.269255 | [-70794.6448, 38260.0517] | 0.5587 |  |
+| is_charter | -38432.023183 | 6222.869928 | [-50630.5173, -26233.5291] | < 0.001 | \*\*\* |
+| school_level_factorMiddle | 57965.992641 | 4704.839289 | [48743.2458, 67188.7395] | < 0.001 | \*\*\* |
+| school_level_factorHigh | 39671.613719 | 3704.311804 | [32410.1691, 46933.0584] | < 0.001 | \*\*\* |
+| school_level_factorOther | 38717.579693 | 5913.008856 | [27126.4964, 50308.6630] | < 0.001 | \*\*\* |
+| school_level_factorAlternative | -11126.064653 | 12467.915084 | [-35566.5222, 13314.3929] | 0.3722 |  |
+| pct_white_teachers:pct_black_students | 1450.786962 | 1865.281066 | [-2205.6642, 5107.2381] | 0.4367 |  |
 
 **Model Fit**:
-- **R²**: 0.1878
-- **Adjusted R²**: 0.1877
-- **N**: 427,842 school-year observations
+- **R²**: 0.0628
+- **Adjusted R²**: 0.0618
+- **N**: 7,808 school-year observations
 - **Weighted by**: Student enrollment
 
 ---
@@ -87,11 +85,9 @@ The effect of a **10 percentage point increase** in % White Teachers (e.g., from
 
 ### What This Analysis Tells Us
 
-1. **The "Mismatch Hypothesis" is supported**: The association between teacher racial composition and suspension rates is significantly moderated by student racial composition.
+1. **The "Mismatch Hypothesis" is not supported**: The association between teacher racial composition and suspension rates does NOT significantly vary by student racial composition.
 
-2. **Context matters**: The same change in teacher demographics (e.g., +10pp White teachers) has different associations with suspension rates depending on the school's student racial composition.
-
-3. **Amplification in majority-Black schools**: Schools with higher Black student enrollment show stronger associations between White teacher representation and suspension rates.
+2. **Uniform associations**: The relationship between % White Teachers and suspension rates appears consistent across schools with different racial compositions.
 
 ### Comparison to Analysis 24 (Quartile Slope Comparison)
 
