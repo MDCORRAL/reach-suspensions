@@ -221,9 +221,16 @@ for (code in names(RACE_GROUP_CODES)) {
     cat(sprintf("  - Unique school-year combinations: %s\n",
                 format(unique_school_years, big.mark = ",")))
 
-    # This should equal the regression sample size
-    cat(sprintf("  - FINAL SAMPLE SIZE (= regression N): %s\n\n",
+    # Count observations per school-year (should be ~6 if reason-level data)
+    avg_obs_per_school_year <- nrow(filtered_df) / unique_school_years
+    cat(sprintf("  - Observations per school-year: %.1f (suggests reason-level data)\n",
+                avg_obs_per_school_year))
+
+    # This should equal the regression sample size BEFORE aggregation
+    cat(sprintf("  - OBSERVATIONS (before school-year aggregation): %s\n",
                 format(nrow(filtered_df), big.mark = ",")))
+    cat(sprintf("  - EXPECTED REGRESSION N (after aggregation): %s\n\n",
+                format(unique_school_years, big.mark = ",")))
   } else {
     cat("  - NO OBSERVATIONS AFTER FILTERING\n\n")
   }
@@ -244,8 +251,14 @@ cat("  ✓ Same white/non-white/not-reported separation\n")
 cat("  ✓ Same complete case filtering\n")
 cat("  ✓ Same enrollment > 0 requirement\n\n")
 
-cat("The 'FINAL SAMPLE SIZE' for each race group should EXACTLY match the N\n")
-cat("reported in the regression output for that group.\n\n")
+cat("IMPORTANT: Data is aggregated to school-year-race level before regression.\n")
+cat("The 'EXPECTED REGRESSION N' (after aggregation) should match the N reported\n")
+cat("in the regression output for that group.\n\n")
+
+cat("Observations per school-year:\n")
+cat("  - ~6.0 = Data contains suspension reasons (6 categories)\n")
+cat("  - Regression aggregates to school-year-race level to avoid clustering\n")
+cat("  - Final N = unique school-year-race combinations\n\n")
 
 cat("If sample sizes are unexpectedly small, check:\n")
 cat("  1. Teacher data coverage (missing teacher_non_white_share)\n")
