@@ -46,7 +46,7 @@ cat("\n")
 
 # Now simulate the regression filtering to see what happens
 cat("5. SIMULATING REGRESSION FILTERS\n")
-cat("-" %% 70, "\n\n")
+cat(strrep("-", 70), "\n\n")
 
 # Define student groups used in regression
 ALLOWED_RACE_GROUPS <- c(
