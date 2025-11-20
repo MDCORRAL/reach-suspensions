@@ -77,7 +77,65 @@ if (exists("build_keys")) {
 
 message(">>> Loaded ", format_number(nrow(df_raw)), " rows")
 
-# === 3) Extract key variables =================================================
+# === 3) Aggregate to school-year level =========================================
+message("\n>>> Aggregating to school-year level...")
+message(">>> Initial rows (school-year-race-reason): ", format_number(nrow(df_raw)))
+
+# CRITICAL: Aggregate to school-year level to avoid clustering issues
+# Raw data is at school-year-race-reason level (~6 reasons × 8 races = ~48 obs per school-year)
+# This creates clustered observations that violate independence assumption
+
+aggregate_to_school_year <- function(df) {
+  # Identify suspension and enrollment columns
+  susp_cols <- grep("^total_suspensions", names(df), value = TRUE)
+  enrollment_cols <- intersect(c("cumulative_enrollment", "sup_cumulative_enrollment"), names(df))
+
+  # Identify school-level variables to preserve
+  teacher_cols <- grep("^teacher_", names(df), value = TRUE)
+  charter_cols <- grep("^charter_|^is_traditional", names(df), value = TRUE)
+  level_cols <- grep("^level_strict|^school_level", names(df), value = TRUE)
+  sed_cols <- grep("^sed_rate|^socio", names(df), value = TRUE, ignore.case = TRUE)
+  black_cols <- grep("prop_black|black_share", names(df), value = TRUE)
+  school_cols <- c("cds_school", "school_code", "academic_year", "aggregate_level")
+
+  constant_cols <- unique(c(
+    enrollment_cols,
+    teacher_cols,
+    charter_cols,
+    level_cols,
+    sed_cols,
+    black_cols
+  ))
+  constant_cols <- intersect(constant_cols, names(df))
+
+  # Group by school-year
+  agg_df <- df %>%
+    group_by(cds_school, academic_year) %>%
+    summarise(
+      # Sum suspensions across all races and reasons
+      across(any_of(susp_cols), ~sum(.x, na.rm = TRUE)),
+
+      # Take first value of school-level variables (should be constant within group)
+      across(any_of(constant_cols), ~first(.x)),
+
+      # Additional metadata columns
+      across(any_of(c("school_code", "aggregate_level")), ~first(.x)),
+
+      # Count observations aggregated
+      n_observations_aggregated = n(),
+
+      .groups = "drop"
+    )
+
+  message(">>> Aggregated to ", format_number(nrow(agg_df)), " school-year observations")
+  message(">>> Average observations per school-year: ", round(nrow(df) / nrow(agg_df), 1))
+
+  return(agg_df)
+}
+
+df_aggregated <- aggregate_to_school_year(df_raw)
+
+# === 4) Extract key variables =================================================
 
 # Helper function to extract % White Teachers
 extract_pct_white_teachers <- function(df) {
@@ -148,20 +206,20 @@ extract_pct_black_students <- function(df) {
        "  Available columns: ", paste(head(names(df), 50), collapse = ", "))
 }
 
-# === 4) Prepare analysis dataset ==============================================
+# === 5) Prepare analysis dataset ==============================================
 message("\n>>> Preparing analysis dataset...")
 
 # Add % White Teachers
-df <- df_raw %>%
+df <- df_aggregated %>%
   mutate(pct_white_teachers = extract_pct_white_teachers(.))
 
 # Add % Black Students
 # Check for available columns (prop_black from v3+ pipeline, or black_share)
-if ("prop_black" %in% names(df_raw)) {
+if ("prop_black" %in% names(df_aggregated)) {
   df <- df %>%
     mutate(pct_black_students = as.numeric(prop_black) * 100)
   message(">>> Using prop_black column for % Black Students")
-} else if ("black_share" %in% names(df_raw)) {
+} else if ("black_share" %in% names(df_aggregated)) {
   df <- df %>%
     mutate(pct_black_students = as.numeric(black_share) * 100)
   message(">>> Using black_share column for % Black Students")
@@ -203,7 +261,7 @@ if (is_percent_scale) {
     mutate(suspension_rate_pct = as.numeric(.data[[susp_col]]) * 100)
 }
 
-# === 5) Add controls and filter to analysis sample ===========================
+# === 6) Add controls and filter to analysis sample ===========================
 
 # Add control variables
 
@@ -325,7 +383,7 @@ if ("sed_rate" %in% names(analysis_df)) {
   }
 }
 
-# === 6) Run interaction term regression ======================================
+# === 7) Run interaction term regression ======================================
 message("\n════════════════════════════════════════════════════════════════")
 message("📈 RUNNING INTERACTION TERM REGRESSION")
 message("════════════════════════════════════════════════════════════════\n")
@@ -379,7 +437,7 @@ message("═══════════════════════�
 
 print(summary(fit))
 
-# === 7) Extract and interpret key coefficients ===============================
+# === 8) Extract and interpret key coefficients ===============================
 message("\n════════════════════════════════════════════════════════════════")
 message("🔍 KEY COEFFICIENTS (with 95% CI)")
 message("════════════════════════════════════════════════════════════════\n")
@@ -440,7 +498,7 @@ message(sprintf("  R² = %.4f  |  Adj. R² = %.4f  |  N = %s",
                 glance_stats$r.squared, glance_stats$adj.r.squared,
                 format_number(stats::nobs(fit))))
 
-# === 8) Create marginal effects plot =========================================
+# === 9) Create marginal effects plot =========================================
 message("\n════════════════════════════════════════════════════════════════")
 message("📊 CREATING INTERACTION PLOT (MARGINAL EFFECTS)")
 message("════════════════════════════════════════════════════════════════\n")
@@ -578,7 +636,7 @@ p <- ggplot(pred_data, aes(x = pct_white_teachers, y = predicted_suspension_rate
     axis.title = element_text(face = "bold")
   )
 
-# === 9) Save outputs ==========================================================
+# === 10) Save outputs =========================================================
 message("\n>>> Saving outputs...")
 
 # Create output directories
@@ -630,7 +688,7 @@ ggsave(
 )
 message("✓ Saved plot: outputs/graphs/25_interaction_marginal_effects.png")
 
-# === 10) Generate summary markdown ===========================================
+# === 11) Generate summary markdown ===========================================
 message("\n>>> Generating analysis summary...")
 
 # Get academic years for metadata
@@ -876,7 +934,7 @@ writeLines(
 )
 message("✓ Saved summary: outputs/summaries/25_interaction_term_regression_SUMMARY.md")
 
-# === 11) Final message ========================================================
+# === 12) Final message ========================================================
 message("\n════════════════════════════════════════════════════════════════")
 message("✓ ANALYSIS 25 COMPLETE")
 message("════════════════════════════════════════════════════════════════\n")
