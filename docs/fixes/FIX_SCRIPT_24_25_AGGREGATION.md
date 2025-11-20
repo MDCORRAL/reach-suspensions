@@ -451,19 +451,137 @@ writeLines(summary_md, here::here("outputs", "summaries", "25_interaction_term_r
 
 ---
 
+## Second Bug Discovered: Enrollment Aggregation
+
+### Problem Identified (2025-11-20)
+
+After fixing the clustering issue and running Script 25, a **second bug** was discovered:
+
+**Symptom**:
+```
+Suspension Rate: Mean = 128,389.75%, Range = [0.00, 8,318,181.82]
+```
+
+**Root Cause**:
+The aggregation function was using `first()` for enrollment, which grabbed **race-specific enrollment** (e.g., 100 Black students) instead of **total school enrollment** (e.g., 500 total students).
+
+**Why This Happened**:
+When aggregating from school-year-race-reason to school-year level:
+- ✅ **Suspensions**: Correctly summed (10 + 5 + 8 + ... = 50 total suspensions across all races)
+- ❌ **Enrollment**: Took first value (100 Black students), not total (500 total students)
+- ❌ **Result**: Suspension rate = 50 / 100 = 50% when it should be 50 / 500 = 10%
+
+**Data Structure Explanation**:
+```
+# Raw data (school-year-race level)
+cds_school | academic_year | race     | suspensions | cumulative_enrollment
+-----------|---------------|----------|-------------|----------------------
+12345      | 2023-24       | Black    | 10          | 500  (total school)
+12345      | 2023-24       | Hispanic | 15          | 500  (total school)
+12345      | 2023-24       | White    | 5           | 500  (total school)
+
+# Old aggregation (WRONG)
+group_by(cds_school, academic_year) %>%
+  summarise(
+    total_suspensions = sum(suspensions),        # 10 + 15 + 5 = 30 ✓
+    cumulative_enrollment = first(enrollment)    # 500 (happens to work if constant)
+  )
+
+# Problem: first() works ONLY if enrollment is truly constant
+# If enrollment varies (race-specific values), first() grabs wrong value
+
+# New aggregation (CORRECT)
+group_by(cds_school, academic_year) %>%
+  summarise(
+    total_suspensions = sum(suspensions),        # 10 + 15 + 5 = 30 ✓
+    cumulative_enrollment = max(enrollment)      # max(500, 500, 500) = 500 ✓
+  )
+```
+
+### Fix Applied (2025-11-20)
+
+**Changed**: `first()` → `max()` for enrollment columns
+
+**Rationale**:
+- If `cumulative_enrollment` is constant across races (as expected), `max()` returns that constant
+- If `cumulative_enrollment` varies (race-specific), `max()` returns total school enrollment
+- `max()` is more robust than `first()` for this use case
+
+**Code Change**:
+```r
+# Old (line 145 in Script 24, similar in Script 25)
+across(any_of(susp_cols), ~sum(.x, na.rm = TRUE)),
+across(any_of(constant_cols), ~first(.x)),  # Enrollment treated as constant
+
+# New
+across(any_of(susp_cols), ~sum(.x, na.rm = TRUE)),
+across(any_of(enrollment_cols), ~max(.x, na.rm = TRUE)),  # Explicit max for enrollment
+across(any_of(constant_cols), ~first(.x)),  # Other variables still use first
+```
+
+### Expected Impact
+
+**Before Enrollment Fix**:
+```
+Suspension Rate: Mean = 128,389.75%, Range = [0.00, 8,318,181.82]
+```
+
+**After Enrollment Fix** (expected):
+```
+Suspension Rate: Mean = 5-10%, Range = [0.00, 30.0]
+```
+
+This is a **more realistic** distribution matching typical school suspension rates.
+
+### Scripts Affected
+
+Both scripts had this bug:
+- ✅ **Script 24**: `Analysis/24_quartile_slope_comparison.R` (line 150)
+- ✅ **Script 25**: `Analysis/25_interaction_term_regression.R` (line 121)
+
+### Standardized Solution
+
+Created reusable aggregation function: `R/aggregate_school_year.R`
+
+**Features**:
+- Uses `max()` for enrollment (total school enrollment)
+- Uses `sum()` for suspensions (total suspensions across races/reasons)
+- Uses `first()` for school-level variables (assumed constant)
+- Includes validation checks for data quality
+- Documents aggregation logic clearly
+- Warns if enrollment varies unexpectedly
+
+**Usage**:
+```r
+source("R/aggregate_school_year.R")
+df_aggregated <- aggregate_to_school_year(df_raw, verbose = TRUE, validate = TRUE)
+```
+
+---
+
 ## Summary of Actions Taken
 
-**2025-11-20**:
-- ✅ Investigated Script 24: Confirmed already fixed
+**2025-11-20 (Initial Fix - Clustering)**:
+- ✅ Investigated Script 24: Confirmed aggregation existed (but had enrollment bug)
 - ✅ Investigated Script 25: Identified missing aggregation
-- ✅ Applied fix to Script 25:
+- ✅ Applied clustering fix to Script 25:
   - Added `aggregate_to_school_year()` function
   - Updated to use `df_aggregated` instead of `df_raw`
   - Renumbered sections
 - ✅ Created diagnostic report: `docs/fixes/FIX_SCRIPT_24_25_AGGREGATION.md`
-- ⏳ Pending: Re-run Script 25 to verify fix
-- ⏳ Pending: Compare before/after results
-- ⏳ Pending: Update summaries and documentation
+- ✅ Committed and pushed clustering fix
+
+**2025-11-20 (Additional Fix - Enrollment)**:
+- ✅ Identified second bug: Enrollment aggregation using `first()` instead of `max()`
+- ✅ Fixed enrollment aggregation in both scripts:
+  - Script 24: Updated to use `max()` for enrollment (line 150)
+  - Script 25: Updated to use `max()` for enrollment (line 121)
+- ✅ Created standardized aggregation function: `R/aggregate_school_year.R`
+- ✅ Created validation script: `scripts/diagnostics/validate_script_24_25_fixes.R`
+- ✅ Updated diagnostic report with enrollment fix
+- ⏳ Pending: User re-runs scripts to verify both fixes
+- ⏳ Pending: Commit and push enrollment fix
+- ⏳ Pending: Update summaries with corrected results
 
 ---
 

@@ -115,6 +115,11 @@ aggregate_to_school_year <- function(df) {
       # Sum suspensions across all races and reasons
       across(any_of(susp_cols), ~sum(.x, na.rm = TRUE)),
 
+      # CRITICAL FIX: Use max() for enrollment to get total school enrollment
+      # (not race-specific enrollment). Cumulative_enrollment is constant across
+      # race rows at school level, so max() extracts the total school enrollment.
+      across(any_of(enrollment_cols), ~max(.x, na.rm = TRUE)),
+
       # Take first value of school-level variables (should be constant within group)
       across(any_of(constant_cols), ~first(.x)),
 
