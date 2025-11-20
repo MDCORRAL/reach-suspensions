@@ -122,26 +122,30 @@ extract_pct_white_teachers <- function(df) {
 
 # Helper function to extract % Black Students
 extract_pct_black_students <- function(df) {
-  # Try to find black_share or calculate from enrollment
+  # Try to find black_share, prop_black, or calculate from enrollment
 
-  # Pattern 1: Direct share column
-  black_share_cols <- grep("black.*share", names(df), value = TRUE,
-                           ignore.case = TRUE)
+  # Pattern 1: Direct proportion column
+  black_prop_cols <- grep("^prop_black$|black.*share$", names(df), value = TRUE,
+                          ignore.case = TRUE)
 
-  if (length(black_share_cols) > 0) {
-    message(">>> Using column for % Black Students: ", black_share_cols[1])
-    pct_black <- as.numeric(df[[black_share_cols[1]]]) * 100
+  if (length(black_prop_cols) > 0) {
+    message(">>> Using column for % Black Students: ", black_prop_cols[1])
+    pct_black <- as.numeric(df[[black_prop_cols[1]]]) * 100
     return(pct_black)
   }
 
-  # Pattern 2: Calculate from black_prop_q percentiles
-  # This is less precise but can work as a proxy
-  message("⚠ No direct black_share column found.")
-  message("  Attempting to use black_prop_q quartile information...")
+  # Pattern 2: Try enrollment columns
+  if (all(c("enroll_Black", "enroll_All") %in% names(df))) {
+    message(">>> Calculating % Black Students from enroll_Black / enroll_All")
+    pct_black <- safe_div(as.numeric(df$enroll_Black),
+                          as.numeric(df$enroll_All), 0) * 100
+    return(pct_black)
+  }
 
-  # If we have black_prop_q, we can at least identify approximate levels
-  # But this is not ideal - warn the user
-  stop("Could not find % Black Students column. Expected 'black_share' or similar.")
+  # If nothing found, provide helpful error
+  stop("Could not find % Black Students column.\n",
+       "  Expected columns: 'prop_black', 'black_share', or 'enroll_Black' + 'enroll_All'\n",
+       "  Available columns: ", paste(head(names(df), 50), collapse = ", "))
 }
 
 # === 4) Prepare analysis dataset ==============================================
@@ -152,8 +156,12 @@ df <- df_raw %>%
   mutate(pct_white_teachers = extract_pct_white_teachers(.))
 
 # Add % Black Students
-# First check if we have black_share
-if ("black_share" %in% names(df_raw)) {
+# Check for available columns (prop_black from v3+ pipeline, or black_share)
+if ("prop_black" %in% names(df_raw)) {
+  df <- df %>%
+    mutate(pct_black_students = as.numeric(prop_black) * 100)
+  message(">>> Using prop_black column for % Black Students")
+} else if ("black_share" %in% names(df_raw)) {
   df <- df %>%
     mutate(pct_black_students = as.numeric(black_share) * 100)
   message(">>> Using black_share column for % Black Students")
