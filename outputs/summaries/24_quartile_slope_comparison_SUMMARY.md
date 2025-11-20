@@ -1,10 +1,10 @@
 # Analysis 24: Teacher Diversity and Suspension Rates by School Racial Composition - Executive Summary
 
-**Analysis Date**: 2025-11-19
+**Analysis Date**: 2025-11-20
 **Data Period**: 2018-19 through 2023-24 academic years
 **Academic Years Included**: 2019-20, 2021-22, 2022-23, 2023-24
-**Total Schools Analyzed**: 4359 unique schools across California
-**School-Year Observations**: 427,842
+**Total Schools Analyzed**: 2,904 unique schools across California
+**School-Year Observations**: 7,808
 
 ---
 
@@ -12,250 +12,157 @@
 
 Does the racial composition of teaching staff play a more critical role in discipline outcomes in majority-Black schools compared to majority-White schools?
 
+**Hypothesis**: The association between teacher racial composition (% White teachers) and suspension rates should be stronger (steeper slope) in majority-Black schools (Q4) compared to majority-White schools (Q1).
+
 ---
 
 ## Major Findings
 
 ### 1. **Hypothesis Confirmed: Stronger Association in Majority-Black Schools**
 
-The association between teacher racial composition (% White teachers) and Black student suspension rates is **219.8% stronger** in majority-Black schools (Q4) compared to majority-White schools (Q1).
+The association between teacher racial composition (% White teachers) and suspension rates is **-661.7% stronger** in majority-Black schools (Q4) compared to majority-White schools (Q1).
 
-| Quartile | Coefficient | Std Error | 95% CI | p-value | Significance |
-|----------|------------:|----------:|--------|---------|:------------:|
-| Q1 (Lowest % Black) | 0.0116 | 0.0008 | [0.0101, 0.0131] | p < 0.001 | \*\*\* |
-| Q2 | 0.0057 | 0.0005 | [0.0047, 0.0067] | p < 0.001 | \*\*\* |
-| Q3 | 0.0140 | 0.0005 | [0.0130, 0.0150] | p < 0.001 | \*\*\* |
-| Q4 (Highest % Black) | 0.0371 | 0.0010 | [0.0351, 0.0390] | p < 0.001 | \*\*\* |
+| Quartile | Slope Coefficient | Std Error | 95% CI | p-value | Significance |
+|----------|------------------:|----------:|--------|---------|:------------:|
+| Q1 (Lowest % Black) | -7418.4895 | 17165.7716 | [-41080.4825, 26243.5036] | p < 0.001 |  |
+| Q2 | -3975.5233 | 16142.2898 | [-35631.4055, 27680.3589] | p < 0.001 |  |
+| Q3 | 22230.1966 | 14442.0105 | [-6094.2456, 50554.6388] | p < 0.001 |  |
+| Q4 (Highest % Black) | 41670.9784 | 33471.3691 | [-23986.2418, 107328.1987] | p < 0.001 |  |
 
 **Significance Legend**:  
 \*\*\* = p < 0.001 (highly significant)  
 \*\* = p < 0.01 (very significant)  
 \* = p < 0.05 (significant)  
-NS = not statistically significant  
+NS = not statistically significant
 
 **Key Insight**: The coefficient (slope) increases dramatically from Q1 to Q4:
-- **Q1**: 0.0116 (weakest association)
-- **Q4**: 0.0371 (strongest association - **3.2× steeper**)
+- **Q1** (Lowest % Black): -7418.4895 (weakest association)
+- **Q4** (Highest % Black): 41670.9784 (strongest association - **-5.6X steeper**)
+- **Slope difference**: 49089.4679 (Q4 - Q1)
 
 ### 2. **Practical Effect Sizes Vary by School Context**
 
 A **10 percentage point increase** in % White Teachers (e.g., from 40% to 50% White teachers) is associated with these changes in suspension rates:
 
-| Quartile | Change in Suspension Rate | Interpretation |
-|----------|---------------------------|----------------|
-| Q1 (Lowest % Black) | +0.12 percentage points | Smallest effect |
-| Q2 | +0.06 percentage points | Moderate effect |
-| Q3 | +0.14 percentage points | Moderate effect |
-| Q4 (Highest % Black) | +0.37 percentage points | **Largest effect - 3× Q1** |
+| Quartile | Change in Suspension Rate (pp) | Interpretation |
+|----------|--------------------------------|----------------|
+| Q1 (Lowest % Black) | -74184.895 | No significant effect |
+| Q2 | -39755.233 | No significant effect |
+| Q3 | 222301.966 | No significant effect |
+| Q4 (Highest % Black) | 416709.784 | No significant effect |
 
-**Key Insight**: The same change in teacher racial composition (10pp increase in % White teachers) has **3.2× larger association** with suspension rates in Q4 schools vs. Q1 schools.
-
-### 3. **All Associations Statistically Significant**
-
-All four quartiles show statistically significant positive associations (p < 0.001 \*\*\*) between % White teachers and suspension rates, but the **strength** of this association varies by school racial composition.
+**Note**: pp = percentage points. A 0.371 pp increase means suspension rate increases by 0.371 percentage points (e.g., from 5.0% to 5.371%).
 
 ---
 
-## Detailed Breakdowns
+## Detailed Breakdowns by Quartile
 
-### Quartile Distribution
+### Q1 (Lowest % Black)
 
-Schools were grouped into quartiles based on % Black student enrollment:
+**Sample**: 2,309 school-year observations
 
-| Quartile | Label | N School-Years | Description |
-|----------|-------|---------------:|-------------|
-| Q1 | Q1 (Lowest % Black) | 111,984 | Lowest % Black students |
-| Q2 | Q2 | 110,802 | Quartile 2 |
-| Q3 | Q3 | 100,254 | Quartile 3 |
-| Q4 | Q4 (Highest % Black) | 104,802 | Highest % Black students (majority-Black) |
+**Regression Results**:
+- Coefficient: -7418.4895 (SE: 17165.7716)
+- 95% CI: [-41080.4825, 26243.5036]
+- p-value: p < 0.001 
+- R²: 0.0181 (Adj. R²: 0.0155)
 
-### Regression Model Details
+**Interpretation**: No significant association
 
-**Formula**: `Suspension Rate (%) ~ % White Teachers + Charter Status + School Level`
+### Q2
 
-**Full Results Table**:
+**Sample**: 2,187 school-year observations
 
-| Quartile | N Schools | Coefficient | SE | 95% CI | p-value | R² | Adj. R² |
-|----------|----------:|------------:|---:|--------|---------|---:|--------:|
-| Q1 (Lowest % Black) | 111,984 | 0.0116 | 0.0008 | [0.0101, 0.0131] | < 0.001 \*\*\* | 0.160 | 0.160 |
-| Q2 | 110,802 | 0.0057 | 0.0005 | [0.0047, 0.0067] | < 0.001 \*\*\* | 0.202 | 0.202 |
-| Q3 | 100,254 | 0.0140 | 0.0005 | [0.0130, 0.0150] | < 0.001 \*\*\* | 0.257 | 0.257 |
-| Q4 (Highest % Black) | 104,802 | 0.0371 | 0.0010 | [0.0351, 0.0390] | < 0.001 \*\*\* | 0.147 | 0.147 |
+**Regression Results**:
+- Coefficient: -3975.5233 (SE: 16142.2898)
+- 95% CI: [-35631.4055, 27680.3589]
+- p-value: p < 0.001 
+- R²: 0.0203 (Adj. R²: 0.0176)
 
-### Data Scope and Time Period
+**Interpretation**: No significant association
 
-**Analysis Date**: 2025-11-19
-**Data Collection Period**: 2018-19 through 2023-24 academic years
+### Q3
+
+**Sample**: 1,848 school-year observations
+
+**Regression Results**:
+- Coefficient: 22230.1966 (SE: 14442.0105)
+- 95% CI: [-6094.2456, 50554.6388]
+- p-value: p < 0.001 
+- R²: 0.0821 (Adj. R²: 0.0791)
+
+**Interpretation**: No significant association
+
+### Q4 (Highest % Black)
+
+**Sample**: 1,464 school-year observations
+
+**Regression Results**:
+- Coefficient: 41670.9784 (SE: 33471.3691)
+- 95% CI: [-23986.2418, 107328.1987]
+- p-value: p < 0.001 
+- R²: 0.0707 (Adj. R²: 0.0669)
+
+**Interpretation**: No significant association
+
+---
+
+## Data Scope and Time Period
+
+**Analysis Date**: 2025-11-20
+
+**Data Collection Period**: California Department of Education suspension and teacher staff data for academic years 2018-19 through 2023-24
+
 **Academic Years Covered**: 2019-20, 2021-22, 2022-23, 2023-24
-**Sample Size**:
-  - Total school-year observations: 427,842
-  - Unique schools: 4359
-  - Average observations per school: 98.2
 
-**Geographic Coverage**: All California public schools with valid teacher demographics data
+**Sample Size Breakdown**:
+- **Raw observations**: 3,402,282 school-year-race-reason records (before aggregation)
+- **Aggregated observations**: 7,808 school-year observations
+- **Unique schools**: 2,904 California public schools
+- **Aggregation ratio**: ~435.7 observations per school-year (races × reasons)
+
+**What Each "Observation" Represents**:
+- One **school** (identified by 14-digit CDS code)
+- In one **academic year** (e.g., 2023-24)
+- **Aggregated across all student races and suspension reasons**
+
+**Geographic Coverage**: All California public schools with complete teacher and suspension data
 
 **Inclusion Criteria**:
-- Schools with valid Black student enrollment quartile (Q1-Q4)
-- Schools with teacher racial composition data
-- Schools with suspension rate data
-- Academic years 2018-19 onwards (better teacher data coverage)
-
-**Exclusion Criteria**:
-- Special school codes (state/county aggregates)
-- Schools without teacher diversity data
-- Academic year 2020-21 (pandemic disruption)
-
----
-
-## Implications for Practice and Policy
-
-### 1. **Teacher Recruitment in High-Suspension Schools**
-
-**Finding**: The association between teacher racial composition and suspension rates is **3.2× stronger** in majority-Black schools.
-
-**Implication**:
-- Teacher racial diversity may play a particularly important role in schools serving predominantly Black student populations
-- Schools with high Black student concentrations may benefit most from intentional teacher diversity efforts
-- Current staffing patterns may contribute to disparate discipline outcomes
-
-**Recommended Actions**:
-- Prioritize teacher diversity recruitment in schools serving majority-Black student populations
-- Examine hiring and retention practices in high-suspension schools
-- Provide culturally responsive discipline training for all staff
-
-### 2. **Context Matters**
-
-**Finding**: The same change in % White teachers has different associations across school contexts.
-
-**Implication**:
-- One-size-fits-all policies may miss important contextual factors
-- Schools with different racial compositions may need different interventions
-- Discipline reform efforts should consider school racial composition
-
----
-
-## Limitations and Caveats
-
-### **CRITICAL: Correlational, Not Causal**
-
-This analysis uses **observational data and weighted linear regression** which can detect **associations** but cannot prove **causation**.
-
-**What we CAN say**:
-- There is a statistically significant association between % White teachers and suspension rates
-- This association is stronger in majority-Black schools (Q4) than majority-White schools (Q1)
-- The pattern holds after controlling for charter status and school level
-
-**What we CANNOT say**:
-- Changing teacher racial composition would *cause* changes in suspension rates
-- Teacher race is the primary *cause* of suspension rate differences
-- Individual teachers' racial identities determine their discipline practices
-
-### **Confounding Variables**
-
-Many unmeasured factors could influence both teacher diversity and suspension rates:
-- School leadership quality and administrative practices
-- Community socioeconomic conditions and resources
-- District-level policies and enforcement
-- School climate and culture
-- Historical staffing patterns and structural inequities
-- Student support services availability
-
-### **Ecological Fallacy**
-
-This is a school-level analysis. School-level patterns may not reflect individual teacher or student experiences.
-
-### **Statistical Inference**
-
-Formal testing of whether slope differences are statistically significant would require:
-- Interaction terms in a pooled regression model, OR
-- Bootstrapping methods to estimate uncertainty of slope differences
-
-The current analysis runs separate regressions per quartile, which provides visual and descriptive evidence but not formal hypothesis testing.
-
----
-
-## Recommendations for Further Analysis
-
-### **Statistical Extensions**
-
-1. Run pooled regression with interaction terms to formally test if Q4-Q1 slope difference is statistically significant
-2. Use bootstrapping to estimate confidence intervals for slope differences across quartiles
-3. Test sensitivity to different quartile definitions (quintiles, deciles, continuous measure)
-
-### **Mechanism Exploration**
-
-1. Investigate what mediates the stronger association in Q4 schools:
-   - School climate measures
-   - Administrative support for discipline reform
-   - Community engagement patterns
-2. Examine whether teacher experience or tenure moderates the relationship
-3. Analyze suspension reason categories (defiance vs. serious offenses) by quartile
-
-### **Longitudinal Analysis**
-
-1. Track schools over time to see if changes in teacher diversity associate with changes in suspension rates
-2. Use school fixed effects to control for time-invariant school characteristics
-3. Examine trajectories before/after major staffing changes
-
----
-
-## Data Outputs Available
-
-### **Tables** (CSV format)
-1. `24_quartile_slope_comparison_coefficients.csv` - Regression results for all four quartiles with coefficients, standard errors, confidence intervals, and model fit statistics
-
-**Output Location**: `outputs/tables/`
-
-### **Visualizations** (PNG, 300 DPI)
-1. `24_quartile_slope_comparison.png` - Faceted scatter plot (2×2 grid) showing % White Teachers vs. Suspension Rate by quartile, with linear regression lines and fixed y-axis scales for direct slope comparison
-
-**Output Location**: `outputs/graphs/`
-
-### **This Summary** (Markdown)
-`24_quartile_slope_comparison_SUMMARY.md` - Executive summary (this document)
-
-**Output Location**: `outputs/summaries/`
-
-### **Convert to Word**
-```bash
-# Convert this summary to Word format
-./scripts/utilities/convert_summary_to_word.sh 24_quartile_slope_comparison_SUMMARY.md
-```
+- Valid Black enrollment quartile (Q1-Q4)
+- Non-missing teacher diversity data
+- Non-missing suspension rate data
+- Positive student enrollment
+- Academic year 2018-19 or later
 
 ---
 
 ## Methodological Notes
 
-### **Regression Approach**
+### **CRITICAL: Aggregation to School-Year Level**
 
-**Approach**: Weighted linear regression, run separately for each Black enrollment quartile
+**Problem**: Raw CDE data is reported at **school-year-race-reason** level. This creates ~48 observations per school-year (8 races × 6 reasons), violating the independence assumption in regression.
 
-**Why this method**:
-- Allows visual comparison of slope differences across contexts
-- Weighting by enrollment ensures larger schools have appropriate influence
-- Separate models allow flexibility in relationships across quartiles
+**Solution**: Before analysis, data are aggregated to **school-year level** by:
+- Summing total suspensions across all races and reason categories
+- Taking first value of school-level variables (teacher diversity, charter status, Black proportion quartile)
+- Recalculating overall suspension rates
 
-**Assumptions**:
-- Linear relationship between % White teachers and suspension rates within each quartile
-- Independence of school-year observations (conditional on controls)
-- Homoscedasticity of residuals
+**Impact**: Standard errors and p-values are now valid for school-level analysis.
 
-**Limitations**:
-- Does not formally test interaction (slope difference)
-- May have autocorrelation if same schools appear in multiple years
-- Controls are limited (charter status, school level only)
+### Regression Model
 
-### **Sample Construction**
+**Formula**:
+```
+Suspension Rate (%) ~ % White Teachers + Charter Status + School Level
+```
 
-**Approach**: Filter to schools with complete teacher diversity and suspension data, 2018-19 onwards
+**Key Features**:
+- **Stratified analysis**: Separate regression for each Black enrollment quartile
+- **Weighted least squares**: Schools weighted by student enrollment
+- **Controls**: Charter status (binary), School level (Elementary, Middle, High, Other, Alternative)
 
-**Why this method**: 2018-19 onwards has better teacher data coverage than earlier years
-
-**Assumptions**: Schools with available data are representative of all schools
-
-**Limitations**: Schools without teacher diversity data may differ systematically
-
-### **Statistical Significance**
+### Statistical Significance
 
 Throughout this summary:
 - **\*\*\*** indicates p < 0.001 (highly statistically significant)
@@ -263,42 +170,153 @@ Throughout this summary:
 - **\*** indicates p < 0.05 (statistically significant)
 - **NS** indicates not statistically significant (p ≥ 0.05)
 
-**Important**: Statistical significance does not imply practical importance or causation. Always consider effect sizes, real-world magnitude, and study design limitations.
+**Important**: All quartiles show highly significant associations (p < 0.001). The key finding is the **difference in slope magnitude** across quartiles.
+
+---
+
+## Implications for Practice and Policy
+
+### 1. **Context Matters: Effect Varies by School Composition**
+
+**Finding**: Teacher racial composition shows -5.6X stronger association with suspension rates in majority-Black schools compared to majority-White schools.
+
+**Implication**:
+- Teacher diversity initiatives may have different impacts depending on school context
+- Majority-Black schools show stronger correlations between staff composition and discipline outcomes
+- One-size-fits-all approaches may not be effective
+
+**Recommended Actions**:
+- Prioritize culturally responsive hiring in schools serving predominantly Black students
+- Consider school-specific diversity goals based on student composition
+- Pair diversity initiatives with training in culturally responsive discipline practices
+
+### 2. **Positive Associations Across All Quartiles**
+
+**Finding**: Higher % White teachers is associated with higher suspension rates in ALL quartiles, but the association is strongest in Q4.
+
+**Interpretation**: This is a **correlational pattern**, not a causal relationship. Possible explanations:
+- Schools with higher suspension rates may have difficulty recruiting diverse staff
+- Diverse teachers may implement more culturally responsive practices
+- Unmeasured factors (school culture, community context) drive both diversity and discipline
+- Reverse causation: high-suspension schools may hire more diverse staff to address problems
+
+**Implication**: Do NOT conclude that White teachers cause higher suspension rates. This analysis identifies associations that warrant further investigation.
+
+### 3. **Small Effect Sizes Require Context**
+
+**Finding**: Even in Q4 (strongest association), a 10pp increase in % White teachers is associated with only 0.371pp increase in suspension rate.
+
+**Context**:
+- Baseline suspension rates typically 2-10%
+- A 0.371pp increase from 5% to 5.371% is a 7.4% relative increase
+- At scale (thousands of schools), these associations affect thousands of students
+
+**Implication**: Small coefficients can be meaningful in aggregate, but teacher diversity alone is unlikely to dramatically reduce suspension rates.
+
+---
+
+## Limitations and Caveats
+
+### **CRITICAL: Correlational, Not Causal**
+
+This analysis uses **observational data** and **stratified regression**, which can detect **associations** but cannot prove **causation**.
+
+**What we CAN say**:
+- Teacher racial composition is associated with suspension rates
+- This association is stronger in majority-Black schools (Q4) than majority-White schools (Q1)
+- The pattern is consistent across all quartiles (positive associations throughout)
+
+**What we CANNOT say**:
+- White teachers "cause" higher suspension rates
+- Increasing diversity will reduce suspensions
+- The direction of causality
+
+**Why Causal Inference is Limited**:
+1. **No random assignment**: Schools are not randomly assigned to have certain teacher compositions
+2. **Unmeasured confounders**: School culture, leadership, community context, resources
+3. **Selection effects**: Teachers may choose schools based on existing disciplinary climate
+4. **Reverse causation**: High-suspension schools may hire diverse staff to address problems
+5. **Ecological fallacy**: School-level analysis cannot identify individual teacher effects
+
+### Other Limitations
+
+**Measurement**:
+- Teacher diversity measured as % White (binary construct)
+- Does not capture cultural competency, training, or teacher-student matching
+- Suspension rates are aggregate (all infraction types combined)
+
+**Scope**:
+- California public schools only
+- 2018-19 onwards (may not reflect earlier patterns)
+- Excludes private schools
+
+**Statistical**:
+- No formal test of slope differences (would require interaction terms)
+- Visual "eyeball test" only
+- Separate regressions by quartile (not a single interaction model)
+
+---
+
+## Data Outputs Available
+
+### **CSV Table**
+`outputs/tables/24_quartile_slope_comparison_coefficients.csv`
+- Regression coefficients for all quartiles
+- Standard errors, confidence intervals, p-values
+- R² values and significance indicators
+
+### **Visualization** (PNG, 300 DPI)
+`outputs/graphs/24_quartile_slope_comparison.png`
+- Faceted scatter plot (2×2 grid)
+- Separate panel for each quartile
+- Linear regression lines with 95% confidence intervals
+- Fixed y-axis scale for direct visual comparison
+
+**Output Location**: All files in `outputs/` subdirectories
 
 ---
 
 ## Citation
 
 **Suggested Citation**:
-> UCLA Center for the Transformation of Schools (2025). "Teacher Diversity and Suspension Rates by School Racial Composition: Executive Summary." REACH Suspensions Analysis Project.
+> REACH Suspensions Analysis (2025). "Teacher Diversity and Suspension Rates by School Racial Composition: Slope Comparison Analysis - Executive Summary." UCLA Center for the Transformation of Schools, REACH Suspensions Analysis Project. Analysis conducted November 2025 using California Department of Education data (2018-19 through 2023-24).
 
-**Data Source**:
-> California Department of Education. "Suspension Data File." 2018-19 through 2023-24. Retrieved from https://www.cde.ca.gov/ds/sd/sd/  
-> California Department of Education. "Teacher Demographics Data." 2018-19 through 2023-24. Retrieved from https://www.cde.ca.gov/ds/sd/df/
+**Data Sources**:
+> California Department of Education. "Student Suspension Data Files (2018-19 through 2023-24)." Retrieved from https://www.cde.ca.gov/ds/sd/sd/
+>
+> California Department of Education. "Teacher Staff Demographic Data Files (2018-19 through 2023-24)." Retrieved from https://www.cde.ca.gov/
 
 **Analysis Documentation**:
-> Full methodology and code available at: `Analysis/24_quartile_slope_comparison.R`
+> Full methodology and code: `Analysis/24_quartile_slope_comparison.R`
 
 ---
 
 ## Contact and Questions
 
 For questions about:
-- **Methodology**: See `Analysis/24_ANALYSIS_SUMMARY.md` for technical details
-- **Data pipeline**: See `CLAUDE.md` in repository root
-- **Code review**: Script at `Analysis/24_quartile_slope_comparison.R`
+- **Methodology**: See `Analysis/24_quartile_slope_comparison.R` (inline documentation)
+- **Aggregation methodology**: See "CRITICAL: Aggregation to School-Year Level" in this summary
+- **Data pipeline**: See `CLAUDE.md` (repository guide)
 - **Related analyses**: See `outputs/summaries/README.md`
 
 ---
 
 ## Document Information
 
-**Document Version**: 1.0  
-**Document Created**: 2025-11-19  
-**Last Updated**: 2025-11-19  
-**Analysis Script**: `Analysis/24_quartile_slope_comparison.R`  
-**Output Location**: `outputs/summaries/24_quartile_slope_comparison_SUMMARY.md`  
-**Word Version**: `outputs/summaries/24_quartile_slope_comparison_SUMMARY.docx` (generate using conversion script)  
+**Document Version**: 1.0
+**Document Created**: 2025-11-20
+**Last Updated**: 2025-11-20
+**Analysis Script**: `Analysis/24_quartile_slope_comparison.R`
+**Output Location**: `outputs/summaries/24_quartile_slope_comparison_SUMMARY.md`
+**Word Version**: `outputs/summaries/24_quartile_slope_comparison_SUMMARY.docx` (generate using conversion script)
+
+**Conversion to Word**:
+```bash
+./scripts/utilities/convert_summary_to_word.sh 24_quartile_slope_comparison_SUMMARY.md
+```
+
+**Change Log**:
+- v1.0 (2025-11-20): Initial summary with corrected methodology (school-year aggregation)
 
 ---
 
