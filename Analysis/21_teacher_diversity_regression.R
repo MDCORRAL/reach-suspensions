@@ -208,6 +208,78 @@ describe_diversity_source <- function(meta, label) {
 }
 
 # =============================================================================
+# DATA AGGREGATION
+# =============================================================================
+
+aggregate_to_school_year_race <- function(df) {
+  # Aggregate reason-level data to school-year-race level
+  # This ensures we have one observation per school-year-race combination
+  # and properly handles clustering
+
+  message("\n>>> Aggregating to school-year-race level...")
+  message(">>> Initial rows: ", format_number(nrow(df)))
+
+  # Identify grouping variables (school, year, race)
+  group_vars <- c("cds_school", "academic_year", "student_group")
+
+  # For each school-year-race, we want to:
+  # 1. Sum total suspensions (across all reasons)
+  # 2. Take enrollment (should be same across reasons)
+  # 3. Recalculate suspension rate
+  # 4. Take first value of school-level variables (teacher diversity, charter, etc.)
+
+  # Identify numeric columns to sum (suspensions)
+  suspension_cols <- grep("^total_suspensions", names(df), value = TRUE)
+
+  # Identify columns to take first value (should be constant within group)
+  constant_cols <- c(
+    "cumulative_enrollment",
+    grep("^teacher_", names(df), value = TRUE),
+    grep("^charter_", names(df), value = TRUE),
+    grep("^is_", names(df), value = TRUE),
+    grep("level", names(df), value = TRUE, ignore.case = TRUE),
+    grep("sed", names(df), value = TRUE, ignore.case = TRUE)
+  )
+  constant_cols <- unique(constant_cols)
+  constant_cols <- intersect(constant_cols, names(df))
+
+  # Build aggregation expression
+  agg_df <- df %>%
+    group_by(across(all_of(group_vars))) %>%
+    summarise(
+      # Sum suspensions
+      across(any_of(suspension_cols), ~sum(.x, na.rm = TRUE)),
+
+      # Take first value of constant columns
+      across(any_of(constant_cols), ~first(.x)),
+
+      # Count how many reason-level rows were aggregated
+      n_reasons_aggregated = n(),
+
+      .groups = "drop"
+    )
+
+  # Recalculate suspension rate if we have both suspensions and enrollment
+  if ("total_suspensions" %in% names(agg_df) && "cumulative_enrollment" %in% names(agg_df)) {
+    agg_df <- agg_df %>%
+      mutate(
+        suspension_rate_percent_total = safe_div(total_suspensions, cumulative_enrollment) * 100
+      )
+  }
+
+  message(">>> Aggregated rows: ", format_number(nrow(agg_df)))
+  message(">>> Average reasons per school-year-race: ",
+          round(nrow(df) / nrow(agg_df), 1))
+
+  # Verify aggregation worked
+  if (nrow(agg_df) >= nrow(df)) {
+    warning("Aggregation did not reduce rows - check grouping variables")
+  }
+
+  return(agg_df)
+}
+
+# =============================================================================
 # DATA LOADING
 # =============================================================================
 
@@ -400,8 +472,9 @@ prepare_regression_frame <- function(df, student_group = NULL) {
     message("❌ No complete observations after filtering")
     return(NULL)
   }
-  
-  message("Final sample size: ", format_number(nrow(model_df)), " schools")
+
+  message("Final sample size: ", format_number(nrow(model_df)),
+          " school-year-race combinations")
   
   list(
     data = model_df,
@@ -450,7 +523,7 @@ extract_regression_results <- function(fit, model_info) {
 
   data.frame(
     student_group = group_label,
-    n_schools = stats::nobs(fit),
+    n_observations = stats::nobs(fit),  # school-year-race combinations
     r_squared = s$r.squared,
     adj_r_squared = s$adj.r.squared,
 
@@ -787,6 +860,10 @@ main <- function() {
   result <- load_features()
   df <- result$data
 
+  # CRITICAL: Aggregate to school-year-race level to avoid clustering issues
+  # This reduces observations from school-year-race-reason to school-year-race
+  df <- aggregate_to_school_year_race(df)
+
   # Prepare regressions for each student group
   groups <- if ("student_group" %in% names(df)) {
     unique(df$student_group[!is.na(df$student_group)])
@@ -851,7 +928,7 @@ main <- function() {
     summary_table <- practical_results %>%
       select(
         student_group,
-        n_schools,
+        n_observations,
         r_squared,
         adj_r_squared,
         teacher_coefficient,
@@ -928,7 +1005,12 @@ main <- function() {
   message("  • These are ASSOCIATIONS, not causal effects")
   message("  • Results describe correlations in observational data")
   message("  • Do not interpret coefficients as causal impacts")
-  message("  • Multiple comparisons: consider adjusting significance thresholds\n")
+  message("  • Multiple comparisons: consider adjusting significance thresholds")
+  message("\n📊 METHODOLOGICAL NOTE:")
+  message("  • Data aggregated to school-year-race level before regression")
+  message("  • This properly handles clustering (multiple reasons per school)")
+  message("  • N = unique school-year-race combinations")
+  message("  • Standard errors are now appropriate for the unit of analysis\n")
 
   invisible(list(
     fits = regression_fits,
