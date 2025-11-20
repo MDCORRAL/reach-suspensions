@@ -135,14 +135,18 @@ if (is.na(susp_col)) {
 message(">>> Using suspension rate column: ", susp_col)
 
 # Standardize to percentage scale
-df <- df %>%
-  mutate(
-    suspension_rate_pct = if_else(
-      grepl("percent", susp_col, ignore.case = TRUE),
-      as.numeric(.data[[susp_col]]),  # Already in percentage
-      as.numeric(.data[[susp_col]]) * 100  # Convert to percentage
-    )
-  )
+# Check once if the column is already in percentage format
+is_percent_scale <- grepl("percent", susp_col, ignore.case = TRUE)
+
+if (is_percent_scale) {
+  message(">>> Suspension rate already in percentage scale")
+  df <- df %>%
+    mutate(suspension_rate_pct = as.numeric(.data[[susp_col]]))
+} else {
+  message(">>> Converting suspension rate to percentage scale")
+  df <- df %>%
+    mutate(suspension_rate_pct = as.numeric(.data[[susp_col]]) * 100)
+}
 
 # Add quartile labels
 if (!"black_prop_q_label" %in% names(df)) {
@@ -415,16 +419,16 @@ p <- ggplot(plot_data, aes(x = pct_white_teachers, y = suspension_rate_pct)) +
 message("\n>>> Saving outputs...")
 
 # Create output directories
-dir.create(here::here("outputs", "tables"), showWarnings = FALSE, recursive = TRUE)
+dir.create(here::here("outputs", "summaries"), showWarnings = FALSE, recursive = TRUE)
 dir.create(here::here("outputs", "graphs"), showWarnings = FALSE, recursive = TRUE)
 
 # Save coefficient table
 write.csv(
   results_df,
-  here::here("outputs", "tables", "24_quartile_slope_comparison_coefficients.csv"),
+  here::here("outputs", "summaries", "24_quartile_slope_comparison_coefficients.csv"),
   row.names = FALSE
 )
-message("✓ Saved table: outputs/tables/24_quartile_slope_comparison_coefficients.csv")
+message("✓ Saved table: outputs/summaries/24_quartile_slope_comparison_coefficients.csv")
 
 # Save plot
 ggsave(
@@ -474,7 +478,7 @@ message("  • Visual inspection of slope angles in the plot provides")
 message("    a direct 'eyeball test' of the hypothesis\n")
 
 message("Output files:")
-message("  - outputs/tables/24_quartile_slope_comparison_coefficients.csv")
+message("  - outputs/summaries/24_quartile_slope_comparison_coefficients.csv")
 message("  - outputs/graphs/24_quartile_slope_comparison.png\n")
 
 invisible(list(
