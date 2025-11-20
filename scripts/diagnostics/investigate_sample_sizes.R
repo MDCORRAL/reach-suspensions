@@ -59,6 +59,21 @@ RACE_GROUP_CODES <- list(
   RT = "Two or More Races"
 )
 
+# CRITICAL: Use the EXACT same race slugs as the regression analysis
+# This must match Analysis/21_teacher_diversity_regression.R lines 30-41
+TEACHER_RACE_SLUGS <- c(
+  "african_american",
+  "asian",
+  "filipino",
+  "hispanic_or_latino",
+  "american_indian_or_alaska_native",
+  "native_hawaiian_pacific_islander",
+  "pacific_islander",  # legacy slug still appears in some historical files
+  "white",
+  "two_or_more_races",
+  "not_reported"
+)
+
 cat("5. SIMULATING REGRESSION FILTERS\n")
 cat(strrep("-", 70), "\n\n")
 
@@ -129,27 +144,41 @@ for (code in names(RACE_GROUP_CODES)) {
   # Now apply regression filters
   outcome_col <- "suspension_rate_percent_total"
 
-  # Check for teacher race share columns
-  race_share_pattern <- "teacher.*_(african_american|asian|hispanic|white|filipino|american_indian|native_hawaiian|pacific_islander|two_or_more).*_share$"
+  # CRITICAL: Use EXACT same pattern as regression (Analysis/21_teacher_diversity_regression.R line 96-98)
+  # Build pattern from TEACHER_RACE_SLUGS
+  race_share_pattern <- paste0("^teacher.*_(", paste(TEACHER_RACE_SLUGS, collapse = "|"), ")_share$")
   race_share_cols <- grep(race_share_pattern, names(group_df), value = TRUE, ignore.case = TRUE)
 
-  # Identify non-white columns
+  cat("  - Teacher race share columns found:", length(race_share_cols), "\n")
+
+  # Identify non-white columns (same logic as regression lines 110-116)
   white_cols <- grep("_white_share$", race_share_cols, value = TRUE, ignore.case = TRUE)
   white_cols <- white_cols[!grepl("non_white", white_cols, ignore.case = TRUE)]
   not_reported_cols <- grep("_(not_reported|unknown)_share$", race_share_cols, value = TRUE, ignore.case = TRUE)
   non_white_cols <- setdiff(race_share_cols, c(white_cols, not_reported_cols))
 
-  # Compute teacher non-white share
+  cat("      Non-white columns:", length(non_white_cols), "\n")
+  cat("      White columns:", length(white_cols), "\n")
+  cat("      Not reported columns:", length(not_reported_cols), "\n")
+
+  # Compute teacher non-white share (same as regression lines 128-136)
   teacher_non_white_share <- safe_sum_shares(group_df, non_white_cols)
 
   # Compute admin non-white share (same logic but for administrators)
-  admin_race_share_pattern <- "teacher.*by_type_administrators.*_(african_american|asian|hispanic|white|filipino|american_indian|native_hawaiian|pacific_islander|two_or_more).*_share$"
+  # This matches extract_admin_race_nonwhite_share() in regression line 182
+  admin_race_share_pattern <- paste0("^teacher.*by_type_administrators.*_(", paste(TEACHER_RACE_SLUGS, collapse = "|"), ")_share$")
   admin_race_share_cols <- grep(admin_race_share_pattern, names(group_df), value = TRUE, ignore.case = TRUE)
+
+  cat("  - Admin race share columns found:", length(admin_race_share_cols), "\n")
 
   admin_white_cols <- grep("_white_share$", admin_race_share_cols, value = TRUE, ignore.case = TRUE)
   admin_white_cols <- admin_white_cols[!grepl("non_white", admin_white_cols, ignore.case = TRUE)]
   admin_not_reported_cols <- grep("_(not_reported|unknown)_share$", admin_race_share_cols, value = TRUE, ignore.case = TRUE)
   admin_non_white_cols <- setdiff(admin_race_share_cols, c(admin_white_cols, admin_not_reported_cols))
+
+  cat("      Non-white columns:", length(admin_non_white_cols), "\n")
+  cat("      White columns:", length(admin_white_cols), "\n")
+  cat("      Not reported columns:", length(admin_not_reported_cols), "\n")
 
   admin_non_white_share <- safe_sum_shares(group_df, admin_non_white_cols)
 
@@ -205,9 +234,18 @@ cat(strrep("=", 70), "\n")
 cat("SUMMARY\n")
 cat(strrep("=", 70), "\n\n")
 
-cat("This script simulates the filtering logic used in the regression analysis.\n")
-cat("The 'FINAL SAMPLE SIZE' for each race group should match the N reported\n")
-cat("in the regression output for that group.\n\n")
+cat("This script uses the EXACT SAME filtering logic as the regression analysis.\n")
+cat("(Analysis/21_teacher_diversity_regression.R)\n\n")
+
+cat("Key alignment points:\n")
+cat("  ✓ Uses identical TEACHER_RACE_SLUGS pattern (lines 30-41 in regression)\n")
+cat("  ✓ Same race share column detection logic\n")
+cat("  ✓ Same white/non-white/not-reported separation\n")
+cat("  ✓ Same complete case filtering\n")
+cat("  ✓ Same enrollment > 0 requirement\n\n")
+
+cat("The 'FINAL SAMPLE SIZE' for each race group should EXACTLY match the N\n")
+cat("reported in the regression output for that group.\n\n")
 
 cat("If sample sizes are unexpectedly small, check:\n")
 cat("  1. Teacher data coverage (missing teacher_non_white_share)\n")
