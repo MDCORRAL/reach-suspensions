@@ -207,13 +207,29 @@ if (is_percent_scale) {
 
 # Add control variables
 
-# SED rate
-sed_cols <- grep("sed.*rate|sed.*share", names(df), value = TRUE,
-                 ignore.case = TRUE)
+# SED rate (Socioeconomically Disadvantaged - NOT Special Education)
+# Try multiple patterns to find SED-related columns
+sed_cols <- grep("^sed_rate$|sed.*rate|sed.*share|socio.*disadv.*rate|economic.*disadv.*rate",
+                 names(df), value = TRUE, ignore.case = TRUE)
+
 if (length(sed_cols) > 0) {
+  sed_col <- sed_cols[1]
   df <- df %>%
-    mutate(sed_rate = as.numeric(.data[[sed_cols[1]]]))
-  message(">>> Added SED rate control: ", sed_cols[1])
+    mutate(sed_rate = as.numeric(.data[[sed_col]]))
+  message(">>> Added SED rate control: ", sed_col)
+} else {
+  # If not found, check if it already exists
+  if ("sed_rate" %in% names(df)) {
+    message(">>> SED rate already exists in dataset")
+  } else {
+    message("⚠ Warning: SED rate not found. Available columns with 'sed' or 'socio':")
+    sed_related <- grep("sed|socio|economic", names(df), value = TRUE, ignore.case = TRUE)
+    if (length(sed_related) > 0) {
+      message("    ", paste(sed_related, collapse = ", "))
+    } else {
+      message("    None found - SED rate will not be included as a control")
+    }
+  }
 }
 
 # Charter status
@@ -292,6 +308,23 @@ message("  Suspension Rate: Mean = ", sprintf("%.2f%%", mean(analysis_df$suspens
         ", Range = [", sprintf("%.2f", min(analysis_df$suspension_rate_pct, na.rm = TRUE)),
         ", ", sprintf("%.2f", max(analysis_df$suspension_rate_pct, na.rm = TRUE)), "]")
 
+# Add SED rate summary if available
+if ("sed_rate" %in% names(analysis_df)) {
+  sed_mean <- mean(analysis_df$sed_rate, na.rm = TRUE)
+  sed_min <- min(analysis_df$sed_rate, na.rm = TRUE)
+  sed_max <- max(analysis_df$sed_rate, na.rm = TRUE)
+  # Convert to percentage if in [0,1] range
+  if (sed_mean <= 1) {
+    message("  % SED (Socioeconomically Disadvantaged): Mean = ", sprintf("%.1f%%", sed_mean * 100),
+            ", Range = [", sprintf("%.1f%%", sed_min * 100),
+            ", ", sprintf("%.1f%%", sed_max * 100), "]")
+  } else {
+    message("  % SED (Socioeconomically Disadvantaged): Mean = ", sprintf("%.1f%%", sed_mean),
+            ", Range = [", sprintf("%.1f%%", sed_min),
+            ", ", sprintf("%.1f%%", sed_max), "]")
+  }
+}
+
 # === 6) Run interaction term regression ======================================
 message("\n════════════════════════════════════════════════════════════════")
 message("📈 RUNNING INTERACTION TERM REGRESSION")
@@ -309,12 +342,17 @@ predictors <- c("pct_white_teachers * pct_black_students")
 controls <- character()
 if ("sed_rate" %in% names(analysis_df)) {
   controls <- c(controls, "sed_rate")
+  message("✓ Including SED rate as control")
+} else {
+  message("⚠ SED rate NOT available in analysis sample")
 }
 if ("is_charter" %in% names(analysis_df)) {
   controls <- c(controls, "is_charter")
+  message("✓ Including charter status as control")
 }
 if ("school_level_factor" %in% names(analysis_df)) {
   controls <- c(controls, "school_level_factor")
+  message("✓ Including school level as control")
 }
 
 if (length(controls) > 0) {
@@ -324,8 +362,10 @@ if (length(controls) > 0) {
   formula_str <- paste("suspension_rate_pct ~", predictors)
 }
 
-message(">>> Regression formula:")
+message("\n>>> Regression formula:")
 message("    ", formula_str)
+message("\n>>> Controls included: ",
+        if (length(controls) > 0) paste(controls, collapse = ", ") else "None")
 message("")
 
 formula_obj <- as.formula(formula_str)
@@ -509,7 +549,10 @@ p <- ggplot(pred_data, aes(x = pct_white_teachers, y = predicted_suspension_rate
       "Note: Predictions from weighted linear regression with interaction term.\n",
       "Controls held at: ",
       if ("sed_rate" %in% names(analysis_df)) {
-        paste0("SED rate = ", sprintf("%.1f%%", mean(analysis_df$sed_rate, na.rm = TRUE) * 100), ", ")
+        sed_mean_val <- mean(analysis_df$sed_rate, na.rm = TRUE)
+        # Handle both proportion [0,1] and percentage scales
+        sed_pct <- if (sed_mean_val <= 1) sed_mean_val * 100 else sed_mean_val
+        paste0("SED rate = ", sprintf("%.1f%%", sed_pct), ", ")
       } else "",
       "Traditional schools (non-charter)",
       if ("school_level_factor" %in% names(analysis_df)) {
