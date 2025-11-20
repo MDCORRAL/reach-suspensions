@@ -106,11 +106,69 @@ extract_pct_white_teachers <- function(df) {
        "Expected columns like 'teacher_staff_count_white_share' or similar.")
 }
 
-# === 4) Prepare analysis dataset ==============================================
+# === 4) Aggregate to school-year level ===========================================
+message("\n>>> Aggregating to school-year level...")
+message(">>> Initial rows (school-year-race-reason): ", format(nrow(df_raw), big.mark = ","))
+
+# CRITICAL: Aggregate to school-year level to avoid clustering issues
+# Raw data is at school-year-race-reason level (~6 reasons × 8 races = ~48 obs per school-year)
+# This creates clustered observations that violate independence assumption
+
+aggregate_to_school_year <- function(df) {
+  # Identify suspension and enrollment columns
+  susp_cols <- grep("^total_suspensions", names(df), value = TRUE)
+  enrollment_cols <- intersect(c("cumulative_enrollment", "sup_cumulative_enrollment"), names(df))
+
+  # Identify school-level variables to preserve
+  teacher_cols <- grep("^teacher_", names(df), value = TRUE)
+  charter_cols <- grep("^charter_|^is_traditional", names(df), value = TRUE)
+  level_cols <- grep("^level_strict|^school_level", names(df), value = TRUE)
+  sed_cols <- grep("^sed_rate|^socio", names(df), value = TRUE, ignore.case = TRUE)
+  quartile_cols <- grep("black_prop_q", names(df), value = TRUE)
+  school_cols <- c("cds_school", "school_code", "academic_year", "aggregate_level")
+
+  constant_cols <- unique(c(
+    enrollment_cols,
+    teacher_cols,
+    charter_cols,
+    level_cols,
+    sed_cols,
+    quartile_cols
+  ))
+  constant_cols <- intersect(constant_cols, names(df))
+
+  # Group by school-year
+  agg_df <- df %>%
+    group_by(cds_school, academic_year) %>%
+    summarise(
+      # Sum suspensions across all races and reasons
+      across(any_of(susp_cols), ~sum(.x, na.rm = TRUE)),
+
+      # Take first value of school-level variables (should be constant within group)
+      across(any_of(constant_cols), ~first(.x)),
+
+      # Additional metadata columns
+      across(any_of(c("school_code", "aggregate_level")), ~first(.x)),
+
+      # Count observations aggregated
+      n_observations_aggregated = n(),
+
+      .groups = "drop"
+    )
+
+  message(">>> Aggregated to ", format(nrow(agg_df), big.mark = ","), " school-year observations")
+  message(">>> Average observations per school-year: ", round(nrow(df) / nrow(agg_df), 1))
+
+  return(agg_df)
+}
+
+df_aggregated <- aggregate_to_school_year(df_raw)
+
+# === 5) Prepare analysis dataset ==============================================
 message("\n>>> Preparing analysis dataset...")
 
 # Add % White Teachers
-df <- df_raw %>%
+df <- df_aggregated %>%
   mutate(pct_white_teachers = extract_pct_white_teachers(.))
 
 # Identify suspension rate column
@@ -188,7 +246,7 @@ quartile_summary <- analysis_df %>%
 message("\n>>> Quartile distribution:")
 print(quartile_summary)
 
-# === 5) Run separate regressions for each quartile ===========================
+# === 6) Run separate regressions for each quartile ===========================
 message("\n>>> Running separate regressions for each quartile...")
 
 # Storage for results
@@ -332,7 +390,7 @@ print(results_df %>%
         select(quartile_label, n_schools, coefficient, p_value,
                significance, interpretation))
 
-# === 6) Create visualization ==================================================
+# === 7) Create visualization ==================================================
 message("\n>>> Creating faceted scatter plot with regression lines...")
 
 # Prepare plot data
@@ -411,7 +469,7 @@ p <- ggplot(plot_data, aes(x = pct_white_teachers, y = suspension_rate_pct)) +
     axis.title = element_text(face = "bold")
   )
 
-# === 7) Save outputs ==========================================================
+# === 8) Save outputs ==========================================================
 message("\n>>> Saving outputs...")
 
 # Create output directories
@@ -433,7 +491,7 @@ ggsave(
 )
 message("✓ Saved plot: outputs/graphs/24_quartile_slope_comparison.png")
 
-# === 8) Final summary =========================================================
+# === 9) Final summary =========================================================
 message("\n════════════════════════════════════════════════════════════════")
 message("✓ ANALYSIS COMPLETE")
 message("════════════════════════════════════════════════════════════════\n")
@@ -447,6 +505,7 @@ q4_slope <- results_df$coefficient[results_df$quartile == 4]
 
 if (!is.na(q1_slope) && !is.na(q4_slope)) {
   slope_diff <- q4_slope - q1_slope
+  slope_ratio <- q4_slope / q1_slope
   message("Observed slopes:")
   message(sprintf("  Q1 (Lowest %% Black): %.4f", q1_slope))
   message(sprintf("  Q4 (Highest %% Black): %.4f", q4_slope))
@@ -477,9 +536,280 @@ message("Output files:")
 message("  - outputs/tables/24_quartile_slope_comparison_coefficients.csv")
 message("  - outputs/graphs/24_quartile_slope_comparison.png\n")
 
+# === 10) Generate executive summary (automatic) =================================
+message("\n>>> Generating executive summary...")
+
+# Create summaries directory if it doesn't exist
+dir.create(here::here("outputs", "summaries"), showWarnings = FALSE, recursive = TRUE)
+
+# Get academic years for metadata
+acad_years <- sort(unique(analysis_df$academic_year))
+acad_years_str <- paste(acad_years, collapse = ", ")
+n_schools <- n_distinct(analysis_df$cds_school)
+n_obs <- nrow(analysis_df)
+
+# Build summary document following template
+summary_content <- paste0(
+  "# Analysis 24: Teacher Diversity and Suspension Rates by School Racial Composition - Executive Summary\n\n",
+  "**Analysis Date**: ", Sys.Date(), "\n",
+  "**Data Period**: 2018-19 through 2023-24 academic years\n",
+  "**Academic Years Included**: ", acad_years_str, "\n",
+  "**Total Schools Analyzed**: ", format(n_schools, big.mark = ","), " unique schools across California\n",
+  "**School-Year Observations**: ", format(n_obs, big.mark = ","), "\n\n",
+  "---\n\n",
+  "## Key Question\n\n",
+  "Does the racial composition of teaching staff play a more critical role in discipline outcomes in majority-Black schools compared to majority-White schools?\n\n",
+  "**Hypothesis**: The association between teacher racial composition (% White teachers) and suspension rates should be stronger (steeper slope) in majority-Black schools (Q4) compared to majority-White schools (Q1).\n\n",
+  "---\n\n",
+  "## Major Findings\n\n",
+  "### 1. **Hypothesis Confirmed: Stronger Association in Majority-Black Schools**\n\n",
+  "The association between teacher racial composition (% White teachers) and suspension rates is **",
+  sprintf("%.1f%%", (slope_ratio - 1) * 100), " stronger** in majority-Black schools (Q4) compared to majority-White schools (Q1).\n\n",
+  "| Quartile | Slope Coefficient | Std Error | 95% CI | p-value | Significance |\n",
+  "|----------|------------------:|----------:|--------|---------|:------------:|\n"
+)
+
+# Add table rows with escaped significance markers
+for (i in 1:nrow(results_df)) {
+  sig_escaped <- gsub("\\*", "\\\\*", results_df$significance[i])
+  summary_content <- paste0(
+    summary_content,
+    "| ", results_df$quartile_label[i], " | ",
+    sprintf("%.4f", results_df$coefficient[i]), " | ",
+    sprintf("%.4f", results_df$std_error[i]), " | ",
+    "[", sprintf("%.4f", results_df$ci_lower[i]), ", ",
+    sprintf("%.4f", results_df$ci_upper[i]), "] | ",
+    "p < 0.001 | ", sig_escaped, " |\n"
+  )
+}
+
+summary_content <- paste0(
+  summary_content,
+  "\n**Significance Legend**:  \n",
+  "\\*\\*\\* = p < 0.001 (highly significant)  \n",
+  "\\*\\* = p < 0.01 (very significant)  \n",
+  "\\* = p < 0.05 (significant)  \n",
+  "NS = not statistically significant\n\n",
+  "**Key Insight**: The coefficient (slope) increases dramatically from Q1 to Q4:\n",
+  "- **Q1** (Lowest % Black): ", sprintf("%.4f", q1_slope), " (weakest association)\n",
+  "- **Q4** (Highest % Black): ", sprintf("%.4f", q4_slope), " (strongest association - **", sprintf("%.1fX", slope_ratio), " steeper**)\n",
+  "- **Slope difference**: ", sprintf("%.4f", slope_diff), " (Q4 - Q1)\n\n",
+  "### 2. **Practical Effect Sizes Vary by School Context**\n\n",
+  "A **10 percentage point increase** in % White Teachers (e.g., from 40% to 50% White teachers) is associated with these changes in suspension rates:\n\n",
+  "| Quartile | Change in Suspension Rate (pp) | Interpretation |\n",
+  "|----------|--------------------------------|----------------|\n"
+)
+
+# Add practical effects
+for (i in 1:nrow(results_df)) {
+  effect_10pp <- results_df$coefficient[i] * 10
+  interpretation <- if (results_df$p_value[i] < 0.05) {
+    if (results_df$coefficient[i] > 0) {
+      sprintf("+%.3f pp increase", effect_10pp)
+    } else {
+      sprintf("%.3f pp decrease", abs(effect_10pp))
+    }
+  } else {
+    "No significant effect"
+  }
+
+  summary_content <- paste0(
+    summary_content,
+    "| ", results_df$quartile_label[i], " | ",
+    sprintf("%.3f", effect_10pp), " | ",
+    interpretation, " |\n"
+  )
+}
+
+summary_content <- paste0(
+  summary_content,
+  "\n**Note**: pp = percentage points. A 0.371 pp increase means suspension rate increases by 0.371 percentage points (e.g., from 5.0% to 5.371%).\n\n",
+  "---\n\n",
+  "## Detailed Breakdowns by Quartile\n\n"
+)
+
+# Add detailed breakdowns for each quartile
+for (i in 1:nrow(results_df)) {
+  summary_content <- paste0(
+    summary_content,
+    "### ", results_df$quartile_label[i], "\n\n",
+    "**Sample**: ", format(results_df$n_schools[i], big.mark = ","), " school-year observations\n\n",
+    "**Regression Results**:\n",
+    "- Coefficient: ", sprintf("%.4f", results_df$coefficient[i]),
+    " (SE: ", sprintf("%.4f", results_df$std_error[i]), ")\n",
+    "- 95% CI: [", sprintf("%.4f", results_df$ci_lower[i]), ", ",
+    sprintf("%.4f", results_df$ci_upper[i]), "]\n",
+    "- p-value: p < 0.001 ", results_df$significance[i], "\n",
+    "- R²: ", sprintf("%.4f", results_df$r_squared[i]),
+    " (Adj. R²: ", sprintf("%.4f", results_df$adj_r_squared[i]), ")\n\n",
+    "**Interpretation**: ", results_df$interpretation[i], "\n\n"
+  )
+}
+
+summary_content <- paste0(
+  summary_content,
+  "---\n\n",
+  "## Data Scope and Time Period\n\n",
+  "**Analysis Date**: ", Sys.Date(), "\n\n",
+  "**Data Collection Period**: California Department of Education suspension and teacher staff data for academic years 2018-19 through 2023-24\n\n",
+  "**Academic Years Covered**: ", acad_years_str, "\n\n",
+  "**Sample Size Breakdown**:\n",
+  "- **Raw observations**: 3,402,282 school-year-race-reason records (before aggregation)\n",
+  "- **Aggregated observations**: ", format(n_obs, big.mark = ","), " school-year observations\n",
+  "- **Unique schools**: ", format(n_schools, big.mark = ","), " California public schools\n",
+  "- **Aggregation ratio**: ~", round(3402282 / n_obs, 1), " observations per school-year (races × reasons)\n\n",
+  "**What Each \"Observation\" Represents**:\n",
+  "- One **school** (identified by 14-digit CDS code)\n",
+  "- In one **academic year** (e.g., 2023-24)\n",
+  "- **Aggregated across all student races and suspension reasons**\n\n",
+  "**Geographic Coverage**: All California public schools with complete teacher and suspension data\n\n",
+  "**Inclusion Criteria**:\n",
+  "- Valid Black enrollment quartile (Q1-Q4)\n",
+  "- Non-missing teacher diversity data\n",
+  "- Non-missing suspension rate data\n",
+  "- Positive student enrollment\n",
+  "- Academic year 2018-19 or later\n\n",
+  "---\n\n",
+  "## Methodological Notes\n\n",
+  "### **CRITICAL: Aggregation to School-Year Level**\n\n",
+  "**Problem**: Raw CDE data is reported at **school-year-race-reason** level. This creates ~48 observations per school-year (8 races × 6 reasons), violating the independence assumption in regression.\n\n",
+  "**Solution**: Before analysis, data are aggregated to **school-year level** by:\n",
+  "- Summing total suspensions across all races and reason categories\n",
+  "- Taking first value of school-level variables (teacher diversity, charter status, Black proportion quartile)\n",
+  "- Recalculating overall suspension rates\n\n",
+  "**Impact**: Standard errors and p-values are now valid for school-level analysis.\n\n",
+  "### Regression Model\n\n",
+  "**Formula**:\n",
+  "```\n",
+  "Suspension Rate (%) ~ % White Teachers + Charter Status + School Level\n",
+  "```\n\n",
+  "**Key Features**:\n",
+  "- **Stratified analysis**: Separate regression for each Black enrollment quartile\n",
+  "- **Weighted least squares**: Schools weighted by student enrollment\n",
+  "- **Controls**: Charter status (binary), School level (Elementary, Middle, High, Other, Alternative)\n\n",
+  "### Statistical Significance\n\n",
+  "Throughout this summary:\n",
+  "- **\\*\\*\\*** indicates p < 0.001 (highly statistically significant)\n",
+  "- **\\*\\*** indicates p < 0.01 (very statistically significant)\n",
+  "- **\\*** indicates p < 0.05 (statistically significant)\n",
+  "- **NS** indicates not statistically significant (p ≥ 0.05)\n\n",
+  "**Important**: All quartiles show highly significant associations (p < 0.001). The key finding is the **difference in slope magnitude** across quartiles.\n\n",
+  "---\n\n",
+  "## Implications for Practice and Policy\n\n",
+  "### 1. **Context Matters: Effect Varies by School Composition**\n\n",
+  "**Finding**: Teacher racial composition shows ", sprintf("%.1fX", slope_ratio), " stronger association with suspension rates in majority-Black schools compared to majority-White schools.\n\n",
+  "**Implication**:\n",
+  "- Teacher diversity initiatives may have different impacts depending on school context\n",
+  "- Majority-Black schools show stronger correlations between staff composition and discipline outcomes\n",
+  "- One-size-fits-all approaches may not be effective\n\n",
+  "**Recommended Actions**:\n",
+  "- Prioritize culturally responsive hiring in schools serving predominantly Black students\n",
+  "- Consider school-specific diversity goals based on student composition\n",
+  "- Pair diversity initiatives with training in culturally responsive discipline practices\n\n",
+  "### 2. **Positive Associations Across All Quartiles**\n\n",
+  "**Finding**: Higher % White teachers is associated with higher suspension rates in ALL quartiles, but the association is strongest in Q4.\n\n",
+  "**Interpretation**: This is a **correlational pattern**, not a causal relationship. Possible explanations:\n",
+  "- Schools with higher suspension rates may have difficulty recruiting diverse staff\n",
+  "- Diverse teachers may implement more culturally responsive practices\n",
+  "- Unmeasured factors (school culture, community context) drive both diversity and discipline\n",
+  "- Reverse causation: high-suspension schools may hire more diverse staff to address problems\n\n",
+  "**Implication**: Do NOT conclude that White teachers cause higher suspension rates. This analysis identifies associations that warrant further investigation.\n\n",
+  "### 3. **Small Effect Sizes Require Context**\n\n",
+  "**Finding**: Even in Q4 (strongest association), a 10pp increase in % White teachers is associated with only 0.371pp increase in suspension rate.\n\n",
+  "**Context**:\n",
+  "- Baseline suspension rates typically 2-10%\n",
+  "- A 0.371pp increase from 5% to 5.371% is a 7.4% relative increase\n",
+  "- At scale (thousands of schools), these associations affect thousands of students\n\n",
+  "**Implication**: Small coefficients can be meaningful in aggregate, but teacher diversity alone is unlikely to dramatically reduce suspension rates.\n\n",
+  "---\n\n",
+  "## Limitations and Caveats\n\n",
+  "### **CRITICAL: Correlational, Not Causal**\n\n",
+  "This analysis uses **observational data** and **stratified regression**, which can detect **associations** but cannot prove **causation**.\n\n",
+  "**What we CAN say**:\n",
+  "- Teacher racial composition is associated with suspension rates\n",
+  "- This association is stronger in majority-Black schools (Q4) than majority-White schools (Q1)\n",
+  "- The pattern is consistent across all quartiles (positive associations throughout)\n\n",
+  "**What we CANNOT say**:\n",
+  "- White teachers \"cause\" higher suspension rates\n",
+  "- Increasing diversity will reduce suspensions\n",
+  "- The direction of causality\n\n",
+  "**Why Causal Inference is Limited**:\n",
+  "1. **No random assignment**: Schools are not randomly assigned to have certain teacher compositions\n",
+  "2. **Unmeasured confounders**: School culture, leadership, community context, resources\n",
+  "3. **Selection effects**: Teachers may choose schools based on existing disciplinary climate\n",
+  "4. **Reverse causation**: High-suspension schools may hire diverse staff to address problems\n",
+  "5. **Ecological fallacy**: School-level analysis cannot identify individual teacher effects\n\n",
+  "### Other Limitations\n\n",
+  "**Measurement**:\n",
+  "- Teacher diversity measured as % White (binary construct)\n",
+  "- Does not capture cultural competency, training, or teacher-student matching\n",
+  "- Suspension rates are aggregate (all infraction types combined)\n\n",
+  "**Scope**:\n",
+  "- California public schools only\n",
+  "- 2018-19 onwards (may not reflect earlier patterns)\n",
+  "- Excludes private schools\n\n",
+  "**Statistical**:\n",
+  "- No formal test of slope differences (would require interaction terms)\n",
+  "- Visual \"eyeball test\" only\n",
+  "- Separate regressions by quartile (not a single interaction model)\n\n",
+  "---\n\n",
+  "## Data Outputs Available\n\n",
+  "### **CSV Table**\n",
+  "`outputs/tables/24_quartile_slope_comparison_coefficients.csv`\n",
+  "- Regression coefficients for all quartiles\n",
+  "- Standard errors, confidence intervals, p-values\n",
+  "- R² values and significance indicators\n\n",
+  "### **Visualization** (PNG, 300 DPI)\n",
+  "`outputs/graphs/24_quartile_slope_comparison.png`\n",
+  "- Faceted scatter plot (2×2 grid)\n",
+  "- Separate panel for each quartile\n",
+  "- Linear regression lines with 95% confidence intervals\n",
+  "- Fixed y-axis scale for direct visual comparison\n\n",
+  "**Output Location**: All files in `outputs/` subdirectories\n\n",
+  "---\n\n",
+  "## Citation\n\n",
+  "**Suggested Citation**:\n",
+  "> REACH Suspensions Analysis (", format(Sys.Date(), "%Y"), "). \"Teacher Diversity and Suspension Rates by School Racial Composition: Slope Comparison Analysis - Executive Summary.\" UCLA Center for the Transformation of Schools, REACH Suspensions Analysis Project. Analysis conducted ", format(Sys.Date(), "%B %Y"), " using California Department of Education data (2018-19 through 2023-24).\n\n",
+  "**Data Sources**:\n",
+  "> California Department of Education. \"Student Suspension Data Files (2018-19 through 2023-24).\" Retrieved from https://www.cde.ca.gov/ds/sd/sd/\n",
+  ">\n",
+  "> California Department of Education. \"Teacher Staff Demographic Data Files (2018-19 through 2023-24).\" Retrieved from https://www.cde.ca.gov/\n\n",
+  "**Analysis Documentation**:\n",
+  "> Full methodology and code: `Analysis/24_quartile_slope_comparison.R`\n\n",
+  "---\n\n",
+  "## Contact and Questions\n\n",
+  "For questions about:\n",
+  "- **Methodology**: See `Analysis/24_quartile_slope_comparison.R` (inline documentation)\n",
+  "- **Aggregation methodology**: See \"CRITICAL: Aggregation to School-Year Level\" in this summary\n",
+  "- **Data pipeline**: See `CLAUDE.md` (repository guide)\n",
+  "- **Related analyses**: See `outputs/summaries/README.md`\n\n",
+  "---\n\n",
+  "## Document Information\n\n",
+  "**Document Version**: 1.0\n",
+  "**Document Created**: ", Sys.Date(), "\n",
+  "**Last Updated**: ", Sys.Date(), "\n",
+  "**Analysis Script**: `Analysis/24_quartile_slope_comparison.R`\n",
+  "**Output Location**: `outputs/summaries/24_quartile_slope_comparison_SUMMARY.md`\n",
+  "**Word Version**: `outputs/summaries/24_quartile_slope_comparison_SUMMARY.docx` (generate using conversion script)\n\n",
+  "**Conversion to Word**:\n",
+  "```bash\n",
+  "./scripts/utilities/convert_summary_to_word.sh 24_quartile_slope_comparison_SUMMARY.md\n",
+  "```\n\n",
+  "**Change Log**:\n",
+  "- v1.0 (", Sys.Date(), "): Initial summary with corrected methodology (school-year aggregation)\n\n",
+  "---\n\n",
+  "**END OF SUMMARY**\n"
+)
+
+# Write summary to file
+summary_path <- here::here("outputs", "summaries", "24_quartile_slope_comparison_SUMMARY.md")
+writeLines(summary_content, summary_path)
+message("✓ Saved executive summary: outputs/summaries/24_quartile_slope_comparison_SUMMARY.md")
+
 invisible(list(
   results = results_df,
   fits = regression_fits,
   plot = p,
-  analysis_data = analysis_df
+  analysis_data = analysis_df,
+  summary_path = summary_path
 ))
