@@ -79,15 +79,32 @@ message(">>> Loaded ", format_number(nrow(df_raw)), " rows")
 
 # === 3) Aggregate to school-year level =========================================
 message("\n>>> Aggregating to school-year level...")
-message(">>> Initial rows (school-year-race-reason): ", format_number(nrow(df_raw)))
+message(">>> Initial rows (school-year-subgroup-reason): ", format_number(nrow(df_raw)))
 
-# CRITICAL: Aggregate to school-year level to avoid clustering issues
-# Raw data is at school-year-race-reason level (~6 reasons × 8 races = ~48 obs per school-year)
-# This creates clustered observations that violate independence assumption
+# CRITICAL: Use CDE's "All Students" subgroup for accurate totals
+# Raw data uses "subgroup" column (not "race") for demographic categories
+# Filtering to subgroup == "All Students" gives us CDE's pre-calculated totals
 
+# STEP 1: Filter to "All Students" subgroup
+if (!"subgroup" %in% names(df_raw)) {
+  stop("Column 'subgroup' not found. Cannot aggregate using 'All Students' total.")
+}
+
+if (!"All Students" %in% unique(df_raw$subgroup)) {
+  stop("'All Students' not found in subgroup column. Cannot use CDE's pre-calculated totals.")
+}
+
+message(">>> Filtering to subgroup == 'All Students' (CDE's pre-calculated total)...")
+df_all_students <- df_raw %>%
+  filter(subgroup == "All Students")
+
+message(">>> After filtering: ", format_number(nrow(df_all_students)), " rows")
+message(">>> Data reduction: ", round(nrow(df_raw) / nrow(df_all_students), 1), "x")
+
+# STEP 2: Aggregate across suspension reasons
 aggregate_to_school_year <- function(df) {
   # Identify suspension and enrollment columns
-  susp_cols <- grep("^total_suspensions", names(df), value = TRUE)
+  susp_cols <- grep("^total_suspensions|^suspension_count", names(df), value = TRUE)
   enrollment_cols <- intersect(c("cumulative_enrollment", "sup_cumulative_enrollment"), names(df))
 
   # Identify school-level variables to preserve
@@ -99,7 +116,7 @@ aggregate_to_school_year <- function(df) {
   school_cols <- c("cds_school", "school_code", "academic_year", "aggregate_level")
 
   constant_cols <- unique(c(
-    enrollment_cols,
+    enrollment_cols,  # Now truly constant (not subgroup-specific)
     teacher_cols,
     charter_cols,
     level_cols,
@@ -108,37 +125,35 @@ aggregate_to_school_year <- function(df) {
   ))
   constant_cols <- intersect(constant_cols, names(df))
 
-  # Group by school-year
+  # Group by school-year and aggregate across reasons
   agg_df <- df %>%
     group_by(cds_school, academic_year) %>%
     summarise(
-      # Sum suspensions across all races and reasons
+      # Sum suspensions across all reasons (now just reasons, not subgroups)
       across(any_of(susp_cols), ~sum(.x, na.rm = TRUE)),
 
-      # CRITICAL FIX: Use max() for enrollment to get total school enrollment
-      # (not race-specific enrollment). Cumulative_enrollment is constant across
-      # race rows at school level, so max() extracts the total school enrollment.
-      across(any_of(enrollment_cols), ~max(.x, na.rm = TRUE)),
+      # Take first value of enrollment (truly constant now with "All Students")
+      across(any_of(enrollment_cols), ~first(.x)),
 
-      # Take first value of school-level variables (should be constant within group)
+      # Take first value of school-level variables (should be constant)
       across(any_of(constant_cols), ~first(.x)),
 
       # Additional metadata columns
       across(any_of(c("school_code", "aggregate_level")), ~first(.x)),
 
-      # Count observations aggregated
-      n_observations_aggregated = n(),
+      # Count observations aggregated (should be ~6 reasons)
+      n_reasons_aggregated = n(),
 
       .groups = "drop"
     )
 
   message(">>> Aggregated to ", format_number(nrow(agg_df)), " school-year observations")
-  message(">>> Average observations per school-year: ", round(nrow(df) / nrow(agg_df), 1))
+  message(">>> Average reasons per school-year: ", round(nrow(df) / nrow(agg_df), 1))
 
   return(agg_df)
 }
 
-df_aggregated <- aggregate_to_school_year(df_raw)
+df_aggregated <- aggregate_to_school_year(df_all_students)
 
 # === 4) Extract key variables =================================================
 
