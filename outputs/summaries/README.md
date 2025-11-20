@@ -84,6 +84,7 @@ Where:
 |------|----------|--------------|------|
 | `21_teacher_diversity_regression_SUMMARY.md` | Teacher & administrator racial diversity and suspension rates | Is teacher/administrator racial diversity associated with student suspension rates, and do associations vary by student race? | 2025-11-20 |
 | `22_black_suspension_teacher_demographics_SUMMARY.md` | Black suspension rates with teacher demographics | How do suspension rates vary by school composition and what are teacher demographics in high-suspension schools? | 2025-11-19 |
+| `24_quartile_slope_comparison_SUMMARY.md` | Teacher diversity and suspension rates by school racial composition | Does teacher racial composition show stronger associations with suspension rates in majority-Black schools vs. majority-White schools? | 2025-11-20 |
 
 *(Add new summaries to this table as created)*
 
