@@ -193,14 +193,18 @@ if (is.na(susp_col)) {
 message(">>> Using suspension rate column: ", susp_col)
 
 # Standardize to percentage scale
-df <- df %>%
-  mutate(
-    suspension_rate_pct = if_else(
-      grepl("percent", susp_col, ignore.case = TRUE),
-      as.numeric(.data[[susp_col]]),  # Already in percentage
-      as.numeric(.data[[susp_col]]) * 100  # Convert to percentage
-    )
-  )
+# Check once if the column is already in percentage format
+is_percent_scale <- grepl("percent", susp_col, ignore.case = TRUE)
+
+if (is_percent_scale) {
+  message(">>> Suspension rate already in percentage scale")
+  df <- df %>%
+    mutate(suspension_rate_pct = as.numeric(.data[[susp_col]]))
+} else {
+  message(">>> Converting suspension rate to percentage scale")
+  df <- df %>%
+    mutate(suspension_rate_pct = as.numeric(.data[[susp_col]]) * 100)
+}
 
 # Add quartile labels
 if (!"black_prop_q_label" %in% names(df)) {
@@ -215,7 +219,7 @@ if (!"black_prop_q_label" %in% names(df)) {
 # 3. Has suspension rate data
 # 4. Has enrollment for weighting
 # 5. Focus on recent years (2018-19 onwards) for better data coverage
-# 6. School-level data only
+# 6. School-level data only (if aggregate_level column exists)
 
 analysis_df <- df %>%
   filter(
@@ -225,12 +229,24 @@ analysis_df <- df %>%
     !is.na(suspension_rate_pct),
     !is.na(cumulative_enrollment),
     cumulative_enrollment > 0,
-    academic_year >= "2018-19",
-    # School-level data only
-    aggregate_level == "S" | tolower(aggregate_level) == "school"
-  ) %>%
-  # Exclude special school codes
-  filter(!school_code %in% SPECIAL_SCHOOL_CODES)
+    academic_year >= "2018-19"
+  )
+
+# Filter to school-level data if aggregate_level column exists
+if ("aggregate_level" %in% names(analysis_df)) {
+  message(">>> Filtering to school-level data (aggregate_level == 'S')")
+  analysis_df <- analysis_df %>%
+    filter(aggregate_level == "S" | tolower(aggregate_level) == "school")
+} else {
+  message(">>> No aggregate_level column found; assuming all rows are school-level")
+}
+
+# Exclude special school codes if school_code column exists
+if ("school_code" %in% names(analysis_df)) {
+  message(">>> Excluding special school codes")
+  analysis_df <- analysis_df %>%
+    filter(!school_code %in% SPECIAL_SCHOOL_CODES)
+}
 
 message(">>> Analysis sample: ", format(nrow(analysis_df), big.mark = ","),
         " school-year observations")
@@ -402,14 +418,24 @@ plot_data <- analysis_df %>%
   )
 
 # Calculate overall y-axis limits for fixed scales
+# Use a more focused range to reduce whitespace while keeping scales fixed
 y_range <- range(plot_data$suspension_rate_pct, na.rm = TRUE)
+
+# Calculate 95th percentile to avoid extreme outliers driving the scale
+y_p95 <- quantile(plot_data$suspension_rate_pct, 0.95, na.rm = TRUE)
+y_p99 <- quantile(plot_data$suspension_rate_pct, 0.99, na.rm = TRUE)
+
+# Use 99th percentile as upper limit (captures most data, reduces whitespace)
 y_limits <- c(
-  max(0, floor(y_range[1] / 5) * 5),  # Round down to nearest 5
-  ceiling(y_range[2] / 5) * 5          # Round up to nearest 5
+  0,  # Start at 0 for interpretability
+  ceiling(y_p99)  # Round up to nearest integer
 )
 
 message(">>> Y-axis limits (fixed across all panels): [", y_limits[1], ", ",
         y_limits[2], "]")
+message(">>> Data range: [", round(y_range[1], 2), ", ", round(y_range[2], 2),
+        "], 95th percentile: ", round(y_p95, 2),
+        ", 99th percentile: ", round(y_p99, 2))
 
 # Create faceted scatter plot
 p <- ggplot(plot_data, aes(x = pct_white_teachers, y = suspension_rate_pct)) +
@@ -475,6 +501,7 @@ message("\n>>> Saving outputs...")
 # Create output directories
 dir.create(here::here("outputs", "tables"), showWarnings = FALSE, recursive = TRUE)
 dir.create(here::here("outputs", "graphs"), showWarnings = FALSE, recursive = TRUE)
+dir.create(here::here("outputs", "summaries"), showWarnings = FALSE, recursive = TRUE)
 
 # Save coefficient table
 write.csv(

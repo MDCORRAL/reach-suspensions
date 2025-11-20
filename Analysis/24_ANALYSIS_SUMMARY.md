@@ -87,8 +87,19 @@ Suspension Rate (%) ~ % White Teachers + Controls
 - Dimensions: 12" × 10" @ 300 DPI
 - Format: PNG with white background
 - Layout: 2×2 faceted grid
-- Fixed y-axis scales for direct comparison
+- Fixed y-axis scales for direct comparison (adjusted to 99th percentile to reduce whitespace)
 - UCLA-branded color scheme
+
+### 3. Analysis Summary
+**File**: `outputs/summaries/24_quartile_slope_comparison_SUMMARY.md`
+
+**Contents**:
+- Research question and hypothesis
+- Sample description and quartile distribution
+- Regression results table with coefficients, CI, p-values
+- Hypothesis test results
+- Practical effect size interpretations
+- Important caveats and methodology notes
 
 ---
 
