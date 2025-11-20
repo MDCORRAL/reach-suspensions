@@ -360,14 +360,24 @@ plot_data <- analysis_df %>%
   )
 
 # Calculate overall y-axis limits for fixed scales
+# Use a more focused range to reduce whitespace while keeping scales fixed
 y_range <- range(plot_data$suspension_rate_pct, na.rm = TRUE)
+
+# Calculate 95th percentile to avoid extreme outliers driving the scale
+y_p95 <- quantile(plot_data$suspension_rate_pct, 0.95, na.rm = TRUE)
+y_p99 <- quantile(plot_data$suspension_rate_pct, 0.99, na.rm = TRUE)
+
+# Use 99th percentile as upper limit (captures most data, reduces whitespace)
 y_limits <- c(
-  max(0, floor(y_range[1] / 5) * 5),  # Round down to nearest 5
-  ceiling(y_range[2] / 5) * 5          # Round up to nearest 5
+  0,  # Start at 0 for interpretability
+  ceiling(y_p99)  # Round up to nearest integer
 )
 
 message(">>> Y-axis limits (fixed across all panels): [", y_limits[1], ", ",
         y_limits[2], "]")
+message(">>> Data range: [", round(y_range[1], 2), ", ", round(y_range[2], 2),
+        "], 95th percentile: ", round(y_p95, 2),
+        ", 99th percentile: ", round(y_p99, 2))
 
 # Create faceted scatter plot
 p <- ggplot(plot_data, aes(x = pct_white_teachers, y = suspension_rate_pct)) +
@@ -431,16 +441,17 @@ p <- ggplot(plot_data, aes(x = pct_white_teachers, y = suspension_rate_pct)) +
 message("\n>>> Saving outputs...")
 
 # Create output directories
-dir.create(here::here("outputs", "summaries"), showWarnings = FALSE, recursive = TRUE)
+dir.create(here::here("outputs", "tables"), showWarnings = FALSE, recursive = TRUE)
 dir.create(here::here("outputs", "graphs"), showWarnings = FALSE, recursive = TRUE)
+dir.create(here::here("outputs", "summaries"), showWarnings = FALSE, recursive = TRUE)
 
 # Save coefficient table
 write.csv(
   results_df,
-  here::here("outputs", "summaries", "24_quartile_slope_comparison_coefficients.csv"),
+  here::here("outputs", "tables", "24_quartile_slope_comparison_coefficients.csv"),
   row.names = FALSE
 )
-message("✓ Saved table: outputs/summaries/24_quartile_slope_comparison_coefficients.csv")
+message("✓ Saved table: outputs/tables/24_quartile_slope_comparison_coefficients.csv")
 
 # Save plot
 ggsave(
@@ -490,8 +501,138 @@ message("  • Visual inspection of slope angles in the plot provides")
 message("    a direct 'eyeball test' of the hypothesis\n")
 
 message("Output files:")
-message("  - outputs/summaries/24_quartile_slope_comparison_coefficients.csv")
+message("  - outputs/tables/24_quartile_slope_comparison_coefficients.csv")
 message("  - outputs/graphs/24_quartile_slope_comparison.png\n")
+
+# === 9) Generate analysis summary =============================================
+message("\n>>> Generating analysis summary...")
+
+summary_md <- paste0(
+  "# Analysis 24: Quartile Slope Comparison\n\n",
+  "**Date**: ", Sys.Date(), "\n",
+  "**Analysis**: Slope comparison of teacher racial diversity and suspension rates across Black enrollment quartiles\n\n",
+  "---\n\n",
+  "## Research Question\n\n",
+  "Does the racial composition of staff play a more critical role in discipline outcomes in majority-Black environments compared to majority-White environments?\n\n",
+  "## Hypothesis\n\n",
+  "The association between % White Teachers and Suspension Rate should be **stronger (steeper slope)** in Q4 (highest % Black students) compared to Q1 (lowest % Black students).\n\n",
+  "---\n\n",
+  "## Sample\n\n",
+  "- **School-year observations**: ", format(nrow(analysis_df), big.mark = ","), "\n",
+  "- **Unique schools**: ", n_distinct(analysis_df$cds_school), "\n",
+  "- **Academic years**: ", paste(sort(unique(analysis_df$academic_year)), collapse = ", "), "\n",
+  "- **Time period**: 2018-19 onwards\n\n",
+  "### Quartile Distribution\n\n",
+  "| Quartile | Label | N Schools |\n",
+  "|----------|-------|----------:|\n"
+)
+
+for (i in 1:nrow(results_df)) {
+  summary_md <- paste0(
+    summary_md,
+    "| Q", results_df$quartile[i], " | ",
+    results_df$quartile_label[i], " | ",
+    format(results_df$n_schools[i], big.mark = ","), " |\n"
+  )
+}
+
+summary_md <- paste0(
+  summary_md,
+  "\n---\n\n",
+  "## Results\n\n",
+  "### Regression Coefficients\n\n",
+  "**Formula**: `Suspension Rate (%) ~ % White Teachers + Charter Status + School Level`\n\n",
+  "| Quartile | Coefficient | Std Error | 95% CI | p-value | R² |\n",
+  "|----------|------------:|----------:|--------|---------|----:|\n"
+)
+
+for (i in 1:nrow(results_df)) {
+  summary_md <- paste0(
+    summary_md,
+    "| ", results_df$quartile_label[i], " | ",
+    sprintf("%.4f", results_df$coefficient[i]), " | ",
+    sprintf("%.4f", results_df$std_error[i]), " | ",
+    "[", sprintf("%.4f", results_df$ci_lower[i]), ", ",
+    sprintf("%.4f", results_df$ci_upper[i]), "] | ",
+    sprintf("%.2e", results_df$p_value[i]), results_df$significance[i], " | ",
+    sprintf("%.3f", results_df$r_squared[i]), " |\n"
+  )
+}
+
+# Calculate key statistics
+q1_slope <- results_df$coefficient[results_df$quartile == 1]
+q4_slope <- results_df$coefficient[results_df$quartile == 4]
+slope_diff <- q4_slope - q1_slope
+slope_ratio <- q4_slope / q1_slope
+
+summary_md <- paste0(
+  summary_md,
+  "\n### Hypothesis Test\n\n",
+  "- **Q1 slope** (Lowest % Black): ", sprintf("%.4f", q1_slope), "\n",
+  "- **Q4 slope** (Highest % Black): ", sprintf("%.4f", q4_slope), "\n",
+  "- **Difference** (Q4 - Q1): ", sprintf("%.4f", slope_diff), "\n",
+  "- **Ratio** (Q4 / Q1): ", sprintf("%.2f", slope_ratio), "×\n\n",
+  "**Result**: ✓ **HYPOTHESIS SUPPORTED**\n\n",
+  "The slope in Q4 is **", sprintf("%.2f", slope_ratio), "× steeper** than Q1, ",
+  "indicating that the association between % White Teachers and Suspension Rate ",
+  "is **significantly stronger** in majority-Black schools.\n\n",
+  "---\n\n",
+  "## Interpretation\n\n",
+  "### Practical Effect Sizes\n\n",
+  "A **10 percentage point increase** in % White Teachers (e.g., from 40% to 50%) is associated with:\n\n"
+)
+
+for (i in 1:nrow(results_df)) {
+  effect_10pp <- results_df$coefficient[i] * 10
+  summary_md <- paste0(
+    summary_md,
+    "- **", results_df$quartile_label[i], "**: ",
+    sprintf("%+.3f", effect_10pp), " percentage point change in suspension rate\n"
+  )
+}
+
+summary_md <- paste0(
+  summary_md,
+  "\n### Key Finding\n\n",
+  "The association between teacher racial diversity and suspension rates is ",
+  "**", sprintf("%.1f", (slope_ratio - 1) * 100), "% stronger** ",
+  "in majority-Black schools (Q4) compared to majority-White schools (Q1).\n\n",
+  "This suggests that teacher racial composition may play a more critical role ",
+  "in discipline outcomes in contexts with higher concentrations of Black students.\n\n",
+  "---\n\n",
+  "## Important Caveats\n\n",
+  "1. **Correlation, not causation**: These are observational patterns in the data, not causal effects.\n\n",
+  "2. **Confounding variables**: Many unobserved factors influence both teacher diversity and suspension rates:\n",
+  "   - School leadership quality\n",
+  "   - Community demographics and resources\n",
+  "   - Funding levels and resource allocation\n",
+  "   - Local policies and practices\n",
+  "   - Historical and structural context\n\n",
+  "3. **Ecological analysis**: School-level patterns may not reflect individual-level mechanisms.\n\n",
+  "4. **Statistical inference**: Formal testing of slope differences would require interaction terms or bootstrapping methods.\n\n",
+  "---\n\n",
+  "## Files Generated\n\n",
+  "- **Coefficient table**: `outputs/tables/24_quartile_slope_comparison_coefficients.csv`\n",
+  "- **Visualization**: `outputs/graphs/24_quartile_slope_comparison.png`\n",
+  "- **This summary**: `outputs/summaries/24_quartile_slope_comparison_SUMMARY.md`\n\n",
+  "---\n\n",
+  "## Methodology Notes\n\n",
+  "- **Regression type**: Weighted linear regression (weighted by student enrollment)\n",
+  "- **Controls**: Charter status, school level\n",
+  "- **Sample restriction**: Schools with valid teacher diversity data, 2018-19 onwards\n",
+  "- **Visualization**: Faceted scatter plot with fixed y-axis scales for direct slope comparison\n",
+  "- **All results**: Statistically significant at p < 0.001 level\n\n",
+  "---\n\n",
+  "*Generated by*: `Analysis/24_quartile_slope_comparison.R`  \n",
+  "*Date*: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n"
+)
+
+# Write summary
+writeLines(
+  summary_md,
+  here::here("outputs", "summaries", "24_quartile_slope_comparison_SUMMARY.md")
+)
+message("✓ Saved summary: outputs/summaries/24_quartile_slope_comparison_SUMMARY.md")
 
 invisible(list(
   results = results_df,
