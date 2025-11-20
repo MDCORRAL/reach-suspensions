@@ -463,6 +463,17 @@ pred_data$level_label <- factor(pred_data$level_label,
                                                 black_percentiles))
 
 # Create interaction plot
+# Build color and linetype vectors with dynamic names
+color_values <- c("#00A5E0", "#FFB81C", "#C4820E")  # Blue, Gold, Dark gold
+names(color_values) <- sprintf("%s (%.1f%% Black)",
+                               c("Low", "Medium", "High"),
+                               black_percentiles)
+
+linetype_values <- c("solid", "dashed", "solid")
+names(linetype_values) <- sprintf("%s (%.1f%% Black)",
+                                  c("Low", "Medium", "High"),
+                                  black_percentiles)
+
 p <- ggplot(pred_data, aes(x = pct_white_teachers, y = predicted_suspension_rate,
                            color = level_label, linetype = level_label)) +
   geom_line(linewidth = 1.2) +
@@ -471,20 +482,8 @@ p <- ggplot(pred_data, aes(x = pct_white_teachers, y = predicted_suspension_rate
   geom_hline(yintercept = 0, linetype = "dotted", color = "gray50") +
 
   # Color palette (UCLA-inspired)
-  scale_color_manual(
-    values = c(
-      sprintf("Low (%.1f%% Black)", black_percentiles[1]) = "#00A5E0",  # Blue
-      sprintf("Medium (%.1f%% Black)", black_percentiles[2]) = "#FFB81C",  # Gold
-      sprintf("High (%.1f%% Black)", black_percentiles[3]) = "#C4820E"   # Dark gold
-    )
-  ) +
-  scale_linetype_manual(
-    values = c(
-      sprintf("Low (%.1f%% Black)", black_percentiles[1]) = "solid",
-      sprintf("Medium (%.1f%% Black)", black_percentiles[2]) = "dashed",
-      sprintf("High (%.1f%% Black)", black_percentiles[3]) = "solid"
-    )
-  ) +
+  scale_color_manual(values = color_values) +
+  scale_linetype_manual(values = linetype_values) +
 
   # Scales
   scale_x_continuous(
