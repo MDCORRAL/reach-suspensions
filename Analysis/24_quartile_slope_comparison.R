@@ -161,7 +161,7 @@ if (!"black_prop_q_label" %in% names(df)) {
 # 3. Has suspension rate data
 # 4. Has enrollment for weighting
 # 5. Focus on recent years (2018-19 onwards) for better data coverage
-# 6. School-level data only
+# 6. School-level data only (if aggregate_level column exists)
 
 analysis_df <- df %>%
   filter(
@@ -171,12 +171,24 @@ analysis_df <- df %>%
     !is.na(suspension_rate_pct),
     !is.na(cumulative_enrollment),
     cumulative_enrollment > 0,
-    academic_year >= "2018-19",
-    # School-level data only
-    aggregate_level == "S" | tolower(aggregate_level) == "school"
-  ) %>%
-  # Exclude special school codes
-  filter(!school_code %in% SPECIAL_SCHOOL_CODES)
+    academic_year >= "2018-19"
+  )
+
+# Filter to school-level data if aggregate_level column exists
+if ("aggregate_level" %in% names(analysis_df)) {
+  message(">>> Filtering to school-level data (aggregate_level == 'S')")
+  analysis_df <- analysis_df %>%
+    filter(aggregate_level == "S" | tolower(aggregate_level) == "school")
+} else {
+  message(">>> No aggregate_level column found; assuming all rows are school-level")
+}
+
+# Exclude special school codes if school_code column exists
+if ("school_code" %in% names(analysis_df)) {
+  message(">>> Excluding special school codes")
+  analysis_df <- analysis_df %>%
+    filter(!school_code %in% SPECIAL_SCHOOL_CODES)
+}
 
 message(">>> Analysis sample: ", format(nrow(analysis_df), big.mark = ","),
         " school-year observations")
