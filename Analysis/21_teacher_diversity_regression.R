@@ -231,17 +231,31 @@ aggregate_to_school_year_race <- function(df) {
   # Identify numeric columns to sum (suspensions)
   suspension_cols <- grep("^total_suspensions", names(df), value = TRUE)
 
+  # IMPORTANT: Be selective about which columns to keep - only keep columns
+  # actually used in regression to avoid expensive operations on 300+ columns
+
   # Identify columns to take first value (should be constant within group)
-  constant_cols <- c(
-    "cumulative_enrollment",
-    grep("^teacher_", names(df), value = TRUE),
-    grep("^charter_", names(df), value = TRUE),
-    grep("^is_", names(df), value = TRUE),
-    grep("level", names(df), value = TRUE, ignore.case = TRUE),
-    grep("sed", names(df), value = TRUE, ignore.case = TRUE)
-  )
-  constant_cols <- unique(constant_cols)
+  # Only keep columns that are actually used in the regression
+  enrollment_cols <- intersect(c("cumulative_enrollment", "sup_cumulative_enrollment"), names(df))
+
+  # Only keep teacher/admin diversity share columns (not all 300 teacher columns!)
+  teacher_diversity_cols <- grep("_share$", grep("^teacher_", names(df), value = TRUE), value = TRUE)
+
+  # Control variables
+  charter_cols <- grep("^charter_|^is_traditional", names(df), value = TRUE)
+  level_cols <- grep("^level_strict|^school_level", names(df), value = TRUE)
+  sed_cols <- grep("^sed_rate|^socio", names(df), value = TRUE, ignore.case = TRUE)
+
+  constant_cols <- unique(c(
+    enrollment_cols,
+    teacher_diversity_cols,  # Only diversity shares, not all teacher columns
+    charter_cols,
+    level_cols,
+    sed_cols
+  ))
   constant_cols <- intersect(constant_cols, names(df))
+
+  message(">>> Aggregating across ", length(constant_cols), " constant columns...")
 
   # Build aggregation expression
   agg_df <- df %>%
