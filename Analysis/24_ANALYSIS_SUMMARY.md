@@ -67,7 +67,7 @@ Suspension Rate (%) ~ % White Teachers + Controls
 ## Expected Outputs
 
 ### 1. Regression Results Table
-**File**: `outputs/tables/24_quartile_slope_comparison_coefficients.csv`
+**File**: `outputs/summaries/24_quartile_slope_comparison_coefficients.csv`
 
 **Contents**:
 - Quartile labels
