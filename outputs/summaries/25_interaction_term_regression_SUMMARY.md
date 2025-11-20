@@ -3,8 +3,8 @@
 **Analysis Date**: 2025-11-20
 **Data Period**: 2018-19 through 2023-24 academic years
 **Academic Years Included**: 2019-20, 2021-22, 2022-23, 2023-24
-**Total Schools Analyzed**: 2,904 unique schools across California
-**School-Year Observations**: 7,808
+**Total Schools Analyzed**: 4,359 unique schools across California
+**School-Year Observations**: 12,065
 
 ---
 
@@ -31,20 +31,20 @@ In other words: Does the "White Teacher Effect" become stronger as Black student
 
 ### 1. **Hypothesis Test Result**
 
-✗ **HYPOTHESIS NOT SUPPORTED**
+✓ **HYPOTHESIS SUPPORTED**
 
-The interaction term is **NOT STATISTICALLY SIGNIFICANT** (p = 0.4367).
+The interaction term is **POSITIVE** and **STATISTICALLY SIGNIFICANT** (p < 0.001).
 
-**Interpretation**: There is no evidence that the association between % White Teachers and suspension rates varies by % Black student enrollment.
+**Interpretation**: The association between % White Teachers and suspension rates is **AMPLIFIED** in schools with higher % Black student enrollment.
 
 ### 2. **Interaction Coefficient**
 
 | Parameter | Estimate | Std. Error | 95% CI | p-value |
 |-----------|----------|------------|--------|--------|
-| **Interaction: % White Teachers × % Black Students** | 1450.786962 | 1865.281066 | [-2205.664209, 5107.238132] | 0.4367 |
+| **Interaction: % White Teachers × % Black Students** | 192.617432 | 27.987908 | [137.756633, 247.478232] | < 0.001 |
 
 **What this means**:
-- For every 1 percentage point increase in % Black Students, the slope (effect) of % White Teachers on suspension rates changes by 1450.7870 percentage points.
+- For every 1 percentage point increase in % Black Students, the slope (effect) of % White Teachers on suspension rates changes by 192.6174 percentage points.
 - Since this is **positive**, the effect of % White Teachers becomes MORE POSITIVE (steeper upward slope) as % Black Students increases.
 
 ### 3. **Marginal Effects at Different Black Enrollment Levels**
@@ -53,9 +53,11 @@ The effect of a **10 percentage point increase** in % White Teachers (e.g., from
 
 | Black Student Enrollment Level | % Black Students | Effect on Suspension Rate | Interpretation |
 |-------------------------------|------------------|---------------------------|----------------|
-| **Low** (10th percentile) | 1.7% | +47685.164 pp | Moderate |
-| **Medium** (50th percentile) | 4.8% | +93230.550 pp | Moderate |
-| **High** (90th percentile) | 16.3% | +259224.448 pp | Moderate |
+| **Low** (10th percentile) | 1.9% | +3976.595 pp | Moderate |
+| **Medium** (50th percentile) | 6.0% | +11946.332 pp | Moderate |
+| **High** (90th percentile) | 23.2% | +45022.004 pp | Moderate |
+
+**Key Insight**: The effect at high Black enrollment is **11.3x** larger than at low Black enrollment.
 
 ### 4. **Full Regression Results**
 
@@ -63,20 +65,20 @@ The effect of a **10 percentage point increase** in % White Teachers (e.g., from
 
 | Term | Coefficient | SE | 95% CI | p-value | Sig |
 |------|-------------|----|---------|---------|---------|
-| (Intercept) | -44224.021312 | 235206.793047 | [-505292.4199, 416844.3772] | 0.8509 |  |
-| pct_white_teachers | 2305.760785 | 15781.082291 | [-28629.3931, 33240.9147] | 0.8838 |  |
-| pct_black_students | -16267.296555 | 27816.269255 | [-70794.6448, 38260.0517] | 0.5587 |  |
-| is_charter | -38432.023183 | 6222.869928 | [-50630.5173, -26233.5291] | < 0.001 | \*\*\* |
-| school_level_factorMiddle | 57965.992641 | 4704.839289 | [48743.2458, 67188.7395] | < 0.001 | \*\*\* |
-| school_level_factorHigh | 39671.613719 | 3704.311804 | [32410.1691, 46933.0584] | < 0.001 | \*\*\* |
-| school_level_factorOther | 38717.579693 | 5913.008856 | [27126.4964, 50308.6630] | < 0.001 | \*\*\* |
-| school_level_factorAlternative | -11126.064653 | 12467.915084 | [-35566.5222, 13314.3929] | 0.3722 |  |
-| pct_white_teachers:pct_black_students | 1450.786962 | 1865.281066 | [-2205.6642, 5107.2381] | 0.4367 |  |
+| (Intercept) | 231.948506 | 4802.111871 | [-9180.9628, 9644.8598] | 0.9615 |  |
+| pct_white_teachers | 31.484454 | 322.693476 | [-601.0466, 664.0155] | 0.9223 |  |
+| pct_black_students | -2781.171586 | 416.758764 | [-3598.0858, -1964.2574] | < 0.001 | \*\*\* |
+| is_charter | -2462.151345 | 107.246123 | [-2672.3710, -2251.9317] | < 0.001 | \*\*\* |
+| school_level_factorMiddle | 3711.325837 | 105.747404 | [3504.0439, 3918.6078] | < 0.001 | \*\*\* |
+| school_level_factorHigh | 1998.672231 | 82.659042 | [1836.6472, 2160.6972] | < 0.001 | \*\*\* |
+| school_level_factorOther | 2269.978431 | 119.988112 | [2034.7824, 2505.1744] | < 0.001 | \*\*\* |
+| school_level_factorAlternative | 1348.837775 | 185.802682 | [984.6346, 1713.0409] | < 0.001 | \*\*\* |
+| pct_white_teachers:pct_black_students | 192.617432 | 27.987908 | [137.7566, 247.4782] | < 0.001 | \*\*\* |
 
 **Model Fit**:
-- **R²**: 0.0628
-- **Adjusted R²**: 0.0618
-- **N**: 7,808 school-year observations
+- **R²**: 0.1620
+- **Adjusted R²**: 0.1615
+- **N**: 12,065 school-year observations
 - **Weighted by**: Student enrollment
 
 ---
@@ -85,9 +87,11 @@ The effect of a **10 percentage point increase** in % White Teachers (e.g., from
 
 ### What This Analysis Tells Us
 
-1. **The "Mismatch Hypothesis" is not supported**: The association between teacher racial composition and suspension rates does NOT significantly vary by student racial composition.
+1. **The "Mismatch Hypothesis" is supported**: The association between teacher racial composition and suspension rates is significantly moderated by student racial composition.
 
-2. **Uniform associations**: The relationship between % White Teachers and suspension rates appears consistent across schools with different racial compositions.
+2. **Context matters**: The same change in teacher demographics (e.g., +10pp White teachers) has different associations with suspension rates depending on the school's student racial composition.
+
+3. **Amplification in majority-Black schools**: Schools with higher Black student enrollment show stronger associations between White teacher representation and suspension rates.
 
 ### Comparison to Analysis 24 (Quartile Slope Comparison)
 
