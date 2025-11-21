@@ -55,9 +55,45 @@ if (!file.exists(MERGED_PATH)) {
        "\nRun Analysis/18_merge_teacher_student.R first.")
 }
 
-message(">>> Loading merged teacher-student data...")
-df_raw <- arrow::read_parquet(MERGED_PATH)
-message(">>> Loaded ", format_number(nrow(df_raw)), " rows")
+message(">>> Loading merged teacher-student data (MEMORY-EFFICIENT MODE)...")
+message("    Step 1: Opening parquet file (not loading yet)...")
+
+# Open dataset without loading into memory
+ds <- arrow::open_dataset(MERGED_PATH)
+all_cols <- names(ds)
+message("    Available columns: ", length(all_cols))
+
+# Define minimal columns needed (prevents loading all 377 columns)
+required_base_cols <- c(
+  "cds_school", "academic_year", "student_group", "reporting_category",
+  "total_suspensions", "cumulative_enrollment", "suspension_rate_percent_total",
+  "sed_rate", "charter_yn", "charter_yn_std", "is_traditional",
+  "level_strict3", "school_level_final", "school_level"
+)
+
+# Find teacher/admin race share columns
+teacher_pattern <- "^teacher_staff_count_(african_american|asian|filipino|hispanic_or_latino|american_indian_or_alaska_native|native_hawaiian_pacific_islander|pacific_islander|white|two_or_more_races|not_reported)_share$"
+admin_pattern <- "^teacher_staff_count_by_type_administrators_(african_american|asian|filipino|hispanic_or_latino|american_indian_or_alaska_native|native_hawaiian_pacific_islander|pacific_islander|white|two_or_more_races|not_reported)_share$"
+
+teacher_cols <- grep(teacher_pattern, all_cols, value = TRUE, ignore.case = TRUE)
+admin_cols <- grep(admin_pattern, all_cols, value = TRUE, ignore.case = TRUE)
+
+cols_to_load <- unique(c(required_base_cols, teacher_cols, admin_cols))
+cols_to_load <- intersect(cols_to_load, all_cols)
+
+message("    Step 2: Selecting ", length(cols_to_load), " columns (",
+        sprintf("%.0f%%", 100 * length(cols_to_load) / length(all_cols)), " of total)")
+message("    Step 3: Filtering to academic_year >= '2018-19' ON DISK...")
+message("    Step 4: Loading into memory...")
+
+# Filter and select ON DISK, then load
+df_raw <- ds %>%
+  filter(academic_year >= "2018-19") %>%
+  select(all_of(cols_to_load)) %>%
+  collect()
+
+message(">>> Loaded ", format_number(nrow(df_raw)), " rows × ", ncol(df_raw), " columns")
+message("    Memory: ~", sprintf("%.1f MB", object.size(df_raw) / 1024^2))
 
 # === 3) Canonicalize race labels =============================================
 canonicalize_race_label <- function(x) {
@@ -84,16 +120,6 @@ if ("student_group" %in% names(df_raw)) {
 } else {
   stop("No student_group or reporting_category column found")
 }
-
-# Filter to recent years for efficiency (and better teacher data coverage)
-message("\n>>> Filtering to recent years (2018-19 onwards)...")
-message("    Rows before filter: ", format_number(nrow(df_raw)))
-
-df_raw <- df_raw %>%
-  filter(academic_year >= "2018-19")
-
-message("    Rows after filter: ", format_number(nrow(df_raw)))
-message("    Data reduction: ", sprintf("%.1f%%", 100 * (1 - nrow(df_raw) / 3402282)))
 
 # === 4) Aggregate to school-year-race level ==================================
 message("\n>>> Aggregating to school-year-race level...")
