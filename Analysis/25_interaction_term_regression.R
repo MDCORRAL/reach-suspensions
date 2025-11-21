@@ -129,8 +129,9 @@ aggregate_to_school_year <- function(df) {
   agg_df <- df %>%
     group_by(cds_school, academic_year) %>%
     summarise(
-      # Sum suspensions across all reasons (now just reasons, not subgroups)
-      across(any_of(susp_cols), ~sum(.x, na.rm = TRUE)),
+      # Take first value of total_suspensions (constant across reason rows)
+      # NOTE: total_suspensions is the SAME on all reason rows, so first() = the correct total
+      across(any_of(susp_cols), ~first(.x)),
 
       # Take first value of enrollment (truly constant now with "All Students")
       across(any_of(enrollment_cols), ~first(.x)),

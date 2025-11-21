@@ -32,8 +32,9 @@
 #'
 #' **Why This Works**:
 #' - `subgroup == "All Students"` has enrollment = total school enrollment
-#' - `subgroup == "All Students"` has suspensions = total school suspensions (for that reason)
-#' - Summing across reasons gives us total school suspensions
+#' - `subgroup == "All Students"` has `total_suspensions` = TOTAL across ALL reasons
+#' - In long format, `total_suspensions` is repeated on each reason row (constant)
+#' - Use `first(total_suspensions)` to get correct total (NOT sum, which would multiply by 6)
 #' - No need for max() workaround - enrollment is truly constant
 #'
 #' @examples
@@ -149,8 +150,10 @@ aggregate_to_school_year_v3 <- function(df, verbose = TRUE, validate = TRUE) {
   agg_df <- df_all_students %>%
     group_by(cds_school, academic_year) %>%
     summarise(
-      # Sum suspensions across all reasons (now truly summing reasons only, not subgroups)
-      across(any_of(susp_cols), ~sum(.x, na.rm = TRUE), .names = "{.col}"),
+      # Take first value of total_suspensions (constant across reason rows)
+      # NOTE: In long format, total_suspensions is the SAME on all reason rows
+      # Summing would multiply by ~6 (number of reasons) - use first() instead
+      across(any_of(susp_cols), ~first(.x), .names = "{.col}"),
 
       # Take first value of enrollment (truly constant now that we have "All Students")
       across(any_of(enrollment_cols), ~first(.x), .names = "{.col}"),
