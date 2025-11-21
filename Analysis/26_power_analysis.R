@@ -89,18 +89,45 @@ if ("student_group" %in% names(df_raw)) {
 message("\n>>> Aggregating to school-year-race level...")
 
 aggregate_to_school_year_race <- function(df) {
+  message(">>> Starting aggregation...")
+  message("    Input rows: ", format_number(nrow(df)))
+
   group_vars <- c("cds_school", "academic_year", "student_group")
 
-  suspension_cols <- grep("^total_suspensions", names(df), value = TRUE)
-  enrollment_cols <- intersect(c("cumulative_enrollment", "sup_cumulative_enrollment"), names(df))
-  teacher_diversity_cols <- grep("_share$", grep("^teacher_", names(df), value = TRUE), value = TRUE)
-  charter_cols <- grep("^charter_|^is_traditional", names(df), value = TRUE)
-  level_cols <- grep("^level_strict|^school_level", names(df), value = TRUE)
-  sed_cols <- grep("^sed_rate|^socio", names(df), value = TRUE, ignore.case = TRUE)
+  suspension_cols <- grep("^total_suspensions$", names(df), value = TRUE)
+  message("    Suspension columns: ", length(suspension_cols))
 
-  constant_cols <- unique(c(enrollment_cols, teacher_diversity_cols,
+  # CRITICAL: Only select SPECIFIC teacher diversity columns we actually need
+  # This prevents processing hundreds of unnecessary columns
+  teacher_race_pattern <- paste0("^teacher_staff_count_(",
+                                 "african_american|asian|filipino|hispanic_or_latino|",
+                                 "american_indian_or_alaska_native|",
+                                 "native_hawaiian_pacific_islander|pacific_islander|",
+                                 "white|two_or_more_races|not_reported)_share$")
+
+  admin_race_pattern <- paste0("^teacher_staff_count_by_type_administrators_(",
+                               "african_american|asian|filipino|hispanic_or_latino|",
+                               "american_indian_or_alaska_native|",
+                               "native_hawaiian_pacific_islander|pacific_islander|",
+                               "white|two_or_more_races|not_reported)_share$")
+
+  teacher_cols <- grep(teacher_race_pattern, names(df), value = TRUE, ignore.case = TRUE)
+  admin_cols <- grep(admin_race_pattern, names(df), value = TRUE, ignore.case = TRUE)
+
+  message("    Teacher race share columns: ", length(teacher_cols))
+  message("    Admin race share columns: ", length(admin_cols))
+
+  enrollment_cols <- intersect(c("cumulative_enrollment", "sup_cumulative_enrollment"), names(df))
+  charter_cols <- intersect(c("charter_yn", "charter_yn_std", "is_traditional"), names(df))
+  level_cols <- intersect(c("level_strict3", "school_level_final", "school_level"), names(df))
+  sed_cols <- intersect(c("sed_rate", "socioeconomically_disadvantaged_rate"), names(df))
+
+  constant_cols <- unique(c(enrollment_cols, teacher_cols, admin_cols,
                            charter_cols, level_cols, sed_cols))
   constant_cols <- intersect(constant_cols, names(df))
+
+  message("    Total columns to preserve: ", length(constant_cols))
+  message("    Aggregating...")
 
   agg_df <- df %>%
     group_by(across(all_of(group_vars))) %>%
@@ -110,6 +137,8 @@ aggregate_to_school_year_race <- function(df) {
       n_reasons_aggregated = n(),
       .groups = "drop"
     )
+
+  message("    Recalculating suspension rates...")
 
   # Recalculate suspension rate
   if ("total_suspensions" %in% names(agg_df) && "cumulative_enrollment" %in% names(agg_df)) {
