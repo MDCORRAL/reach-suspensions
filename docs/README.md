@@ -41,6 +41,7 @@ Step-by-step guides for setup, configuration, and analysis.
 
 | File | Description |
 |------|-------------|
+| `POWER_ANALYSIS_GUIDE.md` | **NEW** Guide for conducting and interpreting power analyses |
 | `TEACHER_DATA_SETUP_GUIDE.md` | Guide for obtaining and preparing CDE teacher data |
 | `GitHub Workflow in RStudio.Rmd` | Git workflow guide for RStudio users |
 | `reach_suspensions.Rmd` | Project overview and analysis walkthrough |
