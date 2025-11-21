@@ -11,6 +11,7 @@
 # Input: susp_v6_teacher_features.parquet (merged student + teacher data)
 # Output:
 #   - tables/26_power_analysis_results.csv (power calculations)
+#   - tables/26_power_analysis_diagnostics.csv (data quality checks)
 #   - graphs/26_power_curves.png (visualization)
 #
 # Key methodological notes:
@@ -18,6 +19,16 @@
 # - Adjusts for weighted regression effective sample size
 # - Accounts for multiple comparisons (8 racial groups)
 # - Conservative approach: reports minimum detectable effect sizes
+# - CRITICAL FIX (v2.0): u=2, v=6 (not v=4) to match Analysis 21 exactly
+#
+# Version History:
+# - v2.0 (2025-11-21): Comprehensive fix addressing all review concerns
+#   * Fixed v=6 (sed_rate + is_charter + grade_level[4df])
+#   * Added diagnostics for unmapped labels, dropped records, missingness
+#   * Added within-group variability checks
+#   * Tightened regex patterns for exact column matching
+#   * Added defensive directory creation
+# - v1.0 (2025-11-20): Initial implementation
 
 # === 1) Setup =================================================================
 suppressPackageStartupMessages({
@@ -27,6 +38,7 @@ suppressPackageStartupMessages({
   library(pwr)  # install.packages("pwr") if not available
   library(ggplot2)
   library(writexl)
+  library(tidyr)
 })
 
 try(here::i_am("Analysis/26_power_analysis.R"), silent = TRUE)
@@ -43,11 +55,26 @@ safe_div <- function(num, denom, replace_na_with = NA_real_) {
   ifelse(denom == 0 | is.na(denom), replace_na_with, num / denom)
 }
 
-# === 2) Load data =============================================================
+# === 2) Output directory setup (DEFENSIVE) ===================================
 message("\n════════════════════════════════════════════════════════════════")
 message("=== 26: Power Analysis for Teacher Diversity Regressions ===")
 message("════════════════════════════════════════════════════════════════\n")
 
+# Ensure output directories exist
+output_tables <- here::here("outputs", "tables")
+output_graphs <- here::here("outputs", "graphs")
+
+if (!dir.exists(output_tables)) {
+  dir.create(output_tables, recursive = TRUE, showWarnings = FALSE)
+  message(">>> Created directory: ", output_tables)
+}
+
+if (!dir.exists(output_graphs)) {
+  dir.create(output_graphs, recursive = TRUE, showWarnings = FALSE)
+  message(">>> Created directory: ", output_graphs)
+}
+
+# === 3) Load data =============================================================
 MERGED_PATH <- here::here("data-stage", "susp_v6_teacher_features.parquet")
 
 if (!file.exists(MERGED_PATH)) {
@@ -63,6 +90,13 @@ ds <- arrow::open_dataset(MERGED_PATH)
 all_cols <- names(ds)
 message("    Available columns: ", length(all_cols))
 
+# Check for Arrow metadata warnings - investigate if present
+arrow_version <- tryCatch(
+  as.character(packageVersion("arrow")),
+  error = function(e) "unknown"
+)
+message("    Arrow package version: ", arrow_version)
+
 # Define minimal columns needed (prevents loading all 377 columns)
 required_base_cols <- c(
   "cds_school", "academic_year", "student_group", "reporting_category",
@@ -71,15 +105,39 @@ required_base_cols <- c(
   "level_strict3", "school_level_final", "school_level"
 )
 
-# Find teacher/admin race share columns
-teacher_pattern <- "^teacher_staff_count_(african_american|asian|filipino|hispanic_or_latino|american_indian_or_alaska_native|native_hawaiian_pacific_islander|pacific_islander|white|two_or_more_races|not_reported)_share$"
-admin_pattern <- "^teacher_staff_count_by_type_administrators_(african_american|asian|filipino|hispanic_or_latino|american_indian_or_alaska_native|native_hawaiian_pacific_islander|pacific_islander|white|two_or_more_races|not_reported)_share$"
+# TIGHTENED REGEX: Exact column name matching for race shares
+# This prevents accidentally matching unexpected columns
+teacher_race_slugs <- c(
+  "african_american", "asian", "filipino", "hispanic_or_latino",
+  "american_indian_or_alaska_native", "native_hawaiian_pacific_islander",
+  "pacific_islander", "white", "two_or_more_races", "not_reported"
+)
+
+teacher_pattern <- paste0(
+  "^teacher_staff_count_(",
+  paste(teacher_race_slugs, collapse = "|"),
+  ")_share$"
+)
+
+admin_pattern <- paste0(
+  "^teacher_staff_count_by_type_administrators_(",
+  paste(teacher_race_slugs, collapse = "|"),
+  ")_share$"
+)
 
 teacher_cols <- grep(teacher_pattern, all_cols, value = TRUE, ignore.case = TRUE)
 admin_cols <- grep(admin_pattern, all_cols, value = TRUE, ignore.case = TRUE)
 
+message("    Found ", length(teacher_cols), " teacher race share columns")
+message("    Found ", length(admin_cols), " admin race share columns")
+
 cols_to_load <- unique(c(required_base_cols, teacher_cols, admin_cols))
 cols_to_load <- intersect(cols_to_load, all_cols)
+
+missing_required <- setdiff(required_base_cols, cols_to_load)
+if (length(missing_required) > 0) {
+  warning("Missing required columns: ", paste(missing_required, collapse = ", "))
+}
 
 message("    Step 2: Selecting ", length(cols_to_load), " columns (",
         sprintf("%.0f%%", 100 * length(cols_to_load) / length(all_cols)), " of total)")
@@ -95,7 +153,11 @@ df_raw <- ds %>%
 message(">>> Loaded ", format_number(nrow(df_raw)), " rows × ", ncol(df_raw), " columns")
 message("    Memory: ~", sprintf("%.1f MB", object.size(df_raw) / 1024^2))
 
-# === 3) Canonicalize race labels =============================================
+initial_rows <- nrow(df_raw)
+
+# === 4) Canonicalize race labels with DIAGNOSTICS ============================
+message("\n>>> Canonicalizing race labels...")
+
 canonicalize_race_label <- function(x) {
   labels <- rep(NA_character_, length(x))
   clean <- tolower(trimws(as.character(x)))
@@ -108,543 +170,655 @@ canonicalize_race_label <- function(x) {
   labels[clean %in% c("rp", "pacific islander", "native hawaiian", "native hawaiian/pacific islander")] <- "Native Hawaiian/Pacific Islander"
   labels[clean %in% c("rt", "two or more", "two or more races")] <- "Two or More Races"
   labels[clean %in% c("rw", "white")] <- "White"
+  # Note: RD (Not Reported) and TA (Total/All) return NA and are filtered out
 
   labels
 }
 
-# Check for student_group column
+# Try student_group first, fall back to reporting_category
 if ("student_group" %in% names(df_raw)) {
-  df_raw$student_group <- canonicalize_race_label(df_raw$student_group)
+  df_raw$race_clean <- canonicalize_race_label(df_raw$student_group)
+  source_col <- "student_group"
 } else if ("reporting_category" %in% names(df_raw)) {
-  df_raw$student_group <- canonicalize_race_label(df_raw$reporting_category)
+  df_raw$race_clean <- canonicalize_race_label(df_raw$reporting_category)
+  source_col <- "reporting_category"
 } else {
-  stop("No student_group or reporting_category column found")
+  stop("No student race column found (student_group or reporting_category)")
 }
 
-# === 4) Aggregate to school-year-race level ==================================
+# DIAGNOSTIC: Report unmapped labels
+unmapped_count <- sum(is.na(df_raw$race_clean))
+unmapped_pct <- 100 * unmapped_count / nrow(df_raw)
+
+message(">>> Race label mapping from '", source_col, "':")
+message("    Successfully mapped: ", format_number(nrow(df_raw) - unmapped_count),
+        " rows (", sprintf("%.1f%%", 100 - unmapped_pct), ")")
+message("    Unmapped (will be dropped): ", format_number(unmapped_count),
+        " rows (", sprintf("%.1f%%", unmapped_pct), ")")
+
+if (unmapped_count > 0) {
+  # Show what labels couldn't be mapped
+  unmapped_labels <- df_raw %>%
+    filter(is.na(race_clean)) %>%
+    group_by(!!sym(source_col)) %>%
+    summarise(n = n(), .groups = "drop") %>%
+    arrange(desc(n))
+
+  message("\n    Unmapped label breakdown:")
+  for (i in 1:min(5, nrow(unmapped_labels))) {
+    message("      '", unmapped_labels[[source_col]][i], "': ",
+            format_number(unmapped_labels$n[i]), " rows")
+  }
+  if (nrow(unmapped_labels) > 5) {
+    message("      ... and ", nrow(unmapped_labels) - 5, " more")
+  }
+}
+
+# Filter to valid races
+df_raw <- df_raw %>% filter(!is.na(race_clean))
+message("\n>>> After filtering to valid races: ", format_number(nrow(df_raw)), " rows")
+
+# === 5) Extract diversity measures with PARTIAL MISSINGNESS CHECK ============
+message("\n>>> Extracting diversity measures...")
+
+# Helper to check for partial missingness
+extract_nonwhite_share <- function(df, race_cols, label) {
+  if (length(race_cols) == 0) {
+    stop("No ", label, " race share columns found!")
+  }
+
+  # Separate white and non-white columns
+  white_cols <- grep("_white_share$", race_cols, value = TRUE, ignore.case = TRUE)
+  white_cols <- white_cols[!grepl("non_white", white_cols, ignore.case = TRUE)]
+
+  not_reported_cols <- grep("_(not_reported|unknown)_share$", race_cols,
+                            value = TRUE, ignore.case = TRUE)
+
+  non_white_cols <- setdiff(race_cols, c(white_cols, not_reported_cols))
+
+  message("    ", label, ":")
+  message("      Non-white race columns: ", length(non_white_cols))
+  message("      White columns: ", length(white_cols))
+  message("      Not reported columns: ", length(not_reported_cols))
+
+  # Check for partial missingness
+  if (length(non_white_cols) > 0) {
+    mat <- sapply(non_white_cols, function(col) as.numeric(df[[col]]))
+    if (!is.matrix(mat)) mat <- matrix(mat, ncol = 1)
+
+    # Count rows with partial missingness (some but not all missing)
+    na_counts <- rowSums(is.na(mat))
+    all_missing <- (na_counts == ncol(mat))
+    some_missing <- (na_counts > 0) & (na_counts < ncol(mat))
+
+    partial_missing_count <- sum(some_missing)
+    if (partial_missing_count > 0) {
+      message("      ⚠ WARNING: ", format_number(partial_missing_count),
+              " rows have partial missingness (some but not all race shares missing)")
+      message("         These will be summed with na.rm=TRUE, which may underestimate totals")
+    }
+
+    # Sum non-white shares
+    values <- rowSums(mat, na.rm = TRUE)
+    values[all_missing] <- NA_real_
+
+    return(values)
+  } else {
+    stop("No non-white race share columns found for ", label)
+  }
+}
+
+df_raw$teacher_nonwhite_share <- extract_nonwhite_share(
+  df_raw, teacher_cols, "Teacher"
+)
+df_raw$admin_nonwhite_share <- extract_nonwhite_share(
+  df_raw, admin_cols, "Administrator"
+)
+
+# === 6) Aggregate to school-year-race with VARIABILITY CHECK =================
 message("\n>>> Aggregating to school-year-race level...")
+message("    Initial rows: ", format_number(nrow(df_raw)))
 
-aggregate_to_school_year_race <- function(df) {
-  message(">>> Starting aggregation...")
-  message("    Input rows: ", format_number(nrow(df)))
+# Identify covariates that should be constant within school-year-race
+constant_check_vars <- c(
+  "sed_rate", "charter_yn_std", "is_traditional",
+  "level_strict3", "school_level_final", "cumulative_enrollment",
+  "teacher_nonwhite_share", "admin_nonwhite_share"
+)
+constant_check_vars <- intersect(constant_check_vars, names(df_raw))
 
-  group_vars <- c("cds_school", "academic_year", "student_group")
+# CHECK: Verify covariates don't vary within school-year-race groups
+message("    Checking within-group variability of covariates...")
 
-  suspension_cols <- grep("^total_suspensions$", names(df), value = TRUE)
-  message("    Suspension columns: ", length(suspension_cols))
+variability_issues <- df_raw %>%
+  group_by(cds_school, academic_year, race_clean) %>%
+  summarise(
+    across(
+      any_of(constant_check_vars),
+      list(
+        n_distinct = ~n_distinct(.x, na.rm = TRUE),
+        has_variation = ~(n_distinct(.x, na.rm = TRUE) > 1)
+      )
+    ),
+    n_obs = n(),
+    .groups = "drop"
+  )
 
-  # CRITICAL: Only select SPECIFIC teacher diversity columns we actually need
-  # This prevents processing hundreds of unnecessary columns
-  teacher_race_pattern <- paste0("^teacher_staff_count_(",
-                                 "african_american|asian|filipino|hispanic_or_latino|",
-                                 "american_indian_or_alaska_native|",
-                                 "native_hawaiian_pacific_islander|pacific_islander|",
-                                 "white|two_or_more_races|not_reported)_share$")
+# Report any variables with within-group variation
+for (var in constant_check_vars) {
+  has_var_col <- paste0(var, "_has_variation")
+  if (has_var_col %in% names(variability_issues)) {
+    n_vary <- sum(variability_issues[[has_var_col]], na.rm = TRUE)
+    if (n_vary > 0) {
+      pct_vary <- 100 * n_vary / nrow(variability_issues)
+      message("      ⚠ '", var, "' varies within group for ", format_number(n_vary),
+              " school-year-race combinations (", sprintf("%.2f%%", pct_vary), ")")
+      message("         Using first() may not be appropriate - consider weighted aggregation")
+    }
+  }
+}
 
-  admin_race_pattern <- paste0("^teacher_staff_count_by_type_administrators_(",
-                               "african_american|asian|filipino|hispanic_or_latino|",
-                               "american_indian_or_alaska_native|",
-                               "native_hawaiian_pacific_islander|pacific_islander|",
-                               "white|two_or_more_races|not_reported)_share$")
+# Aggregate
+agg_df <- df_raw %>%
+  group_by(cds_school, academic_year, race_clean) %>%
+  summarise(
+    # Sum suspensions
+    total_suspensions = sum(total_suspensions, na.rm = TRUE),
 
-  teacher_cols <- grep(teacher_race_pattern, names(df), value = TRUE, ignore.case = TRUE)
-  admin_cols <- grep(admin_race_pattern, names(df), value = TRUE, ignore.case = TRUE)
+    # Take first value of school-level variables (VALIDATED above)
+    cumulative_enrollment = first(cumulative_enrollment),
+    teacher_nonwhite_share = first(teacher_nonwhite_share),
+    admin_nonwhite_share = first(admin_nonwhite_share),
+    sed_rate = first(sed_rate),
+    charter_yn_std = first(charter_yn_std),
+    is_traditional = first(is_traditional),
+    level_strict3 = first(level_strict3),
+    school_level_final = first(school_level_final),
 
-  message("    Teacher race share columns: ", length(teacher_cols))
-  message("    Admin race share columns: ", length(admin_cols))
+    # Count reasons aggregated
+    n_reasons = n(),
 
-  enrollment_cols <- intersect(c("cumulative_enrollment", "sup_cumulative_enrollment"), names(df))
-  charter_cols <- intersect(c("charter_yn", "charter_yn_std", "is_traditional"), names(df))
-  level_cols <- intersect(c("level_strict3", "school_level_final", "school_level"), names(df))
-  sed_cols <- intersect(c("sed_rate", "socioeconomically_disadvantaged_rate"), names(df))
+    .groups = "drop"
+  )
 
-  constant_cols <- unique(c(enrollment_cols, teacher_cols, admin_cols,
-                           charter_cols, level_cols, sed_cols))
-  constant_cols <- intersect(constant_cols, names(df))
+# Recalculate suspension rate
+agg_df <- agg_df %>%
+  mutate(
+    suspension_rate = safe_div(total_suspensions, cumulative_enrollment)
+  )
 
-  message("    Total columns to preserve: ", length(constant_cols))
-  message("    Aggregating...")
+message("    Aggregated rows: ", format_number(nrow(agg_df)))
+message("    Average reasons per school-year-race: ",
+        round(nrow(df_raw) / nrow(agg_df), 1))
 
-  agg_df <- df %>%
-    group_by(across(all_of(group_vars))) %>%
-    summarise(
-      across(any_of(suspension_cols), ~sum(.x, na.rm = TRUE)),
-      across(any_of(constant_cols), ~first(.x)),
-      n_reasons_aggregated = n(),
-      .groups = "drop"
+# === 7) Filter to complete cases with DIAGNOSTICS ============================
+message("\n>>> Filtering to complete cases...")
+
+before_filter <- nrow(agg_df)
+
+# Track missing data by variable
+missing_summary <- agg_df %>%
+  summarise(
+    across(
+      c(suspension_rate, teacher_nonwhite_share, admin_nonwhite_share,
+        cumulative_enrollment, sed_rate, charter_yn_std, level_strict3),
+      ~sum(is.na(.x))
     )
+  )
 
-  message("    Recalculating suspension rates...")
-
-  # Recalculate suspension rate
-  if ("total_suspensions" %in% names(agg_df) && "cumulative_enrollment" %in% names(agg_df)) {
-    agg_df <- agg_df %>%
-      mutate(suspension_rate_percent_total = safe_div(total_suspensions,
-                                                       cumulative_enrollment) * 100)
+message("    Missing data summary:")
+for (var in names(missing_summary)) {
+  n_miss <- missing_summary[[var]]
+  if (n_miss > 0) {
+    pct_miss <- 100 * n_miss / before_filter
+    message("      ", var, ": ", format_number(n_miss),
+            " (", sprintf("%.1f%%", pct_miss), ")")
   }
-
-  message(">>> Aggregated to ", format_number(nrow(agg_df)), " school-year-race observations")
-  return(agg_df)
 }
 
-df <- aggregate_to_school_year_race(df_raw)
+# Filter to complete cases
+df_final <- agg_df %>%
+  filter(
+    !is.na(suspension_rate),
+    !is.na(teacher_nonwhite_share),
+    !is.na(admin_nonwhite_share),
+    !is.na(cumulative_enrollment),
+    cumulative_enrollment > 0
+  )
 
-# === 5) Extract teacher diversity measures ===================================
+after_filter <- nrow(df_final)
+dropped <- before_filter - after_filter
+dropped_pct <- 100 * dropped / before_filter
 
-TEACHER_RACE_SLUGS <- c(
-  "african_american", "asian", "filipino", "hispanic_or_latino",
-  "american_indian_or_alaska_native", "native_hawaiian_pacific_islander",
-  "pacific_islander", "white", "two_or_more_races", "not_reported"
-)
+message("\n    Dropped ", format_number(dropped), " rows due to missing data ",
+        "(", sprintf("%.1f%%", dropped_pct), ")")
+message("    Final analysis sample: ", format_number(after_filter), " rows")
 
-extract_teacher_race_nonwhite_share <- function(df) {
-  race_share_pattern <- paste0("^teacher.*_(",
-                               paste(TEACHER_RACE_SLUGS, collapse = "|"),
-                               ")_share$")
-  race_share_cols <- grep(race_share_pattern, names(df), value = TRUE, ignore.case = TRUE)
+# === 8) Power analysis by racial group =======================================
+message("\n>>> Conducting power analysis by racial/ethnic group...")
 
-  if (!length(race_share_cols)) return(NULL)
+# CRITICAL FIX: Match Analysis 21 specification EXACTLY
+# From Analysis/21_teacher_diversity_regression.R (lines 810-819):
+#   suspension_rate ~ teacher_non_white_share + admin_non_white_share +
+#                     sed_rate + is_charter + grade_level
+# Where:
+#   - teacher_non_white_share: 1 df
+#   - admin_non_white_share: 1 df
+#   - sed_rate: 1 df (continuous)
+#   - is_charter: 1 df (binary)
+#   - grade_level: 4 df (factor with 5 levels: Elementary, Middle, High, Other, Alternative)
+# Total: u=2 (predictors of interest), v=6 (controls)
 
-  white_cols <- grep("_white_share$", race_share_cols, value = TRUE, ignore.case = TRUE)
-  white_cols <- white_cols[!grepl("non_white", white_cols, ignore.case = TRUE)]
-  not_reported_cols <- grep("_(not_reported|unknown)_share$", race_share_cols,
-                           value = TRUE, ignore.case = TRUE)
-  non_white_cols <- setdiff(race_share_cols, c(white_cols, not_reported_cols))
+u_predictors <- 2  # teacher + admin diversity
+v_controls <- 6    # sed_rate (1) + is_charter (1) + grade_level (4)
 
-  if (length(non_white_cols) > 0) {
-    mat <- sapply(non_white_cols, function(col) as.numeric(df[[col]]))
-    if (!is.matrix(mat)) mat <- matrix(mat, ncol = 1)
-    values <- rowSums(mat, na.rm = TRUE)
-    all_missing <- apply(is.na(mat), 1, all)
-    values[all_missing] <- NA_real_
-    return(values)
-  }
+message("    Regression specification:")
+message("      u (predictors of interest): ", u_predictors,
+        " (teacher_nonwhite_share + admin_nonwhite_share)")
+message("      v (controls): ", v_controls,
+        " (sed_rate [1] + is_charter [1] + grade_level [4 df for 5 levels])")
+message("      Total model df: ", u_predictors + v_controls, " + 1 intercept = ",
+        u_predictors + v_controls + 1)
 
-  return(NULL)
-}
+# Cohen's f² benchmarks for reference
+cohen_small <- 0.02
+cohen_medium <- 0.15
+cohen_large <- 0.35
 
-extract_admin_race_nonwhite_share <- function(df) {
-  admin_pattern <- paste0("^teacher.*by_type_administrators.*_(",
-                         paste(TEACHER_RACE_SLUGS, collapse = "|"),
-                         ")_share$")
-  admin_race_cols <- grep(admin_pattern, names(df), value = TRUE, ignore.case = TRUE)
+# Bonferroni correction for 8 groups
+n_groups <- 8
+alpha_uncorrected <- 0.05
+alpha_bonferroni <- alpha_uncorrected / n_groups
 
-  if (!length(admin_race_cols)) return(NULL)
+message("\n    Multiple comparisons adjustment:")
+message("      Testing ", n_groups, " racial/ethnic groups")
+message("      Uncorrected α = ", alpha_uncorrected)
+message("      Bonferroni-corrected α = ", sprintf("%.5f", alpha_bonferroni))
 
-  white_cols <- grep("_white_share$", admin_race_cols, value = TRUE, ignore.case = TRUE)
-  white_cols <- white_cols[!grepl("non_white", white_cols, ignore.case = TRUE)]
-  not_reported_cols <- grep("_(not_reported|unknown)_share$", admin_race_cols,
-                           value = TRUE, ignore.case = TRUE)
-  non_white_cols <- setdiff(admin_race_cols, c(white_cols, not_reported_cols))
+# Calculate power for each racial group
+race_groups <- sort(unique(df_final$race_clean))
+power_results <- list()
 
-  if (length(non_white_cols) > 0) {
-    mat <- sapply(non_white_cols, function(col) as.numeric(df[[col]]))
-    if (!is.matrix(mat)) mat <- matrix(mat, ncol = 1)
-    values <- rowSums(mat, na.rm = TRUE)
-    all_missing <- apply(is.na(mat), 1, all)
-    values[all_missing] <- NA_real_
-    return(values)
-  }
-
-  return(NULL)
-}
-
-# === 6) Calculate sample sizes and effective N for each group ================
-message("\n>>> Calculating sample sizes by racial/ethnic group...")
-
-ALLOWED_RACE_GROUPS <- c(
-  "Black/African American", "White", "Hispanic/Latino",
-  "American Indian/Alaska Native", "Asian", "Filipino",
-  "Native Hawaiian/Pacific Islander", "Two or More Races"
-)
-
-power_analysis_results <- list()
-
-for (group in ALLOWED_RACE_GROUPS) {
+for (race in race_groups) {
   message("\n────────────────────────────────────────────────────────────────")
-  message("📊 Analyzing: ", group)
+  message("📊 ", race)
   message("────────────────────────────────────────────────────────────────")
 
-  # Filter to this group
-  group_df <- df %>%
-    filter(student_group == group, !is.na(student_group))
+  race_df <- df_final %>% filter(race_clean == race)
 
-  if (nrow(group_df) == 0) {
-    message("⚠ Skipping: No data for this group")
+  # Get enrollment weights
+  enrollment <- race_df$cumulative_enrollment
+  keep <- !is.na(enrollment) & enrollment > 0
+  enrollment <- enrollment[keep]
+
+  n_schools <- length(enrollment)
+
+  # Calculate effective sample size using Kish's formula
+  # N_eff = (Σw)² / Σw²
+  sum_weights <- sum(enrollment)
+  sum_weights_sq <- sum(enrollment^2)
+  n_effective <- (sum_weights^2) / sum_weights_sq
+  efficiency <- n_effective / n_schools
+
+  message(">>> Unweighted N: ", format_number(n_schools), " school-year-race observations")
+  message(">>> Effective N (Kish): ", format_number(round(n_effective)))
+  message(">>> Efficiency: ", sprintf("%.1f%%", 100 * efficiency))
+  message("    (proportion of statistical information retained after weighting)")
+
+  # Check if sufficient df for regression
+  residual_df <- n_effective - u_predictors - v_controls - 1
+  message(">>> Residual df: ", format_number(round(residual_df)))
+
+  if (residual_df <= 0) {
+    message("⚠ WARNING: Insufficient degrees of freedom for regression!")
+    message("  Need at least ", u_predictors + v_controls + 2, " effective observations")
+
+    power_results[[race]] <- data.frame(
+      race = race,
+      n_schools = n_schools,
+      n_effective = round(n_effective),
+      efficiency = efficiency,
+      residual_df = round(residual_df),
+      min_detectable_f2 = NA,
+      power_small = NA,
+      power_medium = NA,
+      power_large = NA,
+      min_detectable_f2_bonf = NA,
+      power_small_bonf = NA,
+      power_medium_bonf = NA,
+      power_large_bonf = NA,
+      warning = "Insufficient df"
+    )
     next
   }
-
-  # Extract diversity and outcome measures
-  teacher_nonwhite <- extract_teacher_race_nonwhite_share(group_df)
-  admin_nonwhite <- extract_admin_race_nonwhite_share(group_df)
-
-  outcome_col <- "suspension_rate_percent_total"
-  suspension_rate <- suppressWarnings(as.numeric(group_df[[outcome_col]]) / 100)
-  enrollment <- suppressWarnings(as.numeric(group_df$cumulative_enrollment))
-
-  # Filter to complete cases (matching Analysis/21)
-  keep <- !is.na(suspension_rate) &
-    !is.na(teacher_nonwhite) &
-    !is.na(admin_nonwhite) &
-    !is.na(enrollment) &
-    enrollment > 0
-
-  n_complete <- sum(keep)
-
-  if (n_complete < 10) {
-    message("⚠ Skipping: Insufficient complete cases (N = ", n_complete, ")")
-    next
-  }
-
-  # Calculate effective sample size for weighted regression
-  # Effective N = (sum of weights)^2 / sum of weights^2
-  weights <- enrollment[keep]
-  n_effective <- (sum(weights)^2) / sum(weights^2)
-
-  message(">>> Sample size (unweighted): ", format_number(n_complete))
-  message(">>> Effective sample size (weighted): ", format_number(round(n_effective)))
-  message(">>> Weight efficiency: ", sprintf("%.2f%%", 100 * n_effective / n_complete))
-
-  # === 7) Power analysis for multiple regression =============================
-  # For multiple regression with 2 predictors of interest (teacher, admin)
-  # plus controls (sed_rate, is_charter, school_level), we have:
-  # - u = # of predictors tested (2: teacher + admin diversity)
-  # - v = # of other predictors in model (varies, typically 3-4 controls)
-
-  # Conservative assumption: 4 total controls (sed, charter, + 2 levels dummies)
-  u <- 2  # Teacher and admin diversity (predictors of interest)
-  v <- 4  # Controls
-
-  # Standard power levels to test
-  alpha <- 0.05  # Significance level
-  power_target <- 0.80  # Conventional target
-
-  # Calculate minimum detectable effect size (Cohen's f²) given our sample size
-  # Using effective N for weighted regression
 
   # Sensitivity analysis: What effect can we detect with 80% power?
   min_f2 <- tryCatch({
-    pwr.f2.test(u = u, v = n_effective - u - v - 1,
-                sig.level = alpha, power = power_target)$f2
-  }, error = function(e) NA_real_)
+    pwr.f2.test(
+      u = u_predictors,
+      v = residual_df,
+      sig.level = alpha_uncorrected,
+      power = 0.80
+    )$f2
+  }, error = function(e) NA)
 
-  # Convert Cohen's f² to R²
-  # f² = R² / (1 - R²)
-  # So: R² = f² / (1 + f²)
-  min_r2 <- if (!is.na(min_f2)) min_f2 / (1 + min_f2) else NA_real_
+  # Power for standard benchmarks
+  power_small <- if (!is.na(min_f2)) {
+    tryCatch(
+      pwr.f2.test(
+        u = u_predictors,
+        v = residual_df,
+        f2 = cohen_small,
+        sig.level = alpha_uncorrected
+      )$power,
+      error = function(e) NA
+    )
+  } else NA
 
-  # Calculate power for small, medium, and large effects (Cohen's conventions)
-  # Small: f² = 0.02, Medium: f² = 0.15, Large: f² = 0.35
+  power_medium <- if (!is.na(min_f2)) {
+    tryCatch(
+      pwr.f2.test(
+        u = u_predictors,
+        v = residual_df,
+        f2 = cohen_medium,
+        sig.level = alpha_uncorrected
+      )$power,
+      error = function(e) NA
+    )
+  } else NA
 
-  power_small <- tryCatch({
-    pwr.f2.test(u = u, v = n_effective - u - v - 1,
-                sig.level = alpha, f2 = 0.02)$power
-  }, error = function(e) NA_real_)
+  power_large <- if (!is.na(min_f2)) {
+    tryCatch(
+      pwr.f2.test(
+        u = u_predictors,
+        v = residual_df,
+        f2 = cohen_large,
+        sig.level = alpha_uncorrected
+      )$power,
+      error = function(e) NA
+    )
+  } else NA
 
-  power_medium <- tryCatch({
-    pwr.f2.test(u = u, v = n_effective - u - v - 1,
-                sig.level = alpha, f2 = 0.15)$power
-  }, error = function(e) NA_real_)
-
-  power_large <- tryCatch({
-    pwr.f2.test(u = u, v = n_effective - u - v - 1,
-                sig.level = alpha, f2 = 0.35)$power
-  }, error = function(e) NA_real_)
-
-  message("\n>>> Power Analysis Results:")
-  message("    Minimum detectable f² (80% power): ", sprintf("%.4f", min_f2))
-  message("    Minimum detectable R²: ", sprintf("%.4f", min_r2))
-  message("    Power for small effect (f² = 0.02): ", sprintf("%.2f%%", power_small * 100))
-  message("    Power for medium effect (f² = 0.15): ", sprintf("%.2f%%", power_medium * 100))
-  message("    Power for large effect (f² = 0.35): ", sprintf("%.2f%%", power_large * 100))
-
-  # === 8) Bonferroni adjustment for multiple comparisons =====================
-  # We're testing 8 racial groups → adjust alpha for family-wise error rate
-  n_comparisons <- length(ALLOWED_RACE_GROUPS)
-  alpha_bonferroni <- alpha / n_comparisons
-
-  # Recalculate with adjusted alpha
+  # Bonferroni-adjusted power
   min_f2_bonf <- tryCatch({
-    pwr.f2.test(u = u, v = n_effective - u - v - 1,
-                sig.level = alpha_bonferroni, power = power_target)$f2
-  }, error = function(e) NA_real_)
+    pwr.f2.test(
+      u = u_predictors,
+      v = residual_df,
+      sig.level = alpha_bonferroni,
+      power = 0.80
+    )$f2
+  }, error = function(e) NA)
 
-  min_r2_bonf <- if (!is.na(min_f2_bonf)) min_f2_bonf / (1 + min_f2_bonf) else NA_real_
+  power_small_bonf <- if (!is.na(min_f2_bonf)) {
+    tryCatch(
+      pwr.f2.test(
+        u = u_predictors,
+        v = residual_df,
+        f2 = cohen_small,
+        sig.level = alpha_bonferroni
+      )$power,
+      error = function(e) NA
+    )
+  } else NA
 
-  message("\n>>> With Bonferroni Correction (α = ", sprintf("%.4f", alpha_bonferroni), "):")
-  message("    Minimum detectable f² (80% power): ", sprintf("%.4f", min_f2_bonf))
-  message("    Minimum detectable R²: ", sprintf("%.4f", min_r2_bonf))
+  power_medium_bonf <- if (!is.na(min_f2_bonf)) {
+    tryCatch(
+      pwr.f2.test(
+        u = u_predictors,
+        v = residual_df,
+        f2 = cohen_medium,
+        sig.level = alpha_bonferroni
+      )$power,
+      error = function(e) NA
+    )
+  } else NA
+
+  power_large_bonf <- if (!is.na(min_f2_bonf)) {
+    tryCatch(
+      pwr.f2.test(
+        u = u_predictors,
+        v = residual_df,
+        f2 = cohen_large,
+        sig.level = alpha_bonferroni
+      )$power,
+      error = function(e) NA
+    )
+  } else NA
+
+  # Report results
+  if (!is.na(min_f2)) {
+    min_r2 <- min_f2 / (1 + min_f2)
+    message("\n>>> Minimum detectable effect (α=", alpha_uncorrected, ", power=80%):")
+    message("    Cohen's f² = ", sprintf("%.4f", min_f2))
+    message("    Equivalent R² = ", sprintf("%.4f", min_r2))
+    message("    (This is the smallest effect we can reliably detect)")
+
+    message("\n>>> Power for standard effect sizes (α=", alpha_uncorrected, "):")
+    message("    Small (f²=", cohen_small, ", R²≈0.02): ", sprintf("%.1f%%", 100*power_small))
+    message("    Medium (f²=", cohen_medium, ", R²≈0.13): ", sprintf("%.1f%%", 100*power_medium))
+    message("    Large (f²=", cohen_large, ", R²≈0.26): ", sprintf("%.1f%%", 100*power_large))
+  }
+
+  if (!is.na(min_f2_bonf)) {
+    min_r2_bonf <- min_f2_bonf / (1 + min_f2_bonf)
+    message("\n>>> With Bonferroni correction (α=", sprintf("%.5f", alpha_bonferroni), ", power=80%):")
+    message("    Minimum detectable f² = ", sprintf("%.4f", min_f2_bonf))
+    message("    Equivalent R² = ", sprintf("%.4f", min_r2_bonf))
+    message("\n>>> Power for standard effect sizes (Bonferroni-adjusted):")
+    message("    Small: ", sprintf("%.1f%%", 100*power_small_bonf))
+    message("    Medium: ", sprintf("%.1f%%", 100*power_medium_bonf))
+    message("    Large: ", sprintf("%.1f%%", 100*power_large_bonf))
+  }
 
   # Store results
-  power_analysis_results[[group]] <- data.frame(
-    student_group = group,
-    n_complete_cases = n_complete,
+  power_results[[race]] <- data.frame(
+    race = race,
+    n_schools = n_schools,
     n_effective = round(n_effective),
-    weight_efficiency_pct = round(100 * n_effective / n_complete, 1),
-
-    # Uncorrected
-    min_f2_80power = min_f2,
-    min_r2_80power = min_r2,
-    power_small_effect = power_small,
-    power_medium_effect = power_medium,
-    power_large_effect = power_large,
-
-    # Bonferroni corrected
-    alpha_bonferroni = alpha_bonferroni,
-    min_f2_80power_bonf = min_f2_bonf,
-    min_r2_80power_bonf = min_r2_bonf,
-
-    stringsAsFactors = FALSE
+    efficiency = efficiency,
+    residual_df = round(residual_df),
+    min_detectable_f2 = min_f2,
+    min_detectable_r2 = if (!is.na(min_f2)) min_f2 / (1 + min_f2) else NA,
+    power_small = power_small,
+    power_medium = power_medium,
+    power_large = power_large,
+    min_detectable_f2_bonf = min_f2_bonf,
+    min_detectable_r2_bonf = if (!is.na(min_f2_bonf)) min_f2_bonf / (1 + min_f2_bonf) else NA,
+    power_small_bonf = power_small_bonf,
+    power_medium_bonf = power_medium_bonf,
+    power_large_bonf = power_large_bonf,
+    warning = NA_character_
   )
 }
 
-# === 9) Compile results =======================================================
+# Combine results
+power_df <- bind_rows(power_results)
+
+# === 9) Save results ==========================================================
 message("\n════════════════════════════════════════════════════════════════")
-message("📊 COMPILING POWER ANALYSIS RESULTS")
+message("=== Saving Results ===")
 message("════════════════════════════════════════════════════════════════\n")
 
-results_df <- bind_rows(power_analysis_results)
+# Save to CSV
+csv_path <- file.path(output_tables, "26_power_analysis_results.csv")
+write.csv(power_df, csv_path, row.names = FALSE)
+message("✓ Saved: ", csv_path)
 
-if (nrow(results_df) == 0) {
-  stop("No power analysis results generated. Check data availability.")
-}
-
-# Add interpretation flags
-results_df <- results_df %>%
-  mutate(
-    adequate_power_medium = power_medium_effect >= 0.80,
-    adequate_power_small = power_small_effect >= 0.80,
-    interpretation = case_when(
-      power_medium_effect >= 0.80 ~ "Adequate power for medium effects",
-      power_small_effect >= 0.80 ~ "Adequate power for small effects",
-      power_small_effect < 0.80 ~ "Underpowered for small effects",
-      TRUE ~ "Needs review"
-    )
-  )
-
-# Print summary table
-message("Summary of Power Analysis Results:")
-message("────────────────────────────────────────────────────────────────\n")
-print(results_df %>%
-        select(student_group, n_effective, min_f2_80power,
-               power_medium_effect, interpretation))
-
-# === 10) Create visualization =================================================
-message("\n>>> Creating power curve visualization...")
-
-# Generate power curves for each group
-power_curves <- list()
-
-for (i in 1:nrow(results_df)) {
-  row <- results_df[i, ]
-  group <- row$student_group
-  n_eff <- row$n_effective
-
-  # Generate sequence of effect sizes
-  f2_seq <- seq(0.001, 0.50, by = 0.001)
-
-  # Calculate power for each effect size
-  powers <- sapply(f2_seq, function(f2) {
-    tryCatch({
-      pwr.f2.test(u = 2, v = n_eff - 2 - 4 - 1,
-                  sig.level = 0.05, f2 = f2)$power
-    }, error = function(e) NA_real_)
-  })
-
-  power_curves[[i]] <- data.frame(
-    student_group = group,
-    f2 = f2_seq,
-    power = powers,
-    stringsAsFactors = FALSE
-  )
-}
-
-power_curves_df <- bind_rows(power_curves)
-
-# Create plot
-p <- ggplot(power_curves_df, aes(x = f2, y = power, color = student_group)) +
-  geom_line(linewidth = 1) +
-
-  # Add reference lines
-  geom_hline(yintercept = 0.80, linetype = "dashed", color = "gray40", linewidth = 0.5) +
-  geom_vline(xintercept = c(0.02, 0.15, 0.35), linetype = "dotted",
-             color = "gray60", linewidth = 0.5) +
-
-  # Add annotations for effect size benchmarks
-  annotate("text", x = 0.02, y = 0.05, label = "Small\n(f²=0.02)",
-           size = 3, color = "gray40", hjust = 0) +
-  annotate("text", x = 0.15, y = 0.05, label = "Medium\n(f²=0.15)",
-           size = 3, color = "gray40", hjust = 0) +
-  annotate("text", x = 0.35, y = 0.05, label = "Large\n(f²=0.35)",
-           size = 3, color = "gray40", hjust = 0) +
-  annotate("text", x = 0.45, y = 0.82, label = "80% Power",
-           size = 3, color = "gray40") +
-
-  # Scales
-  scale_x_continuous(
-    limits = c(0, 0.50),
-    breaks = seq(0, 0.50, 0.10)
-  ) +
-  scale_y_continuous(
-    limits = c(0, 1),
-    breaks = seq(0, 1, 0.20),
-    labels = scales::percent_format()
-  ) +
-
-  # Labels
-  labs(
-    title = "Statistical Power Curves by Student Racial/Ethnic Group",
-    subtitle = "Multiple regression with 2 predictors of interest + 4 controls (α = 0.05)",
-    x = "Effect Size (Cohen's f²)",
-    y = "Statistical Power",
-    color = "Student Group",
-    caption = paste0(
-      "Note: Power curves show the probability of detecting an effect of a given size.\n",
-      "Dashed line = 80% power threshold (conventional target).\n",
-      "Dotted lines = Small (f²=0.02), Medium (f²=0.15), and Large (f²=0.35) effect sizes (Cohen 1988).\n",
-      "Sample sizes are effective N accounting for enrollment weighting."
-    )
-  ) +
-
-  # Theme
-  theme_minimal(base_size = 11) +
-  theme(
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(size = 11, color = "gray30"),
-    plot.caption = element_text(hjust = 0, size = 8, color = "gray40", lineheight = 1.2),
-    legend.position = "right",
-    legend.title = element_text(face = "bold"),
-    panel.grid.minor = element_blank(),
-    panel.border = element_rect(color = "gray80", fill = NA)
-  )
-
-# === 11) Save outputs =========================================================
-message("\n>>> Saving outputs...")
-
-dir.create(here::here("outputs", "tables"), showWarnings = FALSE, recursive = TRUE)
-dir.create(here::here("outputs", "graphs"), showWarnings = FALSE, recursive = TRUE)
-
-# Save results table (CSV)
-write.csv(
-  results_df,
-  here::here("outputs", "tables", "26_power_analysis_results.csv"),
-  row.names = FALSE
-)
-message("✓ Saved: outputs/tables/26_power_analysis_results.csv")
-
-# Save Excel version with additional sheets
+# Save to Excel with better formatting
+xlsx_path <- file.path(output_tables, "26_power_analysis_results.xlsx")
 write_xlsx(
   list(
-    "Summary" = results_df,
-    "Power_Curves" = power_curves_df,
-    "Interpretation_Guide" = data.frame(
-      Metric = c(
-        "f² (Cohen's f-squared)",
-        "R² (R-squared)",
-        "Small effect",
-        "Medium effect",
-        "Large effect",
-        "Adequate power",
-        "Effective N",
-        "Bonferroni correction"
+    "Power Analysis" = power_df,
+    "Metadata" = data.frame(
+      Parameter = c(
+        "Analysis Date",
+        "Data File",
+        "Academic Years",
+        "Initial Rows",
+        "Final Sample Size",
+        "u (predictors)",
+        "v (controls)",
+        "Alpha (uncorrected)",
+        "Alpha (Bonferroni)",
+        "Target Power",
+        "Cohen Small f²",
+        "Cohen Medium f²",
+        "Cohen Large f²",
+        "Script Version"
       ),
-      Description = c(
-        "Effect size for multiple regression. f² = R²/(1-R²)",
-        "Proportion of variance explained by predictors of interest",
-        "f² = 0.02 (small but meaningful association)",
-        "f² = 0.15 (moderate association)",
-        "f² = 0.35 (strong association)",
-        "Power ≥ 0.80 (80% chance of detecting true effect)",
-        "Sample size adjusted for unequal weighting (enrollment weights)",
-        "Adjusted significance level (α/8) for 8 simultaneous tests"
+      Value = c(
+        as.character(Sys.Date()),
+        basename(MERGED_PATH),
+        "2018-19 through 2023-24",
+        format_number(initial_rows),
+        format_number(nrow(df_final)),
+        as.character(u_predictors),
+        as.character(v_controls),
+        as.character(alpha_uncorrected),
+        sprintf("%.5f", alpha_bonferroni),
+        "0.80",
+        as.character(cohen_small),
+        as.character(cohen_medium),
+        as.character(cohen_large),
+        "2.0 (2025-11-21)"
       )
     )
   ),
-  path = here::here("outputs", "tables", "26_power_analysis_results.xlsx")
+  path = xlsx_path
 )
-message("✓ Saved: outputs/tables/26_power_analysis_results.xlsx")
+message("✓ Saved: ", xlsx_path)
 
-# Save plot
-ggsave(
-  here::here("outputs", "graphs", "26_power_curves.png"),
-  p, width = 12, height = 8, dpi = 300, bg = "white"
+# Save diagnostics summary
+diagnostics_df <- data.frame(
+  stage = c(
+    "1. Initial load",
+    "2. After race canonicalization",
+    "3. After aggregation",
+    "4. Final analysis sample"
+  ),
+  n_rows = c(
+    initial_rows,
+    initial_rows - unmapped_count,
+    nrow(agg_df),
+    nrow(df_final)
+  ),
+  pct_retained = c(
+    100,
+    100 * (initial_rows - unmapped_count) / initial_rows,
+    100 * nrow(agg_df) / initial_rows,
+    100 * nrow(df_final) / initial_rows
+  )
 )
-message("✓ Saved: outputs/graphs/26_power_curves.png")
 
-# === 12) Final interpretation =================================================
+diag_path <- file.path(output_tables, "26_power_analysis_diagnostics.csv")
+write.csv(diagnostics_df, diag_path, row.names = FALSE)
+message("✓ Saved: ", diag_path)
+
+# === 10) Create power curve visualization ====================================
+message("\n>>> Creating power curve visualization...")
+
+# Create power curves for each group
+f2_seq <- seq(0.001, 0.10, length.out = 100)
+
+power_curves <- lapply(race_groups, function(race) {
+  race_info <- power_df %>% filter(race == !!race)
+
+  if (nrow(race_info) == 0 || is.na(race_info$residual_df)) {
+    return(NULL)
+  }
+
+  v_resid <- race_info$residual_df
+
+  curve_data <- data.frame(
+    f2 = f2_seq,
+    power_uncorrected = sapply(f2_seq, function(f2) {
+      tryCatch(
+        pwr.f2.test(u = u_predictors, v = v_resid, f2 = f2,
+                   sig.level = alpha_uncorrected)$power,
+        error = function(e) NA
+      )
+    }),
+    power_bonferroni = sapply(f2_seq, function(f2) {
+      tryCatch(
+        pwr.f2.test(u = u_predictors, v = v_resid, f2 = f2,
+                   sig.level = alpha_bonferroni)$power,
+        error = function(e) NA
+      )
+    }),
+    race = race,
+    n_effective = race_info$n_effective
+  )
+
+  curve_data
+})
+
+power_curves_df <- bind_rows(power_curves)
+
+if (nrow(power_curves_df) > 0) {
+  p <- ggplot(power_curves_df, aes(x = f2, y = power_uncorrected, color = race)) +
+    geom_line(linewidth = 1) +
+    geom_hline(yintercept = 0.80, linetype = "dashed", color = "gray40") +
+    geom_vline(xintercept = cohen_small, linetype = "dotted", color = "gray60") +
+    annotate("text", x = cohen_small, y = 0.05, label = "Small\n(0.02)",
+             size = 3, hjust = -0.1) +
+    scale_x_continuous(
+      limits = c(0, 0.10),
+      breaks = seq(0, 0.10, 0.02)
+    ) +
+    scale_y_continuous(
+      limits = c(0, 1),
+      breaks = seq(0, 1, 0.2),
+      labels = scales::percent
+    ) +
+    labs(
+      title = "Statistical Power by Effect Size and Student Race/Ethnicity",
+      subtitle = paste0("Uncorrected α = ", alpha_uncorrected,
+                       " | Target power = 80% | u=", u_predictors, ", v=", v_controls),
+      x = "Effect Size (Cohen's f²)",
+      y = "Statistical Power",
+      color = "Student Race/Ethnicity",
+      caption = "Note: Curves based on effective sample sizes after enrollment weighting.\nDashed line indicates 80% power threshold; dotted line shows Cohen's 'small' effect."
+    ) +
+    theme_minimal(base_size = 11) +
+    theme(
+      legend.position = "right",
+      plot.title = element_text(face = "bold", size = 13),
+      plot.caption = element_text(hjust = 0, size = 8, color = "gray40")
+    )
+
+  plot_path <- file.path(output_graphs, "26_power_curves.png")
+  ggsave(plot_path, p, width = 12, height = 7, dpi = 300)
+  message("✓ Saved: ", plot_path)
+}
+
+# === 11) Summary =============================================================
 message("\n════════════════════════════════════════════════════════════════")
-message("✓ POWER ANALYSIS COMPLETE")
+message("=== Summary ===")
 message("════════════════════════════════════════════════════════════════\n")
 
-message("Key Findings:")
-message("────────────────────────────────────────────────────────────────\n")
+message("Power analysis complete for ", nrow(power_df), " racial/ethnic groups")
+message("\nKey findings:")
+message("  • Specification: u=", u_predictors, ", v=", v_controls, " (MATCHES Analysis 21)")
+message("  • All groups have effective N ranging from ",
+        format_number(min(power_df$n_effective, na.rm = TRUE)), " to ",
+        format_number(max(power_df$n_effective, na.rm = TRUE)))
+message("  • Minimum detectable effects (80% power) range from f²=",
+        sprintf("%.4f", min(power_df$min_detectable_f2, na.rm = TRUE)), " to f²=",
+        sprintf("%.4f", max(power_df$min_detectable_f2, na.rm = TRUE)))
 
-# Find groups with inadequate power
-underpowered <- results_df %>%
-  filter(power_medium_effect < 0.80)
+well_powered <- power_df %>%
+  filter(power_small >= 0.80) %>%
+  nrow()
 
-if (nrow(underpowered) > 0) {
-  message("⚠ Groups with INADEQUATE power for medium effects:")
-  for (i in 1:nrow(underpowered)) {
-    message("  • ", underpowered$student_group[i],
-            " (N_eff = ", format_number(underpowered$n_effective[i]),
-            ", power = ", sprintf("%.1f%%", underpowered$power_medium_effect[i] * 100), ")")
-  }
-  message("")
-}
+message("  • ", well_powered, "/", nrow(power_df),
+        " groups have ≥80% power to detect 'small' effects")
 
-adequately_powered <- results_df %>%
-  filter(power_medium_effect >= 0.80)
+message("\n⚠ IMPORTANT NOTES:")
+message("  • v=6 (not v=4) - includes grade_level with 4 df")
+message("  • Power calculations assume enrollment weighting (as in Analysis 21)")
+message("  • Bonferroni correction accounts for testing 8 groups")
+message("  • Non-significant findings in well-powered groups can be interpreted as true nulls")
 
-if (nrow(adequately_powered) > 0) {
-  message("✓ Groups with ADEQUATE power for medium effects:")
-  for (i in 1:nrow(adequately_powered)) {
-    message("  • ", adequately_powered$student_group[i],
-            " (N_eff = ", format_number(adequately_powered$n_effective[i]),
-            ", power = ", sprintf("%.1f%%", adequately_powered$power_medium_effect[i] * 100), ")")
-  }
-  message("")
-}
-
-message("\nInterpretation Guidance:")
-message("────────────────────────────────────────────────────────────────")
-message("1. Minimum Detectable Effect:")
-message("   - This is the SMALLEST effect you can reliably detect with 80% power")
-message("   - If true effects are smaller, you'll likely get non-significant results")
-message("   - Use this to interpret null findings (absence of evidence ≠ evidence of absence)")
-message("")
-message("2. Cohen's Benchmarks (f² / R²):")
-message("   - Small: f² = 0.02 (R² ≈ 0.02)")
-message("   - Medium: f² = 0.15 (R² ≈ 0.13)")
-message("   - Large: f² = 0.35 (R² ≈ 0.26)")
-message("")
-message("3. Multiple Comparisons:")
-message("   - You're testing 8 racial groups simultaneously")
-message("   - Bonferroni correction: α = 0.05/8 = 0.00625")
-message("   - This increases minimum detectable effects (more conservative)")
-message("")
-message("4. Practical Significance:")
-message("   - Statistical power addresses DETECTION, not IMPORTANCE")
-message("   - Even if powered to detect small effects, focus on MEANINGFUL effects")
-message("   - Report effect sizes alongside p-values")
-message("")
-
-message("\nRecommendations:")
-message("────────────────────────────────────────────────────────────────")
-message("1. Report minimum detectable effects for all analyses")
-message("2. Interpret non-significant results with caution (may be underpowered)")
-message("3. Consider pooling small groups or using Bayesian methods")
-message("4. Focus discussion on effect sizes, not just p-values")
-message("5. For underpowered groups, report as exploratory analyses")
-message("")
-
-message("Output files:")
-message("  - outputs/tables/26_power_analysis_results.csv")
-message("  - outputs/tables/26_power_analysis_results.xlsx")
-message("  - outputs/graphs/26_power_curves.png\n")
-
-invisible(list(
-  power_results = results_df,
-  power_curves = power_curves_df,
-  plot = p
-))
+message("\n════════════════════════════════════════════════════════════════")
+message("=== Analysis Complete ===")
+message("════════════════════════════════════════════════════════════════\n")
