@@ -30,19 +30,23 @@ source("Analysis/18_merge_teacher_student.R")
 renv::restore()  # One-time setup
 ```
 
-✅ **Environment variables (optional but recommended for ad hoc runs):**
+✅ **Environment variables** (optional):
+```bash
+# For custom data paths, copy and edit .Renviron:
+cp .Renviron.example .Renviron
 
-These align with the project-level settings in `README.md` so scripts consistently locate data and project roots even outside `run_all.R`.
-
-```r
-# Common overrides:
-# REACH_PROJECT_ROOT   - Explicit path to the repository root when running from another working dir
-# REACH_DATA_DIR       - Where staged parquet/CSV files live (defaults to data-stage/ under the root)
-# RAW_PATH             - Full path to copy_CDE_suspensions_1718-2324_sc_race.xlsx
-# OTH_RAW_PATH         - Full path to copy_CDE_suspensions_1718-2324_sc_oth.xlsx
-# TEACHER_RAW_DIR      - Directory containing stre*.txt teacher files
-# RENV_CONFIG_AUTOLOADER_ENABLED=false  # disable auto-loading renv if it conflicts with your R session
+# Then edit .Renviron to set:
+# RAW_PATH=/path/to/copy_CDE_suspensions_1718-2324_sc_race.xlsx
+# OTH_RAW_PATH=/path/to/copy_CDE_suspensions_1718-2324_sc_oth.xlsx
+# REACH_DATA_DIR=/custom/path/to/data-stage
 ```
+
+**Why set these?**
+- Use data files outside the default `data-raw/` directory
+- Point to network drives or shared folders
+- Keep multiple versions for testing
+
+**Not needed if:** You're using default paths (`data-raw/` and `data-stage/`)
 
 ---
 
