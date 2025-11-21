@@ -8,6 +8,7 @@ suppressPackageStartupMessages({
   library(janitor)
   library(arrow)
   library(here)
+  library(readr)
 })
 
 try(here::i_am("Analysis/18_merge_teacher_student.R"), silent = TRUE)
@@ -62,6 +63,9 @@ combined <- v6 %>%
 
 teacher_cols <- grep("^teacher_", names(combined), value = TRUE)
 if (length(teacher_cols)) {
+  coverage_out_dir <- here("outputs", "teacher_merge")
+  if (!dir.exists(coverage_out_dir)) dir.create(coverage_out_dir, recursive = TRUE)
+
   coverage <- combined %>%
     mutate(has_teacher = if_any(all_of(teacher_cols), ~ !is.na(.x))) %>%
     summarise(
@@ -69,6 +73,16 @@ if (length(teacher_cols)) {
       with_teacher   = sum(has_teacher, na.rm = TRUE)
     )
   message("[18] Teacher coverage: ", coverage$with_teacher, " of ", coverage$total_rows, " student subgroup rows.")
+
+  yearly_row_coverage <- combined %>%
+    mutate(has_teacher = if_any(all_of(teacher_cols), ~ !is.na(.x))) %>%
+    group_by(academic_year) %>%
+    summarise(
+      total_rows = dplyr::n(),
+      with_teacher = sum(has_teacher, na.rm = TRUE),
+      pct_with_teacher = if_else(total_rows > 0, with_teacher / total_rows, NA_real_),
+      .groups = "drop"
+    )
 
   # Also report unique school coverage
   school_coverage <- combined %>%
@@ -79,6 +93,10 @@ if (length(teacher_cols)) {
       schools_with_teacher = sum(has_teacher, na.rm = TRUE)
     )
   message("[18] Unique school coverage: ", school_coverage$schools_with_teacher, " of ", school_coverage$unique_schools, " campus-years.")
+
+  write_csv(coverage, file.path(coverage_out_dir, "18_teacher_row_coverage_overall.csv"))
+  write_csv(yearly_row_coverage, file.path(coverage_out_dir, "18_teacher_row_coverage_by_year.csv"))
+  write_csv(school_coverage, file.path(coverage_out_dir, "18_teacher_school_coverage_overall.csv"))
 } else {
   warning("No teacher_* columns present after join.")
 }

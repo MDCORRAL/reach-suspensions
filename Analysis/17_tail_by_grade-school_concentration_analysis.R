@@ -131,6 +131,14 @@ if (!is.na(preferred_feature) && basename(FEATURE_PATH) != preferred_feature) {
   message("Using features: ", basename(FEATURE_PATH))
 }
 
+feature_version <- stringr::str_match(basename(FEATURE_PATH), "^susp_(v[0-9]+)_features\\.parquet$")[, 2]
+if (!is.na(input_version) && !is.na(feature_version) && input_version != feature_version) {
+  stop(
+    "Version mismatch between suspension data (", input_version,") and features (", feature_version,
+    "). Regenerate aligned features or place a matching parquet in data-stage/."
+  )
+}
+
 # Choose measure for concentration analysis
 MEASURE <- "total_susp"
 
