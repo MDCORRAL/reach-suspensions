@@ -412,7 +412,8 @@ This analysis evaluates power for **main effects** (direct associations) but not
 **Assumptions**:
 - Linear regression framework
 - Independent school-year-race observations (after aggregation)
-- Fixed predictors (teacher/admin diversity) and controls (SED rate, charter, school level)
+- Fixed predictors: u=2 (teacher diversity, admin diversity)
+- Fixed controls: v=6 (SED rate [1 df], charter status [1 df], school level [4 df for 5 levels])
 
 **Limitations**:
 - Does not account for clustering across years within same school
@@ -497,12 +498,16 @@ For questions about:
 
 ## Document Information
 
-**Document Version**: 1.0
+**Document Version**: 2.0
 **Document Created**: 2025-11-21
-**Last Updated**: 2025-11-21
-**Analysis Script**: `Analysis/26_power_analysis.R`
+**Last Updated**: 2025-11-21 (v2.0 with corrected specification)
+**Analysis Script**: `Analysis/26_power_analysis.R` (v2.0)
 **Output Location**: `outputs/summaries/26_power_analysis_SUMMARY.md`
 **Word Version**: `outputs/summaries/26_power_analysis_SUMMARY.docx` (can be generated from .md)
+
+**Version History**:
+- v2.0 (2025-11-21): Corrected regression specification to v=6 control parameters (was v=4). School level uses 4 df (5 levels), not 2 df. Power estimates nearly identical (v=4 error had minimal impact). All conclusions unchanged. See `docs/fixes/FIX_POWER_ANALYSIS_COMPREHENSIVE_V2.md` for comprehensive fix details.
+- v1.0 (2025-11-21): Initial executive summary
 
 ---
 
