@@ -26,5 +26,8 @@ run("Analysis/17_tail_concentration_by_level.R")
 # 5) Merge teacher summaries with student features
 run("Analysis/18_merge_teacher_student.R")
 
+# 6) Build teacher-student merged file for regression analysis (script 21)
+run("Analysis/22_build_teacher_race_shares.R")
+
 message("\n=== All done @ ", format(Sys.time(), usetz = TRUE), " ===")
 # End of file -----------------------------------------------------------------
