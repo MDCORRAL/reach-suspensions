@@ -8,6 +8,22 @@
 
 ---
 
+## Executive Summary (1-2 Minute Read)
+
+**Purpose**: [One sentence describing what this analysis examines]
+
+**Key Findings**:
+- **Finding 1**: [Brief, non-technical summary of most important finding]
+- **Finding 2**: [Brief summary of second most important finding]
+- **Finding 3**: [Brief summary of third finding]
+- **Finding 4**: [Additional finding if needed]
+
+**Bottom Line**: [One-sentence overall takeaway for decision-makers]
+
+**Important Note**: This analysis examines **total suspension incidents** (not unique students suspended), so rates can exceed 100% when students experience multiple suspensions.
+
+---
+
 ## Key Question
 
 [State the primary research question in 1-2 clear sentences]

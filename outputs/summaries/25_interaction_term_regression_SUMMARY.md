@@ -8,6 +8,22 @@
 
 ---
 
+## Executive Summary (1-2 Minute Read)
+
+**Purpose**: This analysis uses statistical interaction modeling to formally test whether the "White teacher effect" on suspension rates is amplified in schools with higher Black student enrollment (the "mismatch hypothesis").
+
+**Key Findings**:
+- **Positive Interaction Confirmed**: The statistical interaction between % White teachers and % Black students is highly significant (p < 0.001), confirming that the White teacher effect strengthens as Black enrollment increases.
+- **Effect Compounds at Scale**: At schools with 80% Black enrollment, a 10 percentage point increase in White teachers is associated with 0.8-1.5 percentage point higher suspension rates—3-7 times larger than the effect in low-Black-enrollment schools.
+- **Robust After Controls**: The interaction remains significant even after controlling for poverty (SED rate), charter status, and school level, indicating the pattern is not simply explained by these structural factors.
+- **Complements Quartile Analysis**: This formal statistical test confirms what Analysis 24 showed descriptively—the relationship between teacher composition and suspension rates systematically varies with student racial composition.
+
+**Bottom Line**: Statistical evidence strongly supports the "mismatch hypothesis"—the correlation between White teacher percentage and suspension rates is significantly amplified in schools serving predominantly Black student populations.
+
+**Important Note**: This analysis examines **total suspension incidents** (not unique students suspended), so rates can exceed 100% when students experience multiple suspensions.
+
+---
+
 ## Key Question
 
 Does the relationship between teacher racial composition (specifically % White teachers) and suspension rates vary depending on the school's Black student enrollment? Specifically, is the "White teacher effect" on suspension rates amplified in schools with higher Black student concentrations?

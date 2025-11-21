@@ -8,6 +8,22 @@
 
 ---
 
+## Executive Summary (1-2 Minute Read)
+
+**Purpose**: This analysis examines whether the relationship between teacher racial composition (% White teachers) and suspension rates varies across schools with different Black student enrollment levels.
+
+**Key Findings**:
+- **Relationship Strengthens with Black Enrollment**: Schools with the highest Black student concentrations (75th-100th percentile) show a much stronger relationship between White teacher percentage and suspension rates compared to schools with lower Black enrollment.
+- **3.3× Difference in Effect Size**: For every 10 percentage point increase in White teachers, suspension rates increase by 1.93 percentage points in low-Black-enrollment schools (Q1) but by 6.33 percentage points in high-Black-enrollment schools (Q4).
+- **Statistically Significant Pattern**: All four quartile-specific regressions show positive, statistically significant relationships (all p < 0.001), and the difference between quartiles is substantial and consistent.
+- **Not Explained by Poverty**: The pattern persists after controlling for socioeconomic disadvantage, school level, and charter status, suggesting the "mismatch" is not simply a poverty effect.
+
+**Bottom Line**: The data reveal a consistent pattern where teacher-student racial composition mismatch is most strongly associated with higher suspension rates in schools serving predominantly Black student populations.
+
+**Important Note**: This analysis examines **total suspension incidents** (not unique students suspended), so rates can exceed 100% when students experience multiple suspensions.
+
+---
+
 ## Key Question
 
 Does the racial composition of teaching staff show stronger associations with suspension rates in majority-Black schools compared to majority-White schools?
