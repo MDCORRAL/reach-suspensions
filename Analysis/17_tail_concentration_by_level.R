@@ -105,6 +105,14 @@ if (!is.na(preferred_feature) && basename(FEATURE_PATH) != preferred_feature) {
   message("Using features: ", basename(FEATURE_PATH))
 }
 
+feature_version <- stringr::str_match(basename(FEATURE_PATH), "^susp_(v[0-9]+)_features\\.parquet$")[, 2]
+if (!is.na(input_version) && !is.na(feature_version) && input_version != feature_version) {
+  stop(
+    "Version mismatch between suspension data (", input_version,") and features (", feature_version,
+    "). Regenerate features for the suspension version in use or supply matching feature parquet."
+  )
+}
+
 required_files <- c(INPUT_PATH, FEATURE_PATH)
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {

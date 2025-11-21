@@ -126,6 +126,15 @@ if (!is.na(preferred_feature) && basename(FEATURE_PATH) != preferred_feature) {
   message("Using features: ", basename(FEATURE_PATH))
 }
 
+feature_version <- stringr::str_match(basename(FEATURE_PATH), "^susp_(v[0-9]+)_features\\.parquet$")[, 2]
+if (!is.na(input_version) && !is.na(feature_version) && input_version != feature_version) {
+  stop(
+    "Version mismatch between suspension data (", input_version,
+    ") and features (", feature_version,
+    "). Regenerate features for the suspension version in use or place the matching parquet in data-stage/."
+  )
+}
+
 # Output directory
 RUN_TAG <- format(Sys.time(), "%Y%m%d_%H%M")
 OUT_DIR <- here("outputs", paste0("tail_concentration_", RUN_TAG))

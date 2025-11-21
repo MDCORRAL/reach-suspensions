@@ -30,6 +30,20 @@ source("Analysis/18_merge_teacher_student.R")
 renv::restore()  # One-time setup
 ```
 
+✅ **Environment variables (optional but recommended for ad hoc runs):**
+
+These align with the project-level settings in `README.md` so scripts consistently locate data and project roots even outside `run_all.R`.
+
+```r
+# Common overrides:
+# REACH_PROJECT_ROOT   - Explicit path to the repository root when running from another working dir
+# REACH_DATA_DIR       - Where staged parquet/CSV files live (defaults to data-stage/ under the root)
+# RAW_PATH             - Full path to copy_CDE_suspensions_1718-2324_sc_race.xlsx
+# OTH_RAW_PATH         - Full path to copy_CDE_suspensions_1718-2324_sc_oth.xlsx
+# TEACHER_RAW_DIR      - Directory containing stre*.txt teacher files
+# RENV_CONFIG_AUTOLOADER_ENABLED=false  # disable auto-loading renv if it conflicts with your R session
+```
+
 ---
 
 ## What You'll Get
