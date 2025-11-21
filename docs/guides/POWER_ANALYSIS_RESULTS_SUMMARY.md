@@ -169,8 +169,11 @@ retain adequate power to detect meaningful effects."
 ## Technical Details
 
 ### Regression Model Specification
-- **Predictors of interest**: 2 (teacher diversity, admin diversity)
-- **Control variables**: ~4 (SED rate, charter status, school level with 2 dummy codes)
+- **Predictors of interest (u)**: 2 (teacher diversity, admin diversity)
+- **Control variables (v)**: 6 total
+  - SED rate: 1 df (continuous)
+  - Charter status: 1 df (binary)
+  - School level: 4 df (5-level factor: Elementary, Middle, High, Other, Alternative)
 - **Weighting**: By cumulative enrollment
 - **Alpha level**: 0.05 (0.00625 after Bonferroni correction)
 - **Target power**: 80% (conventional standard)
@@ -180,8 +183,8 @@ retain adequate power to detect meaningful effects."
 - **Function**: `pwr.f2.test()` for multiple regression
 - **Effect size**: Cohen's f² = R²/(1-R²)
 - **Degrees of freedom**:
-  - u = 2 (predictors tested)
-  - v = N_effective - 2 - 4 - 1 (error df)
+  - u = 2 (predictors of interest)
+  - v = N_effective - u - v - 1 = N_effective - 2 - 6 - 1 = N_effective - 9 (error df)
 
 ### Effective Sample Size Calculation
 ```
@@ -240,6 +243,10 @@ This accounts for the efficiency loss from unequal weighting. Perfect equality w
 
 ---
 
-**Generated**: 2025-11-21
-**Script**: `Analysis/26_power_analysis.R`
+**Document Version**: 2.0 (Updated 2025-11-21)
+**Script Version**: `Analysis/26_power_analysis.R` v2.0
 **Guide**: `docs/guides/POWER_ANALYSIS_GUIDE.md`
+
+**Version History**:
+- v2.0 (2025-11-21): Updated specification to v=6 controls (was v=4). Corrected school level degrees of freedom (4 df for 5 levels). Power estimates unchanged (minimal impact). See `docs/fixes/FIX_POWER_ANALYSIS_COMPREHENSIVE_V2.md` for details.
+- v1.0 (2025-11-21): Initial power analysis
