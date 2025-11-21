@@ -260,7 +260,7 @@ if (is.na(susp_col)) {
   if (all(c("total_suspensions", "cumulative_enrollment") %in% names(df))) {
     message(">>> Calculating suspension rate from counts")
     df <- df %>%
-      mutate(suspension_rate = safe_div(total_suspensions, cumulative_enrollment, 0) * 100)
+      mutate(suspension_rate = safe_div(total_suspensions, cumulative_enrollment, 0))
     susp_col <- "suspension_rate"
   } else {
     stop("Could not find suspension rate column in dataset")
