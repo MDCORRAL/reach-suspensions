@@ -29,6 +29,10 @@
 
 How do Black student suspension rates vary by school racial composition, and what are the teacher and administrator demographic characteristics of schools with the highest suspension rates?
 
+## Power Diagnostics
+
+- Run `Analysis/27_power_analysis_multiscript.R` to produce `outputs/tables/27_power_analysis_by_group.csv`; filter `analysis_id == "22_black_suspension_teacher_demographics"` to review effective N and minimum-detectable R² for each Black-enrollment quartile before interpreting null results.
+
 ---
 
 ## CRITICAL: Suspension Rate Definition
