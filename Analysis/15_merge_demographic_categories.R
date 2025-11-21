@@ -101,24 +101,26 @@ if (nrow(dup_check) > 0) {
   warning("Duplicate unit-year-category-subgroup rows found: ", nrow(dup_check))
 }
 
-# Check for impossible rates
+# Check for truly impossible values (unduplicated students cannot exceed enrollment)
 rate_anomalies <- demo_data %>%
-  filter(total_suspensions > cumulative_enrollment, 
-         !is.na(total_suspensions), !is.na(cumulative_enrollment))
+  filter(unduplicated_suspensions > cumulative_enrollment,
+         !is.na(unduplicated_suspensions), !is.na(cumulative_enrollment))
 
 if(nrow(rate_anomalies) > 0) {
-  warning("Found ", nrow(rate_anomalies), " records with suspensions > enrollment")
+  warning("Found ", nrow(rate_anomalies), " records with unduplicated suspensions > enrollment (truly impossible)")
 }
 
-# Add after data quality validation section
+# Cap unduplicated suspensions only (cannot exceed enrollment)
+# Note: total_suspensions represents incidents and CAN exceed enrollment (repeat suspensions)
 demo_data <- demo_data %>%
   mutate(
-    # Flag and cap impossible rates
-    rate_flag = total_suspensions > cumulative_enrollment,
-    total_suspensions = pmin(total_suspensions, cumulative_enrollment, na.rm = TRUE)
+    # Flag and cap truly impossible values
+    impossible_unduplicated_flag = unduplicated_suspensions > cumulative_enrollment,
+    unduplicated_suspensions = pmin(unduplicated_suspensions, cumulative_enrollment, na.rm = TRUE)
+    # DO NOT cap total_suspensions - it represents incidents, can legitimately exceed enrollment
   )
 
-cat("Capped", sum(demo_data$rate_flag, na.rm = TRUE), "impossible suspension counts\n")
+cat("Capped", sum(demo_data$impossible_unduplicated_flag, na.rm = TRUE), "impossible unduplicated suspension counts\n")
 
 # -------- Create canonical school attributes --------------------------------
 # Year ordering (prefer TA in race_data if present)
@@ -168,16 +170,18 @@ demo_data <- demo_data %>%
       !is.na(ed_ops_name) ~ "Non-traditional",
       TRUE ~ NA_character_
     ),
-    # Fix impossible suspension rates
-    rate_flag = total_suspensions > cumulative_enrollment,
-    total_suspensions = pmin(total_suspensions, cumulative_enrollment, na.rm = TRUE)
+    # Cap truly impossible unduplicated values (after join, check again to be safe)
+    impossible_unduplicated_flag = unduplicated_suspensions > cumulative_enrollment,
+    unduplicated_suspensions = pmin(unduplicated_suspensions, cumulative_enrollment, na.rm = TRUE)
+    # Note: total_suspensions NOT capped - represents incidents, can exceed enrollment
   ) %>%
   # Clean duplicate columns from join
   select(-any_of(c("county_code.x", "district_code.x", "school_code.x"))) %>%
   rename_with(~ str_remove(.x, "\\.y$"), ends_with(".y"))
 
-# Report data cleaning
-cat("Fixed", sum(demo_data$rate_flag, na.rm = TRUE), "impossible suspension rates\n")
+# Report data cleaning (after join)
+cat("Post-join validation: capped", sum(demo_data$impossible_unduplicated_flag, na.rm = TRUE),
+    "impossible unduplicated suspension counts\n")
 
 # -------- District-level fallback for missing attributes --------------------
 missing_count <- demo_data %>% 
