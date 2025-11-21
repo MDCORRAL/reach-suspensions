@@ -203,7 +203,7 @@ if (is.na(susp_col)) {
     message(">>> Calculating suspension rate from counts")
     df <- df %>%
       mutate(suspension_rate = ifelse(cumulative_enrollment > 0,
-                                      (total_suspensions / cumulative_enrollment) * 100,
+                                      total_suspensions / cumulative_enrollment,
                                       NA_real_))
     susp_col <- "suspension_rate"
   } else {
