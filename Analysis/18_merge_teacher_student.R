@@ -62,6 +62,8 @@ combined <- v6 %>%
 
 teacher_cols <- grep("^teacher_", names(combined), value = TRUE)
 if (length(teacher_cols)) {
+
+  # --- Row-level coverage (all subgroups) ---
   coverage <- combined %>%
     mutate(has_teacher = if_any(all_of(teacher_cols), ~ !is.na(.x))) %>%
     summarise(
@@ -70,7 +72,7 @@ if (length(teacher_cols)) {
     )
   message("[18] Teacher coverage: ", coverage$with_teacher, " of ", coverage$total_rows, " student subgroup rows.")
 
-  # Also report unique school coverage
+  # --- School-level coverage (unique campuses) ---
   school_coverage <- combined %>%
     distinct(cds_school, academic_year, .keep_all = TRUE) %>%
     mutate(has_teacher = if_any(all_of(teacher_cols), ~ !is.na(.x))) %>%
@@ -79,6 +81,56 @@ if (length(teacher_cols)) {
       schools_with_teacher = sum(has_teacher, na.rm = TRUE)
     )
   message("[18] Unique school coverage: ", school_coverage$schools_with_teacher, " of ", school_coverage$unique_schools, " campus-years.")
+
+  # --- Year-by-year coverage report (Audit Recommendation #3) ---
+  message("[18] Generating coverage audit report by year...")
+
+  coverage_by_year <- combined %>%
+    distinct(cds_school, academic_year, .keep_all = TRUE) %>%
+    mutate(has_teacher = if_any(all_of(teacher_cols), ~ !is.na(.x))) %>%
+    group_by(academic_year) %>%
+    summarise(
+      unique_schools = n(),
+      schools_with_teacher = sum(has_teacher, na.rm = TRUE),
+      schools_without_teacher = sum(!has_teacher, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      coverage_pct_schools = round(100 * schools_with_teacher / unique_schools, 1),
+      # Add coverage quality tier
+      coverage_tier = case_when(
+        coverage_pct_schools >= 80 ~ "High (≥80%)",
+        coverage_pct_schools >= 50 ~ "Moderate (50-79%)",
+        coverage_pct_schools >= 20 ~ "Low (20-49%)",
+        TRUE ~ "Very Low (<20%)"
+      )
+    ) %>%
+    arrange(academic_year)
+
+  # Create outputs/data_audit if needed
+  dir.create(here::here("outputs", "data_audit"), showWarnings = FALSE, recursive = TRUE)
+
+  # Write coverage report
+  coverage_path <- here::here("outputs", "data_audit", "teacher_coverage_by_year.csv")
+  readr::write_csv(coverage_by_year, coverage_path)
+
+  message("[18] Coverage audit saved: ", coverage_path)
+  message("[18] Coverage summary:")
+  print(coverage_by_year %>% select(academic_year, unique_schools, coverage_pct_schools, coverage_tier))
+
+  # Flag low-coverage years
+  low_coverage_years <- coverage_by_year %>%
+    filter(coverage_pct_schools < 50) %>%
+    pull(academic_year)
+
+  if (length(low_coverage_years) > 0) {
+    warning(
+      "LOW TEACHER COVERAGE (<50%) in years: ",
+      paste(low_coverage_years, collapse = ", "),
+      "\nUse caution when analyzing teacher diversity metrics for these years."
+    )
+  }
+
 } else {
   warning("No teacher_* columns present after join.")
 }

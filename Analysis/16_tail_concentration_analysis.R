@@ -126,6 +126,41 @@ if (!is.na(preferred_feature) && basename(FEATURE_PATH) != preferred_feature) {
   message("Using features: ", basename(FEATURE_PATH))
 }
 
+## -------------------------------------------------------------------------
+## Enforce version matching (Audit Recommendation #1)
+## -------------------------------------------------------------------------
+
+# Extract numeric versions from selected files
+input_version_num <- stringr::str_extract(basename(INPUT_PATH), "(?<=v)[0-9]+")
+feature_version_num <- stringr::str_extract(basename(FEATURE_PATH), "(?<=v)[0-9]+")
+
+# Enforce exact version match
+if (is.na(input_version_num) || is.na(feature_version_num)) {
+  stop(
+    "VERSION DETECTION FAILED:\n",
+    "  Suspension file: ", basename(INPUT_PATH), " (version: ", input_version_num, ")\n",
+    "  Features file: ", basename(FEATURE_PATH), " (version: ", feature_version_num, ")\n",
+    "Cannot proceed without valid version numbers."
+  )
+}
+
+if (input_version_num != feature_version_num) {
+  stop(
+    "VERSION MISMATCH DETECTED:\n",
+    "  Suspension data: ", basename(INPUT_PATH), " (v", input_version_num, ")\n",
+    "  Features data: ", basename(FEATURE_PATH), " (v", feature_version_num, ")\n",
+    "\n",
+    "These files must use the same version to ensure schema compatibility.\n",
+    "\n",
+    "To fix:\n",
+    "  1. Check data-stage/ for matching versions\n",
+    "  2. Re-run pipeline if needed: source('run_pipeline.R')\n",
+    "  3. Ensure 22_build_v6_features.R completed successfully\n"
+  )
+}
+
+message("✓ Version check passed: Both files are v", input_version_num)
+
 # Output directory
 RUN_TAG <- format(Sys.time(), "%Y%m%d_%H%M")
 OUT_DIR <- here("outputs", paste0("tail_concentration_", RUN_TAG))

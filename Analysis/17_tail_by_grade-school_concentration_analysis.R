@@ -131,6 +131,31 @@ if (!is.na(preferred_feature) && basename(FEATURE_PATH) != preferred_feature) {
   message("Using features: ", basename(FEATURE_PATH))
 }
 
+## -------------------------------------------------------------------------
+## Enforce version matching (Audit Recommendation #1)
+## -------------------------------------------------------------------------
+
+input_version_num <- stringr::str_extract(basename(INPUT_PATH), "(?<=v)[0-9]+")
+feature_version_num <- stringr::str_extract(basename(FEATURE_PATH), "(?<=v)[0-9]+")
+
+if (is.na(input_version_num) || is.na(feature_version_num)) {
+  stop(
+    "VERSION DETECTION FAILED:\n",
+    "  Suspension file: ", basename(INPUT_PATH), " (version: ", input_version_num, ")\n",
+    "  Features file: ", basename(FEATURE_PATH), " (version: ", feature_version_num, ")\n"
+  )
+}
+
+if (input_version_num != feature_version_num) {
+  stop(
+    "VERSION MISMATCH: ", basename(INPUT_PATH), " (v", input_version_num, ") != ",
+    basename(FEATURE_PATH), " (v", feature_version_num, ")\n",
+    "Run source('run_pipeline.R') to regenerate matching versions."
+  )
+}
+
+message("✓ Version check passed: v", input_version_num)
+
 # Choose measure for concentration analysis
 MEASURE <- "total_susp"
 

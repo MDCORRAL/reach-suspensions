@@ -65,6 +65,85 @@ has_count_cols <- all(c(
 
   prop_cols <- grep("^prop_susp_", names(v6), value = TRUE)
 
+# --- 2b) Reason Reconciliation Helper (Audit Recommendation #2) -------------
+#' Validate that derived reason counts sum to total_suspensions
+#' @param plot_data Data frame with suspension_count and total_suspensions
+#' @param group_var Grouping variable (e.g., black_prop_q_label)
+#' @return Validation summary (invisibly), with side effect of writing audit file
+validate_reason_totals <- function(plot_data, group_var) {
+  gsym <- rlang::ensym(group_var)
+
+  # Group by year × quartile and sum reason counts
+  validation <- plot_data %>%
+    group_by(academic_year, !!gsym) %>%
+    summarise(
+      # Sum of all reason-specific counts
+      derived_total = sum(suspension_count, na.rm = TRUE),
+      # Original total from data (should be same for all reasons in group)
+      original_total = first(total_suspensions),
+      n_reasons = n_distinct(reason),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      # Calculate absolute and percentage difference
+      abs_diff = abs(derived_total - original_total),
+      pct_diff = if_else(
+        original_total > 0,
+        abs_diff / original_total,
+        NA_real_
+      ),
+      # Flag significant discrepancies (>1%)
+      is_discrepancy = !is.na(pct_diff) & pct_diff > 0.01
+    )
+
+  # Count and report issues
+  n_issues <- sum(validation$is_discrepancy, na.rm = TRUE)
+
+  if (n_issues > 0) {
+    warning(
+      "REASON RECONCILIATION ISSUES DETECTED:\n",
+      "  ", n_issues, " year × quartile groups have reason totals differing from total_suspensions by >1%\n",
+      "  Max discrepancy: ", scales::percent(max(validation$pct_diff, na.rm = TRUE), accuracy = 0.1), "\n",
+      "  Audit file: outputs/data_audit/reason_reconciliation_issues.csv\n",
+      "\n",
+      "Possible causes:\n",
+      "  - Rounding errors in proportion calculations\n",
+      "  - Missing suspension reason categories\n",
+      "  - Data suppression (asterisks converted to NA)\n",
+      "\n",
+      "Review audit file before using these rates in publications."
+    )
+
+    # Write detailed audit file
+    dir.create(here::here("outputs", "data_audit"), showWarnings = FALSE, recursive = TRUE)
+
+    issues <- validation %>%
+      filter(is_discrepancy) %>%
+      arrange(desc(pct_diff)) %>%
+      mutate(
+        pct_diff_label = scales::percent(pct_diff, accuracy = 0.01),
+        abs_diff_label = scales::comma(abs_diff, accuracy = 1)
+      ) %>%
+      select(
+        academic_year, quartile = !!gsym,
+        original_total, derived_total, abs_diff_label, pct_diff_label,
+        n_reasons
+      )
+
+    readr::write_csv(
+      issues,
+      here::here("outputs", "data_audit", "reason_reconciliation_issues.csv")
+    )
+
+    message("  Wrote ", nrow(issues), " discrepancy records to audit file")
+  } else {
+    message("✓ Reason reconciliation check passed: All totals within 1% of expected")
+  }
+
+  # Return validation summary invisibly for optional inspection
+  invisible(validation)
+}
+
 # --- 3) Total Rate Plot helper -----------------------------------------------
 create_total_rate_plot <- function(data, group_var, colors, title_suffix, legend_title) {
   gsym <- rlang::ensym(group_var)
@@ -165,6 +244,17 @@ create_category_rate_plot <- function(data, group_var, colors, title_suffix, leg
         reason_rate = if_else(total_enrollment > 0, suspension_count / total_enrollment, NA_real_),
         year_fct    = factor(academic_year, levels = year_levels)
       )
+
+    # Validate derived totals (Audit Recommendation #2)
+    # Add total_suspensions to plot_data for validation
+    plot_data_with_totals <- plot_data %>%
+      left_join(
+        data %>%
+          distinct(academic_year, !!gsym, total_suspensions),
+        by = c("academic_year", rlang::as_name(gsym))
+      )
+
+    validate_reason_totals(plot_data_with_totals, !!gsym)
   } else {
     stop("No reason data available: neither *_count nor prop_susp_* columns exist in v6.")
   }
