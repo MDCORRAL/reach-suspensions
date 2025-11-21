@@ -18,6 +18,26 @@
 # 2. Weighted by student enrollment for representativeness
 # 3. Uses fixed y-axis scales for direct visual comparison
 # 4. Non-causal interpretation: correlational patterns only
+#
+# CRITICAL: SUSPENSION RATE DEFINITION
+# =====================================
+# This analysis uses TOTAL SUSPENSION INCIDENTS (not unduplicated student count).
+#
+# - Numerator: total_suspensions = Total count of suspension incidents/events
+#   (If a student is suspended multiple times, each incident is counted)
+#
+# - Denominator: cumulative_enrollment = Total student enrollment
+#
+# - Rate = total_suspensions / cumulative_enrollment
+#
+# - Interpretation: Average number of suspension incidents per enrolled student
+#   (Can exceed 1.0 if students experience multiple suspensions)
+#
+# ALTERNATIVE MEASURE (not used here):
+# - unduplicated_suspensions = Count of unique students suspended at least once
+# - Unduplicated rate = unduplicated_suspensions / cumulative_enrollment
+# - Interpretation: Percentage of students who experienced at least one suspension
+#   (Always between 0-100%)
 
 # === 1) Setup =================================================================
 suppressPackageStartupMessages({
@@ -498,7 +518,9 @@ p <- ggplot(plot_data, aes(x = pct_white_teachers, y = suspension_rate_pct)) +
       "Note: Each point represents a school-year observation (2018-19 onwards).\n",
       "Regression lines show linear trend (method = lm) with 95% confidence interval.\n",
       "Q1 = Lowest % Black students, Q4 = Highest % Black students.\n",
-      "Hypothesis: Steeper slope in Q4 indicates stronger association in majority-Black schools."
+      "Hypothesis: Steeper slope in Q4 indicates stronger association in majority-Black schools.\n\n",
+      "SUSPENSION RATE DEFINITION: Total suspension incidents divided by enrollment (can exceed 100% if students ",
+      "experience multiple suspensions). This is NOT the percentage of students suspended (unduplicated count)."
     )
   ) +
 

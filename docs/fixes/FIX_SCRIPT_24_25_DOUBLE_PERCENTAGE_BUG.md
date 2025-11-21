@@ -310,6 +310,61 @@ The final pipeline should now produce realistic suspension rates (2-10% median, 
 
 ---
 
+## CRITICAL: Suspension Rate Definition
+
+**IMPORTANT METHODOLOGICAL NOTE**: The suspension rates calculated in scripts 24 and 25 use **TOTAL SUSPENSION INCIDENTS**, not **UNDUPLICATED STUDENT COUNT**.
+
+### What This Means
+
+**Numerator**: `total_suspensions`
+- Definition: Total count of all suspension incidents/events
+- Example: If Student A was suspended 3 times during the year, this counts as **3 suspensions**
+
+**Denominator**: `cumulative_enrollment`
+- Definition: Total student enrollment for the school-year
+
+**Rate Calculation**: `total_suspensions / cumulative_enrollment`
+
+**Interpretation**:
+- This represents the **average number of suspension incidents per enrolled student**
+- **Can exceed 1.0** (or 100%) if students experience multiple suspensions
+- Example: A rate of 1.5 (150%) means there were 1.5 suspension incidents per enrolled student on average
+
+### Why Rates Can Exceed 100%
+
+This explains the "high" values we saw:
+- Maximum rate of 321.8% means 3.2 suspension incidents per enrolled student
+- This is possible if many students receive multiple suspensions
+- A school with 100 students and 320 total suspension incidents would have a 320% rate
+
+### Alternative Measure (NOT Used in These Scripts)
+
+**Unduplicated Suspension Rate**:
+- Numerator: `unduplicated_suspensions` = Count of unique students suspended at least once
+- Example: If Student A was suspended 3 times, this counts as **1 student**
+- Rate: `unduplicated_suspensions / cumulative_enrollment`
+- Interpretation: **Percentage of students who experienced at least one suspension**
+- **Always between 0-100%** (cannot exceed 100%)
+
+### Why This Matters for Interpretation
+
+1. **The total incidents measure captures severity**: Multiple suspensions per student increase the rate
+2. **Comparisons are valid**: As long as all schools use the same measure
+3. **Values >100% are NOT errors**: They indicate high rates of repeat suspensions
+4. **Documentation is critical**: Readers must know which measure is being used
+
+### Where This Is Documented
+
+This critical distinction has been added to:
+1. **Script headers** (lines 22-43 in both scripts 24 & 25)
+2. **Graph captions** (visible on all visualizations)
+3. **Summary templates** (see `outputs/summaries/TEMPLATE_SUMMARY.md`)
+4. **This fix documentation**
+
+**Always include this information when reporting suspension rates.**
+
+---
+
 **Document Version**: 1.0
 **Created**: 2025-11-21
 **Author**: REACH Suspensions Analysis Team
