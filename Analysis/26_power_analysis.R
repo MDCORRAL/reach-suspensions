@@ -85,6 +85,16 @@ if ("student_group" %in% names(df_raw)) {
   stop("No student_group or reporting_category column found")
 }
 
+# Filter to recent years for efficiency (and better teacher data coverage)
+message("\n>>> Filtering to recent years (2018-19 onwards)...")
+message("    Rows before filter: ", format_number(nrow(df_raw)))
+
+df_raw <- df_raw %>%
+  filter(academic_year >= "2018-19")
+
+message("    Rows after filter: ", format_number(nrow(df_raw)))
+message("    Data reduction: ", sprintf("%.1f%%", 100 * (1 - nrow(df_raw) / 3402282)))
+
 # === 4) Aggregate to school-year-race level ==================================
 message("\n>>> Aggregating to school-year-race level...")
 
