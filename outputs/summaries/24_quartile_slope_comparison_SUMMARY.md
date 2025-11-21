@@ -30,6 +30,10 @@ Does the racial composition of teaching staff show stronger associations with su
 
 **Hypothesis**: The association between % White Teachers and Suspension Rate should be stronger (steeper slope) in majority-Black schools (Q4) compared to majority-White schools (Q1).
 
+## Power Diagnostics
+
+- Use `Analysis/27_power_analysis_multiscript.R` and filter `analysis_id == "24_quartile_slope_comparison"` in `outputs/tables/27_power_analysis_by_group.csv` to confirm effective N and minimum-detectable R² for each (quartile × student-race) slope before interpreting null slope differences.
+
 ---
 
 ## CRITICAL: Suspension Rate Definition
