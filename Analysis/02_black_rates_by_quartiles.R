@@ -186,7 +186,7 @@ create_total_rate_plot <- function(data, group_var, colors, title_suffix, legend
 # --- 4) Reason-specific Rate Plot helper --------------------------------------
 create_category_rate_plot <- function(data, group_var, colors, title_suffix, legend_title) {
   gsym <- rlang::ensym(group_var)
-  
+
   if (has_count_cols) {
     # Use provided *_count columns
     plot_data <- data %>%
@@ -258,9 +258,52 @@ create_category_rate_plot <- function(data, group_var, colors, title_suffix, leg
   } else {
     stop("No reason data available: neither *_count nor prop_susp_* columns exist in v6.")
   }
-  
+
+  totals <- data %>%
+    filter(!is.na(!!gsym)) %>%
+    group_by(academic_year, !!gsym) %>%
+    summarise(
+      total_susp = sum(total_suspensions, na.rm = TRUE),
+      total_enrollment = sum(cumulative_enrollment, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  reconciliation <- plot_data %>%
+    group_by(academic_year, !!gsym) %>%
+    summarise(reason_sum = sum(suspension_count, na.rm = TRUE), .groups = "drop") %>%
+    left_join(totals, by = c("academic_year", rlang::as_name(gsym))) %>%
+    mutate(
+      abs_gap = reason_sum - total_susp,
+      pct_gap = if_else(total_susp > 0, abs_gap / total_susp, NA_real_)
+    )
+
+  gap_caption <- "Reason sums match total suspensions"
+  if (nrow(reconciliation) > 0) {
+    recon_summary <- reconciliation %>%
+      summarise(
+        max_abs_gap = max(abs(abs_gap), na.rm = TRUE),
+        median_pct_gap = median(abs(pct_gap), na.rm = TRUE)
+      )
+    recon_summary <- recon_summary %>%
+      mutate(
+        max_abs_gap = ifelse(is.infinite(max_abs_gap), NA_real_, max_abs_gap),
+        median_pct_gap = ifelse(is.infinite(median_pct_gap), NA_real_, median_pct_gap)
+      )
+    if (is.finite(recon_summary$max_abs_gap) && recon_summary$max_abs_gap > 0) {
+      gap_caption <- paste0(
+        "Reason reconciliation — max |gap| = ", formatC(recon_summary$max_abs_gap, format = "f", digits = 1),
+        ", median |pct gap| = ", scales::percent(recon_summary$median_pct_gap, accuracy = 0.1)
+      )
+    }
+    message(
+      "[reason reconciliation] ", legend_title, ": max absolute gap = ",
+      ifelse(is.na(recon_summary$max_abs_gap), "NA", formatC(recon_summary$max_abs_gap, format = "f", digits = 1)),
+      "; median pct gap = ", ifelse(is.na(recon_summary$median_pct_gap), "NA", scales::percent(recon_summary$median_pct_gap, accuracy = 0.1))
+    )
+  }
+
   df2 <- plot_data %>% filter(!is.na(reason_rate))
-  ggplot(df2, aes(x = year_fct, y = reason_rate, color = !!gsym, group = !!gsym)) +
+  plt <- ggplot(df2, aes(x = year_fct, y = reason_rate, color = !!gsym, group = !!gsym)) +
     geom_line(linewidth = 0.9) +
     geom_point(size = 1.8) +
     ggrepel::geom_text_repel(
@@ -275,12 +318,15 @@ create_category_rate_plot <- function(data, group_var, colors, title_suffix, leg
     labs(
       title = paste("Black Student Suspension Rates by Category and", title_suffix),
       subtitle = "Events in reason per Black student (pooled rate)",
+      caption = gap_caption,
       x = "Academic Year", y = "Rate (%)"
     ) +
     theme(legend.position = "bottom",
           plot.title = element_text(face = "bold", size = 14),
           axis.text.x = element_text(angle = 45, hjust = 1),
           strip.text = element_text(face = "bold"))
+
+  list(plot = plt, reconciliation = reconciliation)
 }
 
 # --- 5) Generate Plots --------------------------------------------------------
@@ -291,7 +337,7 @@ p1_total_black <- create_total_rate_plot(
   black_students_data, "black_prop_q_label", black_quartile_colors,
   "School Black Student Proportion", "School % Black Students"
 )
-p2_categories_black <- create_category_rate_plot(
+p2_categories_black_diag <- create_category_rate_plot(
   black_students_data, "black_prop_q_label", black_quartile_colors,
   "School Black Student Proportion", "School % Black Students"
 )
@@ -301,7 +347,7 @@ p3_total_white <- create_total_rate_plot(
   black_students_data, "white_prop_q_label", white_quartile_colors,
   "School White Student Proportion", "School % White Students"
 )
-p4_categories_white <- create_category_rate_plot(
+p4_categories_white_diag <- create_category_rate_plot(
   black_students_data, "white_prop_q_label", white_quartile_colors,
   "School White Student Proportion", "School % White Students"
 )
@@ -311,10 +357,26 @@ p5_total_hispanic <- create_total_rate_plot(
   black_students_data, "hispanic_prop_q_label", hispanic_quartile_colors,
   "School Hispanic/Latino Student Proportion", "School % Hispanic/Latino Students"
 )
-p6_categories_hispanic <- create_category_rate_plot(
+p6_categories_hispanic_diag <- create_category_rate_plot(
   black_students_data, "hispanic_prop_q_label", hispanic_quartile_colors,
   "School Hispanic/Latino Student Proportion", "School % Hispanic/Latino Students"
 )
+# Collect reconciliation diagnostics across quartile bases
+reconciliation_tables <- list(
+  p2_categories_black_diag$reconciliation %>% mutate(quartile_basis = "Black"),
+  p4_categories_white_diag$reconciliation %>% mutate(quartile_basis = "White"),
+  p6_categories_hispanic_diag$reconciliation %>% mutate(quartile_basis = "Hispanic/Latino")
+) %>%
+  bind_rows()
+
+if (nrow(reconciliation_tables) > 0) {
+  dir.create(here::here("outputs"), showWarnings = FALSE)
+  write_csv(reconciliation_tables, here::here("outputs", "02_reason_reconciliation_by_quartile.csv"))
+}
+
+p2_categories_black <- p2_categories_black_diag$plot
+p4_categories_white <- p4_categories_white_diag$plot
+p6_categories_hispanic <- p6_categories_hispanic_diag$plot
 # Combine plots into a single layout 
 
 # ---- optional: drop "Unknown" quartiles from all plots ----------------------

@@ -8,6 +8,7 @@ suppressPackageStartupMessages({
   library(janitor)
   library(arrow)
   library(here)
+  library(readr)
 })
 
 try(here::i_am("Analysis/18_merge_teacher_student.R"), silent = TRUE)
