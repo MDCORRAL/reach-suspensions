@@ -24,10 +24,10 @@ The association between teacher racial composition (% White teachers) and suspen
 
 | Quartile | Slope Coefficient | Std Error | 95% CI | p-value | Significance |
 |----------|------------------:|----------:|--------|---------|:------------:|
-| Q1 (Lowest % Black) | 1158.6050 | 415.4425 | [344.0129, 1973.1971] | p < 0.001 | \*\* |
-| Q2 | 599.4924 | 296.3454 | [18.4317, 1180.5532] | p < 0.001 | \* |
-| Q3 | 1440.7141 | 274.9531 | [901.5827, 1979.8455] | p < 0.001 | \*\*\* |
-| Q4 (Highest % Black) | 3795.2654 | 657.0694 | [2506.9659, 5083.5650] | p < 0.001 | \*\*\* |
+| Q1 (Lowest % Black) | 193.1008 | 69.2404 | [57.3355, 328.8662] | p < 0.001 | \*\* |
+| Q2 | 99.9154 | 49.3909 | [3.0720, 196.7589] | p < 0.001 | \* |
+| Q3 | 240.1190 | 45.8255 | [150.2638, 329.9743] | p < 0.001 | \*\*\* |
+| Q4 (Highest % Black) | 632.5442 | 109.5116 | [417.8277, 847.2608] | p < 0.001 | \*\*\* |
 
 **Significance Legend**:  
 \*\*\* = p < 0.001 (highly significant)  
@@ -36,9 +36,9 @@ The association between teacher racial composition (% White teachers) and suspen
 NS = not statistically significant
 
 **Key Insight**: The coefficient (slope) increases dramatically from Q1 to Q4:
-- **Q1** (Lowest % Black): 1158.6050 (weakest association)
-- **Q4** (Highest % Black): 3795.2654 (strongest association - **3.3X steeper**)
-- **Slope difference**: 2636.6605 (Q4 - Q1)
+- **Q1** (Lowest % Black): 193.1008 (weakest association)
+- **Q4** (Highest % Black): 632.5442 (strongest association - **3.3X steeper**)
+- **Slope difference**: 439.4434 (Q4 - Q1)
 
 ### 2. **Practical Effect Sizes Vary by School Context**
 
@@ -46,10 +46,10 @@ A **10 percentage point increase** in % White Teachers (e.g., from 40% to 50% Wh
 
 | Quartile | Change in Suspension Rate (pp) | Interpretation |
 |----------|--------------------------------|----------------|
-| Q1 (Lowest % Black) | 11586.050 | +11586.050 pp increase |
-| Q2 | 5994.924 | +5994.924 pp increase |
-| Q3 | 14407.141 | +14407.141 pp increase |
-| Q4 (Highest % Black) | 37952.654 | +37952.654 pp increase |
+| Q1 (Lowest % Black) | 1931.008 | +1931.008 pp increase |
+| Q2 | 999.154 | +999.154 pp increase |
+| Q3 | 2401.190 | +2401.190 pp increase |
+| Q4 (Highest % Black) | 6325.442 | +6325.442 pp increase |
 
 **Note**: pp = percentage points. A 0.371 pp increase means suspension rate increases by 0.371 percentage points (e.g., from 5.0% to 5.371%).
 
@@ -62,8 +62,8 @@ A **10 percentage point increase** in % White Teachers (e.g., from 40% to 50% Wh
 **Sample**: 2,909 school-year observations
 
 **Regression Results**:
-- Coefficient: 1158.6050 (SE: 415.4425)
-- 95% CI: [344.0129, 1973.1971]
+- Coefficient: 193.1008 (SE: 69.2404)
+- 95% CI: [57.3355, 328.8662]
 - p-value: p < 0.001 **
 - R²: 0.1437 (Adj. R²: 0.1419)
 
@@ -74,8 +74,8 @@ A **10 percentage point increase** in % White Teachers (e.g., from 40% to 50% Wh
 **Sample**: 3,006 school-year observations
 
 **Regression Results**:
-- Coefficient: 599.4924 (SE: 296.3454)
-- 95% CI: [18.4317, 1180.5532]
+- Coefficient: 99.9154 (SE: 49.3909)
+- 95% CI: [3.0720, 196.7589]
 - p-value: p < 0.001 *
 - R²: 0.1818 (Adj. R²: 0.1801)
 
@@ -86,8 +86,8 @@ A **10 percentage point increase** in % White Teachers (e.g., from 40% to 50% Wh
 **Sample**: 2,805 school-year observations
 
 **Regression Results**:
-- Coefficient: 1440.7141 (SE: 274.9531)
-- 95% CI: [901.5827, 1979.8455]
+- Coefficient: 240.1190 (SE: 45.8255)
+- 95% CI: [150.2638, 329.9743]
 - p-value: p < 0.001 ***
 - R²: 0.2606 (Adj. R²: 0.2590)
 
@@ -98,8 +98,8 @@ A **10 percentage point increase** in % White Teachers (e.g., from 40% to 50% Wh
 **Sample**: 3,345 school-year observations
 
 **Regression Results**:
-- Coefficient: 3795.2654 (SE: 657.0694)
-- 95% CI: [2506.9659, 5083.5650]
+- Coefficient: 632.5442 (SE: 109.5116)
+- 95% CI: [417.8277, 847.2608]
 - p-value: p < 0.001 ***
 - R²: 0.1129 (Adj. R²: 0.1113)
 
