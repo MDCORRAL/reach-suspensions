@@ -14,6 +14,58 @@
 
 ---
 
+## CRITICAL: Suspension Rate Definition
+
+**IMPORTANT METHODOLOGICAL NOTE**: This analysis uses **TOTAL SUSPENSION INCIDENTS**, not **UNDUPLICATED STUDENT COUNT**.
+
+### What This Means
+
+**Numerator**: `total_suspensions`
+- Total count of all suspension incidents/events
+- If a student is suspended multiple times, **each incident is counted**
+- Example: Student A suspended 3 times = **3 suspensions**
+
+**Denominator**: `cumulative_enrollment`
+- Total student enrollment for the school-year
+
+**Rate Calculation**:
+```
+Suspension Rate = total_suspensions / cumulative_enrollment
+```
+
+**Interpretation**:
+- Represents the **average number of suspension incidents per enrolled student**
+- **Can exceed 1.0** (or 100%) if students experience multiple suspensions
+- Example: A rate of 0.15 (15%) means 0.15 suspension incidents per student on average
+- Example: A rate of 1.5 (150%) means 1.5 suspension incidents per student (indicating repeat suspensions)
+
+### Why This Measure?
+
+**Advantages**:
+- Captures **severity**: Multiple suspensions per student increase the rate
+- Reflects **total disciplinary burden** on schools
+- Consistent across all schools (comparable measure)
+
+**Important Note**:
+- Rates **CAN exceed 100%** if many students receive multiple suspensions
+- This is NOT an error - it indicates high rates of repeat suspensions
+
+### Alternative Measure (NOT Used Here)
+
+**Unduplicated Suspension Rate**:
+- Numerator: Count of unique students suspended at least once
+- Example: Student A suspended 3 times = **1 student**
+- Interpretation: Percentage of students who experienced at least one suspension
+- **Always between 0-100%** (cannot exceed 100%)
+
+**Why not use unduplicated count?**
+- [Explain rationale for choosing total incidents over unduplicated - e.g., captures severity, matches research questions, etc.]
+- [OR note that both measures are reported if applicable]
+
+**This distinction appears on all graphs and tables in this analysis.**
+
+---
+
 ## Major Findings
 
 ### 1. **[First Major Finding - Descriptive Title]**

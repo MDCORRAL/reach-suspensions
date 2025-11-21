@@ -21,6 +21,26 @@
 # 2. Weighted by student enrollment for representativeness
 # 3. Marginal effects plot shows predicted rates at different Black enrollment levels
 # 4. Non-causal interpretation: correlational patterns only
+#
+# CRITICAL: SUSPENSION RATE DEFINITION
+# =====================================
+# This analysis uses TOTAL SUSPENSION INCIDENTS (not unduplicated student count).
+#
+# - Numerator: total_suspensions = Total count of suspension incidents/events
+#   (If a student is suspended multiple times, each incident is counted)
+#
+# - Denominator: cumulative_enrollment = Total student enrollment
+#
+# - Rate = total_suspensions / cumulative_enrollment
+#
+# - Interpretation: Average number of suspension incidents per enrolled student
+#   (Can exceed 1.0 if students experience multiple suspensions)
+#
+# ALTERNATIVE MEASURE (not used here):
+# - unduplicated_suspensions = Count of unique students suspended at least once
+# - Unduplicated rate = unduplicated_suspensions / cumulative_enrollment
+# - Interpretation: Percentage of students who experienced at least one suspension
+#   (Always between 0-100%)
 
 # === 1) Setup =================================================================
 suppressPackageStartupMessages({
@@ -638,7 +658,9 @@ p <- ggplot(pred_data, aes(x = pct_white_teachers, y = predicted_suspension_rate
       } else "",
       ".\n",
       "Interaction coefficient: ", sprintf("%.4f", interaction_coef),
-      " (p = ", sprintf("%.4f", interaction_p), ")"
+      " (p = ", sprintf("%.4f", interaction_p), ")\n\n",
+      "SUSPENSION RATE DEFINITION: Total suspension incidents divided by enrollment (can exceed 100% if students ",
+      "experience multiple suspensions). This is NOT the percentage of students suspended (unduplicated count)."
     )
   ) +
 
