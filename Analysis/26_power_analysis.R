@@ -98,11 +98,19 @@ arrow_version <- tryCatch(
 message("    Arrow package version: ", arrow_version)
 
 # Define minimal columns needed (prevents loading all 377 columns)
-required_base_cols <- c(
-  "cds_school", "academic_year", "student_group", "reporting_category",
-  "total_suspensions", "cumulative_enrollment", "suspension_rate_percent_total",
-  "sed_rate", "charter_yn", "charter_yn_std", "is_traditional",
-  "level_strict3", "school_level_final", "school_level"
+# Core columns (must exist)
+core_cols <- c(
+  "cds_school", "academic_year", "student_group",
+  "total_suspensions", "cumulative_enrollment", "suspension_rate_percent_total"
+)
+
+# Optional columns (find alternatives if exact names don't exist)
+# We'll check for these patterns and include any matches
+optional_patterns <- c(
+  "reporting_category",
+  "sed", "socio", "economic",  # SED-related
+  "charter", "traditional",     # Charter-related
+  "level", "grade", "school_type"  # Grade level-related
 )
 
 # TIGHTENED REGEX: Exact column name matching for race shares
@@ -131,12 +139,21 @@ admin_cols <- grep(admin_pattern, all_cols, value = TRUE, ignore.case = TRUE)
 message("    Found ", length(teacher_cols), " teacher race share columns")
 message("    Found ", length(admin_cols), " admin race share columns")
 
-cols_to_load <- unique(c(required_base_cols, teacher_cols, admin_cols))
+# Find optional columns by pattern matching
+optional_cols <- character()
+for (pattern in optional_patterns) {
+  matches <- grep(pattern, all_cols, value = TRUE, ignore.case = TRUE)
+  optional_cols <- c(optional_cols, matches)
+}
+optional_cols <- unique(optional_cols)
+message("    Found ", length(optional_cols), " optional control columns")
+
+cols_to_load <- unique(c(core_cols, teacher_cols, admin_cols, optional_cols))
 cols_to_load <- intersect(cols_to_load, all_cols)
 
-missing_required <- setdiff(required_base_cols, cols_to_load)
-if (length(missing_required) > 0) {
-  warning("Missing required columns: ", paste(missing_required, collapse = ", "))
+missing_core <- setdiff(core_cols, cols_to_load)
+if (length(missing_core) > 0) {
+  stop("Missing REQUIRED core columns: ", paste(missing_core, collapse = ", "))
 }
 
 message("    Step 2: Selecting ", length(cols_to_load), " columns (",
@@ -280,12 +297,20 @@ message("\n>>> Aggregating to school-year-race level...")
 message("    Initial rows: ", format_number(nrow(df_raw)))
 
 # Identify covariates that should be constant within school-year-race
+# Use flexible column matching like Analysis 21
+sed_cols <- grep("sed|socio|economic", names(df_raw), value = TRUE, ignore.case = TRUE)
+charter_cols <- grep("charter|traditional", names(df_raw), value = TRUE, ignore.case = TRUE)
+level_cols <- grep("level|grade|school_type", names(df_raw), value = TRUE, ignore.case = TRUE)
+
 constant_check_vars <- c(
-  "sed_rate", "charter_yn_std", "is_traditional",
-  "level_strict3", "school_level_final", "cumulative_enrollment",
-  "teacher_nonwhite_share", "admin_nonwhite_share"
+  "cumulative_enrollment",
+  "teacher_nonwhite_share",
+  "admin_nonwhite_share",
+  sed_cols,
+  charter_cols,
+  level_cols
 )
-constant_check_vars <- intersect(constant_check_vars, names(df_raw))
+constant_check_vars <- unique(intersect(constant_check_vars, names(df_raw)))
 
 # CHECK: Verify covariates don't vary within school-year-race groups
 message("    Checking within-group variability of covariates...")
@@ -319,6 +344,7 @@ for (var in constant_check_vars) {
 }
 
 # Aggregate
+# Build aggregation dynamically based on available columns
 agg_df <- df_raw %>%
   group_by(cds_school, academic_year, race_clean) %>%
   summarise(
@@ -329,11 +355,12 @@ agg_df <- df_raw %>%
     cumulative_enrollment = first(cumulative_enrollment),
     teacher_nonwhite_share = first(teacher_nonwhite_share),
     admin_nonwhite_share = first(admin_nonwhite_share),
-    sed_rate = first(sed_rate),
-    charter_yn_std = first(charter_yn_std),
-    is_traditional = first(is_traditional),
-    level_strict3 = first(level_strict3),
-    school_level_final = first(school_level_final),
+
+    # Aggregate all other constant variables that exist
+    across(
+      any_of(setdiff(constant_check_vars, c("cumulative_enrollment", "teacher_nonwhite_share", "admin_nonwhite_share"))),
+      ~first(.x)
+    ),
 
     # Count reasons aggregated
     n_reasons = n(),
@@ -357,11 +384,17 @@ message("\n>>> Filtering to complete cases...")
 before_filter <- nrow(agg_df)
 
 # Track missing data by variable
+# Check all constant variables that exist
+check_missing_vars <- c(
+  "suspension_rate", "teacher_nonwhite_share", "admin_nonwhite_share",
+  "cumulative_enrollment", constant_check_vars
+)
+check_missing_vars <- unique(intersect(check_missing_vars, names(agg_df)))
+
 missing_summary <- agg_df %>%
   summarise(
     across(
-      c(suspension_rate, teacher_nonwhite_share, admin_nonwhite_share,
-        cumulative_enrollment, sed_rate, charter_yn_std, level_strict3),
+      any_of(check_missing_vars),
       ~sum(is.na(.x))
     )
   )
