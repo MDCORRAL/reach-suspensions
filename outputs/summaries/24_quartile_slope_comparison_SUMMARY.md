@@ -3,8 +3,8 @@
 **Analysis Date**: 2025-11-20
 **Data Period**: 2018-19 through 2023-24 academic years
 **Academic Years Included**: 2019-20, 2021-22, 2022-23, 2023-24
-**Total Schools Analyzed**: 2,904 unique schools across California
-**School-Year Observations**: 7,808
+**Total Schools Analyzed**: 4,359 unique schools across California
+**School-Year Observations**: 12,065
 
 ---
 
@@ -20,14 +20,14 @@ Does the racial composition of teaching staff play a more critical role in disci
 
 ### 1. **Hypothesis Confirmed: Stronger Association in Majority-Black Schools**
 
-The association between teacher racial composition (% White teachers) and suspension rates is **-661.7% stronger** in majority-Black schools (Q4) compared to majority-White schools (Q1).
+The association between teacher racial composition (% White teachers) and suspension rates is **227.6% stronger** in majority-Black schools (Q4) compared to majority-White schools (Q1).
 
 | Quartile | Slope Coefficient | Std Error | 95% CI | p-value | Significance |
 |----------|------------------:|----------:|--------|---------|:------------:|
-| Q1 (Lowest % Black) | -7418.4895 | 17165.7716 | [-41080.4825, 26243.5036] | p < 0.001 |  |
-| Q2 | -3975.5233 | 16142.2898 | [-35631.4055, 27680.3589] | p < 0.001 |  |
-| Q3 | 22230.1966 | 14442.0105 | [-6094.2456, 50554.6388] | p < 0.001 |  |
-| Q4 (Highest % Black) | 41670.9784 | 33471.3691 | [-23986.2418, 107328.1987] | p < 0.001 |  |
+| Q1 (Lowest % Black) | 1158.6050 | 415.4425 | [344.0129, 1973.1971] | p < 0.001 | \*\* |
+| Q2 | 599.4924 | 296.3454 | [18.4317, 1180.5532] | p < 0.001 | \* |
+| Q3 | 1440.7141 | 274.9531 | [901.5827, 1979.8455] | p < 0.001 | \*\*\* |
+| Q4 (Highest % Black) | 3795.2654 | 657.0694 | [2506.9659, 5083.5650] | p < 0.001 | \*\*\* |
 
 **Significance Legend**:  
 \*\*\* = p < 0.001 (highly significant)  
@@ -36,9 +36,9 @@ The association between teacher racial composition (% White teachers) and suspen
 NS = not statistically significant
 
 **Key Insight**: The coefficient (slope) increases dramatically from Q1 to Q4:
-- **Q1** (Lowest % Black): -7418.4895 (weakest association)
-- **Q4** (Highest % Black): 41670.9784 (strongest association - **-5.6X steeper**)
-- **Slope difference**: 49089.4679 (Q4 - Q1)
+- **Q1** (Lowest % Black): 1158.6050 (weakest association)
+- **Q4** (Highest % Black): 3795.2654 (strongest association - **3.3X steeper**)
+- **Slope difference**: 2636.6605 (Q4 - Q1)
 
 ### 2. **Practical Effect Sizes Vary by School Context**
 
@@ -46,10 +46,10 @@ A **10 percentage point increase** in % White Teachers (e.g., from 40% to 50% Wh
 
 | Quartile | Change in Suspension Rate (pp) | Interpretation |
 |----------|--------------------------------|----------------|
-| Q1 (Lowest % Black) | -74184.895 | No significant effect |
-| Q2 | -39755.233 | No significant effect |
-| Q3 | 222301.966 | No significant effect |
-| Q4 (Highest % Black) | 416709.784 | No significant effect |
+| Q1 (Lowest % Black) | 11586.050 | +11586.050 pp increase |
+| Q2 | 5994.924 | +5994.924 pp increase |
+| Q3 | 14407.141 | +14407.141 pp increase |
+| Q4 (Highest % Black) | 37952.654 | +37952.654 pp increase |
 
 **Note**: pp = percentage points. A 0.371 pp increase means suspension rate increases by 0.371 percentage points (e.g., from 5.0% to 5.371%).
 
@@ -59,51 +59,51 @@ A **10 percentage point increase** in % White Teachers (e.g., from 40% to 50% Wh
 
 ### Q1 (Lowest % Black)
 
-**Sample**: 2,309 school-year observations
+**Sample**: 2,909 school-year observations
 
 **Regression Results**:
-- Coefficient: -7418.4895 (SE: 17165.7716)
-- 95% CI: [-41080.4825, 26243.5036]
-- p-value: p < 0.001 
-- R²: 0.0181 (Adj. R²: 0.0155)
+- Coefficient: 1158.6050 (SE: 415.4425)
+- 95% CI: [344.0129, 1973.1971]
+- p-value: p < 0.001 **
+- R²: 0.1437 (Adj. R²: 0.1419)
 
-**Interpretation**: No significant association
+**Interpretation**: Higher suspension rates with more White teachers
 
 ### Q2
 
-**Sample**: 2,187 school-year observations
+**Sample**: 3,006 school-year observations
 
 **Regression Results**:
-- Coefficient: -3975.5233 (SE: 16142.2898)
-- 95% CI: [-35631.4055, 27680.3589]
-- p-value: p < 0.001 
-- R²: 0.0203 (Adj. R²: 0.0176)
+- Coefficient: 599.4924 (SE: 296.3454)
+- 95% CI: [18.4317, 1180.5532]
+- p-value: p < 0.001 *
+- R²: 0.1818 (Adj. R²: 0.1801)
 
-**Interpretation**: No significant association
+**Interpretation**: Higher suspension rates with more White teachers
 
 ### Q3
 
-**Sample**: 1,848 school-year observations
+**Sample**: 2,805 school-year observations
 
 **Regression Results**:
-- Coefficient: 22230.1966 (SE: 14442.0105)
-- 95% CI: [-6094.2456, 50554.6388]
-- p-value: p < 0.001 
-- R²: 0.0821 (Adj. R²: 0.0791)
+- Coefficient: 1440.7141 (SE: 274.9531)
+- 95% CI: [901.5827, 1979.8455]
+- p-value: p < 0.001 ***
+- R²: 0.2606 (Adj. R²: 0.2590)
 
-**Interpretation**: No significant association
+**Interpretation**: Higher suspension rates with more White teachers
 
 ### Q4 (Highest % Black)
 
-**Sample**: 1,464 school-year observations
+**Sample**: 3,345 school-year observations
 
 **Regression Results**:
-- Coefficient: 41670.9784 (SE: 33471.3691)
-- 95% CI: [-23986.2418, 107328.1987]
-- p-value: p < 0.001 
-- R²: 0.0707 (Adj. R²: 0.0669)
+- Coefficient: 3795.2654 (SE: 657.0694)
+- 95% CI: [2506.9659, 5083.5650]
+- p-value: p < 0.001 ***
+- R²: 0.1129 (Adj. R²: 0.1113)
 
-**Interpretation**: No significant association
+**Interpretation**: Higher suspension rates with more White teachers
 
 ---
 
@@ -117,9 +117,9 @@ A **10 percentage point increase** in % White Teachers (e.g., from 40% to 50% Wh
 
 **Sample Size Breakdown**:
 - **Raw observations**: 3,402,282 school-year-race-reason records (before aggregation)
-- **Aggregated observations**: 7,808 school-year observations
-- **Unique schools**: 2,904 California public schools
-- **Aggregation ratio**: ~435.7 observations per school-year (races × reasons)
+- **Aggregated observations**: 12,065 school-year observations
+- **Unique schools**: 4,359 California public schools
+- **Aggregation ratio**: ~282 observations per school-year (races × reasons)
 
 **What Each "Observation" Represents**:
 - One **school** (identified by 14-digit CDS code)
@@ -178,7 +178,7 @@ Throughout this summary:
 
 ### 1. **Context Matters: Effect Varies by School Composition**
 
-**Finding**: Teacher racial composition shows -5.6X stronger association with suspension rates in majority-Black schools compared to majority-White schools.
+**Finding**: Teacher racial composition shows 3.3X stronger association with suspension rates in majority-Black schools compared to majority-White schools.
 
 **Implication**:
 - Teacher diversity initiatives may have different impacts depending on school context
