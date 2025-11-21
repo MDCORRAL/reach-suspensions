@@ -581,7 +581,12 @@ For questions about:
 **Last Updated**: 2025-11-21
 **Analysis Script**: `Analysis/25_interaction_term_regression.R`
 **Output Location**: `outputs/summaries/25_interaction_term_regression_SUMMARY.md`
-**Word Version**: Not yet created (generate from .md using pandoc if needed)
+**Word Version**: `outputs/summaries/25_interaction_term_regression_SUMMARY.docx` (generate using conversion script)
+
+**Conversion to Word**:
+```bash
+./scripts/utilities/convert_summary_to_word.sh 25_interaction_term_regression_SUMMARY.md
+```
 
 ---
 

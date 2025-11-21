@@ -503,7 +503,12 @@ For questions about:
 **Last Updated**: 2025-11-21 (v2.0 with corrected specification)
 **Analysis Script**: `Analysis/26_power_analysis.R` (v2.0)
 **Output Location**: `outputs/summaries/26_power_analysis_SUMMARY.md`
-**Word Version**: `outputs/summaries/26_power_analysis_SUMMARY.docx` (can be generated from .md)
+**Word Version**: `outputs/summaries/26_power_analysis_SUMMARY.docx` (generate using conversion script)
+
+**Conversion to Word**:
+```bash
+./scripts/utilities/convert_summary_to_word.sh 26_power_analysis_SUMMARY.md
+```
 
 **Version History**:
 - v2.0 (2025-11-21): Corrected regression specification to v=6 control parameters (was v=4). School level uses 4 df (5 levels), not 2 df. Power estimates nearly identical (v=4 error had minimal impact). All conclusions unchanged. See `docs/fixes/FIX_POWER_ANALYSIS_COMPREHENSIVE_V2.md` for comprehensive fix details.

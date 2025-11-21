@@ -495,7 +495,12 @@ For questions about:
 **Last Updated**: 2025-11-21
 **Analysis Script**: `Analysis/24_quartile_slope_comparison.R`
 **Output Location**: `outputs/summaries/24_quartile_slope_comparison_SUMMARY.md`
-**Word Version**: Convert using `./scripts/utilities/convert_summary_to_word.sh 24_quartile_slope_comparison_SUMMARY.md`
+**Word Version**: `outputs/summaries/24_quartile_slope_comparison_SUMMARY.docx` (generate using conversion script)
+
+**Conversion to Word**:
+```bash
+./scripts/utilities/convert_summary_to_word.sh 24_quartile_slope_comparison_SUMMARY.md
+```
 
 ---
 

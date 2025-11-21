@@ -265,7 +265,12 @@ For questions about:
 **Last Updated**: YYYY-MM-DD
 **Analysis Script**: `Analysis/[NN]_[script_name].R`
 **Output Location**: `outputs/summaries/[NN]_[analysis_name]_SUMMARY.md`
-**Word Version**: `outputs/summaries/[NN]_[analysis_name]_SUMMARY.docx` (generated from .md)
+**Word Version**: `outputs/summaries/[NN]_[analysis_name]_SUMMARY.docx` (generate using conversion script)
+
+**Conversion to Word**:
+```bash
+./scripts/utilities/convert_summary_to_word.sh [NN]_[analysis_name]_SUMMARY.md
+```
 
 ---
 
