@@ -32,7 +32,31 @@ Does the racial composition of teaching staff show stronger associations with su
 
 ## Power Diagnostics
 
-- Use `Analysis/27_power_analysis_multiscript.R` and filter `analysis_id == "24_quartile_slope_comparison"` in `outputs/tables/27_power_analysis_by_group.csv` to confirm effective N and minimum-detectable R² for each (quartile × student-race) slope before interpreting null slope differences.
+### Statistical Power Summary
+
+**Power Analysis Source**: `Analysis/27_power_analysis_multiscript.R` → filter `analysis_id == "24_quartile_slope_comparison"`
+
+This analysis examines slopes across 32 combinations (4 quartiles × 8 race groups):
+
+| Quartile | Approx Raw N per Race | Total N | Power Assessment |
+|----------|----------------------|---------|------------------|
+| Q1 (Lowest % Black) | ~39,000 | ~312,000 | ~100% |
+| Q2 | ~39,000 | ~311,000 | ~100% |
+| Q3 | ~39,000 | ~311,000 | ~100% |
+| Q4 (Highest % Black) | ~38,500 | ~308,000 | ~100% |
+
+**Key Power Findings**:
+- **Power for small effects (f² = 0.02)**: Essentially 100% across all quartile × race combinations
+- **Minimum detectable R²**: < 0.1% for each cell
+- **Bonferroni adjustment**: Even with 16 slope comparisons (4 quartiles × 4 focal slopes), power remains ~100%
+
+### Interpreting Results in Light of Power
+
+With this level of statistical power:
+1. **The 3.3× slope difference is robust**: Q4 slopes being 3.3× larger than Q1 slopes is not due to sampling variability
+2. **All quartile slopes are significant**: The positive associations in all four quartiles are reliable (all p < 0.05)
+3. **Slope heterogeneity is real**: The systematic increase in slopes from Q1 → Q4 reflects genuine differential associations, not noise
+4. **Non-significant slope differences would be meaningful**: If certain race × quartile combinations showed no slope difference, that would be an interpretable finding (though this analysis finds consistent positive slopes)
 
 ---
 
@@ -494,9 +518,9 @@ For questions about:
 
 ## Document Information
 
-**Document Version**: 1.0
+**Document Version**: 2.0
 **Document Created**: 2025-11-21
-**Last Updated**: 2025-11-21
+**Last Updated**: 2025-11-22 (v2.0 - added comprehensive power diagnostics from Analysis 27)
 **Analysis Script**: `Analysis/24_quartile_slope_comparison.R`
 **Output Location**: `outputs/summaries/24_quartile_slope_comparison_SUMMARY.md`
 **Word Version**: `outputs/summaries/24_quartile_slope_comparison_SUMMARY.docx` (generate using conversion script)
@@ -505,6 +529,10 @@ For questions about:
 ```bash
 ./scripts/utilities/convert_summary_to_word.sh 24_quartile_slope_comparison_SUMMARY.md
 ```
+
+**Change Log**:
+- v2.0 (2025-11-22): Added comprehensive Power Diagnostics section with sample sizes by quartile, power assessment for slope comparisons, and interpretation guidance from Analysis 27
+- v1.0 (2025-11-21): Initial summary created
 
 ---
 
