@@ -61,7 +61,17 @@ canonicalize_race_label <- function(x) {
   raw <- toupper(trimws(x))
 
   out <- dplyr::recode(raw,
-    # Two-letter codes
+    # CDE R-prefix codes (used in student_group column)
+    "RA" = "Asian",
+    "RB" = "Black/African American",
+    "RF" = "Filipino",
+    "RH" = "Hispanic/Latino",
+    "RI" = "American Indian/Alaska Native",
+    "RP" = "Native Hawaiian/Pacific Islander",
+    "RT" = "Two or More Races",
+    "RW" = "White",
+
+    # Legacy two-letter codes (without R prefix)
     "AA" = "Black/African American",
     "AS" = "Asian",
     "PI" = "Native Hawaiian/Pacific Islander",
@@ -88,6 +98,7 @@ canonicalize_race_label <- function(x) {
     # Exclusions / aggregate buckets
     "TA" = NA_character_,
     "RD" = NA_character_,
+    "NOT REPORTED" = NA_character_,
     "ALL STUDENTS" = NA_character_,
     .default = NA_character_
   )
@@ -273,13 +284,28 @@ message(">>> Loaded ", format_number(nrow(raw_df)), " rows × ", ncol(raw_df), "
 # Harmonise race labels and quartiles
 analytic_df <- raw_df %>%
   resolve_race_column() %>%
-  resolve_black_quartile() %>%
+  resolve_black_quartile()
+
+# Diagnostic: check race canonicalization results
+message(">>> Race canonicalization results:")
+race_counts <- table(analytic_df$race_clean, useNA = "always")
+print(race_counts)
+
+analytic_df <- analytic_df %>%
   filter(!is.na(race_clean))
+
+message(">>> Rows after race filtering: ", format_number(nrow(analytic_df)))
 
 # Fallback when cumulative_enrollment is missing
 if (!"cumulative_enrollment" %in% names(analytic_df)) {
   analytic_df <- analytic_df %>% mutate(cumulative_enrollment = 1)
 }
+
+# Additional diagnostics
+message(">>> Rows with valid enrollment (>0): ",
+        format_number(sum(analytic_df$cumulative_enrollment > 0, na.rm = TRUE)))
+message(">>> Black quartile distribution:")
+print(table(analytic_df$black_quartile, useNA = "always"))
 
 # === Analysis plan ===========================================================
 analysis_plan <- list(
