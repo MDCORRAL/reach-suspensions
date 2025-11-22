@@ -58,7 +58,10 @@ safe_div <- function(num, denom, replace_na_with = NA_real_) {
 }
 
 canonicalize_race_label <- function(x) {
-  out <- recode(toupper(x),
+  raw <- toupper(trimws(x))
+
+  out <- dplyr::recode(raw,
+    # Two-letter codes
     "AA" = "Black/African American",
     "AS" = "Asian",
     "PI" = "Native Hawaiian/Pacific Islander",
@@ -67,11 +70,28 @@ canonicalize_race_label <- function(x) {
     "HI" = "Hispanic/Latino",
     "FI" = "Filipino",
     "TR" = "Two or More Races",
+
+    # Full labels (case-insensitive after toupper)
+    "BLACK/AFRICAN AMERICAN" = "Black/African American",
+    "BLACK OR AFRICAN AMERICAN" = "Black/African American",
+    "ASIAN" = "Asian",
+    "NATIVE HAWAIIAN/PACIFIC ISLANDER" = "Native Hawaiian/Pacific Islander",
+    "PACIFIC ISLANDER" = "Native Hawaiian/Pacific Islander",
+    "AMERICAN INDIAN/ALASKA NATIVE" = "American Indian/Alaska Native",
+    "WHITE" = "White",
+    "HISPANIC/LATINO" = "Hispanic/Latino",
+    "HISPANIC OR LATINO" = "Hispanic/Latino",
+    "LATINO" = "Hispanic/Latino",
+    "FILIPINO" = "Filipino",
+    "TWO OR MORE RACES" = "Two or More Races",
+
+    # Exclusions / aggregate buckets
+    "TA" = NA_character_,
+    "RD" = NA_character_,
+    "ALL STUDENTS" = NA_character_,
     .default = NA_character_
   )
 
-  # Exclude aggregate/unknown buckets
-  out[out %in% c("TA", "RD")] <- NA_character_
   out
 }
 
