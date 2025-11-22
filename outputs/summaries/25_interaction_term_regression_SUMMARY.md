@@ -28,6 +28,10 @@
 
 Does the relationship between teacher racial composition (specifically % White teachers) and suspension rates vary depending on the school's Black student enrollment? Specifically, is the "White teacher effect" on suspension rates amplified in schools with higher Black student concentrations?
 
+## Power Diagnostics
+
+- Run `Analysis/27_power_analysis_multiscript.R` and review the `analysis_id == "25_interaction_term_regression"` rows in `outputs/tables/27_power_analysis_by_group.csv` to verify effective N and minimum-detectable R² for the interaction models before drawing conclusions from null findings.
+
 ---
 
 ## CRITICAL: Suspension Rate Definition

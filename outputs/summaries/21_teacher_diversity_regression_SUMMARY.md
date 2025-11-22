@@ -28,6 +28,10 @@
 
 Is teacher and administrator racial diversity (proportion of non-white staff) associated with student suspension rates, and do these associations vary by student racial/ethnic group?
 
+## Power Diagnostics
+
+- A multi-analysis power script (`Analysis/27_power_analysis_multiscript.R`) now mirrors the Analysis 26 methodology for this regression. Run it to generate `outputs/tables/27_power_analysis_by_group.csv` and filter `analysis_id == "21_teacher_diversity_regression"` for group-level minimum detectable effects and effective sample sizes.
+
 ---
 
 ## CRITICAL: Suspension Rate Definition
