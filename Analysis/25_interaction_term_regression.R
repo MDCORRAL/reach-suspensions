@@ -180,8 +180,10 @@ df_aggregated <- aggregate_to_school_year(df_all_students)
 # Helper function to extract % White Teachers
 extract_pct_white_teachers <- function(df) {
   # Try multiple column patterns to find % White Teachers
+  # CRITICAL: Prefer school-level columns, exclude statewide aggregates
 
-  # Pattern 1: Direct share column
+  # Pattern 1: School-level share column (PREFERRED)
+  # Look for teacher_staff_count_white_share (not teacher_total_staff_count_white_share)
   white_share_cols <- grep("^teacher.*white.*share$", names(df),
                            value = TRUE, ignore.case = TRUE)
 
@@ -189,20 +191,47 @@ extract_pct_white_teachers <- function(df) {
   white_share_cols <- white_share_cols[!grepl("non_white", white_share_cols,
                                                ignore.case = TRUE)]
 
-  if (length(white_share_cols) > 0) {
-    message(">>> Using column for % White Teachers: ", white_share_cols[1])
-    pct_white <- as.numeric(df[[white_share_cols[1]]]) * 100
+  # CRITICAL FIX: Exclude statewide/aggregate columns that contain "total_staff"
+  # These are derived from pre-aggregated totals and lack school-level variance
+  white_share_cols <- white_share_cols[!grepl("_total_staff_", white_share_cols,
+                                               ignore.case = TRUE)]
+
+  # Prioritize school-level columns (teacher_staff_count_white_share)
+  preferred_col <- grep("^teacher_staff_count_white_share$", white_share_cols,
+                        value = TRUE, ignore.case = TRUE)
+
+  if (length(preferred_col) > 0) {
+    col_to_use <- preferred_col[1]
+  } else if (length(white_share_cols) > 0) {
+    col_to_use <- white_share_cols[1]
+  } else {
+    col_to_use <- NULL
+  }
+
+  if (!is.null(col_to_use)) {
+    message(">>> Using column for % White Teachers: ", col_to_use)
+    pct_white <- as.numeric(df[[col_to_use]]) * 100
+
+    # VALIDATION: Check for variance (detect statewide aggregates)
+    if (length(unique(pct_white[!is.na(pct_white)])) <= 1) {
+      warning("⚠ WARNING: % White Teachers column has NO VARIANCE (all values identical).\n",
+              "  This may indicate a statewide aggregate column was selected.\n",
+              "  Column used: ", col_to_use, "\n",
+              "  Value: ", unique(pct_white[!is.na(pct_white)])[1], "%\n",
+              "  Regression will fail due to singularity.")
+    }
+
     return(pct_white)
   }
 
   # Pattern 2: Calculate from counts
   white_count_cols <- grep("^teacher.*white$", names(df), value = TRUE,
                            ignore.case = TRUE)
-  white_count_cols <- white_count_cols[!grepl("non_white|share",
+  white_count_cols <- white_count_cols[!grepl("non_white|share|_total_staff_",
                                                white_count_cols,
                                                ignore.case = TRUE)]
 
-  total_cols <- grep("^teacher.*total$", names(df), value = TRUE,
+  total_cols <- grep("^teacher_staff_count_total$", names(df), value = TRUE,
                      ignore.case = TRUE)
 
   if (length(white_count_cols) > 0 && length(total_cols) > 0) {
@@ -211,11 +240,19 @@ extract_pct_white_teachers <- function(df) {
     white_count <- as.numeric(df[[white_count_cols[1]]])
     total_count <- as.numeric(df[[total_cols[1]]])
     pct_white <- safe_div(white_count, total_count, 0) * 100
+
+    # VALIDATION: Check for variance
+    if (length(unique(pct_white[!is.na(pct_white)])) <= 1) {
+      warning("⚠ WARNING: Calculated % White Teachers has NO VARIANCE.")
+    }
+
     return(pct_white)
   }
 
   stop("Could not find % White Teachers column in dataset. ",
-       "Expected columns like 'teacher_staff_count_white_share' or similar.")
+       "Expected columns like 'teacher_staff_count_white_share' or similar.\n",
+       "Available teacher columns: ",
+       paste(head(grep("^teacher_", names(df), value = TRUE), 10), collapse = ", "))
 }
 
 # Helper function to extract % Black Students
@@ -493,22 +530,53 @@ for (var in key_vars) {
   if (var %in% coef_summary$term) {
     row <- coef_summary[coef_summary$term == var, ]
 
-    sig <- if (row$p.value < 0.001) "***" else if (row$p.value < 0.01) "**" else if (row$p.value < 0.05) "*" else ""
+    # Handle NA coefficients (singularity in regression)
+    if (is.na(row$estimate)) {
+      message(sprintf("%-40s: NA (SINGULARITY - no variance)", var))
+      message(sprintf("  %38s  Coefficient could not be estimated.", ""))
+      message(sprintf("  %38s  Check that predictor has variance.", ""))
+      message("")
+      next
+    }
+
+    # Handle NA p-values gracefully
+    sig <- if (is.na(row$p.value)) {
+      " (NA)"
+    } else if (row$p.value < 0.001) {
+      "***"
+    } else if (row$p.value < 0.01) {
+      "**"
+    } else if (row$p.value < 0.05) {
+      "*"
+    } else {
+      ""
+    }
 
     message(sprintf("%-40s: %8.6f", var, row$estimate))
     message(sprintf("  %38s  SE: %8.6f", "", row$std.error))
     message(sprintf("  %38s  95%% CI: [%8.6f, %8.6f]", "", row$conf.low, row$conf.high))
-    message(sprintf("  %38s  p = %6.4f %s", "", row$p.value, sig))
+    p_str <- if (is.na(row$p.value)) "NA" else sprintf("%6.4f", row$p.value)
+    message(sprintf("  %38s  p = %s %s", "", p_str, sig))
     message("")
   }
 }
 
 # Extract interaction coefficient for interpretation
-interaction_coef <- coef_summary$estimate[coef_summary$term == "pct_white_teachers:pct_black_students"]
-interaction_p <- coef_summary$p.value[coef_summary$term == "pct_white_teachers:pct_black_students"]
-interaction_se <- coef_summary$std.error[coef_summary$term == "pct_white_teachers:pct_black_students"]
-interaction_ci_low <- coef_summary$conf.low[coef_summary$term == "pct_white_teachers:pct_black_students"]
-interaction_ci_high <- coef_summary$conf.high[coef_summary$term == "pct_white_teachers:pct_black_students"]
+# Handle case where coefficient doesn't exist (singularity)
+interaction_row <- coef_summary[coef_summary$term == "pct_white_teachers:pct_black_students", ]
+if (nrow(interaction_row) == 0) {
+  interaction_coef <- NA_real_
+  interaction_p <- NA_real_
+  interaction_se <- NA_real_
+  interaction_ci_low <- NA_real_
+  interaction_ci_high <- NA_real_
+} else {
+  interaction_coef <- interaction_row$estimate
+  interaction_p <- interaction_row$p.value
+  interaction_se <- interaction_row$std.error
+  interaction_ci_low <- interaction_row$conf.low
+  interaction_ci_high <- interaction_row$conf.high
+}
 
 message("════════════════════════════════════════════════════════════════")
 message("🎯 HYPOTHESIS TEST: INTERACTION TERM")
@@ -518,7 +586,16 @@ message("H0: Interaction coefficient = 0 (no moderation)")
 message("H1: Interaction coefficient > 0 (positive moderation)\n")
 
 message("Result:")
-if (interaction_p < 0.05 && interaction_coef > 0) {
+# Handle NA coefficients (singularity in regression)
+if (is.na(interaction_coef) || is.na(interaction_p)) {
+  message("  ⚠ HYPOTHESIS CANNOT BE TESTED")
+  message("    The interaction term coefficient is NA (regression singularity).")
+  message("    This typically indicates one of the predictors has no variance.")
+  message("    Check: % White Teachers column may need to be fixed.")
+  message("")
+  message("  Diagnostic: Check the % White Teachers summary statistics above.")
+  message("  If Range = [X, X] (same min and max), the column lacks variance.")
+} else if (interaction_p < 0.05 && interaction_coef > 0) {
   message("  ✓ HYPOTHESIS SUPPORTED")
   message("    The interaction term is POSITIVE and SIGNIFICANT (p < 0.05)")
   message("    → The effect of % White Teachers on suspension rates is")
@@ -542,6 +619,32 @@ message(sprintf("  R² = %.4f  |  Adj. R² = %.4f  |  N = %s",
 message("\n════════════════════════════════════════════════════════════════")
 message("📊 CREATING INTERACTION PLOT (MARGINAL EFFECTS)")
 message("════════════════════════════════════════════════════════════════\n")
+
+# Check if we can create meaningful predictions
+# If pct_white_teachers has no variance (all NA coefficients), plot will be meaningless
+can_plot <- !is.na(interaction_coef) && !is.na(interaction_p)
+
+if (!can_plot) {
+  message("⚠ SKIPPING MARGINAL EFFECTS PLOT")
+  message("  Cannot create meaningful plot because:")
+  message("  - Interaction coefficient is NA (regression singularity)")
+  message("  - This typically means % White Teachers has no variance")
+  message("")
+  message("  To fix: Ensure teacher diversity data has school-level variation.")
+  message("  Check that 'teacher_staff_count_white_share' (not 'teacher_total_staff_count_white_share') is used.")
+  message("")
+
+  # Create placeholder plot object
+  p <- ggplot() +
+    annotate("text", x = 0.5, y = 0.5,
+             label = "Plot unavailable:\nInteraction coefficient could not be estimated\n(regression singularity)",
+             size = 5, hjust = 0.5) +
+    theme_void() +
+    labs(title = "Marginal Effects Plot: UNAVAILABLE",
+         subtitle = "Regression singularity - check predictor variance")
+
+  # Skip to outputs section
+} else {
 
 # Calculate marginal effects at different levels of % Black Students
 # Use 10th, 50th, and 90th percentiles for "Low", "Medium", "High"
@@ -677,6 +780,8 @@ p <- ggplot(pred_data, aes(x = pct_white_teachers, y = predicted_suspension_rate
     panel.border = element_rect(color = "gray80", fill = NA),
     axis.title = element_text(face = "bold")
   )
+
+}  # End of can_plot else block
 
 # === 10) Save outputs =========================================================
 message("\n>>> Saving outputs...")
