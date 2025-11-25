@@ -29,6 +29,10 @@ import pandas as pd
 import pyarrow.parquet as pq
 from adjustText import adjust_text
 
+SCRIPT_DIR = Path(__file__).resolve().parent if "__file__" in globals() else Path.cwd()
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
 from palette_utils import DISCIPLINE_BASE_PALETTE, DISCIPLINE_REASON_PALETTE
 from data_validations import audit_counts_against_enrollment, ensure_audit_dir, sanitize_rate_column
 
@@ -50,7 +54,7 @@ LEVEL_ORDER = ["Elementary", "Middle", "High"]
 LOCALE_COLUMN = "locale_simple"
 LOCALE_ORDER = ["City", "Suburban", "Town", "Rural", "Unknown"]
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = SCRIPT_DIR.parent
 DEFAULT_DATA_PATH = PROJECT_ROOT / "data-stage" / "susp_v6_long.parquet"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "20_suspension_reason_trends_by_level_and_locale"
 DEFAULT_IMAGE_FORMAT = "png"
