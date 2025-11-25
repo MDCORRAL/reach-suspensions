@@ -107,6 +107,16 @@ except ImportError as exc:  # pragma: no cover - guard for missing palette modul
     raise SystemExit(
         "Unable to import palette_utils. Ensure graph_scripts/palette_utils.py is available."
     ) from exc
+try:
+    from data_validations import (
+        audit_counts_against_enrollment,
+        ensure_audit_dir,
+        sanitize_rate_column,
+    )
+except ImportError as exc:  # pragma: no cover - guard for missing helpers
+    raise SystemExit(
+        "Unable to import data_validations. Ensure graph_scripts/data_validations.py is available."
+    ) from exc
 
 TEXT_COLOR = DISCIPLINE_BASE_PALETTE["Darkest Blue"]
 CAPTION_COLOR = DISCIPLINE_BASE_PALETTE["Grey"]
@@ -118,6 +128,7 @@ DATA_STAGE = ROOT_DIR / "data-stage"
 OUTPUT_DIR = ROOT_DIR / "outputs" / "graphs"
 TEXT_DIR = OUTPUT_DIR / "descriptions"
 DIAGNOSTIC_DIR = OUTPUT_DIR / "diagnostics"
+AUDIT_DIR = ensure_audit_dir(ROOT_DIR)
 
 LONG_PATH = DATA_STAGE / "susp_v6_long.parquet"
 FEAT_PATH = DATA_STAGE / "susp_v6_features.parquet"
@@ -350,6 +361,14 @@ def load_joined_data() -> pd.DataFrame:
     if SETTINGS_TO_INCLUDE:
         joined = joined[joined["setting"].isin(SETTINGS_TO_INCLUDE)].copy()
 
+    joined = audit_counts_against_enrollment(
+        joined,
+        count_columns=["total_suspensions"],
+        enrollment_column="cumulative_enrollment",
+        context="06_statewide_trends.load_joined_data",
+        audit_dir=AUDIT_DIR,
+    )
+
     return joined
 
 
@@ -375,6 +394,12 @@ def compute_group_rates(base: pd.DataFrame, extra_fields: Sequence[str]) -> pd.D
     grouped = grouped[grouped["cumulative_enrollment"] > 0]
     grouped["rate"] = grouped["total_suspensions"] / grouped["cumulative_enrollment"]
     grouped = grouped.dropna(subset=["rate"])
+    grouped = sanitize_rate_column(
+        grouped,
+        rate_column="rate",
+        context="06_statewide_trends.compute_group_rates",
+        audit_dir=AUDIT_DIR,
+    )
     grouped = grouped.sort_values([*extra_fields, "subgroup", "academic_year"])
     return grouped
 
