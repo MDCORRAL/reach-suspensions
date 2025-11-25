@@ -6,7 +6,7 @@ set -euo pipefail
 # (Homebrew-managed) Python installation. Use PYTHON_BIN to pick an
 # alternative interpreter (e.g., python3.12) if needed.
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 VENV_DIR="${ROOT_DIR}/.venv"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
