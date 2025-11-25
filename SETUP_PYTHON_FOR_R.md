@@ -23,9 +23,15 @@ When running Python scripts from R/RStudio, `reticulate` uses its own cached Pyt
 ```bash
 cd /path/to/reach-suspensions
 
-# Run the setup script
-bash scripts/utilities/setup_python_env.sh
+# If you have an existing (possibly broken) .venv from reticulate, remove it first:
+bash FIX_BROKEN_VENV.sh
+
+# OR manually:
+# rm -rf .venv
+# bash scripts/utilities/setup_python_env.sh
 ```
+
+**Common Issue**: If you see `No module named pip`, your `.venv/` was created by R's reticulate and is broken. Use `FIX_BROKEN_VENV.sh` to remove and recreate it.
 
 This will:
 - Create `.venv/` directory in the project root
@@ -219,7 +225,28 @@ library(reticulate)
 
 **Critical**: The environment variable must be set **before** `reticulate` is first loaded in an R session.
 
-### Issue 4: .venv exists but packages missing
+### Issue 4: "No module named pip" when running setup script
+
+**Cause**: Existing `.venv/` was created by R's reticulate (using `uv`) and is broken/incomplete.
+
+**Error looks like**:
+```
+Using existing virtual environment at /path/to/.venv
+/Users/.../Library/Caches/org.R-project.R/R/reticulate/uv/cache/.../bin/python: No module named pip
+```
+
+**Solution**:
+```bash
+# Use the automated fix script
+cd /path/to/reach-suspensions
+bash FIX_BROKEN_VENV.sh
+
+# OR manually:
+# rm -rf .venv
+# bash scripts/utilities/setup_python_env.sh
+```
+
+### Issue 5: .venv exists but packages missing
 
 **Cause**: Incomplete installation.
 
