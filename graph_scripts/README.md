@@ -17,6 +17,14 @@ Install them into your active environment with pip:
 python -m pip install matplotlib numpy pandas pyarrow adjustText
 ```
 
+On macOS/Homebrew, avoid the "externally-managed-environment" error by using the project helper, which creates `.venv/` and ins
+talls from `graph_scripts/requirements.txt`:
+
+```bash
+bash scripts/utilities/setup_python_env.sh
+source .venv/bin/activate
+```
+
 ## Data dependencies
 
 `graph_scripts/06_statewide_trends.py` expects the staged parquet files to be present in the repository's `data-stage/` directory:

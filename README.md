@@ -23,9 +23,25 @@ renv::restore()
 
 ## Python prerequisites for graph scripts
 
-Python utilities in `graph_scripts/` rely on a small set of data analysis libraries. Install them with:
+Homebrew-managed Python installs block `pip install` outside a virtual environment (PEP 668). Use the helper script to set up an isolated venv and avoid the "externally-managed-environment" error:
 
 ```bash
+bash scripts/utilities/setup_python_env.sh
+# then, in new shells:
+source .venv/bin/activate
+```
+
+The script will create `.venv/` if it does not exist and install the packages listed in `graph_scripts/requirements.txt`. From RStudio, point `reticulate` at the same interpreter so Python chunks use the venv:
+
+```r
+Sys.setenv(RETICULATE_PYTHON = "<repo-path>/.venv/bin/python")
+```
+
+To run the scripts without the helper, create your own venv and install dependencies manually:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r graph_scripts/requirements.txt
 ```
 
