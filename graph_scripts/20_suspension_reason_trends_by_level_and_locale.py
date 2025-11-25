@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import io
 import math
+import sys
 from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Iterable
@@ -29,6 +30,7 @@ import pyarrow.parquet as pq
 from adjustText import adjust_text
 
 from palette_utils import DISCIPLINE_BASE_PALETTE, DISCIPLINE_REASON_PALETTE
+from data_validations import audit_counts_against_enrollment, ensure_audit_dir, sanitize_rate_column
 
 TEXT_COLOR = DISCIPLINE_BASE_PALETTE["Darkest Blue"]
 GRID_COLOR = DISCIPLINE_BASE_PALETTE["Lighter Blue"]
@@ -48,9 +50,11 @@ LEVEL_ORDER = ["Elementary", "Middle", "High"]
 LOCALE_COLUMN = "locale_simple"
 LOCALE_ORDER = ["City", "Suburban", "Town", "Rural", "Unknown"]
 
-DEFAULT_DATA_PATH = Path("data-stage") / "susp_v6_long.parquet"
-DEFAULT_OUTPUT_DIR = Path("outputs") / "20_suspension_reason_trends_by_level_and_locale"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_DATA_PATH = PROJECT_ROOT / "data-stage" / "susp_v6_long.parquet"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "20_suspension_reason_trends_by_level_and_locale"
 DEFAULT_IMAGE_FORMAT = "png"
+AUDIT_DIR = ensure_audit_dir(PROJECT_ROOT)
 
 # ----------------------------------------------------------------------------
 # Data preparation
@@ -140,6 +144,14 @@ def prepare_data(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         .reset_index()
     )
 
+    aggregated = audit_counts_against_enrollment(
+        aggregated,
+        count_columns=list(REASON_COLUMNS.keys()),
+        enrollment_column="cumulative_enrollment",
+        context="20_level_locale.aggregated",
+        audit_dir=AUDIT_DIR,
+    )
+
     traditional = filtered[filtered["charter_yn_std"] == "No"].copy()
     if not traditional.empty:
         agg_traditional = (
@@ -188,6 +200,12 @@ def prepare_data(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         )
         statewide_melted["school_level"] = "All Traditional"
         statewide_melted = statewide_melted.dropna(subset=["reason_label"]).copy()
+        statewide_melted = sanitize_rate_column(
+            statewide_melted,
+            rate_column="rate",
+            context="20_level_locale.statewide_melted",
+            audit_dir=AUDIT_DIR,
+        )
         
     if "All Traditional" in aggregated[LOCALE_COLUMN].astype("string").unique():
         aggregated[LOCALE_COLUMN] = pd.Categorical(
@@ -218,6 +236,12 @@ def prepare_data(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     )
 
     melted = melted.dropna(subset=["reason_label"]).copy()
+    melted = sanitize_rate_column(
+        melted,
+        rate_column="rate",
+        context="20_level_locale.melted",
+        audit_dir=AUDIT_DIR,
+    )
 
     if melted.empty:
         raise SystemExit("No suspension reason data available after filtering.")

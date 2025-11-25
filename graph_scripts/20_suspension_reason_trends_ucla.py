@@ -31,6 +31,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from palette_utils import DISCIPLINE_BASE_PALETTE, DISCIPLINE_REASON_PALETTE
+from data_validations import audit_counts_against_enrollment, ensure_audit_dir, sanitize_rate_column
 
 TEXT_COLOR = DISCIPLINE_BASE_PALETTE["Darkest Blue"]
 GRID_COLOR = DISCIPLINE_BASE_PALETTE["Lighter Blue"]
@@ -48,9 +49,11 @@ REASON_PALETTE = DISCIPLINE_REASON_PALETTE.copy()
 
 LEVEL_ORDER = ["Elementary", "Middle", "High"]
 
-DEFAULT_DATA_PATH = Path("data-stage") / "susp_v6_long.parquet"
-DEFAULT_OUTPUT_DIR = Path("outputs") / "20_reason_trends_by_level"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_DATA_PATH = PROJECT_ROOT / "data-stage" / "susp_v6_long.parquet"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "20_reason_trends_by_level"
 DEFAULT_IMAGE_FORMAT = "png"
+AUDIT_DIR = ensure_audit_dir(PROJECT_ROOT)
 
 # ----------------------------------------------------------------------------
 # Data preparation
@@ -105,6 +108,14 @@ def prepare_data(raw_df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
+    aggregated = audit_counts_against_enrollment(
+        aggregated,
+        count_columns=list(REASON_COLUMNS.keys()),
+        enrollment_column="cumulative_enrollment",
+        context="20_reason_level.aggregated",
+        audit_dir=AUDIT_DIR,
+    )
+
     melted = aggregated.melt(
         id_vars=["academic_year", "school_level", "cumulative_enrollment"],
         value_vars=list(REASON_COLUMNS.keys()),
@@ -121,6 +132,12 @@ def prepare_data(raw_df: pd.DataFrame) -> pd.DataFrame:
     )
 
     melted = melted.dropna(subset=["reason_label"]).copy()
+    melted = sanitize_rate_column(
+        melted,
+        rate_column="rate",
+        context="20_reason_level.melted",
+        audit_dir=AUDIT_DIR,
+    )
 
     if melted.empty:
         raise SystemExit("No suspension reason data available after filtering.")
