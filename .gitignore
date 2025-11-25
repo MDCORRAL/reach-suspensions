@@ -29,6 +29,15 @@ dashboard/data/
 .RDataTmp
 .Renviron
 
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
 # Generated figures
 outputs/*
 !outputs/summaries/

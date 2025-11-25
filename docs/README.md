@@ -2,7 +2,7 @@
 
 This directory contains all documentation for the REACH Suspensions Analysis Pipeline, organized into logical subdirectories for easy navigation.
 
-**Last Updated**: 2025-11-18
+**Last Updated**: 2025-11-25
 
 ---
 
@@ -78,6 +78,7 @@ Fix summaries, diagnostic reports, and issue resolutions.
 | `ENHANCEMENTS_SUMMARY.md` | Summary of pipeline enhancements |
 | `FIXES_SUMMARY_SCRIPT_23.md` | Fixes for script 23 |
 | `FIX_EXPLANATION_Q4_SUSPENSION_DATA.md` | Q4 suspension data fix explanation |
+| `FIX_GRAPH_SCRIPTS_PYTHON_ENV.md` | **NEW** Python environment setup fix for graph_scripts (2025-11-25) |
 | `FIX_REGRESSION_SCRIPT.md` | Regression script fixes |
 | `ISSUE_TEACHER_SHARES_NOT_SUMMING.md` | Teacher share calculation issue resolution |
 | `REPAIR_SUMMARY_23_teacher_demographics.md` | Script 23 teacher demographics repair |
