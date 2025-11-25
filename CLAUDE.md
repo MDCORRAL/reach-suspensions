@@ -291,20 +291,16 @@ CDE Teacher TXT Files (data-raw/stre*.txt)
    renv::restore()  # Install exact package versions from renv.lock
    ```
 
-2. **Set up Python virtual environment and install dependencies**:
+2. **Set up Python virtual environment and install dependencies** (avoids Homebrew's PEP 668 block):
    ```bash
-   # Create virtual environment
-   python -m venv venv
+   # Automated setup (creates .venv/ and installs graph_scripts deps)
+   bash scripts/utilities/setup_python_env.sh
 
-   # Activate virtual environment
-   # On macOS/Linux:
-   source venv/bin/activate
-   # On Windows:
-   # venv\Scripts\activate
-
-   # Install dependencies
-   pip install -r graph_scripts/requirements.txt
+   # In new shells, activate before running Python
+   source .venv/bin/activate
    ```
+
+   **RStudio tip**: Point reticulate at the venv interpreter to share packages with the CLI: `Sys.setenv(RETICULATE_PYTHON = "<repo-path>/.venv/bin/python")`.
 
    **Note**: Always activate the virtual environment before running Python scripts. This ensures:
    - Isolated package dependencies (no conflicts with system Python)
