@@ -90,6 +90,23 @@ __pycache__/
 
 ---
 
+## Important Note for macOS Users
+
+If you're working on **macOS** and seeing errors like:
+```
+/Users/yourname/Library/Caches/org.R-project.R/R/renv/cache/.../reticulate/...
+ModuleNotFoundError: No module named 'matplotlib'
+```
+
+This means you're running Python through R's `reticulate` package, which is using its own cached Python environment.
+
+**👉 See `SETUP_PYTHON_FOR_R.md` for detailed instructions on configuring reticulate.**
+
+**Quick Fix**:
+1. Create .venv on your local macOS machine: `bash scripts/utilities/setup_python_env.sh`
+2. Configure R to use it: `source("configure_python_env.R")` in your R session
+3. Restart R session if needed
+
 ## Usage Instructions
 
 ### Option 1: Command Line (Recommended for Development)
