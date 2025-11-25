@@ -1,6 +1,6 @@
 # CLAUDE.md: AI Assistant Guide for REACH Suspensions Analysis
 
-**Last Updated**: 2025-11-19
+**Last Updated**: 2025-11-25
 **Repository**: REACH Suspensions Analysis Pipeline
 **Primary Languages**: R (data processing), Python (visualization)
 
@@ -30,6 +30,8 @@ This repository implements a research-grade data analysis pipeline for analyzing
 - Generates publication-quality visualizations
 - Produces interactive HTML dashboards
 - Supports intersectional demographic analyses
+- Conducts regression analyses on teacher-student demographic matching
+- Performs statistical power analyses for regression models
 
 ### Key Characteristics
 - **Research-Grade**: Extensive validation, audit trails, and documentation
@@ -65,7 +67,7 @@ reach-suspensions/
 │   ├── run_helper.R            # Pipeline execution utilities
 │   └── validate_data_retention.R
 │
-├── Analysis/                   # Research-specific analyses (30+ scripts)
+├── Analysis/                   # Research-specific analyses (40+ scripts)
 │   ├── data_processing_overview.md   # 660-line pipeline documentation
 │   ├── 02_black_rates_by_quartiles.R # Canonical quartile analysis
 │   ├── 15_merge_demographic_categories.R
@@ -74,8 +76,17 @@ reach-suspensions/
 │   ├── 18_merge_teacher_student.R
 │   ├── 21_teacher_diversity_regression.R
 │   ├── 21_weighted_teacher_diversity_by_quartile.R
+│   ├── 22_build_teacher_race_shares.R
+│   ├── 23_visualize_teacher_diversity.R
+│   ├── 24_quartile_slope_comparison.R
+│   ├── 25_interaction_term_regression.R
+│   ├── 26_power_analysis.R          # Statistical power analysis
+│   ├── 27_power_analysis_multiscript.R
 │   ├── TEACHER_DIVERSITY_ANALYSIS_GUIDE.md
-│   └── 21_ANALYSIS_GUIDE.md
+│   ├── 21_ANALYSIS_GUIDE.md
+│   ├── 22_ANALYSIS_GUIDE.md
+│   ├── 24_ANALYSIS_SUMMARY.md
+│   └── 21_QUICKSTART.md
 │
 ├── graph_scripts/              # Python visualization pipeline
 │   ├── 06_statewide_trends.py  # Main trend generation
@@ -258,7 +269,13 @@ CDE Teacher TXT Files (data-raw/stre*.txt)
         ↓
 [01c_ingest_teacher_demographics.R] → teacher_staff_long.parquet
         ↓
-[18_merge_teacher_student.R] → susp_v6_teacher_features.parquet
+[Analysis/22_build_teacher_race_shares.R] → Summarizes to wide format
+        ↓
+[Analysis/18_merge_teacher_student.R] → susp_v6_teacher_features.parquet
+        ↓
+[Analysis/21_teacher_diversity_regression.R] → Regression analyses
+        ↓
+[Analysis/26_power_analysis.R] → Power analyses for regressions
 ```
 
 ---
@@ -318,11 +335,13 @@ CDE Teacher TXT Files (data-raw/stre*.txt)
 source("run_all.R")
 ```
 Executes:
-1. Teacher demographic ingestion
-2. Core pipeline (01-06, 22)
-3. Canonical analyses
-4. Tail concentration reports
-5. Teacher-student merge
+1. Teacher demographic ingestion (`R/01c_ingest_teacher_demographics.R`)
+2. Core pipeline (`run_pipeline.R` - stages 01-06, 22)
+3. Canonical quartile analysis (`Analysis/02_black_rates_by_quartiles.R`)
+4. Merge demographic categories (`Analysis/15_merge_demographic_categories.R`, `15a`)
+5. Tail concentration analyses (`Analysis/16`, `17`)
+6. Teacher-student merge (`Analysis/18_merge_teacher_student.R`)
+7. Teacher race share features (`Analysis/22_build_teacher_race_shares.R`)
 
 **Option 2: Core Pipeline Only**
 ```r
@@ -1112,6 +1131,81 @@ When fixing a bug:
 4. **Update `docs/README.md`** to list the new fix document
 5. **Reference in commit message**: "Fix [bug]. See docs/fixes/FIX_YOUR_BUG_DESCRIPTION.md"
 
+### Task 7: Conduct Power Analysis for Regression Models
+
+**Scenario**: You've created a new regression analysis and need to determine if your sample size is adequate to detect meaningful effects.
+
+```r
+# Analysis/XX_power_analysis_custom.R
+source("R/00_paths.R")
+suppressPackageStartupMessages({
+  library(dplyr); library(arrow); library(pwr)
+})
+
+# Read your analysis dataset
+df <- read_parquet(file.path(dp_stage, "susp_v6_teacher_features.parquet"))
+
+# 1. Determine your regression parameters
+# u = numerator df (number of predictors being tested)
+# v = denominator df (N - total predictors - 1)
+
+# Example: Testing teacher diversity (1 predictor) while controlling for:
+# - sed_rate (1)
+# - is_charter (1)
+# - grade_level (4 dummy variables)
+# Total: u=1, v=N-7
+
+# 2. Calculate effective sample size (accounting for missing data)
+analysis_df <- df %>%
+  filter(
+    !is.na(suspension_rate),
+    !is.na(teacher_diversity_measure),
+    !is.na(sed_rate)
+  )
+
+N <- nrow(analysis_df)
+message("Effective sample size: ", format(N, big.mark = ","))
+
+# 3. Conduct sensitivity analysis (minimum detectable effect size)
+v_denom <- N - 7  # Adjust based on your model
+power_levels <- c(0.80, 0.90, 0.95)
+
+for (power in power_levels) {
+  result <- pwr.f2.test(
+    u = 1,           # Testing 1 predictor
+    v = v_denom,     # Denominator df
+    f2 = NULL,       # Solve for this
+    sig.level = 0.05,
+    power = power
+  )
+
+  message(sprintf("For %.0f%% power: minimum detectable f² = %.4f",
+                  power*100, result$f2))
+}
+
+# 4. Interpret Cohen's f² benchmarks:
+# f² = 0.02 (small effect)
+# f² = 0.15 (medium effect)
+# f² = 0.35 (large effect)
+
+# 5. Check multiple comparison adjustments
+# If testing 8 racial groups, consider Bonferroni correction
+alpha_corrected <- 0.05 / 8
+message("Bonferroni-corrected alpha: ", round(alpha_corrected, 5))
+```
+
+**Key resources**:
+- `docs/guides/POWER_ANALYSIS_GUIDE.md` - Comprehensive power analysis guide
+- `Analysis/26_power_analysis.R` - Complete implementation for Analysis 21
+- `docs/guides/POWER_ANALYSIS_RESULTS_SUMMARY.md` - Interpretation guidelines
+
+**Important considerations**:
+1. **Conduct BEFORE** interpreting null results
+2. **Account for** missing data (teacher coverage ~70-80%)
+3. **Report** minimum detectable effects, not achieved power
+4. **Consider** multiple comparison adjustments for subgroup analyses
+5. **Document** assumptions (effect size conventions, alpha levels)
+
 ---
 
 ## Key Files Reference
@@ -1149,6 +1243,12 @@ When fixing a bug:
 | `Analysis/data_processing_overview.md` | Complete pipeline documentation |
 | `Analysis/TEACHER_DIVERSITY_ANALYSIS_GUIDE.md` | Teacher diversity analysis guide |
 | `Analysis/21_ANALYSIS_GUIDE.md` | Weighted teacher diversity guide |
+| `Analysis/21_QUICKSTART.md` | Quick start for Analysis 21 |
+| `Analysis/22_ANALYSIS_GUIDE.md` | Teacher race shares guide |
+| `Analysis/24_ANALYSIS_SUMMARY.md` | Quartile slope comparison summary |
+| `Analysis/ANALYTIC_AUDIT.md` | Analytic audit report |
+| `docs/guides/POWER_ANALYSIS_GUIDE.md` | Power analysis methodology guide |
+| `docs/guides/POWER_ANALYSIS_RESULTS_SUMMARY.md` | Power analysis results |
 
 **For detailed documentation navigation, see `docs/README.md`.**
 
@@ -1163,6 +1263,23 @@ When fixing a bug:
 | `R/teacher_processing.R` | Teacher data utilities | Teacher analyses |
 | `run_all.R` | Execute full pipeline | Main entry point |
 | `run_pipeline.R` | Execute core pipeline | Core processing |
+
+### Key Analysis Scripts
+
+| Script | Purpose | Dependencies |
+|--------|---------|--------------|
+| `Analysis/02_black_rates_by_quartiles.R` | Canonical quartile analysis | susp_v3+ |
+| `Analysis/15_merge_demographic_categories.R` | Merge intersectional demographics | susp_v6 |
+| `Analysis/16_tail_concentration_analysis.R` | School-level concentration | merged data |
+| `Analysis/17_tail_concentration_by_level.R` | Level-specific concentration | merged data |
+| `Analysis/18_merge_teacher_student.R` | Merge teacher+student data | v6 + teacher_staff |
+| `Analysis/21_teacher_diversity_regression.R` | Regression on teacher diversity | v6_teacher_features |
+| `Analysis/22_build_teacher_race_shares.R` | Build teacher race features | teacher_staff_long |
+| `Analysis/23_visualize_teacher_diversity.R` | Teacher diversity visualizations | v6_teacher_features |
+| `Analysis/24_quartile_slope_comparison.R` | Quartile slope analysis | v6_teacher_features |
+| `Analysis/25_interaction_term_regression.R` | Interaction term models | v6_teacher_features |
+| `Analysis/26_power_analysis.R` | Statistical power analysis | v6_teacher_features |
+| `Analysis/27_power_analysis_multiscript.R` | Multi-script power analysis | v6_teacher_features |
 
 ### Key Python Scripts
 
@@ -1451,7 +1568,8 @@ All cross-references updated to use new paths:
 
 **End of CLAUDE.md**
 
-*This document was last updated on 2025-11-19. Major updates:*
+*This document was last updated on 2025-11-25. Major updates:*
+- *2025-11-25: Added power analysis documentation, Analysis scripts 23-27, updated documentation references*
 - *2025-11-19: Added Python venv setup instructions and schema validation recommendations*
 - *2025-11-18: Comprehensive update to reflect repository reorganization*
 
