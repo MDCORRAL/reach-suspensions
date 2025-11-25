@@ -18,10 +18,39 @@ from __future__ import annotations
 import argparse
 import io
 import math
+import importlib.util
 import sys
 from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Iterable
+
+SCRIPT_DIR = Path(__file__).resolve().parent if "__file__" in globals() else Path.cwd()
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+REQUIRED_MODULES = {
+    "matplotlib": "pip install -r graph_scripts/requirements.txt",
+    "pandas": "pip install -r graph_scripts/requirements.txt",
+    "numpy": "pip install -r graph_scripts/requirements.txt",
+    "pyarrow": "pip install -r graph_scripts/requirements.txt",
+    "adjustText": "pip install adjustText",
+    "palette_utils": "run from repo root or ensure graph_scripts is on PYTHONPATH",
+    "data_validations": "run from repo root or ensure graph_scripts is on PYTHONPATH",
+}
+
+missing = [
+    name
+    for name, install_hint in REQUIRED_MODULES.items()
+    if importlib.util.find_spec(name) is None
+]
+if missing:
+    hints = [f"- {name}: {REQUIRED_MODULES[name]}" for name in missing]
+    message = (
+        "Missing required Python packages for 20_suspension_reason_trends_by_level_and_locale.\n"
+        "Install the dependencies before running (e.g., pip install -r graph_scripts/requirements.txt).\n"
+        "Missing modules:\n" + "\n".join(hints)
+    )
+    raise SystemExit(message)
 
 import matplotlib.pyplot as plt
 import numpy as np

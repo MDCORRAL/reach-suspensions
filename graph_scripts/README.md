@@ -79,4 +79,9 @@ PNG is the default output; pass `--image-format svg` for vector renders or
 
 ## Working from R
 
-Analysts who prefer R can call the script via [`reticulate`](https://rstudio.github.io/reticulate/). Use `reticulate::py_install(c("matplotlib", "numpy", "pandas", "pyarrow", "adjustText"))` to install the Python dependencies inside the active reticulate environment. Invoke the script with `reticulate::py_run_file("graph_scripts/06_statewide_trends.py")` (or `system("python graph_scripts/06_statewide_trends.py --diagnostics-only")` for quick checks). The auto-detected project root works within RStudio sessions; set `Sys.setenv(REACH_SUSPENSIONS_ROOT = here::here())` if you need to override it explicitly.
+Analysts who prefer R can call the script via [`reticulate`](https://rstudio.github.io/reticulate/). Use `reticulate::py_install(c("matplotlib", "numpy", "pandas", "pyarrow", "adjustText"))` to install the Python dependencies inside the **same** Python that reticulate is using (the path shown by `reticulate::py_config()$python`). Invoking the script with `reticulate::py_run_file("graph_scripts/06_statewide_trends.py")` (or `system("python graph_scripts/06_statewide_trends.py --diagnostics-only")` for quick checks) ensures the top-of-file path injection runs so local helpers like `palette_utils.py` and `data_validations.py` can be imported. The auto-detected project root works within RStudio sessions; set `Sys.setenv(REACH_SUSPENSIONS_ROOT = here::here())` if you need to override it explicitly.
+
+### Troubleshooting recent dependency errors
+
+- The updated scripts now **fail fast** if required Python modules are missing. If you see messages about `matplotlib`, `pandas`, `pyarrow`, or `adjustText` when running from R, install them into the reticulate environment (not the system Python) with `reticulate::py_install()`.
+- If you see missing `palette_utils` or `data_validations`, it usually means the code was copied line-by-line into a console. Run the script file (`py_run_file()` or `python graph_scripts/20_suspension_reason_trends_by_level_and_locale.py`) so the initial `sys.path` injection executes and exposes the helper modules.
