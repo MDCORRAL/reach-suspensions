@@ -293,7 +293,7 @@ def plot_level(
 
     legend = ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.18),
+        bbox_to_anchor=(0.5, -0.06),
         ncol=3,
         frameon=False,
         labelcolor=TEXT_COLOR,
@@ -311,13 +311,13 @@ def plot_level(
     fig.text(0.10, 0.96, title, fontsize=13, fontweight="bold", ha="left", color=TEXT_COLOR)
     fig.text(0.10, 0.92, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
 
-    # Add methodology and citation above the plotting area to avoid overlapping x-axis labels
-    _add_wrapped_text(fig, 0.10, 0.88, METHODOLOGY_TEXT, fontsize=7, color=TEXT_COLOR,
+    # Place methodology and citation in the bottom margin to avoid title/axis overlap
+    _add_wrapped_text(fig, 0.10, 0.08, METHODOLOGY_TEXT, fontsize=7, color=TEXT_COLOR,
                       ha="left", max_width=110)
-    _add_wrapped_text(fig, 0.10, 0.83, STANDARD_CITATION, fontsize=6, color=CAPTION_COLOR,
+    _add_wrapped_text(fig, 0.10, 0.04, STANDARD_CITATION, fontsize=6, color=CAPTION_COLOR,
                       ha="left", max_width=110)
 
-    fig.subplots_adjust(left=0.12, right=0.96, top=0.80, bottom=0.16)
+    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.22)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     output_path = output_dir / f"20_suspension_reason_trends_{level.lower()}.{suffix}"
