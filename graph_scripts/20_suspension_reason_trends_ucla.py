@@ -80,10 +80,8 @@ AUDIT_DIR = ensure_audit_dir(PROJECT_ROOT)
 
 # Methodology explanation for charts
 METHODOLOGY_TEXT = (
-    "Methodology: Suspension rates are calculated as total suspensions divided by cumulative "
-    "enrollment for each academic year. Data aggregated by school level from individual "
-    "school-level reports. Rates represent the percentage of enrolled students who received "
-    "at least one suspension for each reason category."
+    "Methodology: Suspension rates are calculated as total suspensions divided by cumulative enrollment for each academic year. Data aggregated by school level from individual "
+    "school-level reports. Rates represent the percentage of enrolled students who received at least one suspension for each reason category."
 )
 
 # ----------------------------------------------------------------------------
@@ -313,12 +311,12 @@ def plot_level(
     _add_wrapped_text(
         fig,
         0.10,
-        0.06,
+        0.89, #updated y position
         METHODOLOGY_TEXT,
         fontsize=7,
         color=TEXT_COLOR,
         ha="left",
-        va="bottom",
+        va="top", updated alignment
         max_width=150,
     )
     _add_wrapped_text(
@@ -333,7 +331,7 @@ def plot_level(
         max_width=150,
     )
 
-    fig.subplots_adjust(left=0.06, right=0.94, top=0.84, bottom=0.30)
+    fig.subplots_adjust(left=0.06, right=0.94, top=0.78, bottom=0.30)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     output_path = output_dir / f"20_suspension_reason_trends_{level.lower()}.{suffix}"
