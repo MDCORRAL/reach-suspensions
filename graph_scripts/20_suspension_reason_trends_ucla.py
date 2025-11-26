@@ -28,7 +28,13 @@ from adjustText import adjust_text
 # not automatically include the script directory, which caused
 # ``ModuleNotFoundError`` for ``palette_utils``.  Explicitly add the current
 # directory so the shared palette definitions can always be imported.
-SCRIPT_DIR = Path(__file__).resolve().parent
+
+# Handle both script and interactive execution contexts
+try:
+    SCRIPT_DIR = Path(__file__).resolve().parent
+except NameError:  # pragma: no cover - interactive contexts without __file__
+    SCRIPT_DIR = Path.cwd() / "graph_scripts"
+
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
@@ -52,7 +58,20 @@ REASON_PALETTE = DISCIPLINE_REASON_PALETTE.copy()
 
 LEVEL_ORDER = ["Elementary", "Middle", "High"]
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# Handle PROJECT_ROOT for both script and interactive contexts
+try:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+except NameError:  # pragma: no cover - interactive contexts without __file__
+    # When __file__ is not available (interactive/reticulate), search for project root
+    start = Path.cwd().resolve()
+    for candidate in [start, *start.parents]:
+        if (candidate / "data-stage").exists() and (candidate / "graph_scripts").exists():
+            PROJECT_ROOT = candidate
+            break
+    else:
+        # Fallback to current directory if markers not found
+        PROJECT_ROOT = Path.cwd()
+
 DEFAULT_DATA_PATH = PROJECT_ROOT / "data-stage" / "susp_v6_long.parquet"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "20_reason_trends_by_level"
 DEFAULT_IMAGE_FORMAT = "png"
