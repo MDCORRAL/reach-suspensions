@@ -252,13 +252,13 @@ def create_chart(df: pd.DataFrame, output_path: Path) -> None:
         title=CHART_TITLE,
         subtitle=CHART_SUBTITLE,
         citation=STANDARD_CITATION,
-        title_y=0.96,
-        subtitle_y=0.93,
+        title_y=0.98,
+        subtitle_y=0.95,
         citation_y=0.02,
     )
 
     # Adjust layout
-    fig.subplots_adjust(left=0.07, right=0.98, top=0.92, bottom=0.12)
+    fig.subplots_adjust(left=0.10, right=0.95, top=0.85, bottom=0.18)
 
     # Save
     output_path.parent.mkdir(parents=True, exist_ok=True)

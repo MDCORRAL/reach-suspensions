@@ -405,10 +405,10 @@ def plot_level_locale(
 
     # Add subtitle and citation
     subtitle = "Traditional schools, 2017-18 through 2023-24 (no statewide reporting in 2020-21)"
-    fig.text(0.07, 0.96, subtitle, fontsize=11, ha="left", color=TEXT_COLOR)
+    fig.text(0.07, 0.97, subtitle, fontsize=11, ha="left", color=TEXT_COLOR)
     fig.text(0.07, 0.02, STANDARD_CITATION, fontsize=9, ha="left", color=CAPTION_COLOR, wrap=True)
 
-    fig.subplots_adjust(left=0.07, right=0.98, top=0.93, bottom=0.16)
+    fig.subplots_adjust(left=0.10, right=0.95, top=0.85, bottom=0.18)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     level_slug = _slugify(level)
@@ -522,10 +522,10 @@ def plot_statewide(
 
     # Add subtitle and citation
     subtitle = "All traditional public schools, 2017-18 through 2023-24 (no statewide reporting in 2020-21)"
-    fig.text(0.07, 0.96, subtitle, fontsize=11, ha="left", color=TEXT_COLOR)
+    fig.text(0.07, 0.97, subtitle, fontsize=11, ha="left", color=TEXT_COLOR)
     fig.text(0.07, 0.02, STANDARD_CITATION, fontsize=9, ha="left", color=CAPTION_COLOR, wrap=True)
 
-    fig.subplots_adjust(left=0.07, right=0.98, top=0.93, bottom=0.16)
+    fig.subplots_adjust(left=0.10, right=0.95, top=0.85, bottom=0.18)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     output_path = output_dir / f"20_suspension_reason_trends_all_traditional_statewide.{suffix}"

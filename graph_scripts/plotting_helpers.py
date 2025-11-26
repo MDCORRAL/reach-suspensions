@@ -89,9 +89,9 @@ def add_standard_labels(
     subtitle: str = "",
     citation: str = STANDARD_CITATION,
     title_x: float = 0.07,
-    title_y: float = 0.965,
-    subtitle_y: float = 0.933,
-    citation_y: float = 0.05,
+    title_y: float = 0.98,
+    subtitle_y: float = 0.95,
+    citation_y: float = 0.02,
 ) -> None:
     """Add standard title, subtitle, and citation to a figure.
 
@@ -101,9 +101,13 @@ def add_standard_labels(
         subtitle: Descriptive subtitle (time period, scope, etc.)
         citation: Source citation (defaults to STANDARD_CITATION)
         title_x: X position for title (0-1, default: 0.07)
-        title_y: Y position for title (0-1, default: 0.965)
-        subtitle_y: Y position for subtitle (0-1, default: 0.933)
-        citation_y: Y position for citation (0-1, default: 0.05)
+        title_y: Y position for title (0-1, default: 0.98)
+        subtitle_y: Y position for subtitle (0-1, default: 0.95)
+        citation_y: Y position for citation (0-1, default: 0.02)
+
+    Note:
+        Use with fig.subplots_adjust(left=0.10, right=0.95, top=0.85, bottom=0.18)
+        to ensure proper spacing for title, subtitle, and citation.
     """
     fig.patch.set_facecolor("white")
 
