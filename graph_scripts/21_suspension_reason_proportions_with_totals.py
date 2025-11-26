@@ -295,6 +295,19 @@ def plot_proportions_with_totals(
         label="Total Suspensions",
         zorder=1,
     )
+# Add value labels to total suspension bars
+for x, y in zip(bar_xs, bar_ys):
+    ax2.text(
+        x,
+        y,
+        _format_count(y),   # "12,345"
+        ha="center",
+        va="bottom",
+        fontsize=8,
+        color=DISCIPLINE_BASE_PALETTE["Darker Blue"],
+        fontweight="bold",
+        alpha=0.9,
+    )
 
     # Configure right y-axis (total suspensions)
     ax2.set_ylabel(
@@ -383,7 +396,7 @@ def plot_proportions_with_totals(
         all_handles,
         all_labels,
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.16),
+        bbox_to_anchor=(0.5, -0.24), # updated
         ncol=4,
         frameon=False,
         labelcolor=TEXT_COLOR,
