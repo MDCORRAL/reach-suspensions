@@ -311,12 +311,12 @@ def plot_level(
     _add_wrapped_text(
         fig,
         0.10,
-        0.89, #updated y position
+        0.89, ##updated y position
         METHODOLOGY_TEXT,
         fontsize=7,
         color=TEXT_COLOR,
         ha="left",
-        va="top", updated alignment
+        va="top", ##updated alignment
         max_width=150,
     )
     _add_wrapped_text(
