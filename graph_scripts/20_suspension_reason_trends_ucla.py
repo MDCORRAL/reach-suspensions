@@ -275,7 +275,6 @@ def plot_level(
                 expand_text=(1.2, 1.6),
                 only_move={"points": "y", "text": "xy"},
                 autoalign="y",
-                arrowprops={"arrowstyle": "-", "color": CAPTION_COLOR, "lw": 0.6},
             )
 
     ax.set_xticks(list(x_positions.values()))
@@ -293,7 +292,7 @@ def plot_level(
 
     legend = ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.28),
+        bbox_to_anchor=(0.5, -0.25),
         ncol=3,
         frameon=False,
         labelcolor=TEXT_COLOR,
@@ -309,17 +308,23 @@ def plot_level(
     subtitle = "Traditional schools, 2017-18 through 2023-24 (no statewide reporting in 2020-21)"
 
     fig.text(0.10, 0.96, title, fontsize=13, fontweight="bold", ha="left", color=TEXT_COLOR)
-    fig.text(0.10, 0.93, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.92, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
 
-    # Add methodology explanation
-    _add_wrapped_text(fig, 0.10, 0.11, METHODOLOGY_TEXT, fontsize=7, color=TEXT_COLOR,
-                      ha="left", max_width=110)
+    # Place methodology and citation together in the expanded bottom margin below the axis and legend
+    footer_text = f"{METHODOLOGY_TEXT}\n\n{STANDARD_CITATION}"
+    _add_wrapped_text(
+        fig,
+        0.10,
+        0.20,
+        footer_text,
+        fontsize=7,
+        color=TEXT_COLOR,
+        ha="left",
+        va="top",
+        max_width=160,
+    )
 
-    # Add wrapped citation at the bottom
-    _add_wrapped_text(fig, 0.10, 0.02, STANDARD_CITATION, fontsize=6, color=CAPTION_COLOR,
-                      ha="left", max_width=110)
-
-    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.21)
+    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.48)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     output_path = output_dir / f"20_suspension_reason_trends_{level.lower()}.{suffix}"
