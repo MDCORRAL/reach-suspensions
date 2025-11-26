@@ -438,7 +438,7 @@ def plot_level_locale(
 
     legend = ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.06),
+        bbox_to_anchor=(0.5, -0.15),
         ncol=3,
         frameon=False,
         labelcolor=TEXT_COLOR,
@@ -460,25 +460,27 @@ def plot_level_locale(
     _add_wrapped_text(
         fig,
         0.10,
-        0.055,
+        0.35,
         METHODOLOGY_TEXT,
         fontsize=7,
         color=TEXT_COLOR,
         ha="left",
+        va="top",
         max_width=160,
     )
     _add_wrapped_text(
         fig,
         0.10,
-        0.025,
+        0.08,
         STANDARD_CITATION,
         fontsize=6,
         color=CAPTION_COLOR,
         ha="left",
+        va="top",
         max_width=160,
     )
 
-    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.40)
+    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.48)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     level_slug = _slugify(level)
