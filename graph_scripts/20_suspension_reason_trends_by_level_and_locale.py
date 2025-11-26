@@ -421,7 +421,6 @@ def plot_level_locale(
                 expand_text=(1.2, 1.6),
                 only_move={"points": "y", "text": "xy"},
                 autoalign="y",
-                arrowprops={"arrowstyle": "-", "color": CAPTION_COLOR, "lw": 0.6},
             )
 
     ax.set_xticks(list(x_positions.values()))
@@ -439,7 +438,7 @@ def plot_level_locale(
 
     legend = ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.06),
+        bbox_to_anchor=(0.5, -0.12),
         ncol=3,
         frameon=False,
         labelcolor=TEXT_COLOR,
@@ -457,13 +456,13 @@ def plot_level_locale(
     fig.text(0.10, 0.96, title, fontsize=13, fontweight="bold", ha="left", color=TEXT_COLOR)
     fig.text(0.10, 0.92, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
 
-    # Place methodology and citation in the bottom margin to avoid title/axis overlap
-    _add_wrapped_text(fig, 0.10, 0.08, METHODOLOGY_TEXT, fontsize=7, color=TEXT_COLOR,
+    # Place methodology and citation in the expanded bottom margin below the axis and legend
+    _add_wrapped_text(fig, 0.10, 0.12, METHODOLOGY_TEXT, fontsize=7, color=TEXT_COLOR,
                       ha="left", max_width=110)
-    _add_wrapped_text(fig, 0.10, 0.04, STANDARD_CITATION, fontsize=6, color=CAPTION_COLOR,
+    _add_wrapped_text(fig, 0.10, 0.07, STANDARD_CITATION, fontsize=6, color=CAPTION_COLOR,
                       ha="left", max_width=110)
 
-    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.22)
+    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.32)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     level_slug = _slugify(level)
@@ -544,7 +543,6 @@ def plot_statewide(
                 expand_text=(1.2, 1.6),
                 only_move={"points": "y", "text": "xy"},
                 autoalign="y",
-                arrowprops={"arrowstyle": "-", "color": CAPTION_COLOR, "lw": 0.6},
             )
 
     ax.set_xticks(list(x_positions.values()))
@@ -562,7 +560,7 @@ def plot_statewide(
 
     legend = ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.18),
+        bbox_to_anchor=(0.5, -0.14),
         ncol=3,
         frameon=False,
         labelcolor=TEXT_COLOR,
@@ -580,13 +578,13 @@ def plot_statewide(
     fig.text(0.10, 0.96, title, fontsize=13, fontweight="bold", ha="left", color=TEXT_COLOR)
     fig.text(0.10, 0.92, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
 
-    # Add methodology and citation above the plotting area to avoid overlapping x-axis labels
-    _add_wrapped_text(fig, 0.10, 0.88, METHODOLOGY_TEXT, fontsize=7, color=TEXT_COLOR,
+    # Add methodology and citation in the bottom margin to keep the plot area clear
+    _add_wrapped_text(fig, 0.10, 0.12, METHODOLOGY_TEXT, fontsize=7, color=TEXT_COLOR,
                       ha="left", max_width=110)
-    _add_wrapped_text(fig, 0.10, 0.83, STANDARD_CITATION, fontsize=6, color=CAPTION_COLOR,
+    _add_wrapped_text(fig, 0.10, 0.07, STANDARD_CITATION, fontsize=6, color=CAPTION_COLOR,
                       ha="left", max_width=110)
 
-    fig.subplots_adjust(left=0.12, right=0.96, top=0.80, bottom=0.16)
+    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.32)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     output_path = output_dir / f"20_suspension_reason_trends_all_traditional_statewide.{suffix}"
