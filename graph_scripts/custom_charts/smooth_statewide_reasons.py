@@ -260,19 +260,13 @@ def create_smooth_chart(df: pd.DataFrame, output_path: Path) -> None:
     for text in legend.get_texts():
         text.set_fontweight("bold")
 
-    # Add standard labels (title, subtitle, citation)
-    add_standard_labels(
-        fig,
-        title=CHART_TITLE,
-        subtitle=CHART_SUBTITLE,
-        citation=STANDARD_CITATION,
-        title_y=0.98,
-        subtitle_y=0.95,
-        citation_y=0.02,
-    )
+    # Add title, subtitle and citation using fig.text for complete control
+    fig.text(0.10, 0.975, CHART_TITLE, fontsize=16, fontweight="bold", ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.945, CHART_SUBTITLE, fontsize=11, ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.03, STANDARD_CITATION, fontsize=9, ha="left", color=CAPTION_COLOR, wrap=True)
 
     # Adjust layout to accommodate labels
-    fig.subplots_adjust(left=0.10, right=0.95, top=0.85, bottom=0.18)
+    fig.subplots_adjust(left=0.12, right=0.95, top=0.90, bottom=0.22)
 
     # Save
     output_path.parent.mkdir(parents=True, exist_ok=True)

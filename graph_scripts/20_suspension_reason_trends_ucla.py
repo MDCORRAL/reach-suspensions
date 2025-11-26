@@ -222,13 +222,6 @@ def plot_level(
 
     ax.set_ylabel("Suspension Rate (Percent)", color=TEXT_COLOR, fontweight="bold")
     ax.set_xlabel("Academic Year", color=TEXT_COLOR, fontweight="bold")
-    ax.set_title(
-        f"{level} Schools — Suspension Rates by Reason",
-        color=TEXT_COLOR,
-        fontsize=16,
-        fontweight="bold",
-        pad=15,
-    )
 
     ax.grid(True, axis="y", color=GRID_COLOR, linestyle="-", linewidth=0.8)
     ax.grid(False, axis="x")
@@ -249,12 +242,15 @@ def plot_level(
     ax.set_ylim(bottom=0)
     ax.margins(x=0.02, y=0.15)
 
-    # Add subtitle and citation
+    # Add title, subtitle and citation using fig.text for complete control
+    title = f"{level} Schools — Suspension Rates by Reason"
     subtitle = "Traditional schools, 2017-18 through 2023-24 (no statewide reporting in 2020-21)"
-    fig.text(0.07, 0.97, subtitle, fontsize=11, ha="left", color=TEXT_COLOR)
-    fig.text(0.07, 0.02, STANDARD_CITATION, fontsize=9, ha="left", color=CAPTION_COLOR, wrap=True)
 
-    fig.subplots_adjust(left=0.10, right=0.95, top=0.85, bottom=0.18)
+    fig.text(0.10, 0.975, title, fontsize=16, fontweight="bold", ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.945, subtitle, fontsize=11, ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.03, STANDARD_CITATION, fontsize=9, ha="left", color=CAPTION_COLOR, wrap=True)
+
+    fig.subplots_adjust(left=0.12, right=0.95, top=0.90, bottom=0.22)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     output_path = output_dir / f"20_suspension_reason_trends_{level.lower()}.{suffix}"
