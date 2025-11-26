@@ -400,11 +400,11 @@ def plot_level_locale(
     title = f"{level} Schools ({locale}) — Suspension Rates by Reason"
     subtitle = "Traditional schools, 2017-18 through 2023-24 (no statewide reporting in 2020-21)"
 
-    fig.text(0.10, 0.975, title, fontsize=16, fontweight="bold", ha="left", color=TEXT_COLOR)
-    fig.text(0.10, 0.945, subtitle, fontsize=11, ha="left", color=TEXT_COLOR)
-    fig.text(0.10, 0.03, STANDARD_CITATION, fontsize=9, ha="left", color=CAPTION_COLOR, wrap=True)
+    fig.text(0.10, 0.96, title, fontsize=14, fontweight="bold", ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.93, subtitle, fontsize=10, ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.04, STANDARD_CITATION, fontsize=8, ha="left", color=CAPTION_COLOR)
 
-    fig.subplots_adjust(left=0.12, right=0.95, top=0.90, bottom=0.22)
+    fig.subplots_adjust(left=0.12, right=0.96, top=0.88, bottom=0.26)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     level_slug = _slugify(level)
@@ -413,7 +413,7 @@ def plot_level_locale(
     save_kwargs = {"format": suffix}
     if suffix != "svg" and dpi is not None:
         save_kwargs["dpi"] = dpi
-    fig.savefig(output_path, **save_kwargs)
+    fig.savefig(output_path, bbox_inches='tight', **save_kwargs)
     plt.close(fig)
     print(f"Saved chart: {output_path}")
 
@@ -513,18 +513,18 @@ def plot_statewide(
     title = "All Traditional Schools — Statewide Suspension Rates by Reason"
     subtitle = "All traditional public schools, 2017-18 through 2023-24 (no statewide reporting in 2020-21)"
 
-    fig.text(0.10, 0.975, title, fontsize=16, fontweight="bold", ha="left", color=TEXT_COLOR)
-    fig.text(0.10, 0.945, subtitle, fontsize=11, ha="left", color=TEXT_COLOR)
-    fig.text(0.10, 0.03, STANDARD_CITATION, fontsize=9, ha="left", color=CAPTION_COLOR, wrap=True)
+    fig.text(0.10, 0.96, title, fontsize=14, fontweight="bold", ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.93, subtitle, fontsize=10, ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.04, STANDARD_CITATION, fontsize=8, ha="left", color=CAPTION_COLOR)
 
-    fig.subplots_adjust(left=0.12, right=0.95, top=0.90, bottom=0.22)
+    fig.subplots_adjust(left=0.12, right=0.96, top=0.88, bottom=0.26)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     output_path = output_dir / f"20_suspension_reason_trends_all_traditional_statewide.{suffix}"
     save_kwargs = {"format": suffix}
     if suffix != "svg" and dpi is not None:
         save_kwargs["dpi"] = dpi
-    fig.savefig(output_path, **save_kwargs)
+    fig.savefig(output_path, bbox_inches='tight', **save_kwargs)
     plt.close(fig)
     print(f"Saved chart: {output_path}")
 

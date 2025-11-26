@@ -261,16 +261,16 @@ def create_smooth_chart(df: pd.DataFrame, output_path: Path) -> None:
         text.set_fontweight("bold")
 
     # Add title, subtitle and citation using fig.text for complete control
-    fig.text(0.10, 0.975, CHART_TITLE, fontsize=16, fontweight="bold", ha="left", color=TEXT_COLOR)
-    fig.text(0.10, 0.945, CHART_SUBTITLE, fontsize=11, ha="left", color=TEXT_COLOR)
-    fig.text(0.10, 0.03, STANDARD_CITATION, fontsize=9, ha="left", color=CAPTION_COLOR, wrap=True)
+    fig.text(0.10, 0.96, CHART_TITLE, fontsize=14, fontweight="bold", ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.93, CHART_SUBTITLE, fontsize=10, ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.04, STANDARD_CITATION, fontsize=8, ha="left", color=CAPTION_COLOR)
 
     # Adjust layout to accommodate labels
-    fig.subplots_adjust(left=0.12, right=0.95, top=0.90, bottom=0.22)
+    fig.subplots_adjust(left=0.12, right=0.96, top=0.88, bottom=0.26)
 
     # Save
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=DPI, format="png")
+    fig.savefig(output_path, dpi=DPI, format="png", bbox_inches='tight')
     plt.close(fig)
 
     print(f"  Saved: {output_path}")
