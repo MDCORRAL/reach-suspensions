@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>REACH Suspension Insights Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #daebfe;
+      --surface: #ffffff;
+      --border: #8bb8e8;
+      --primary: #2774ae;
+      --accent: #ffb81c;
+      --muted: #005587;
+      --success: #003b5c;
+      --warning: #ffc72c;
+      --danger: #005587;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: #003b5c;
+      line-height: 1.6;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary), #003b5c);
+      color: #fff;
+      padding: 3.5rem 1.5rem 2.5rem;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0, 59, 92, 0.25);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2.6rem;
+      letter-spacing: 0.02em;
+      font-weight: 700;
+    }
+
+    header p {
+      margin: 0.75rem auto 0;
+      max-width: 760px;
+      font-size: 1.05rem;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    main {
+      max-width: 1200px;
+      margin: -2rem auto 4rem;
+      padding: 0 1.5rem;
+    }
+
+    section {
+      margin-top: 2rem;
+    }
+
+    .panel {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 1.75rem;
+      box-shadow: 0 12px 30px rgba(0, 59, 92, 0.12);
+      border: 1px solid var(--border);
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      color: var(--primary);
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+      color: var(--primary);
+    }
+
+    .intro {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .intro p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .filters {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: flex-start;
+    }
+
+    .filter-group label.title {
+      min-width: 180px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .option-pill {
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--muted);
+      transition: all 0.2s ease;
+    }
+
+    .option-pill input {
+      display: none;
+    }
+
+    .option-pill.active {
+      background: rgba(39, 116, 174, 0.16);
+      color: var(--primary);
+      border-color: var(--primary);
+      font-weight: 600;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .summary-card {
+      background: linear-gradient(145deg, rgba(39, 116, 174, 0.12), rgba(255, 255, 255, 0.95));
+      border-radius: 14px;
+      padding: 1.25rem 1.5rem;
+      border: 1px solid rgba(39, 116, 174, 0.18);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .summary-card h4 {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .summary-card p {
+      margin: 0.4rem 0 0;
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .summary-card span {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+    }
+
+    .charts {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .chart {
+      min-height: 360px;
+    }
+
+    .narrative {
+      display: grid;
+      gap: 1rem;
+      color: var(--muted);
+    }
+
+    .narrative strong {
+      color: var(--primary);
+    }
+
+    .definition-list {
+      display: grid;
+      gap: 0.75rem;
+      margin: 0;
+      padding-left: 1.1rem;
+      color: var(--muted);
+    }
+
+    .footer-note {
+      margin-top: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 768px) {
+      header {
+        padding: 2.5rem 1rem 2rem;
+      }
+
+      header h1 {
+        font-size: 2.1rem;
+      }
+
+      .filter-group {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .filter-group label.title {
+        min-width: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>REACH Suspension Insights Dashboard</h1>
+    <p>
+      Explore California school suspension patterns through an equity lens. Filter the data to surface disparities by student group,
+      school setting, and the racial composition of campuses to guide strategic interventions.
+    </p>
+  </header>
+  <main>
+    <section class="panel intro">
+      <h2>Why this dashboard matters</h2>
+      <p>
+        This interactive view distills the REACH suspension dataset to highlight the systemic patterns that shape students' experiences.
+        Use the filters to hone in on student groups, grade spans, and enrollment quartiles, then review the narratives for quick takeaways.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>Focus your analysis</h2>
+      <div class="filters">
+        <div class="filter-group" id="filter-year">
+          <label class="title">Academic year</label>
+          <div class="options"></div>
+        </div>
+        <div class="filter-group" id="filter-level">
+          <label class="title">School setting</label>
+          <div class="options"></div>
+        </div>
+        <div class="filter-group" id="filter-group">
+          <label class="title">Student group</label>
+          <div class="options"></div>
+        </div>
+        <div class="filter-group" id="filter-quartile">
+          <label class="title">Black enrollment quartile</label>
+          <div class="options"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Key indicators</h2>
+      <div class="summary-grid" id="summary-cards"></div>
+    </section>
+
+    <section class="panel charts">
+      <div>
+        <h2>Quartile comparison</h2>
+        <p class="narrative" id="quartile-narrative"></p>
+        <div id="quartile-chart" class="chart"></div>
+      </div>
+      <div>
+        <h2>Student group disparities</h2>
+        <p class="narrative" id="group-narrative"></p>
+        <div id="group-chart" class="chart"></div>
+      </div>
+      <div>
+        <h2>Suspension trends over time</h2>
+        <p class="narrative" id="trend-narrative"></p>
+        <div id="trend-chart" class="chart"></div>
+      </div>
+      <div>
+        <h2>Reasons for suspensions</h2>
+        <p class="narrative" id="reason-narrative"></p>
+        <div id="reason-chart" class="chart"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Definitions & methodology</h2>
+      <ul class="definition-list">
+        <li><strong>Suspension rate</strong> reflects total suspensions divided by cumulative enrollment for the selected group.</li>
+        <li><strong>Students suspended</strong> captures unduplicated counts. The student suspension rate highlights how many unique students experienced at least one suspension.</li>
+        <li><strong>Black enrollment quartiles</strong> categorize campuses by the share of students identified as African American. Quartile 4 represents the highest concentration.</li>
+        <li><strong>Gap vs. White / overall</strong> compares the suspension rate for the selected group to either White students or all students within the same filters. Positive values signal higher rates.</li>
+        <li><strong>Reason categories</strong> align with state reporting: violent incidents (with or without injury), weapons, illicit drugs, willful defiance, and other reasons.</li>
+      </ul>
+      <p class="footer-note">
+        Data source: REACH suspensions longitudinal dataset, 2017-18 through 2022-23. Aggregations use weighted calculations based on enrollment counts to avoid overstating small-campus trends.
+      </p>
+    </section>
+  </main>
+
+  <script src="https://cdn.plot.ly/plotly-2.27.1.min.js"></script>
+  <script>
+    const palette = ['#003b5c', '#ffb81c', '#2774ae', '#ffc72c', '#005587', '#ffd100'];
+    let dashboardData = null;
+
+    const filterConfig = [
+      { id: 'filter-year', key: 'academic_year', labelPrefix: 'Year: ' },
+      { id: 'filter-level', key: 'school_level_final', labelPrefix: 'Level: ' },
+      { id: 'filter-group', key: 'reporting_category_description', labelPrefix: 'Group: ' },
+      { id: 'filter-quartile', key: 'black_prop_q_label', labelPrefix: 'Quartile: ' },
+    ];
+
+    function createOption(container, value, checked = true) {
+      const pill = document.createElement('label');
+      pill.className = 'option-pill' + (checked ? ' active' : '');
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.value = value;
+      input.checked = checked;
+      input.addEventListener('change', () => {
+        pill.classList.toggle('active', input.checked);
+        updateDashboard();
+      });
+      const span = document.createElement('span');
+      span.textContent = value;
+      pill.appendChild(input);
+      pill.appendChild(span);
+      container.appendChild(pill);
+    }
+
+    function buildFilters(meta) {
+      const metaMap = {
+        academic_year: meta.academic_years,
+        school_level_final: meta.school_levels,
+        reporting_category_description: meta.student_groups,
+        black_prop_q_label: meta.black_quartiles,
+      };
+
+      filterConfig.forEach(({ id, key }) => {
+        const wrapper = document.querySelector(`#${id} .options`);
+        wrapper.innerHTML = '';
+        metaMap[key].forEach((value) => createOption(wrapper, value, true));
+      });
+    }
+
+    function getSelectedValues(id) {
+      const container = document.querySelector(`#${id}`);
+      return Array.from(container.querySelectorAll('input[type="checkbox"]'))
+        .filter((input) => input.checked)
+        .map((input) => input.value);
+    }
+
+    function filterRecords() {
+      const selected = {
+        academic_year: getSelectedValues('filter-year'),
+        school_level_final: getSelectedValues('filter-level'),
+        reporting_category_description: getSelectedValues('filter-group'),
+        black_prop_q_label: getSelectedValues('filter-quartile'),
+      };
+
+      const overall = dashboardData.overall.filter((row) =>
+        Object.entries(selected).every(([key, values]) => values.includes(row[key]))
+      );
+      const reasons = dashboardData.reasons.filter((row) =>
+        Object.entries(selected).every(([key, values]) => values.includes(row[key]))
+      );
+
+      return { selected, overall, reasons };
+    }
+
+    function formatNumber(value, options = {}) {
+      if (value == null || Number.isNaN(value)) return '—';
+      const { style = 'decimal', maximumFractionDigits = 1, minimumFractionDigits } = options;
+      const formatterOptions = { style, maximumFractionDigits };
+      if (minimumFractionDigits != null) {
+        formatterOptions.minimumFractionDigits = minimumFractionDigits;
+      }
+      return new Intl.NumberFormat('en-US', formatterOptions).format(value);
+    }
+
+    function weightedAverage(records, valueKey, weightKey) {
+      const totals = records.reduce(
+        (acc, row) => {
+          const weight = row[weightKey] || 0;
+          const value = row[valueKey];
+          if (!Number.isFinite(weight) || weight <= 0 || value == null) {
+            return acc;
+          }
+          acc.weight += weight;
+          acc.total += value * weight;
+          return acc;
+        },
+        { weight: 0, total: 0 }
+      );
+      return totals.weight ? totals.total / totals.weight : null;
+    }
+
+    function sum(records, key) {
+      return records.reduce((acc, row) => acc + (row[key] || 0), 0);
+    }
+
+    function updateSummary(records) {
+      const container = document.getElementById('summary-cards');
+      container.innerHTML = '';
+
+      if (!records.length) {
+        container.innerHTML = '<p>No data matches the selected filters.</p>';
+        return;
+      }
+
+      const totalEnrollment = sum(records, 'enrollment');
+      const totalSuspensions = sum(records, 'total_suspensions');
+      const totalStudentsSusp = sum(records, 'students_suspended');
+
+      const suspensionRate = totalEnrollment ? (totalSuspensions / totalEnrollment) * 100 : null;
+      const studentRate = totalEnrollment ? (totalStudentsSusp / totalEnrollment) * 100 : null;
+      const gapWhite = weightedAverage(records, 'gap_vs_white', 'enrollment');
+      const gapOverall = weightedAverage(records, 'gap_vs_overall', 'enrollment');
+
+      const cards = [
+        {
+          title: 'Total suspensions',
+          value: formatNumber(totalSuspensions, { maximumFractionDigits: 0 }),
+          detail: 'Sum of incidents across selected filters.',
+        },
+        {
+          title: 'Suspension rate',
+          value: suspensionRate != null ? `${formatNumber(suspensionRate)}%` : '—',
+          detail: 'Incidents per 100 enrolled students.',
+        },
+        {
+          title: 'Students suspended',
+          value:
+            totalStudentsSusp != null
+              ? formatNumber(totalStudentsSusp, { maximumFractionDigits: 0 })
+              : '—',
+          detail: studentRate != null ? `${formatNumber(studentRate)}% of students impacted.` : 'Share unavailable.',
+        },
+        {
+          title: 'Gap vs. White',
+          value: gapWhite != null ? `${formatNumber(gapWhite)} pts` : '—',
+          detail: gapOverall != null ? `${gapOverall >= 0 ? '+' : ''}${formatNumber(gapOverall)} pts vs. overall.` : 'Gap unavailable.',
+        },
+      ];
+
+      cards.forEach((card) => {
+        const el = document.createElement('div');
+        el.className = 'summary-card';
+        el.innerHTML = `<h4>${card.title}</h4><p>${card.value}</p><span>${card.detail}</span>`;
+        container.appendChild(el);
+      });
+    }
+
+    function prepareQuartileData(records) {
+      const grouped = new Map();
+      records.forEach((row) => {
+        const key = row.black_prop_q_label;
+        if (!grouped.has(key)) {
+          grouped.set(key, { suspensions: 0, enrollment: 0 });
+        }
+        const bucket = grouped.get(key);
+        bucket.suspensions += row.total_suspensions || 0;
+        bucket.enrollment += row.enrollment || 0;
+      });
+      return Array.from(grouped.entries()).map(([quartile, values]) => ({
+        quartile,
+        rate: values.enrollment ? (values.suspensions / values.enrollment) * 100 : null,
+        suspensions: values.suspensions,
+      }));
+    }
+
+    function drawQuartileChart(records) {
+      const data = prepareQuartileData(records);
+      const quartileOrder = dashboardData.meta.black_quartiles;
+      data.sort((a, b) => quartileOrder.indexOf(a.quartile) - quartileOrder.indexOf(b.quartile));
+
+      const trace = {
+        type: 'bar',
+        x: data.map((d) => d.quartile),
+        y: data.map((d) => (d.rate != null ? Number(d.rate.toFixed(2)) : 0)),
+        marker: { color: data.map((_, i) => palette[i % palette.length]) },
+        hovertemplate: '<b>%{x}</b><br>Rate: %{y:.2f}%<br>Suspensions: %{customdata}<extra></extra>',
+        customdata: data.map((d) => formatNumber(d.suspensions, { maximumFractionDigits: 0 })),
+      };
+
+      const layout = {
+        margin: { t: 10, r: 10, l: 60, b: 60 },
+        yaxis: { title: 'Suspension rate (%)', gridcolor: '#e7ecf5' },
+        xaxis: { title: '' },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+      };
+
+      Plotly.react('quartile-chart', data.length ? [trace] : [], layout, { responsive: true, displayModeBar: false });
+      updateQuartileNarrative(data);
+    }
+
+    function updateQuartileNarrative(data) {
+      const narrative = document.getElementById('quartile-narrative');
+      if (!data.length) {
+        narrative.textContent = 'No quartile-level records for the current filters.';
+        return;
+      }
+      const valid = data.filter((d) => d.rate != null);
+      if (!valid.length) {
+        narrative.textContent = 'Suspension rates are suppressed for the selected filters.';
+        return;
+      }
+      valid.sort((a, b) => b.rate - a.rate);
+      const highest = valid[0];
+      const lowest = valid[valid.length - 1];
+      const gap = highest.rate - lowest.rate;
+      narrative.innerHTML = `Campuses in <strong>${highest.quartile}</strong> report suspension rates of <strong>${formatNumber(highest.rate)}%</strong>,
+        compared with <strong>${formatNumber(lowest.rate)}%</strong> in ${lowest.quartile}, a gap of ${formatNumber(gap)} percentage points.`;
+    }
+
+    function drawGroupChart(records) {
+      const grouped = new Map();
+      records.forEach((row) => {
+        const key = row.reporting_category_description;
+        if (!grouped.has(key)) {
+          grouped.set(key, { suspensions: 0, enrollment: 0, gap: 0, weight: 0 });
+        }
+        const bucket = grouped.get(key);
+        bucket.suspensions += row.total_suspensions || 0;
+        bucket.enrollment += row.enrollment || 0;
+        if (row.gap_vs_white != null && row.enrollment) {
+          bucket.gap += row.gap_vs_white * row.enrollment;
+          bucket.weight += row.enrollment;
+        }
+      });
+
+      const categories = Array.from(grouped.entries())
+        .map(([group, values]) => ({
+          group,
+          rate: values.enrollment ? (values.suspensions / values.enrollment) * 100 : null,
+          gap: values.weight ? values.gap / values.weight : null,
+        }))
+        .sort((a, b) => (b.rate || 0) - (a.rate || 0));
+
+      const trace = {
+        type: 'bar',
+        x: categories.map((d) => d.group),
+        y: categories.map((d) => d.rate != null ? Number(d.rate.toFixed(2)) : 0),
+        marker: { color: categories.map((_, i) => palette[i % palette.length]) },
+        hovertemplate: '<b>%{x}</b><br>Rate: %{y:.2f}%<extra></extra>',
+      };
+
+      const layout = {
+        margin: { t: 10, r: 10, l: 60, b: 120 },
+        yaxis: { title: 'Suspension rate (%)', gridcolor: '#e7ecf5' },
+        xaxis: { title: '', tickangle: -35 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+      };
+
+      Plotly.react('group-chart', categories.length ? [trace] : [], layout, { responsive: true, displayModeBar: false });
+      updateGroupNarrative(categories);
+    }
+
+    function updateGroupNarrative(categories) {
+      const narrative = document.getElementById('group-narrative');
+      if (!categories.length) {
+        narrative.textContent = 'No student groups are available for the selected filters.';
+        return;
+      }
+      const top = categories[0];
+      const bottom = categories[categories.length - 1];
+      if (top.rate == null || bottom.rate == null) {
+        narrative.textContent = 'Suspension rates are suppressed for the selected student groups.';
+        return;
+      }
+      const gap = top.rate - bottom.rate;
+      const rateFormatOptions = { minimumFractionDigits: 1, maximumFractionDigits: 1 };
+      narrative.innerHTML = `<strong>${top.group}</strong> students face the highest suspension rates at <strong>${formatNumber(top.rate, rateFormatOptions)}%</strong>,
+        compared with <strong>${formatNumber(bottom.rate, rateFormatOptions)}%</strong> among ${bottom.group} students — a difference of ${formatNumber(gap, rateFormatOptions)} points.`;
+    }
+
+    function drawTrendChart(records) {
+      const groups = Array.from(new Set(records.map((row) => row.reporting_category_description))).sort();
+      const years = Array.from(new Set(records.map((row) => row.academic_year))).sort();
+
+      const traces = groups.map((group, idx) => {
+        const groupRecords = records.filter((row) => row.reporting_category_description === group);
+        const yearStats = years.map((year) => {
+          const rows = groupRecords.filter((row) => row.academic_year === year);
+          const enrollment = sum(rows, 'enrollment');
+          const suspensions = sum(rows, 'total_suspensions');
+          return enrollment ? (suspensions / enrollment) * 100 : null;
+        });
+        return {
+          type: 'scatter',
+          mode: 'lines+markers',
+          name: group,
+          x: years,
+          y: yearStats,
+          line: { color: palette[idx % palette.length], width: 3, shape: 'spline' },
+          marker: { size: 6 },
+          hovertemplate: '<b>%{x}</b><br>Rate: %{y:.2f}%<extra>' + group + '</extra>',
+        };
+      });
+
+      const layout = {
+        margin: { t: 10, r: 10, l: 60, b: 60 },
+        yaxis: { title: 'Suspension rate (%)', gridcolor: '#e7ecf5' },
+        xaxis: { title: 'Academic year' },
+        legend: { orientation: 'h', y: -0.2 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+      };
+
+      Plotly.react('trend-chart', traces, layout, { responsive: true, displayModeBar: false });
+      updateTrendNarrative(traces, years);
+    }
+
+    function updateTrendNarrative(traces, years) {
+      const narrative = document.getElementById('trend-narrative');
+      if (!traces.length || !years.length) {
+        narrative.textContent = 'Trend data is unavailable for the selected filters.';
+        return;
+      }
+      const latestYear = years[years.length - 1];
+      const latestValues = traces
+        .map((trace) => ({ name: trace.name, value: trace.y[trace.y.length - 1] }))
+        .filter((d) => d.value != null)
+        .sort((a, b) => b.value - a.value);
+      if (!latestValues.length) {
+        narrative.textContent = 'Recent trend data is suppressed for the selected filters.';
+        return;
+      }
+      const top = latestValues[0];
+      const bottom = latestValues[latestValues.length - 1];
+      narrative.innerHTML = `In <strong>${latestYear}</strong>, <strong>${top.name}</strong> students recorded the highest suspension rate at <strong>${formatNumber(top.value)}%</strong>.
+        ${bottom.name !== top.name ? `By contrast, ${bottom.name} students were at ${formatNumber(bottom.value)}%.` : ''}`;
+    }
+
+    function drawReasonChart(records) {
+      const years = Array.from(new Set(records.map((row) => row.academic_year))).sort();
+      const reasons = Array.from(new Set(records.map((row) => row.reason_lab)));
+
+      const totalsByYear = new Map();
+      years.forEach((year) => {
+        const yearTotal = records
+          .filter((row) => row.academic_year === year)
+          .reduce((sum, row) => sum + (row.total_suspensions || 0), 0);
+        totalsByYear.set(year, yearTotal);
+      });
+
+      const traces = reasons.map((reason, idx) => {
+        const values = years.map((year) => {
+          const rows = records.filter((row) => row.academic_year === year && row.reason_lab === reason);
+          const total = rows.reduce((sum, row) => sum + (row.total_suspensions || 0), 0);
+          const yearTotal = totalsByYear.get(year) || 0;
+          return yearTotal ? (total / yearTotal) * 100 : 0;
+        });
+        return {
+          type: 'scatter',
+          mode: 'lines',
+          name: reason,
+          x: years,
+          y: values,
+          line: { color: palette[idx % palette.length], width: 2 },
+          fill: idx === 0 ? 'tozeroy' : 'tonexty',
+          stackgroup: 'one',
+          hovertemplate: '<b>%{x}</b><br>${reason}: %{y:.1f}%<extra></extra>'.replace('${reason}', reason),
+        };
+      });
+
+      const layout = {
+        margin: { t: 10, r: 10, l: 60, b: 60 },
+        yaxis: { title: 'Share of suspensions (%)', gridcolor: '#e7ecf5', range: [0, 100] },
+        xaxis: { title: 'Academic year' },
+        legend: { orientation: 'h', y: -0.25 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+      };
+
+      Plotly.react('reason-chart', traces, layout, { responsive: true, displayModeBar: false });
+      updateReasonNarrative(records, years);
+    }
+
+    function updateReasonNarrative(records, years) {
+      const narrative = document.getElementById('reason-narrative');
+      if (!records.length) {
+        narrative.textContent = 'Reason-level details are unavailable for the selected filters.';
+        return;
+      }
+      const latestYear = years[years.length - 1];
+      const latest = records.filter((row) => row.academic_year === latestYear);
+      const totals = latest.reduce((acc, row) => acc + (row.total_suspensions || 0), 0);
+      if (!totals) {
+        narrative.textContent = 'Suspension reason totals are suppressed for the latest year.';
+        return;
+      }
+      const shares = latest
+        .map((row) => ({ reason: row.reason_lab, share: row.total_suspensions / totals * 100 }))
+        .sort((a, b) => b.share - a.share);
+      const leader = shares[0];
+      const runnerUp = shares[1];
+      narrative.innerHTML = `In <strong>${latestYear}</strong>, <strong>${leader.reason}</strong> accounted for ${formatNumber(leader.share)}% of suspensions${
+        runnerUp ? `, followed by ${runnerUp.reason} at ${formatNumber(runnerUp.share)}%.` : '.'
+      }`;
+    }
+
+    function updateDashboard() {
+      if (!dashboardData) return;
+      const { overall, reasons } = filterRecords();
+      updateSummary(overall);
+      drawQuartileChart(overall);
+      drawGroupChart(overall);
+      drawTrendChart(overall);
+      drawReasonChart(reasons);
+    }
+
+    fetch('dashboard/data/dashboard_data.json')
+      .then((response) => response.json())
+      .then((data) => {
+        dashboardData = data;
+        buildFilters(data.meta);
+        updateDashboard();
+      })
+      .catch((error) => {
+        console.error('Failed to load dashboard data', error);
+        document.querySelector('main').innerHTML = '<p>Unable to load dashboard data.</p>';
+      });
+  </script>
+</body>
+</html>

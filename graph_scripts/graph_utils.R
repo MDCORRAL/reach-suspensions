@@ -8,6 +8,7 @@ suppressPackageStartupMessages({
   library(glue)
   library(here)
   library(janitor)
+  library(readr)
   library(scales)
   library(stringr)
   library(tidyr)
@@ -18,9 +19,11 @@ SUSP_PATH  <- file.path(DATA_STAGE, "susp_v6_long.parquet")
 FEAT_PATH  <- file.path(DATA_STAGE, "susp_v6_features.parquet")
 OUTPUT_DIR <- here::here("outputs", "graphs")
 TEXT_DIR   <- file.path(OUTPUT_DIR, "descriptions")
+DATA_AUDIT_DIR <- here::here("outputs", "data_audit")
 
 dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
 dir.create(TEXT_DIR,   recursive = TRUE, showWarnings = FALSE)
+dir.create(DATA_AUDIT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 SPECIAL_SCHOOL_CODES <- c("0000000", "0000001")
 DEFAULT_IS_TRADITIONAL <- TRUE
@@ -157,7 +160,7 @@ load_joined_data <- function() {
     joined <- joined %>% dplyr::filter(setting %in% SETTINGS_TO_INCLUDE)
   }
 
-  joined
+  audit_graph_inputs(joined, context = "load_joined_data")
 }
 
 factorize_race <- function(x) forcats::fct_relevel(factor(x), race_levels)
@@ -189,6 +192,67 @@ write_description <- function(text, filename) {
   dir.create(dirname(full_path), recursive = TRUE, showWarnings = FALSE)
   writeLines(text, full_path, useBytes = TRUE)
   invisible(full_path)
+}
+
+audit_graph_inputs <- function(df, context = "graph_scripts") {
+  if (!all(c("total_suspensions", "cumulative_enrollment") %in% names(df))) {
+    return(df)
+  }
+
+  df <- df %>%
+    dplyr::mutate(
+      .row_id = dplyr::row_number(),
+      total_suspensions = suppressWarnings(as.numeric(total_suspensions)),
+      cumulative_enrollment = suppressWarnings(as.numeric(cumulative_enrollment))
+    )
+
+  invalid_rows <- df %>%
+    dplyr::filter(
+      is.na(cumulative_enrollment) |
+        cumulative_enrollment < 0 |
+        total_suspensions < 0 |
+        total_suspensions > cumulative_enrollment
+    )
+
+  if (nrow(invalid_rows) > 0) {
+    audit_cols <- intersect(
+      c(
+        "academic_year", "school_level", "subgroup", "school_code",
+        "total_suspensions", "cumulative_enrollment"
+      ),
+      names(invalid_rows)
+    )
+
+    audit_path <- file.path(DATA_AUDIT_DIR, "graph_input_anomalies.csv")
+    invalid_rows %>%
+      dplyr::select(dplyr::any_of(audit_cols)) %>%
+      dplyr::mutate(context = context) %>%
+      dplyr::relocate(context) %>%
+      readr::write_csv(audit_path, append = file.exists(audit_path))
+
+    message(
+      glue::glue(
+        "Dropped {nrow(invalid_rows)} records with impossible suspension/enrollment values (logged to {audit_path})."
+      )
+    )
+  }
+
+  cleaned <- df %>%
+    dplyr::anti_join(invalid_rows, by = dplyr::join_by(.row_id)) %>%
+    dplyr::select(-.row_id) %>%
+    dplyr::mutate(
+      rate_check = safe_div(total_suspensions, cumulative_enrollment),
+      rate_check = dplyr::if_else(
+        rate_check < 0 | rate_check > 1,
+        NA_real_,
+        rate_check
+      ),
+      total_suspensions = ifelse(is.finite(total_suspensions), total_suspensions, NA_real_),
+      cumulative_enrollment = ifelse(is.finite(cumulative_enrollment), cumulative_enrollment, NA_real_)
+    ) %>%
+    dplyr::select(-rate_check)
+
+  cleaned
 }
 
 # Standardized citation text for all outputs

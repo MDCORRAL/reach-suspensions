@@ -2,6 +2,7 @@
 
 suppressPackageStartupMessages({
   library(dplyr)
+  library(rlang)
   library(readr)
   library(stringr)
   library(tidyr)
@@ -237,7 +238,7 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
     totals_by_type <- df %>%
       dplyr::filter(!is.na(reporting_category_slug)) %>%
       dplyr::group_by(dplyr::across(dplyr::all_of(c(key_cols, "reporting_category_slug")))) %>%
-      dplyr::filter(if (any(.teacher_total_row, na.rm = TRUE)) .teacher_total_row else TRUE) %>%
+      dplyr::filter(if (any(.data$.teacher_total_row, na.rm = TRUE)) .data$.teacher_total_row else TRUE) %>%
       dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
                        .groups = "drop") %>%
       tidyr::pivot_wider(
@@ -249,8 +250,6 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
       )
   }
 
-  df$.teacher_total_row <- NULL
-
   # Create reporting_category_description if it doesn't exist
   if (!"reporting_category_description" %in% names(df)) {
     if ("reporting_category" %in% names(df)) {
@@ -261,11 +260,13 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
   }
 
   race_tbl <- df %>%
-    dplyr::mutate(race_label = dplyr::coalesce(reporting_category_description, race_ethnicity),
+    dplyr::mutate(race_label = dplyr::coalesce(race_ethnicity, reporting_category_description),  # FIX: Use race_ethnicity first, not staff type
                   race_label = ifelse(is.na(race_label) | !nzchar(race_label), "Unknown", race_label),
                   race_slug = teacher_slugify(race_label)) %>%
-    dplyr::filter(!race_slug %in% c("total", "all", "all_students", "all_staff")) %>%
+    dplyr::filter(!race_slug %in% c("total", "all", "all_students", "all_staff", "teachers", "administrators", "pupil_services", "other_staff", "all_staff")) %>%  # Also filter out staff types
     dplyr::group_by(dplyr::across(dplyr::all_of(c(key_cols, "race_slug")))) %>%
+    # FIX: Filter to total rows to avoid double-counting gender-specific + gender-total rows
+    dplyr::filter(if (any(.data$.teacher_total_row, na.rm = TRUE)) .data$.teacher_total_row else TRUE) %>%
     dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
                      .groups = "drop") %>%
     tidyr::pivot_wider(
@@ -280,11 +281,13 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
   if (has_staff_type) {
     race_by_type_tbl <- df %>%
       dplyr::filter(!is.na(reporting_category_slug)) %>%
-      dplyr::mutate(race_label = dplyr::coalesce(reporting_category_description, race_ethnicity),
+      dplyr::mutate(race_label = dplyr::coalesce(race_ethnicity, reporting_category_description),  # FIX: Use race_ethnicity first, not staff type
                     race_label = ifelse(is.na(race_label) | !nzchar(race_label), "Unknown", race_label),
                     race_slug = teacher_slugify(race_label)) %>%
-      dplyr::filter(!race_slug %in% c("total", "all", "all_students", "all_staff")) %>%
+      dplyr::filter(!race_slug %in% c("total", "all", "all_students", "all_staff", "teachers", "administrators", "pupil_services", "other_staff")) %>%  # Also filter out staff types
       dplyr::group_by(dplyr::across(dplyr::all_of(c(key_cols, "reporting_category_slug", "race_slug")))) %>%
+      # FIX: Filter to total rows to avoid double-counting gender-specific + gender-total rows
+      dplyr::filter(if (any(.data$.teacher_total_row, na.rm = TRUE)) .data$.teacher_total_row else TRUE) %>%
       dplyr::summarise(dplyr::across(dplyr::all_of(value_cols), ~ sum(.x, na.rm = TRUE)),
                        .groups = "drop") %>%
       tidyr::pivot_wider(
@@ -337,6 +340,8 @@ teacher_summarise_long <- function(df, value_cols = NULL) {
         values_fill = 0
       )
   }
+
+  df$.teacher_total_row <- NULL
 
   summary <- totals %>%
     dplyr::left_join(race_tbl, by = key_cols)

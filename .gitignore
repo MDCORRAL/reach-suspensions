@@ -6,7 +6,11 @@ data/*
 !data/dashboard_data.json
 data-raw/
 data-stage/
+!data-stage/
+# Legacy parquet artifacts that were checked in before these rules remain in history.
+# Only explicitly whitelisted files below will be addable going forward.
 *.parquet
+!data-stage/susp_v6_teacher_features.parquet
 *.duckdb
 *.xlsx
 *.csv
@@ -25,8 +29,18 @@ dashboard/data/
 .RDataTmp
 .Renviron
 
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
 # Generated figures
 outputs/*
+!outputs/summaries/
 fv_outputs/
 !dashboard/data/suspension_dashboard.json
 !dashboard/data/suspension_dashboard.js

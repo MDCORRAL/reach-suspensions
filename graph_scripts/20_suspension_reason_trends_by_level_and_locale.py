@@ -18,9 +18,39 @@ from __future__ import annotations
 import argparse
 import io
 import math
+import importlib.util
+import sys
 from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Iterable
+
+SCRIPT_DIR = Path(__file__).resolve().parent if "__file__" in globals() else Path.cwd()
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+REQUIRED_MODULES = {
+    "matplotlib": "pip install -r graph_scripts/requirements.txt",
+    "pandas": "pip install -r graph_scripts/requirements.txt",
+    "numpy": "pip install -r graph_scripts/requirements.txt",
+    "pyarrow": "pip install -r graph_scripts/requirements.txt",
+    "adjustText": "pip install adjustText",
+    "palette_utils": "run from repo root or ensure graph_scripts is on PYTHONPATH",
+    "data_validations": "run from repo root or ensure graph_scripts is on PYTHONPATH",
+}
+
+missing = [
+    name
+    for name, install_hint in REQUIRED_MODULES.items()
+    if importlib.util.find_spec(name) is None
+]
+if missing:
+    hints = [f"- {name}: {REQUIRED_MODULES[name]}" for name in missing]
+    message = (
+        "Missing required Python packages for 20_suspension_reason_trends_by_level_and_locale.\n"
+        "Install the dependencies before running (e.g., pip install -r graph_scripts/requirements.txt).\n"
+        "Missing modules:\n" + "\n".join(hints)
+    )
+    raise SystemExit(message)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,9 +58,15 @@ import pandas as pd
 import pyarrow.parquet as pq
 from adjustText import adjust_text
 
-from palette_utils import DISCIPLINE_BASE_PALETTE, DISCIPLINE_REASON_PALETTE
+SCRIPT_DIR = Path(__file__).resolve().parent if "__file__" in globals() else Path.cwd()
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from palette_utils import DISCIPLINE_BASE_PALETTE, DISCIPLINE_REASON_PALETTE, STANDARD_CITATION
+from data_validations import audit_counts_against_enrollment, ensure_audit_dir, sanitize_rate_column
 
 TEXT_COLOR = DISCIPLINE_BASE_PALETTE["Darkest Blue"]
+CAPTION_COLOR = DISCIPLINE_BASE_PALETTE["Grey"]
 GRID_COLOR = DISCIPLINE_BASE_PALETTE["Lighter Blue"]
 
 REASON_COLUMNS = {
@@ -48,9 +84,11 @@ LEVEL_ORDER = ["Elementary", "Middle", "High"]
 LOCALE_COLUMN = "locale_simple"
 LOCALE_ORDER = ["City", "Suburban", "Town", "Rural", "Unknown"]
 
-DEFAULT_DATA_PATH = Path("data-stage") / "susp_v6_long.parquet"
-DEFAULT_OUTPUT_DIR = Path("outputs") / "20_suspension_reason_trends_by_level_and_locale"
+PROJECT_ROOT = SCRIPT_DIR.parent
+DEFAULT_DATA_PATH = PROJECT_ROOT / "data-stage" / "susp_v6_long.parquet"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "20_suspension_reason_trends_by_level_and_locale"
 DEFAULT_IMAGE_FORMAT = "png"
+AUDIT_DIR = ensure_audit_dir(PROJECT_ROOT)
 
 # ----------------------------------------------------------------------------
 # Data preparation
@@ -140,6 +178,14 @@ def prepare_data(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         .reset_index()
     )
 
+    aggregated = audit_counts_against_enrollment(
+        aggregated,
+        count_columns=list(REASON_COLUMNS.keys()),
+        enrollment_column="cumulative_enrollment",
+        context="20_level_locale.aggregated",
+        audit_dir=AUDIT_DIR,
+    )
+
     traditional = filtered[filtered["charter_yn_std"] == "No"].copy()
     if not traditional.empty:
         agg_traditional = (
@@ -188,6 +234,12 @@ def prepare_data(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         )
         statewide_melted["school_level"] = "All Traditional"
         statewide_melted = statewide_melted.dropna(subset=["reason_label"]).copy()
+        statewide_melted = sanitize_rate_column(
+            statewide_melted,
+            rate_column="rate",
+            context="20_level_locale.statewide_melted",
+            audit_dir=AUDIT_DIR,
+        )
         
     if "All Traditional" in aggregated[LOCALE_COLUMN].astype("string").unique():
         aggregated[LOCALE_COLUMN] = pd.Categorical(
@@ -218,6 +270,12 @@ def prepare_data(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     )
 
     melted = melted.dropna(subset=["reason_label"]).copy()
+    melted = sanitize_rate_column(
+        melted,
+        rate_column="rate",
+        context="20_level_locale.melted",
+        audit_dir=AUDIT_DIR,
+    )
 
     if melted.empty:
         raise SystemExit("No suspension reason data available after filtering.")
@@ -318,13 +376,6 @@ def plot_level_locale(
 
     ax.set_ylabel("Suspension Rate (Percent)", color=TEXT_COLOR, fontweight="bold")
     ax.set_xlabel("Academic Year", color=TEXT_COLOR, fontweight="bold")
-    ax.set_title(
-        f"{level} Schools — {locale} Locale\nSuspension Rates by Reason",
-        color=TEXT_COLOR,
-        fontsize=16,
-        fontweight="bold",
-        pad=15,
-    )
 
     ax.grid(True, axis="y", color=GRID_COLOR, linestyle="-", linewidth=0.8)
     ax.grid(False, axis="x")
@@ -345,7 +396,15 @@ def plot_level_locale(
     ax.set_ylim(bottom=0)
     ax.margins(x=0.02, y=0.15)
 
-    plt.tight_layout()
+    # Add title, subtitle and citation using fig.text for complete control
+    title = f"{level} Schools ({locale}) — Suspension Rates by Reason"
+    subtitle = "Traditional schools, 2017-18 through 2023-24 (no statewide reporting in 2020-21)"
+
+    fig.text(0.10, 0.975, title, fontsize=16, fontweight="bold", ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.945, subtitle, fontsize=11, ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.03, STANDARD_CITATION, fontsize=9, ha="left", color=CAPTION_COLOR, wrap=True)
+
+    fig.subplots_adjust(left=0.12, right=0.95, top=0.90, bottom=0.22)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     level_slug = _slugify(level)
@@ -430,13 +489,6 @@ def plot_statewide(
 
     ax.set_ylabel("Suspension Rate (Percent)", color=TEXT_COLOR, fontweight="bold")
     ax.set_xlabel("Academic Year", color=TEXT_COLOR, fontweight="bold")
-    ax.set_title(
-        "All Traditional Schools — Statewide Suspension Rates by Reason",
-        color=TEXT_COLOR,
-        fontsize=16,
-        fontweight="bold",
-        pad=15,
-    )
 
     ax.grid(True, axis="y", color=GRID_COLOR, linestyle="-", linewidth=0.8)
     ax.grid(False, axis="x")
@@ -457,7 +509,15 @@ def plot_statewide(
     ax.set_ylim(bottom=0)
     ax.margins(x=0.02, y=0.15)
 
-    plt.tight_layout()
+    # Add title, subtitle and citation using fig.text for complete control
+    title = "All Traditional Schools — Statewide Suspension Rates by Reason"
+    subtitle = "All traditional public schools, 2017-18 through 2023-24 (no statewide reporting in 2020-21)"
+
+    fig.text(0.10, 0.975, title, fontsize=16, fontweight="bold", ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.945, subtitle, fontsize=11, ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.03, STANDARD_CITATION, fontsize=9, ha="left", color=CAPTION_COLOR, wrap=True)
+
+    fig.subplots_adjust(left=0.12, right=0.95, top=0.90, bottom=0.22)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     output_path = output_dir / f"20_suspension_reason_trends_all_traditional_statewide.{suffix}"

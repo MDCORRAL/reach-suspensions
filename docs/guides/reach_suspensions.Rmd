@@ -1,0 +1,89 @@
+---
+title: "REACH Suspensions – Reproducible R Setup"
+author: "mc"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Workflow
+
+## Optional: clean environment
+
+```r
+rm(list = ls())  # remove all objects
+gc()             # trigger garbage collection
+```
+
+## First-time setup
+
+```r
+install.packages("renv")   # install renv if not already present
+renv::restore()            # installs exact package versions from renv.lock
+```
+
+## Update to latest code
+
+```bash
+git pull
+```
+
+```r
+renv::restore()            # ensure packages match lockfile
+```
+
+## Run v6 pipeline
+
+```r
+source("run_pipeline.R")
+```
+
+`run_pipeline.R` sequentially executes:
+
+- `R/01_ingest_v0.R`
+- `R/02_feature_locale_simple.R`
+- `R/02b_drop_charter_all.R`
+- `R/03_feature_size_quartiles_TA.R`
+- `R/04_feature_black_prop_quartiles.R`
+- `R/05_feature_school_level.R`
+- `R/06_feature_reason_shares.R`
+- `R/22_build_v6_features.R`
+
+The final dataset is written to `data-stage/susp_v6_long.parquet`.
+
+## Commit code changes
+
+```bash
+git add R/*.R renv.lock
+git commit -m "Update features / analysis"
+git push
+```
+
+## When packages change
+
+```r
+renv::snapshot()    # updates renv.lock; then commit & push it
+```
+
+## Sanity check
+
+```r
+library(arrow)
+library(dplyr)
+
+v6 <- read_parquet("data-stage/susp_v6_long.parquet")
+
+v6 %>%
+  select(academic_year, county_name, district_name, school_name,
+         category_type, subgroup, total_suspensions,
+         cumulative_enrollment, suspension_rate_percent_total) %>%
+  glimpse()  # should show ~3,400,000 rows
+```
+
+## Troubleshooting
+
+```r
+renv::restore() # installs exact package versions from renv.lock
+install.packages("pkgname")   # replace with actual package name
+renv::snapshot()              # then commit & push updated lockfile
+```
+

@@ -107,6 +107,16 @@ except ImportError as exc:  # pragma: no cover - guard for missing palette modul
     raise SystemExit(
         "Unable to import palette_utils. Ensure graph_scripts/palette_utils.py is available."
     ) from exc
+try:
+    from data_validations import (
+        audit_counts_against_enrollment,
+        ensure_audit_dir,
+        sanitize_rate_column,
+    )
+except ImportError as exc:  # pragma: no cover - guard for missing helpers
+    raise SystemExit(
+        "Unable to import data_validations. Ensure graph_scripts/data_validations.py is available."
+    ) from exc
 
 TEXT_COLOR = DISCIPLINE_BASE_PALETTE["Darkest Blue"]
 CAPTION_COLOR = DISCIPLINE_BASE_PALETTE["Grey"]
@@ -118,6 +128,7 @@ DATA_STAGE = ROOT_DIR / "data-stage"
 OUTPUT_DIR = ROOT_DIR / "outputs" / "graphs"
 TEXT_DIR = OUTPUT_DIR / "descriptions"
 DIAGNOSTIC_DIR = OUTPUT_DIR / "diagnostics"
+AUDIT_DIR = ensure_audit_dir(ROOT_DIR)
 
 LONG_PATH = DATA_STAGE / "susp_v6_long.parquet"
 FEAT_PATH = DATA_STAGE / "susp_v6_features.parquet"
@@ -350,6 +361,14 @@ def load_joined_data() -> pd.DataFrame:
     if SETTINGS_TO_INCLUDE:
         joined = joined[joined["setting"].isin(SETTINGS_TO_INCLUDE)].copy()
 
+    joined = audit_counts_against_enrollment(
+        joined,
+        count_columns=["total_suspensions"],
+        enrollment_column="cumulative_enrollment",
+        context="06_statewide_trends.load_joined_data",
+        audit_dir=AUDIT_DIR,
+    )
+
     return joined
 
 
@@ -375,6 +394,12 @@ def compute_group_rates(base: pd.DataFrame, extra_fields: Sequence[str]) -> pd.D
     grouped = grouped[grouped["cumulative_enrollment"] > 0]
     grouped["rate"] = grouped["total_suspensions"] / grouped["cumulative_enrollment"]
     grouped = grouped.dropna(subset=["rate"])
+    grouped = sanitize_rate_column(
+        grouped,
+        rate_column="rate",
+        context="06_statewide_trends.compute_group_rates",
+        audit_dir=AUDIT_DIR,
+    )
     grouped = grouped.sort_values([*extra_fields, "subgroup", "academic_year"])
     return grouped
 
@@ -670,7 +695,7 @@ def build_level_figure(
 
             finalize_figure(
                 fig,
-                title=f"Suspension Rates by Race – {level} Schools",
+                title=f"Suspension Rates by Race — {level} Schools",
                 subtitle=subtitle,
                 caption=caption,
                 handles=handles,
@@ -681,7 +706,7 @@ def build_level_figure(
 
             filename = f"PY6_statewide_race_trends_by_level_{slugify_for_filename(level)}.png"
             out_path = OUTPUT_DIR / filename
-            fig.savefig(out_path, dpi=320)
+            fig.savefig(out_path, dpi=300)
             plt.close(fig)
             saved_paths.append(out_path)
 
@@ -754,7 +779,7 @@ def build_locale_figure(
 
             finalize_figure(
                 fig,
-                title=f"Suspension Rates by Race – {locale} Schools",
+                title=f"Suspension Rates by Race — {locale} Schools",
                 subtitle=subtitle,
                 caption=caption,
                 handles=handles,
@@ -765,7 +790,7 @@ def build_locale_figure(
 
             filename = f"PY6_statewide_race_trends_by_locale_{slugify_for_filename(locale)}.png"
             out_path = OUTPUT_DIR / filename
-            fig.savefig(out_path, dpi=320)
+            fig.savefig(out_path, dpi=300)
             plt.close(fig)
             saved_paths.append(out_path)
 
@@ -956,7 +981,7 @@ def build_locale_snapshot_figure(
         fig.subplots_adjust(left=0.17, right=0.98, top=0.83, bottom=0.16, wspace=0.08)
 
         out_path = OUTPUT_DIR / "statewide_race_trends_by_locale_2023_24_horizontal.png"
-        fig.savefig(out_path, dpi=320)
+        fig.savefig(out_path, dpi=300)
         plt.close(fig)
         saved_path = out_path
 
@@ -1076,7 +1101,7 @@ def build_level_snapshot_figure(
         fig.subplots_adjust(left=0.17, right=0.98, top=0.83, bottom=0.16, wspace=0.1)
 
         out_path = OUTPUT_DIR / "statewide_race_trends_by_level_2023_24_horizontal.png"
-        fig.savefig(out_path, dpi=320)
+        fig.savefig(out_path, dpi=300)
         plt.close(fig)
         saved_path = out_path
 
@@ -1180,7 +1205,7 @@ def build_quartile_figure(
         )
 
         out_path = OUTPUT_DIR / output_filename
-        fig.savefig(out_path, dpi=320)
+        fig.savefig(out_path, dpi=300)
         plt.close(fig)
 
     return data, year_order

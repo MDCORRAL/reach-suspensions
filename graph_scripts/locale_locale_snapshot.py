@@ -10,6 +10,10 @@ from typing import Any
 import pandas as pd
 import pyarrow.parquet as pq
 
+from data_validations import audit_counts_against_enrollment, ensure_audit_dir
+
+AUDIT_DIR = ensure_audit_dir(Path(__file__).resolve().parent.parent)
+
 
 def load_statewide_module() -> Any:
     script_path = Path(__file__).resolve().with_name("06_statewide_trends.py")
@@ -65,6 +69,14 @@ def load_minimal_joined(module: Any) -> pd.DataFrame:
         {True: "Traditional", False: "Non-traditional"}
     )
     joined["setting"] = joined["setting"].astype("string")
+
+    joined = audit_counts_against_enrollment(
+        joined,
+        count_columns=["total_suspensions"],
+        enrollment_column="cumulative_enrollment",
+        context="locale_locale_snapshot.load_minimal_joined",
+        audit_dir=AUDIT_DIR,
+    )
 
     return joined
 

@@ -105,6 +105,26 @@ if (!is.na(preferred_feature) && basename(FEATURE_PATH) != preferred_feature) {
   message("Using features: ", basename(FEATURE_PATH))
 }
 
+## -------------------------------------------------------------------------
+## Enforce version matching (Audit Recommendation #1)
+## -------------------------------------------------------------------------
+
+input_version_num <- stringr::str_extract(basename(INPUT_PATH), "(?<=v)[0-9]+")
+feature_version_num <- stringr::str_extract(basename(FEATURE_PATH), "(?<=v)[0-9]+")
+
+if (is.na(input_version_num) || is.na(feature_version_num)) {
+  stop("VERSION DETECTION FAILED: Cannot extract version numbers from file names.")
+}
+
+if (input_version_num != feature_version_num) {
+  stop(
+    "VERSION MISMATCH: Suspension v", input_version_num,
+    " incompatible with Features v", feature_version_num
+  )
+}
+
+message("✓ Version check passed: v", input_version_num)
+
 required_files <- c(INPUT_PATH, FEATURE_PATH)
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {

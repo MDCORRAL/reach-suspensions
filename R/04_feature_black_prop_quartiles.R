@@ -106,14 +106,14 @@ stopifnot(
 stopifnot(anyDuplicated(rb_rw_ta[c("academic_year","cds_school")]) == 0)
 
 # (B) Quartile counts per year (Black & White)
-v3 %>%
+quartile_counts <- v3 %>%
   distinct(academic_year, cds_school, black_prop_q_label, white_prop_q_label, hispanic_prop_q_label) %>%
   count(academic_year, black_prop_q_label, white_prop_q_label, hispanic_prop_q_label) %>%
-  arrange(academic_year, black_prop_q_label, white_prop_q_label, hispanic_prop_q_label) %>%
-  print(n = 60)
+  arrange(academic_year, black_prop_q_label, white_prop_q_label, hispanic_prop_q_label)
+print(quartile_counts, n = 60)
 
 # (C) Why Unknown? (All missing/zero or subgroup missing)
-v3 %>%
+unknown_reasons <- v3 %>%
   mutate(
     unknown_black_reason = case_when(
       is.na(prop_black) & (is.na(enroll_All) | enroll_All <= 0) ~ "All missing/zero",
@@ -132,11 +132,11 @@ v3 %>%
     )
   ) %>%
   count(academic_year, unknown_black_reason, unknown_white_reason, unknown_hispanic_reason) %>%
-  arrange(academic_year, unknown_black_reason, unknown_white_reason, unknown_hispanic_reason) %>%
-  print(n = 60)
+  arrange(academic_year, unknown_black_reason, unknown_white_reason, unknown_hispanic_reason)
+print(unknown_reasons, n = 60)
 
 # (D) Bounds: proportions in [0,1], Black/White <= All
-rb_rw_ta %>%
+bounds_check <- rb_rw_ta %>%
   summarise(
     any_black_oob = any(prop_black < 0 | prop_black > 1, na.rm = TRUE),
     any_white_oob = any(prop_white < 0 | prop_white > 1, na.rm = TRUE),
@@ -145,8 +145,8 @@ rb_rw_ta %>%
     any_White_gt_All  = any(enroll_White > enroll_All, na.rm = TRUE),
     any_Hispanic_gt_All = any(enroll_Hispanic > enroll_All, na.rm = TRUE),
     .by = academic_year
-  ) %>%
-  print(n = 60) # All should be FALSE
+  )
+print(bounds_check, n = 60) # All should be FALSE
 
 # --- write output -----------------------------------------------------------
 arrow::write_parquet(v3, here::here("data-stage", "susp_v3.parquet"))
