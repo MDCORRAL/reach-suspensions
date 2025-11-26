@@ -596,12 +596,12 @@ def plot_statewide(
     fig.text(0.10, 0.92, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
 
     # Add methodology and citation in the bottom margin to keep the plot area clear
-    _add_wrapped_text(fig, 0.10, 0.12, METHODOLOGY_TEXT, fontsize=7, color=TEXT_COLOR,
-                      ha="left", max_width=110)
+    _add_wrapped_text(fig, 0.10, 0.89, METHODOLOGY_TEXT, fontsize=7, color=TEXT_COLOR,
+                      ha="left", max_width=180)
     _add_wrapped_text(fig, 0.10, 0.07, STANDARD_CITATION, fontsize=6, color=CAPTION_COLOR,
-                      ha="left", max_width=110)
+                      ha="left", max_width=180)
 
-    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.32)
+    fig.subplots_adjust(left=0.12, right=0.96, top=0.78, bottom=0.32)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     output_path = output_dir / f"20_suspension_reason_trends_all_traditional_statewide.{suffix}"
