@@ -596,7 +596,7 @@ def plot_statewide(
     fig.text(0.10, 0.92, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
 
     # Add methodology and citation in the bottom margin to keep the plot area clear
-    _add_wrapped_text(fig, 0.10, 0.89, METHODOLOGY_TEXT, fontsize=7, color=TEXT_COLOR,
+    _add_wrapped_text(fig, 0.10, 0.85, METHODOLOGY_TEXT, fontsize=7, color=TEXT_COLOR,
                       ha="left", max_width=180)
     _add_wrapped_text(fig, 0.10, 0.07, STANDARD_CITATION, fontsize=6, color=CAPTION_COLOR,
                       ha="left", max_width=180)
