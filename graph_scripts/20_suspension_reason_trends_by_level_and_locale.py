@@ -325,7 +325,7 @@ def plot_level_locale(
     years = level_df["academic_year"].cat.categories
     x_positions = {year: idx for idx, year in enumerate(years)}
 
-    fig, ax = plt.subplots(figsize=(10, 6), dpi=dpi or 300)
+    fig, ax = plt.subplots(figsize=(11, 7.25), dpi=dpi or 300)
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
 
@@ -348,15 +348,18 @@ def plot_level_locale(
             markersize=6,
             linestyle=linestyle,
         )
+        y_offset = max(ys) * 0.02 + 0.1 if len(ys) else 0
         for x_val, y_val, rate_val in zip(xs, ys, reason_df["rate"]):
             label = _format_percent(rate_val)
             text = ax.text(
                 x_val,
-                y_val,
+                y_val + y_offset,
                 label,
                 color=color,
                 fontsize=9,
                 fontweight="bold",
+                ha="center",
+                va="bottom",
             )
             texts.append(text)
 
@@ -365,9 +368,11 @@ def plot_level_locale(
             adjust_text(
                 texts,
                 ax=ax,
-                expand_points=(1.1, 1.4),
-                expand_text=(1.1, 1.4),
+                expand_points=(1.3, 1.6),
+                expand_text=(1.2, 1.6),
                 only_move={"points": "y", "text": "xy"},
+                autoalign="y",
+                arrowprops={"arrowstyle": "-", "color": CAPTION_COLOR, "lw": 0.6},
             )
 
     ax.set_xticks(list(x_positions.values()))
@@ -385,7 +390,7 @@ def plot_level_locale(
 
     legend = ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.2),
+        bbox_to_anchor=(0.5, -0.28),
         ncol=3,
         frameon=False,
         labelcolor=TEXT_COLOR,
@@ -400,11 +405,11 @@ def plot_level_locale(
     title = f"{level} Schools ({locale}) — Suspension Rates by Reason"
     subtitle = "Traditional schools, 2017-18 through 2023-24 (no statewide reporting in 2020-21)"
 
-    fig.text(0.10, 0.94, title, fontsize=13, fontweight="bold", ha="left", color=TEXT_COLOR)
-    fig.text(0.10, 0.91, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
-    fig.text(0.10, 0.02, STANDARD_CITATION, fontsize=7, ha="left", color=CAPTION_COLOR)
+    fig.text(0.10, 0.96, title, fontsize=13, fontweight="bold", ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.93, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.06, STANDARD_CITATION, fontsize=7, ha="left", color=CAPTION_COLOR)
 
-    fig.subplots_adjust(left=0.12, right=0.95, top=0.86, bottom=0.18)
+    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.30)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     level_slug = _slugify(level)
@@ -438,7 +443,7 @@ def plot_statewide(
 
     x_positions = {year: idx for idx, year in enumerate(years)}
 
-    fig, ax = plt.subplots(figsize=(10, 6), dpi=dpi or 300)
+    fig, ax = plt.subplots(figsize=(11, 7.25), dpi=dpi or 300)
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
 
@@ -461,15 +466,18 @@ def plot_statewide(
             markersize=6,
             linestyle=linestyle,
         )
+        y_offset = max(ys) * 0.02 + 0.1 if len(ys) else 0
         for x_val, y_val, rate_val in zip(xs, ys, reason_df["rate"]):
             label = _format_percent(rate_val)
             text = ax.text(
                 x_val,
-                y_val,
+                y_val + y_offset,
                 label,
                 color=color,
                 fontsize=9,
                 fontweight="bold",
+                ha="center",
+                va="bottom",
             )
             texts.append(text)
 
@@ -478,9 +486,11 @@ def plot_statewide(
             adjust_text(
                 texts,
                 ax=ax,
-                expand_points=(1.1, 1.4),
-                expand_text=(1.1, 1.4),
+                expand_points=(1.3, 1.6),
+                expand_text=(1.2, 1.6),
                 only_move={"points": "y", "text": "xy"},
+                autoalign="y",
+                arrowprops={"arrowstyle": "-", "color": CAPTION_COLOR, "lw": 0.6},
             )
 
     ax.set_xticks(list(x_positions.values()))
@@ -498,7 +508,7 @@ def plot_statewide(
 
     legend = ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.2),
+        bbox_to_anchor=(0.5, -0.28),
         ncol=3,
         frameon=False,
         labelcolor=TEXT_COLOR,
@@ -513,11 +523,11 @@ def plot_statewide(
     title = "All Traditional Schools — Statewide Suspension Rates by Reason"
     subtitle = "All traditional public schools, 2017-18 through 2023-24 (no statewide reporting in 2020-21)"
 
-    fig.text(0.10, 0.94, title, fontsize=13, fontweight="bold", ha="left", color=TEXT_COLOR)
-    fig.text(0.10, 0.91, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
-    fig.text(0.10, 0.02, STANDARD_CITATION, fontsize=7, ha="left", color=CAPTION_COLOR)
+    fig.text(0.10, 0.96, title, fontsize=13, fontweight="bold", ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.93, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
+    fig.text(0.10, 0.06, STANDARD_CITATION, fontsize=7, ha="left", color=CAPTION_COLOR)
 
-    fig.subplots_adjust(left=0.12, right=0.95, top=0.86, bottom=0.18)
+    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.30)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     output_path = output_dir / f"20_suspension_reason_trends_all_traditional_statewide.{suffix}"
