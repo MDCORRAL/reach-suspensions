@@ -292,7 +292,7 @@ def plot_level(
 
     legend = ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.12),
+        bbox_to_anchor=(0.5, -0.06),
         ncol=3,
         frameon=False,
         labelcolor=TEXT_COLOR,
@@ -311,12 +311,28 @@ def plot_level(
     fig.text(0.10, 0.92, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
 
     # Place methodology and citation in the expanded bottom margin below the axis and legend
-    _add_wrapped_text(fig, 0.10, 0.12, METHODOLOGY_TEXT, fontsize=7, color=TEXT_COLOR,
-                      ha="left", max_width=110)
-    _add_wrapped_text(fig, 0.10, 0.07, STANDARD_CITATION, fontsize=6, color=CAPTION_COLOR,
-                      ha="left", max_width=110)
+    _add_wrapped_text(
+        fig,
+        0.10,
+        0.055,
+        METHODOLOGY_TEXT,
+        fontsize=7,
+        color=TEXT_COLOR,
+        ha="left",
+        max_width=160,
+    )
+    _add_wrapped_text(
+        fig,
+        0.10,
+        0.025,
+        STANDARD_CITATION,
+        fontsize=6,
+        color=CAPTION_COLOR,
+        ha="left",
+        max_width=160,
+    )
 
-    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.32)
+    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.40)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     output_path = output_dir / f"20_suspension_reason_trends_{level.lower()}.{suffix}"
