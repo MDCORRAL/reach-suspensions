@@ -12,6 +12,7 @@ import argparse
 import io
 import math
 import sys
+import textwrap
 from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Iterable
@@ -76,6 +77,14 @@ DEFAULT_DATA_PATH = PROJECT_ROOT / "data-stage" / "susp_v6_long.parquet"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "20_reason_trends_by_level"
 DEFAULT_IMAGE_FORMAT = "png"
 AUDIT_DIR = ensure_audit_dir(PROJECT_ROOT)
+
+# Methodology explanation for charts
+METHODOLOGY_TEXT = (
+    "Methodology: Suspension rates are calculated as total suspensions divided by cumulative "
+    "enrollment for each academic year. Data aggregated by school level from individual "
+    "school-level reports. Rates represent the percentage of enrolled students who received "
+    "at least one suspension for each reason category."
+)
 
 # ----------------------------------------------------------------------------
 # Data preparation
@@ -176,6 +185,32 @@ def _format_percent(value: float) -> str:
     return f"{value * 100:.1f}%"
 
 
+def _add_wrapped_text(
+    fig,
+    x: float,
+    y: float,
+    text: str,
+    fontsize: int,
+    color: str,
+    max_width: int = 120,
+    **kwargs
+) -> None:
+    """Add wrapped text to a figure at the specified position.
+
+    Args:
+        fig: Matplotlib figure object
+        x: X position (0-1 in figure coordinates)
+        y: Y position (0-1 in figure coordinates)
+        text: Text to wrap and display
+        fontsize: Font size
+        color: Text color
+        max_width: Maximum character width before wrapping
+        **kwargs: Additional arguments passed to fig.text()
+    """
+    wrapped = textwrap.fill(text, width=max_width)
+    fig.text(x, y, wrapped, fontsize=fontsize, color=color, **kwargs)
+
+
 def plot_level(
     df: pd.DataFrame,
     level: str,
@@ -269,15 +304,22 @@ def plot_level(
     ax.set_ylim(bottom=0)
     ax.margins(x=0.02, y=0.05)
 
-    # Add title, subtitle and citation using fig.text for complete control
+    # Add title, subtitle, methodology, and citation using fig.text for complete control
     title = f"{level} Schools — Suspension Rates by Reason"
     subtitle = "Traditional schools, 2017-18 through 2023-24 (no statewide reporting in 2020-21)"
 
     fig.text(0.10, 0.96, title, fontsize=13, fontweight="bold", ha="left", color=TEXT_COLOR)
     fig.text(0.10, 0.93, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
-    fig.text(0.10, 0.06, STANDARD_CITATION, fontsize=7, ha="left", color=CAPTION_COLOR)
 
-    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.30)
+    # Add methodology explanation
+    _add_wrapped_text(fig, 0.10, 0.11, METHODOLOGY_TEXT, fontsize=7, color=TEXT_COLOR,
+                      ha="left", max_width=110)
+
+    # Add wrapped citation at the bottom
+    _add_wrapped_text(fig, 0.10, 0.02, STANDARD_CITATION, fontsize=6, color=CAPTION_COLOR,
+                      ha="left", max_width=110)
+
+    fig.subplots_adjust(left=0.12, right=0.96, top=0.84, bottom=0.21)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     output_path = output_dir / f"20_suspension_reason_trends_{level.lower()}.{suffix}"
