@@ -317,7 +317,7 @@ def plot_level(
         color=TEXT_COLOR,
         ha="left",
         va="top", ##updated alignment
-        max_width=200, #updated to stretch text
+        max_width=180, #updated to stretch text
     )
     _add_wrapped_text(
         fig,
@@ -328,7 +328,7 @@ def plot_level(
         color=CAPTION_COLOR,
         ha="left",
         va="bottom",
-        max_width=200, #updated to stretch along x axis
+        max_width=180, #updated to stretch along x axis
     )
 
     fig.subplots_adjust(left=0.06, right=0.94, top=0.78, bottom=0.30)
