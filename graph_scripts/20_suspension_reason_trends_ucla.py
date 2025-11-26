@@ -30,10 +30,11 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from palette_utils import DISCIPLINE_BASE_PALETTE, DISCIPLINE_REASON_PALETTE
+from palette_utils import DISCIPLINE_BASE_PALETTE, DISCIPLINE_REASON_PALETTE, STANDARD_CITATION
 from data_validations import audit_counts_against_enrollment, ensure_audit_dir, sanitize_rate_column
 
 TEXT_COLOR = DISCIPLINE_BASE_PALETTE["Darkest Blue"]
+CAPTION_COLOR = DISCIPLINE_BASE_PALETTE["Grey"]
 GRID_COLOR = DISCIPLINE_BASE_PALETTE["Lighter Blue"]
 
 REASON_COLUMNS = {
@@ -248,7 +249,12 @@ def plot_level(
     ax.set_ylim(bottom=0)
     ax.margins(x=0.02, y=0.15)
 
-    plt.tight_layout()
+    # Add subtitle and citation
+    subtitle = "Traditional schools, 2017-18 through 2023-24 (no statewide reporting in 2020-21)"
+    fig.text(0.07, 0.96, subtitle, fontsize=11, ha="left", color=TEXT_COLOR)
+    fig.text(0.07, 0.02, STANDARD_CITATION, fontsize=9, ha="left", color=CAPTION_COLOR, wrap=True)
+
+    fig.subplots_adjust(left=0.07, right=0.98, top=0.93, bottom=0.16)
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     output_path = output_dir / f"20_suspension_reason_trends_{level.lower()}.{suffix}"

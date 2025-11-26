@@ -695,7 +695,7 @@ def build_level_figure(
 
             finalize_figure(
                 fig,
-                title=f"Suspension Rates by Race – {level} Schools",
+                title=f"Suspension Rates by Race — {level} Schools",
                 subtitle=subtitle,
                 caption=caption,
                 handles=handles,
@@ -706,7 +706,7 @@ def build_level_figure(
 
             filename = f"PY6_statewide_race_trends_by_level_{slugify_for_filename(level)}.png"
             out_path = OUTPUT_DIR / filename
-            fig.savefig(out_path, dpi=320)
+            fig.savefig(out_path, dpi=300)
             plt.close(fig)
             saved_paths.append(out_path)
 
@@ -779,7 +779,7 @@ def build_locale_figure(
 
             finalize_figure(
                 fig,
-                title=f"Suspension Rates by Race – {locale} Schools",
+                title=f"Suspension Rates by Race — {locale} Schools",
                 subtitle=subtitle,
                 caption=caption,
                 handles=handles,
@@ -790,7 +790,7 @@ def build_locale_figure(
 
             filename = f"PY6_statewide_race_trends_by_locale_{slugify_for_filename(locale)}.png"
             out_path = OUTPUT_DIR / filename
-            fig.savefig(out_path, dpi=320)
+            fig.savefig(out_path, dpi=300)
             plt.close(fig)
             saved_paths.append(out_path)
 
@@ -981,7 +981,7 @@ def build_locale_snapshot_figure(
         fig.subplots_adjust(left=0.17, right=0.98, top=0.83, bottom=0.16, wspace=0.08)
 
         out_path = OUTPUT_DIR / "statewide_race_trends_by_locale_2023_24_horizontal.png"
-        fig.savefig(out_path, dpi=320)
+        fig.savefig(out_path, dpi=300)
         plt.close(fig)
         saved_path = out_path
 
@@ -1101,7 +1101,7 @@ def build_level_snapshot_figure(
         fig.subplots_adjust(left=0.17, right=0.98, top=0.83, bottom=0.16, wspace=0.1)
 
         out_path = OUTPUT_DIR / "statewide_race_trends_by_level_2023_24_horizontal.png"
-        fig.savefig(out_path, dpi=320)
+        fig.savefig(out_path, dpi=300)
         plt.close(fig)
         saved_path = out_path
 
@@ -1205,7 +1205,7 @@ def build_quartile_figure(
         )
 
         out_path = OUTPUT_DIR / output_filename
-        fig.savefig(out_path, dpi=320)
+        fig.savefig(out_path, dpi=300)
         plt.close(fig)
 
     return data, year_order
