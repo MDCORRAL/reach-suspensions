@@ -46,7 +46,8 @@ def audit_counts_against_enrollment(
     working["_row_id"] = np.arange(len(working))
 
     negative_counts = (working[list(count_columns)] < 0).any(axis=1)
-    over_enrollment = (working[list(count_columns)] > working[enrollment_column]).any(axis=1)
+    # Use .gt() with axis=0 to properly broadcast the enrollment column across all count columns
+    over_enrollment = working[list(count_columns)].gt(working[enrollment_column], axis=0).any(axis=1)
     invalid_enrollment = working[enrollment_column] < 0
 
     invalid_mask = negative_counts | over_enrollment | invalid_enrollment
