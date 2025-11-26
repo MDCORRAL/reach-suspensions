@@ -9,8 +9,10 @@ parquet export and renders one chart per school level, storing the images in
 from __future__ import annotations
 
 import argparse
+import io
 import math
 import sys
+from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Iterable
 
