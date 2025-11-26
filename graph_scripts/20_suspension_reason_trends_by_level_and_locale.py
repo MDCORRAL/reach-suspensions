@@ -459,13 +459,13 @@ def plot_level_locale(
     _add_wrapped_text(
         fig,
         0.10,
-        0.06,
+        0.89, #updated
         METHODOLOGY_TEXT,
         fontsize=7,
         color=TEXT_COLOR,
         ha="left",
-        va="bottom",
-        max_width=150,
+        va="top", #updated
+        max_width=180, #updated
     )
     _add_wrapped_text(
         fig,
@@ -476,10 +476,10 @@ def plot_level_locale(
         color=CAPTION_COLOR,
         ha="left",
         va="bottom",
-        max_width=150,
+        max_width=180,
     )
 
-    fig.subplots_adjust(left=0.06, right=0.94, top=0.84, bottom=0.30)
+    fig.subplots_adjust(left=0.06, right=0.94, top=0.78, bottom=0.30) #updated
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
     level_slug = _slugify(level)
