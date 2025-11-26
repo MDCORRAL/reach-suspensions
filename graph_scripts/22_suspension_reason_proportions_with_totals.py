@@ -1,12 +1,12 @@
-"""Generate UCLA-branded chart showing suspension reason "replacement" phenomenon.
+"""Generate chart showing suspension reason proportions with total suspension context.
 
-This module creates a dual-panel visualization showing:
-1. Absolute suspension rates by category over time
-2. Indexed trends (2017-18 = 100%) to highlight diverging trajectories
+This module creates a visualization combining:
+1. Line charts showing each suspension category as a proportion of total suspensions
+2. Background bar chart showing total suspension counts
 
-The goal is to clearly show how willful defiance suspensions have declined while
-other suspension categories have increased, suggesting a possible "replacement"
-phenomenon where schools may be shifting from one category to others.
+The goal is to demonstrate the "replacement phenomenon" where Willful Defiance
+declines proportionally while other categories increase, while the total number
+of suspensions remains relatively stable.
 """
 
 from __future__ import annotations
@@ -44,14 +44,13 @@ missing = [
 if missing:
     hints = [f"- {name}: {REQUIRED_MODULES[name]}" for name in missing]
     message = (
-        "Missing required Python packages for 21_suspension_reason_replacement_analysis.\n"
+        "Missing required Python packages for 22_suspension_reason_proportions_with_totals.\n"
         "Install the dependencies before running (e.g., pip install -r graph_scripts/requirements.txt).\n"
         "Missing modules:\n" + "\n".join(hints)
     )
     raise SystemExit(message)
 
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
@@ -93,16 +92,16 @@ except NameError:  # pragma: no cover - interactive contexts without __file__
         PROJECT_ROOT = Path.cwd()
 
 DEFAULT_DATA_PATH = PROJECT_ROOT / "data-stage" / "susp_v6_long.parquet"
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "custom"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "22_suspension_reason_proportions"
 DEFAULT_IMAGE_FORMAT = "png"
 AUDIT_DIR = ensure_audit_dir(PROJECT_ROOT)
 
 # Methodology explanation for charts
 METHODOLOGY_TEXT = (
-    "Methodology: Suspension rates calculated as suspensions divided by cumulative enrollment for each academic year. "
-    "Data aggregated from all traditional (non-charter) elementary, middle, and high schools statewide. "
-    "Chart shows absolute rates to highlight the diverging trends between declining willful defiance suspensions "
-    "and increasing rates in other categories."
+    "Methodology: Each suspension category's proportion is calculated as that category's count "
+    "divided by the total suspension count for the year (across all categories). Background bars "
+    "show total suspension counts to provide context. Data aggregated from all traditional "
+    "(non-charter) elementary, middle, and high schools statewide."
 )
 
 # ----------------------------------------------------------------------------
@@ -128,10 +127,13 @@ def load_data(data_path: Path) -> pd.DataFrame:
     return parquet_table.to_pandas()
 
 
-def prepare_rate_data(raw_df: pd.DataFrame) -> pd.DataFrame:
-    """Filter and aggregate suspension reasons to calculate rates by category.
+def prepare_proportion_data(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Filter and aggregate suspension reasons to calculate proportions.
 
-    Returns a DataFrame with academic_year, reason_label, and rate columns.
+    Returns:
+        tuple: (proportion_df, totals_df)
+            - proportion_df: DataFrame with academic_year, reason_label, and proportion columns
+            - totals_df: DataFrame with academic_year and total_suspensions columns
     """
 
     # Filter to traditional schools, all students, race/ethnicity category
@@ -168,13 +170,19 @@ def prepare_rate_data(raw_df: pd.DataFrame) -> pd.DataFrame:
         aggregated,
         count_columns=list(REASON_COLUMNS.keys()),
         enrollment_column="cumulative_enrollment",
-        context="21_replacement.aggregated",
+        context="21_proportions.aggregated",
         audit_dir=AUDIT_DIR,
     )
 
-    # Melt to long format
+    # Calculate total suspensions per year
+    aggregated["total_suspensions"] = aggregated[list(REASON_COLUMNS.keys())].sum(axis=1)
+
+    # Prepare totals DataFrame
+    totals_df = aggregated[["academic_year", "total_suspensions"]].copy()
+
+    # Melt to long format for proportions
     melted = aggregated.melt(
-        id_vars=["academic_year", "cumulative_enrollment"],
+        id_vars=["academic_year", "total_suspensions"],
         value_vars=list(REASON_COLUMNS.keys()),
         var_name="reason",
         value_name="count",
@@ -182,25 +190,22 @@ def prepare_rate_data(raw_df: pd.DataFrame) -> pd.DataFrame:
 
     melted["reason_label"] = melted["reason"].map(REASON_COLUMNS)
 
-    # Calculate rates
-    melted["rate"] = np.where(
-        melted["cumulative_enrollment"] > 0,
-        melted["count"] / melted["cumulative_enrollment"],
+    # Calculate proportions (count / total_suspensions)
+    melted["proportion"] = np.where(
+        melted["total_suspensions"] > 0,
+        melted["count"] / melted["total_suspensions"],
         np.nan,
     )
 
     melted = melted.dropna(subset=["reason_label"]).copy()
-    melted = sanitize_rate_column(
-        melted,
-        rate_column="rate",
-        context="21_replacement.melted",
-        audit_dir=AUDIT_DIR,
-    )
+
+    # Clip proportions to [0, 1] range
+    melted["proportion"] = melted["proportion"].clip(0, 1)
 
     if melted.empty:
-        raise SystemExit("No suspension reason data available after filtering.")
+        raise SystemExit("No suspension proportion data available after filtering.")
 
-    return melted
+    return melted, totals_df
 
 
 # ----------------------------------------------------------------------------
@@ -212,6 +217,13 @@ def _format_percent(value: float) -> str:
     if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
         return "NA"
     return f"{value * 100:.1f}%"
+
+
+def _format_count(value: float) -> str:
+    """Format a count with thousands separator."""
+    if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+        return "NA"
+    return f"{value:,.0f}"
 
 
 def _add_wrapped_text(
@@ -240,56 +252,87 @@ def _add_wrapped_text(
     fig.text(x, y, wrapped, fontsize=fontsize, color=color, **kwargs)
 
 
-def plot_replacement_phenomenon(
-    df: pd.DataFrame,
+def plot_proportions_with_totals(
+    proportion_df: pd.DataFrame,
+    totals_df: pd.DataFrame,
     output_dir: Path,
     image_format: str = DEFAULT_IMAGE_FORMAT,
     dpi: int | None = None,
 ) -> None:
-    """Render a chart showing suspension reason trends highlighting replacement phenomenon."""
+    """Render a chart showing suspension reason proportions with total suspensions as background."""
 
-    if df.empty:
-        print("Skipping replacement chart: no data to plot.")
+    if proportion_df.empty or totals_df.empty:
+        print("Skipping proportion chart: no data to plot.")
         return
 
     # Get unique years
-    if isinstance(df["academic_year"].dtype, pd.CategoricalDtype):
-        years = df["academic_year"].cat.categories.tolist()
+    if isinstance(proportion_df["academic_year"].dtype, pd.CategoricalDtype):
+        years = proportion_df["academic_year"].cat.categories.tolist()
     else:
-        years = sorted(df["academic_year"].unique())
+        years = sorted(proportion_df["academic_year"].unique())
 
     x_positions = {year: idx for idx, year in enumerate(years)}
 
-    # Create figure with single panel
-    fig, ax = plt.subplots(figsize=(12, 8), dpi=dpi or 300)
+    # Create figure with dual y-axes
+    fig, ax1 = plt.subplots(figsize=(14, 8), dpi=dpi or 300)
     fig.patch.set_facecolor("white")
-    ax.set_facecolor("white")
+    ax1.set_facecolor("white")
 
-    # Plot each reason category
+    # Create second y-axis for total suspensions
+    ax2 = ax1.twinx()
+
+    # --- BACKGROUND: Bar chart of total suspensions (ax2 - right y-axis) ---
+    totals_sorted = totals_df.sort_values("academic_year")
+    bar_xs = [x_positions[year] for year in totals_sorted["academic_year"]]
+    bar_ys = totals_sorted["total_suspensions"].to_numpy()
+
+    ax2.bar(
+        bar_xs,
+        bar_ys,
+        color=DISCIPLINE_BASE_PALETTE["Lighter Blue"],
+        alpha=0.2,
+        width=0.6,
+        label="Total Suspensions",
+        zorder=1,
+    )
+
+    # Configure right y-axis (total suspensions)
+    ax2.set_ylabel(
+        "Total Suspensions",
+        color=DISCIPLINE_BASE_PALETTE["Darker Blue"],
+        fontweight="bold",
+        fontsize=11,
+    )
+    ax2.tick_params(axis="y", colors=DISCIPLINE_BASE_PALETTE["Darker Blue"])
+    ax2.set_ylim(bottom=0)
+
+    # --- FOREGROUND: Line charts of proportions (ax1 - left y-axis) ---
     for reason_label in REASON_COLUMNS.values():
-        reason_df = df[df["reason_label"] == reason_label].copy()
+        reason_df = proportion_df[proportion_df["reason_label"] == reason_label].copy()
         if reason_df.empty:
             continue
 
         reason_df = reason_df.sort_values("academic_year")
         xs = [x_positions[year] for year in reason_df["academic_year"]]
-        ys = reason_df["rate"].to_numpy() * 100
+        ys = reason_df["proportion"].to_numpy() * 100  # Convert to percentage
 
         # Special styling for Willful Defiance
         if reason_label == "Willful Defiance":
             linestyle = "--"
-            linewidth = 3.0
+            linewidth = 3.5
             marker = "s"
-            markersize = 8
+            markersize = 9
+            alpha = 1.0
         else:
             linestyle = "-"
             linewidth = 2.5
             marker = "o"
-            markersize = 6
+            markersize = 7
+            alpha = 0.9
 
         color = REASON_PALETTE.get(reason_label, DISCIPLINE_BASE_PALETTE["Grey"])
 
-        ax.plot(
+        ax1.plot(
             xs,
             ys,
             label=reason_label,
@@ -298,94 +341,73 @@ def plot_replacement_phenomenon(
             marker=marker,
             markersize=markersize,
             linestyle=linestyle,
-            alpha=0.9,
+            alpha=alpha,
+            zorder=10,  # Ensure lines appear above bars
         )
 
-        # Add value labels at endpoints only for cleaner look
-        if len(xs) > 0:
-            # First point
-            ax.text(
-                xs[0],
-                ys[0],
-                _format_percent(reason_df["rate"].iloc[0]),
-                color=color,
-                fontsize=8,
-                fontweight="bold",
-                ha="right",
-                va="bottom",
-            )
-            # Last point
-            ax.text(
-                xs[-1],
-                ys[-1],
-                _format_percent(reason_df["rate"].iloc[-1]),
-                color=color,
-                fontsize=8,
-                fontweight="bold",
-                ha="left",
-                va="bottom",
-            )
+    # Configure left y-axis (proportions)
+    ax1.set_ylabel(
+        "Proportion of Total Suspensions (%)",
+        color=TEXT_COLOR,
+        fontweight="bold",
+        fontsize=11,
+    )
+    ax1.tick_params(axis="y", colors=TEXT_COLOR)
+    ax1.set_ylim(0, 100)
 
-    # Configure axes
-    ax.set_xticks(list(x_positions.values()))
-    ax.set_xticklabels(years, rotation=45, ha="right", color=TEXT_COLOR, fontweight="bold")
-    ax.tick_params(axis="y", colors=TEXT_COLOR)
+    # Configure x-axis
+    ax1.set_xticks(list(x_positions.values()))
+    ax1.set_xticklabels(years, rotation=45, ha="right", color=TEXT_COLOR, fontweight="bold")
+    ax1.set_xlabel("Academic Year", color=TEXT_COLOR, fontweight="bold", fontsize=11)
 
-    ax.set_ylabel("Suspension Rate (Percent)", color=TEXT_COLOR, fontweight="bold", fontsize=11)
-    ax.set_xlabel("Academic Year", color=TEXT_COLOR, fontweight="bold", fontsize=11)
-
-    # Grid styling
-    ax.grid(True, axis="y", color=GRID_COLOR, linestyle="-", linewidth=0.8, alpha=0.5)
-    ax.grid(False, axis="x")
+    # Grid styling (on ax1 only)
+    ax1.grid(True, axis="y", color=GRID_COLOR, linestyle="-", linewidth=0.8, alpha=0.5, zorder=0)
+    ax1.grid(False, axis="x")
 
     # Remove spines for cleaner look
-    for spine in ax.spines.values():
+    for spine in ax1.spines.values():
+        spine.set_visible(False)
+    for spine in ax2.spines.values():
         spine.set_visible(False)
 
-    # Legend positioned BELOW x-axis label
-    legend = ax.legend(
+    # Combined legend positioned BELOW x-axis label
+    # Get handles and labels from both axes
+    handles1, labels1 = ax1.get_legend_handles_labels()
+    handles2, labels2 = ax2.get_legend_handles_labels()
+
+    # Combine (lines first, then bar)
+    all_handles = handles1 + handles2
+    all_labels = labels1 + labels2
+
+    legend = ax1.legend(
+        all_handles,
+        all_labels,
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.18),
-        ncol=3,
+        bbox_to_anchor=(0.5, -0.16),
+        ncol=4,
         frameon=False,
         labelcolor=TEXT_COLOR,
-        fontsize=10,
+        fontsize=9,
     )
     for text in legend.get_texts():
         text.set_fontweight("bold")
 
-    ax.set_ylim(bottom=0)
-    ax.margins(x=0.05, y=0.08)
-
-    # Add annotation callouts for key trends
-    # Find willful defiance data
-    defiance_df = df[df["reason_label"] == "Willful Defiance"].sort_values("academic_year")
-    if not defiance_df.empty and len(defiance_df) >= 2:
-        first_rate = defiance_df["rate"].iloc[0] * 100
-        last_rate = defiance_df["rate"].iloc[-1] * 100
-        pct_change = ((last_rate - first_rate) / first_rate) * 100 if first_rate > 0 else 0
-
-        # Add annotation box
-        annotation_text = f"Willful Defiance:\n{pct_change:.0f}% decline"
-        ax.text(
-            0.98,
-            0.95,
-            annotation_text,
-            transform=ax.transAxes,
-            fontsize=10,
-            fontweight="bold",
-            color="red",
-            ha="right",
-            va="top",
-            bbox=dict(boxstyle="round,pad=0.5", facecolor="white", edgecolor="red", linewidth=2)
-        )
+    ax1.margins(x=0.03)
 
     # Add title, subtitle, methodology, and citation
-    title = "Traditional Schools Statewide — Suspension Rate Trends by Reason"
-    subtitle = "Showing Potential \"Replacement\" Phenomenon: Willful Defiance Declining, Other Categories Increasing"
+    title = "Traditional Schools Statewide — Suspension Reason Trends"
+    subtitle = "Proportional Replacement: Willful Defiance Declining as Other Categories Increase"
 
     fig.text(0.08, 0.97, title, fontsize=14, fontweight="bold", ha="left", color=TEXT_COLOR)
-    fig.text(0.08, 0.94, subtitle, fontsize=10, ha="left", color=DISCIPLINE_BASE_PALETTE["Darker Blue"], style="italic")
+    fig.text(
+        0.08,
+        0.94,
+        subtitle,
+        fontsize=10,
+        ha="left",
+        color=DISCIPLINE_BASE_PALETTE["Darker Blue"],
+        style="italic",
+    )
 
     _add_wrapped_text(
         fig,
@@ -410,12 +432,12 @@ def plot_replacement_phenomenon(
         max_width=180,
     )
 
-    fig.subplots_adjust(left=0.08, right=0.96, top=0.82, bottom=0.28)
+    fig.subplots_adjust(left=0.08, right=0.92, top=0.82, bottom=0.26)
 
     # Save figure
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
-    output_path = output_dir / f"suspension_reason_replacement_phenomenon.{suffix}"
+    output_path = output_dir / f"suspension_reason_proportions_with_totals.{suffix}"
     save_kwargs = {"format": suffix}
     if suffix != "svg" and dpi is not None:
         save_kwargs["dpi"] = dpi
@@ -456,15 +478,16 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     raw_df = load_data(args.data_path)
-    rate_df = prepare_rate_data(raw_df)
+    proportion_df, totals_df = prepare_proportion_data(raw_df)
     dpi = args.dpi if args.image_format != "svg" else None
-    plot_replacement_phenomenon(
-        rate_df,
+    plot_proportions_with_totals(
+        proportion_df,
+        totals_df,
         output_dir=args.output_dir,
         image_format=args.image_format,
         dpi=dpi,
     )
-    print(f"Replacement phenomenon chart generation complete.")
+    print(f"Proportion with totals chart generation complete.")
 
 
 if __name__ == "__main__":

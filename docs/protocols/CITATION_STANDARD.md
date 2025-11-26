@@ -101,7 +101,7 @@ The following files have been updated to use the standardized citation:
 - `graph_scripts/07_quartile_enrollment_comparison.R`
 - `graph_scripts/08_comprehensive_rates_plots.R`
 - `graph_scripts/09_nonrace_demographic_trends.R`
-- `graph_scripts/21_black_quartile_suspension_trends.R`
+- `graph_scripts/10_black_quartile_suspension_trends.R`
 
 ### Python Graph Scripts
 - `graph_scripts/06_statewide_trends.py`

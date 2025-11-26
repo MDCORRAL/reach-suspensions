@@ -1,6 +1,17 @@
 # Graph scripts
 
-This directory contains Python helpers used to produce statewide suspension graphics. The most common entry point is the statewide trends script described below.
+This directory contains R and Python scripts used to produce suspension graphics and visualizations. Scripts are organized by analysis type using a numbered prefix system.
+
+## Script Organization
+
+Scripts are numbered to indicate their purpose and logical grouping:
+
+- **01-09**: Basic R visualization scripts (statewide disparities, quartiles, demographics)
+- **10-19**: R quartile and demographic analysis scripts
+- **20-29**: Python suspension reason analysis scripts
+- **30+**: Reserved for future analyses
+
+This organization ensures clear separation of script types and prevents numbering conflicts.
 
 ## Python requirements
 
