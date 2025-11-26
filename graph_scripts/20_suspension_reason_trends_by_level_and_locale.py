@@ -438,7 +438,7 @@ def plot_level_locale(
 
     legend = ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.15),
+        bbox_to_anchor=(0.5, -0.25),
         ncol=3,
         frameon=False,
         labelcolor=TEXT_COLOR,
@@ -456,25 +456,15 @@ def plot_level_locale(
     fig.text(0.10, 0.96, title, fontsize=13, fontweight="bold", ha="left", color=TEXT_COLOR)
     fig.text(0.10, 0.92, subtitle, fontsize=9, ha="left", color=TEXT_COLOR)
 
-    # Place methodology and citation in the expanded bottom margin below the axis and legend
+    # Place methodology and citation together in the expanded bottom margin below the axis and legend
+    footer_text = f"{METHODOLOGY_TEXT}\n\n{STANDARD_CITATION}"
     _add_wrapped_text(
         fig,
         0.10,
-        0.35,
-        METHODOLOGY_TEXT,
+        0.20,
+        footer_text,
         fontsize=7,
         color=TEXT_COLOR,
-        ha="left",
-        va="top",
-        max_width=160,
-    )
-    _add_wrapped_text(
-        fig,
-        0.10,
-        0.08,
-        STANDARD_CITATION,
-        fontsize=6,
-        color=CAPTION_COLOR,
         ha="left",
         va="top",
         max_width=160,
