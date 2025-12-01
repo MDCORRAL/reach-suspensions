@@ -96,12 +96,12 @@ DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "21_suspension_reason_proportion
 DEFAULT_IMAGE_FORMAT = "png"
 AUDIT_DIR = ensure_audit_dir(PROJECT_ROOT)
 
-# Methodology explanation for charts
+# Methodology explanation for charts (simplified for non-experts)
 METHODOLOGY_TEXT = (
-    "Methodology: Each suspension category's proportion is calculated as that category's count "
-    "divided by the total suspension count for the year (across all categories). Background bars "
-    "show total suspension counts to provide context. Data aggregated from all traditional "
-    "(non-charter) elementary, middle, and high schools statewide."
+    "How to Read This Chart:\n"
+    "• Colored lines (left axis) show each category as a % of all suspensions that year\n"
+    "• Light blue bars (right axis) show the total number of suspensions\n"
+    "• Data includes all traditional (non-charter) elementary, middle, and high schools statewide"
 )
 
 # ----------------------------------------------------------------------------
@@ -226,6 +226,18 @@ def _format_count(value: float) -> str:
     return f"{value:,.0f}"
 
 
+def _format_count_compact(value: float) -> str:
+    """Format a count in compact notation (e.g., 120K, 1.2M) for chart labels."""
+    if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+        return "NA"
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.1f}M"
+    elif value >= 1_000:
+        return f"{value / 1_000:.0f}K"
+    else:
+        return f"{value:.0f}"
+
+
 def _add_wrapped_text(
     fig,
     x: float,
@@ -286,25 +298,44 @@ def plot_proportions_with_totals(
     bar_xs = [x_positions[year] for year in totals_sorted["academic_year"]]
     bar_ys = totals_sorted["total_suspensions"].to_numpy()
 
-    ax2.bar(
+    bars = ax2.bar(
         bar_xs,
         bar_ys,
         color=DISCIPLINE_BASE_PALETTE["Lighter Blue"],
-        alpha=0.2,
+        alpha=0.25,  # Slightly increased from 0.2 for better visibility
         width=0.6,
-        label="Total Suspensions",
+        edgecolor=DISCIPLINE_BASE_PALETTE["Darker Blue"],
+        linewidth=1.0,
+        label="Total Suspensions (Background)",
         zorder=1,
     )
 
+    # Add data labels to bars
+    for bar, value in zip(bars, bar_ys):
+        height = bar.get_height()
+        # Position label at top of bar
+        ax2.text(
+            bar.get_x() + bar.get_width() / 2,
+            height,
+            _format_count_compact(value),
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            fontweight="bold",
+            color=DISCIPLINE_BASE_PALETTE["Darker Blue"],
+            zorder=2,  # Ensure labels appear above bars
+        )
+
     # Configure right y-axis (total suspensions)
     ax2.set_ylabel(
-        "Total Suspensions",
+        "Total Suspensions\n(Background Bars)",
         color=DISCIPLINE_BASE_PALETTE["Darker Blue"],
         fontweight="bold",
         fontsize=11,
     )
     ax2.tick_params(axis="y", colors=DISCIPLINE_BASE_PALETTE["Darker Blue"])
-    ax2.set_ylim(bottom=0)
+    # Add padding at top to accommodate labels
+    ax2.set_ylim(bottom=0, top=max(bar_ys) * 1.08)
 
     # --- FOREGROUND: Line charts of proportions (ax1 - left y-axis) ---
     for reason_label in REASON_COLUMNS.values():
@@ -347,7 +378,7 @@ def plot_proportions_with_totals(
 
     # Configure left y-axis (proportions)
     ax1.set_ylabel(
-        "Proportion of Total Suspensions (%)",
+        "Percentage of Total Suspensions\n(Colored Lines)",
         color=TEXT_COLOR,
         fontweight="bold",
         fontsize=11,
@@ -370,33 +401,57 @@ def plot_proportions_with_totals(
     for spine in ax2.spines.values():
         spine.set_visible(False)
 
-    # Combined legend positioned BELOW x-axis label
+    # Create separate legends for better clarity
     # Get handles and labels from both axes
     handles1, labels1 = ax1.get_legend_handles_labels()
     handles2, labels2 = ax2.get_legend_handles_labels()
 
-    # Combine (lines first, then bar)
-    all_handles = handles1 + handles2
-    all_labels = labels1 + labels2
-
-    legend = ax1.legend(
-        all_handles,
-        all_labels,
+    # First legend: Suspension reason lines (top row)
+    legend1 = ax1.legend(
+        handles1,
+        labels1,
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.24), # updated
-        ncol=4,
-        frameon=False,
+        bbox_to_anchor=(0.5, -0.20),
+        ncol=3,
+        frameon=True,
+        fancybox=False,
+        edgecolor=GRID_COLOR,
         labelcolor=TEXT_COLOR,
         fontsize=9,
+        title="Suspension Reason Categories (Lines)",
+        title_fontsize=9,
     )
-    for text in legend.get_texts():
+    legend1.get_title().set_fontweight("bold")
+    for text in legend1.get_texts():
         text.set_fontweight("bold")
+
+    # Second legend: Total suspensions bar (bottom row)
+    legend2 = ax1.legend(
+        handles2,
+        labels2,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.30),
+        ncol=1,
+        frameon=True,
+        fancybox=False,
+        edgecolor=GRID_COLOR,
+        labelcolor=DISCIPLINE_BASE_PALETTE["Darker Blue"],
+        fontsize=9,
+        title="Context",
+        title_fontsize=9,
+    )
+    legend2.get_title().set_fontweight("bold")
+    for text in legend2.get_texts():
+        text.set_fontweight("bold")
+
+    # Add first legend back to the plot (matplotlib only keeps the last one by default)
+    ax1.add_artist(legend1)
 
     ax1.margins(x=0.03)
 
     # Add title, subtitle, methodology, and citation
     title = "Traditional Schools Statewide — Suspension Reason Trends"
-    subtitle = "Proportional Replacement: Willful Defiance Declining as Other Categories Increase"
+    subtitle = "Key Finding: As Willful Defiance drops, other categories increase — but total suspensions stay relatively stable"
 
     fig.text(0.08, 0.97, title, fontsize=14, fontweight="bold", ha="left", color=TEXT_COLOR)
     fig.text(
@@ -412,9 +467,9 @@ def plot_proportions_with_totals(
     _add_wrapped_text(
         fig,
         0.08,
-        0.91,
+        0.90,
         METHODOLOGY_TEXT,
-        fontsize=7,
+        fontsize=8,
         color=TEXT_COLOR,
         ha="left",
         va="top",
@@ -432,7 +487,8 @@ def plot_proportions_with_totals(
         max_width=180,
     )
 
-    fig.subplots_adjust(left=0.08, right=0.92, top=0.82, bottom=0.26)
+    # Adjusted bottom margin to accommodate two-row legend
+    fig.subplots_adjust(left=0.08, right=0.92, top=0.81, bottom=0.30)
 
     # Save figure
     output_dir.mkdir(parents=True, exist_ok=True)
