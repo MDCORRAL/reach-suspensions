@@ -1,7 +1,7 @@
 # Quartile Suspension Dashboard Alignment Plan
 
 ## Objective
-Establish a repeatable workflow to ensure that `quartile_suspension_dashboard.html` and the supporting R/Python scripts (`graph_scripts/02_statewide_quartiles.R`, `graph_scripts/07_quartile_enrollment_comparison.R`, `graph_scripts/21_black_quartile_suspension_trends.R`, and any related utilities) load identical data, apply consistent transformations, and produce harmonized outputs.
+Establish a repeatable workflow to ensure that `quartile_suspension_dashboard.html` and the supporting R/Python scripts (`graph_scripts/02_statewide_quartiles.R`, `graph_scripts/07_quartile_enrollment_comparison.R`, `graph_scripts/10_black_quartile_suspension_trends.R`, and any related utilities) load identical data, apply consistent transformations, and produce harmonized outputs.
 
 ## Phase 1 – Repository Survey & Baseline Validation
 1. **Inventory data sources**

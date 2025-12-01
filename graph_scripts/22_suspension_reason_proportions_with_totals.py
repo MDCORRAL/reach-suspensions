@@ -44,7 +44,7 @@ missing = [
 if missing:
     hints = [f"- {name}: {REQUIRED_MODULES[name]}" for name in missing]
     message = (
-        "Missing required Python packages for 21_suspension_reason_proportions_with_totals.\n"
+        "Missing required Python packages for 22_suspension_reason_proportions_with_totals.\n"
         "Install the dependencies before running (e.g., pip install -r graph_scripts/requirements.txt).\n"
         "Missing modules:\n" + "\n".join(hints)
     )
@@ -92,7 +92,7 @@ except NameError:  # pragma: no cover - interactive contexts without __file__
         PROJECT_ROOT = Path.cwd()
 
 DEFAULT_DATA_PATH = PROJECT_ROOT / "data-stage" / "susp_v6_long.parquet"
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "21_suspension_reason_proportions"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "22_suspension_reason_proportions"
 DEFAULT_IMAGE_FORMAT = "png"
 AUDIT_DIR = ensure_audit_dir(PROJECT_ROOT)
 

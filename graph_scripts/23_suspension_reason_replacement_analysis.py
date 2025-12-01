@@ -44,7 +44,7 @@ missing = [
 if missing:
     hints = [f"- {name}: {REQUIRED_MODULES[name]}" for name in missing]
     message = (
-        "Missing required Python packages for 21_suspension_reason_replacement_analysis.\n"
+        "Missing required Python packages for 23_suspension_reason_replacement_analysis.\n"
         "Install the dependencies before running (e.g., pip install -r graph_scripts/requirements.txt).\n"
         "Missing modules:\n" + "\n".join(hints)
     )
