@@ -270,8 +270,17 @@ def plot_proportions_with_totals(
     output_dir: Path,
     image_format: str = DEFAULT_IMAGE_FORMAT,
     dpi: int | None = None,
+    highlight_mode: str = "default",
 ) -> None:
-    """Render a chart showing suspension reason proportions with total suspensions as background."""
+    """Render a chart showing suspension reason proportions with total suspensions as background.
+
+    Args:
+        highlight_mode: One of "default", "willful_defiance", "violent_illicit", "totals_only"
+            - "default": Other/Weapons transparent, rest visible
+            - "willful_defiance": Only Willful Defiance visible, all others transparent
+            - "violent_illicit": Only Violence and Illicit Drugs visible, all others transparent
+            - "totals_only": Only background bars visible, all lines transparent
+    """
 
     if proportion_df.empty or totals_df.empty:
         print("Skipping proportion chart: no data to plot.")
@@ -298,11 +307,17 @@ def plot_proportions_with_totals(
     bar_xs = [x_positions[year] for year in totals_sorted["academic_year"]]
     bar_ys = totals_sorted["total_suspensions"].to_numpy()
 
+    # Set bar opacity based on highlight mode
+    if highlight_mode == "totals_only":
+        bar_alpha = 0.5  # Emphasize bars in totals_only mode
+    else:
+        bar_alpha = 0.25  # Background role in other modes
+
     bars = ax2.bar(
         bar_xs,
         bar_ys,
         color=DISCIPLINE_BASE_PALETTE["Lighter Blue"],
-        alpha=0.25,  # Slightly increased from 0.2 for better visibility
+        alpha=bar_alpha,
         width=0.6,
         edgecolor=DISCIPLINE_BASE_PALETTE["Darker Blue"],
         linewidth=1.0,
@@ -347,26 +362,45 @@ def plot_proportions_with_totals(
         xs = [x_positions[year] for year in reason_df["academic_year"]]
         ys = reason_df["proportion"].to_numpy() * 100  # Convert to percentage
 
+        # Determine alpha based on highlight mode and reason category
+        if highlight_mode == "default":
+            # Default: Other/Weapons transparent, rest visible
+            if reason_label == "Willful Defiance":
+                alpha = 1.0
+            elif reason_label in ["Other", "Weapons"]:
+                alpha = 0.25  # 75% transparent to reduce visual noise
+            else:
+                alpha = 0.9
+        elif highlight_mode == "willful_defiance":
+            # Only Willful Defiance visible
+            if reason_label == "Willful Defiance":
+                alpha = 1.0
+            else:
+                alpha = 0.25
+        elif highlight_mode == "violent_illicit":
+            # Only Violence and Illicit Drugs visible
+            if reason_label in ["Violent (Injury)", "Violent (No Injury)", "Illicit Drugs"]:
+                alpha = 1.0
+            else:
+                alpha = 0.25
+        elif highlight_mode == "totals_only":
+            # All lines transparent, focus on bars
+            alpha = 0.25
+        else:
+            # Fallback to default
+            alpha = 0.9
+
         # Special styling for Willful Defiance
         if reason_label == "Willful Defiance":
             linestyle = "--"
             linewidth = 3.5
             marker = "s"
             markersize = 9
-            alpha = 1.0
-        # De-emphasize stable categories (Other, Weapons) with transparency
-        elif reason_label in ["Other", "Weapons"]:
-            linestyle = "-"
-            linewidth = 2.5
-            marker = "o"
-            markersize = 7
-            alpha = 0.25  # 75% transparent to reduce visual noise
         else:
             linestyle = "-"
             linewidth = 2.5
             marker = "o"
             markersize = 7
-            alpha = 0.9
 
         color = REASON_PALETTE.get(reason_label, DISCIPLINE_BASE_PALETTE["Grey"])
 
@@ -500,7 +534,14 @@ def plot_proportions_with_totals(
     # Save figure
     output_dir.mkdir(parents=True, exist_ok=True)
     suffix = image_format.lower().lstrip(".")
-    output_path = output_dir / f"suspension_reason_proportions_with_totals.{suffix}"
+
+    # Add highlight mode suffix to filename
+    if highlight_mode == "default":
+        filename = f"suspension_reason_proportions_with_totals.{suffix}"
+    else:
+        filename = f"suspension_reason_proportions_with_totals_{highlight_mode}.{suffix}"
+
+    output_path = output_dir / filename
     save_kwargs = {"format": suffix}
     if suffix != "svg" and dpi is not None:
         save_kwargs["dpi"] = dpi
@@ -543,14 +584,27 @@ def main() -> None:
     raw_df = load_data(args.data_path)
     proportion_df, totals_df = prepare_proportion_data(raw_df)
     dpi = args.dpi if args.image_format != "svg" else None
-    plot_proportions_with_totals(
-        proportion_df,
-        totals_df,
-        output_dir=args.output_dir,
-        image_format=args.image_format,
-        dpi=dpi,
-    )
-    print(f"Proportion with totals chart generation complete.")
+
+    # Generate all four versions for presentation slides
+    highlight_modes = [
+        ("default", "Default view (Other/Weapons transparent)"),
+        ("willful_defiance", "Highlight: Willful Defiance only"),
+        ("violent_illicit", "Highlight: Violence & Illicit Drugs only"),
+        ("totals_only", "Highlight: Total Suspensions only"),
+    ]
+
+    for mode, description in highlight_modes:
+        print(f"\nGenerating {description}...")
+        plot_proportions_with_totals(
+            proportion_df,
+            totals_df,
+            output_dir=args.output_dir,
+            image_format=args.image_format,
+            dpi=dpi,
+            highlight_mode=mode,
+        )
+
+    print(f"\nAll chart variations generated successfully!")
 
 
 if __name__ == "__main__":
