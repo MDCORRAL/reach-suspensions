@@ -354,6 +354,13 @@ def plot_proportions_with_totals(
             marker = "s"
             markersize = 9
             alpha = 1.0
+        # De-emphasize stable categories (Other, Weapons) with transparency
+        elif reason_label in ["Other", "Weapons"]:
+            linestyle = "-"
+            linewidth = 2.5
+            marker = "o"
+            markersize = 7
+            alpha = 0.25  # 75% transparent to reduce visual noise
         else:
             linestyle = "-"
             linewidth = 2.5
