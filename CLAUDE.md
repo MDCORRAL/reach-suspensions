@@ -12,11 +12,12 @@
 2. [Architecture & Directory Structure](#architecture--directory-structure)
 3. [Development Workflows](#development-workflows)
 4. [Code Conventions & Standards](#code-conventions--standards)
-5. [Data Pipeline](#data-pipeline)
-6. [Testing & Validation](#testing--validation)
-7. [Common Tasks](#common-tasks)
-8. [Key Files Reference](#key-files-reference)
-9. [Troubleshooting](#troubleshooting)
+5. [Script Development Protocols](#script-development-protocols)
+6. [Data Pipeline](#data-pipeline)
+7. [Testing & Validation](#testing--validation)
+8. [Common Tasks](#common-tasks)
+9. [Key Files Reference](#key-files-reference)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -653,6 +654,1105 @@ if (!exists(".ran_XX_descriptive_name", envir = .GlobalEnv)) {
 4. **Audit trails**: Document data transformations in `docs/audits/`
 5. **Citation standard**: Follow `docs/protocols/CITATION_STANDARD.md` for all outputs
 6. **Fix documentation**: Document bug fixes in `docs/fixes/`
+
+---
+
+## Script Development Protocols
+
+**Purpose**: This section establishes MANDATORY protocols that ALL scripts (R and Python) must follow to ensure data consistency, accuracy, transparency, and reproducible outputs.
+
+### Core Principles
+
+Every script in this repository must adhere to these principles:
+
+1. **Data Consistency**: All scripts use the same data sources, filters, and transformations
+2. **Transparency**: Every operation is logged with clear diagnostic messages
+3. **Reproducibility**: Outputs can be regenerated exactly from the same inputs
+4. **Validation**: Data quality is verified at every transformation step
+5. **Documentation**: Purpose, methodology, and data flow are explicitly documented
+6. **Standardization**: Outputs follow uniform naming and formatting conventions
+
+### Universal Requirements for ALL Scripts
+
+**Every script (R or Python, pipeline or analysis) MUST include**:
+
+#### 1. Mandatory Documentation Header
+
+```r
+# ==============================================================================
+# Script: [filename.R or filename.py]
+# ==============================================================================
+#
+# PURPOSE:
+#   [1-2 sentence description of what this script accomplishes]
+#
+# AUTHOR: [Your name/organization]
+# CREATED: [YYYY-MM-DD]
+# MODIFIED: [YYYY-MM-DD]
+#
+# DATA INPUTS:
+#   - File: [exact filename with path variable, e.g., susp_v3.parquet]
+#   - Source: [pipeline stage or external source]
+#   - Expected rows: [approximate row count or "varies"]
+#   - Key columns: [list critical columns used]
+#
+# DATA FILTERS APPLIED:
+#   - [Specific filter 1, e.g., "Exclude charter aggregate records"]
+#   - [Specific filter 2, e.g., "Include only Traditional schools"]
+#   - [If none, state "None - uses full dataset"]
+#
+# DATA OUTPUTS:
+#   - File(s): [exact filename(s) with path variable]
+#   - Location: [e.g., outputs/graphs/, outputs/tables/, data-stage/]
+#   - Format: [PNG, CSV, Parquet, etc.]
+#   - Description: [what the output contains]
+#
+# METHODOLOGY:
+#   [2-4 sentences explaining the analytical approach, statistical methods,
+#    or transformation logic. Be specific about calculations.]
+#
+# DEPENDENCIES:
+#   - Scripts: [other scripts that must run first, or "None"]
+#   - Data: [specific data versions required, e.g., "Requires v6_teacher_features"]
+#   - Packages: [key packages beyond standard pipeline, or "Standard pipeline only"]
+#
+# VALIDATION CHECKS:
+#   - [Check 1, e.g., "Row count preservation across joins"]
+#   - [Check 2, e.g., "Suspension rates in valid range [0, 1]"]
+#   - [Check 3, e.g., "No duplicate CDS codes within year-race groups"]
+#
+# NOTES:
+#   [Any important caveats, assumptions, or context]
+#
+# ==============================================================================
+```
+
+**Python equivalent** (use `#` for comments, same structure):
+```python
+# ==============================================================================
+# Script: filename.py
+# ==============================================================================
+#
+# [Same structure as R, using Python comment syntax]
+#
+# ==============================================================================
+```
+
+#### 2. Required Diagnostic Logging
+
+**Every script must log**:
+
+```r
+# At start
+message("=" %>% rep(80) %>% paste(collapse = ""))
+message("SCRIPT: [Script Name]")
+message("STARTED: ", Sys.time())
+message("=" %>% rep(80) %>% paste(collapse = ""))
+
+# Before data read
+message("\n>>> READING INPUT DATA")
+message("    File: [filename]")
+message("    Expected: [description]")
+
+# After data read
+message("    Rows loaded: ", format(nrow(df), big.mark = ","))
+message("    Columns: ", ncol(df))
+message("    Memory: ", format(object.size(df), units = "MB"))
+
+# After each major transformation
+message("\n>>> APPLYING: [Transformation description]")
+message("    Rows before: ", format(nrow(df_before), big.mark = ","))
+message("    Rows after: ", format(nrow(df_after), big.mark = ","))
+message("    Rows dropped: ", format(nrow(df_before) - nrow(df_after), big.mark = ","))
+message("    Retention rate: ", sprintf("%.1f%%", 100 * nrow(df_after) / nrow(df_before)))
+
+# After writing output
+message("\n>>> WRITING OUTPUT")
+message("    File: [filename]")
+message("    Rows: ", format(nrow(df), big.mark = ","))
+message("    Size: ", format(file.size(filepath), units = "MB"))
+
+# At completion
+message("\n>>> SCRIPT COMPLETED SUCCESSFULLY")
+message("    Duration: ", format(Sys.time() - start_time))
+message("=" %>% rep(80) %>% paste(collapse = ""))
+```
+
+**Python equivalent**:
+```python
+import time
+import sys
+from datetime import datetime
+
+print("=" * 80)
+print(f"SCRIPT: {__file__}")
+print(f"STARTED: {datetime.now()}")
+print("=" * 80)
+
+start_time = time.time()
+
+# ... similar logging pattern ...
+
+print("\n>>> SCRIPT COMPLETED SUCCESSFULLY")
+print(f"    Duration: {time.time() - start_time:.2f} seconds")
+print("=" * 80)
+```
+
+#### 3. Required Validation Checkpoints
+
+**Every script must validate**:
+
+```r
+# Validate input data
+stopifnot(
+  "Input file must exist" = file.exists(input_path),
+  "Input must have rows" = nrow(df) > 0,
+  "Required columns missing" = all(required_cols %in% names(df))
+)
+
+# Validate transformations
+stopifnot(
+  "Rows lost unexpectedly" = nrow(df_after) >= expected_min_rows,
+  "Invalid values created" = !any(is.na(df_after$critical_column)),
+  "Rates out of range" = all(df_after$rate >= 0 & df_after$rate <= 1, na.rm = TRUE)
+)
+
+# Validate outputs
+stopifnot(
+  "Output directory exists" = dir.exists(output_dir),
+  "Output was created" = file.exists(output_path),
+  "Output has content" = file.size(output_path) > 0
+)
+```
+
+### R Pipeline Script Protocol
+
+**For scripts in `R/` that create data stages (e.g., `01_ingest_v0.R`, `03_feature_size_quartiles_TA.R`)**:
+
+#### Complete Template
+
+```r
+# ==============================================================================
+# Script: R/0X_feature_description.R
+# ==============================================================================
+#
+# PURPOSE:
+#   [What feature is being added and why]
+#
+# AUTHOR: [Name]
+# CREATED: [Date]
+# MODIFIED: [Date]
+#
+# DATA INPUTS:
+#   - File: susp_vX.parquet (from previous pipeline stage)
+#   - Expected rows: ~[number] (varies by year)
+#   - Key columns: cds_school, academic_year, [others]
+#
+# DATA FILTERS APPLIED:
+#   [List any filters, or state "None - processes all rows"]
+#
+# DATA OUTPUTS:
+#   - File: susp_vY.parquet (next pipeline stage)
+#   - Location: data-stage/
+#   - Adds columns: [list new columns]
+#
+# METHODOLOGY:
+#   [Explain the feature engineering logic]
+#
+# DEPENDENCIES:
+#   - Requires: R/00_paths.R, R/utils_keys_filters.R
+#   - Upstream: 0[X-1]_previous_script.R must complete first
+#
+# VALIDATION CHECKS:
+#   - Row count matches input (no rows dropped)
+#   - New columns have no unexpected NAs
+#   - New column values in expected range
+#
+# ==============================================================================
+
+# Session guard - prevent re-running in same session
+if (!exists(".ran_0X_feature_description", envir = .GlobalEnv)) {
+
+  # Start logging
+  start_time <- Sys.time()
+  message("=" %>% rep(80) %>% paste(collapse = ""))
+  message("SCRIPT: 0X_feature_description.R")
+  message("STARTED: ", start_time)
+  message("=" %>% rep(80) %>% paste(collapse = ""))
+
+  # ============================================================================
+  # SETUP
+  # ============================================================================
+
+  # Source required utilities
+  source("R/00_paths.R")
+  source("R/utils_keys_filters.R")
+
+  # Load packages
+  suppressPackageStartupMessages({
+    library(dplyr)
+    library(tidyr)
+    library(arrow)
+    # Add others as needed
+  })
+
+  # ============================================================================
+  # READ INPUT DATA
+  # ============================================================================
+
+  message("\n>>> READING INPUT DATA")
+  input_file <- file.path(dp_stage, "susp_vX.parquet")
+  message("    File: ", input_file)
+
+  # Validate input exists
+  stopifnot("Input file does not exist" = file.exists(input_file))
+
+  df <- read_parquet(input_file)
+
+  message("    Rows loaded: ", format(nrow(df), big.mark = ","))
+  message("    Columns: ", ncol(df))
+  message("    Memory: ", format(object.size(df), units = "MB"))
+
+  # Validate required columns
+  required_cols <- c("cds_school", "academic_year", "other_required_cols")
+  stopifnot(
+    "Missing required columns" = all(required_cols %in% names(df))
+  )
+
+  # ============================================================================
+  # DATA TRANSFORMATION
+  # ============================================================================
+
+  message("\n>>> APPLYING TRANSFORMATION: [Description]")
+  rows_before <- nrow(df)
+
+  df <- df %>%
+    mutate(
+      # Your transformation logic
+      new_column = calculation,
+      # ...
+    )
+
+  rows_after <- nrow(df)
+  message("    Rows before: ", format(rows_before, big.mark = ","))
+  message("    Rows after: ", format(rows_after, big.mark = ","))
+
+  # Validate row preservation (if expected)
+  stopifnot(
+    "Unexpected row loss" = rows_before == rows_after
+  )
+
+  # ============================================================================
+  # VALIDATE OUTPUT
+  # ============================================================================
+
+  message("\n>>> VALIDATING OUTPUT")
+
+  # Check new columns
+  message("    New columns added: [list]")
+  message("    Distribution of new_column:")
+  print(table(df$new_column, useNA = "always"))
+
+  # Validate data quality
+  stopifnot(
+    "New column has unexpected NAs" = sum(is.na(df$new_column)) < threshold,
+    "Values out of expected range" = all(df$new_column >= min_val & df$new_column <= max_val, na.rm = TRUE)
+  )
+
+  # Check for NaN/Inf
+  numeric_cols <- df %>% select(where(is.numeric)) %>% names()
+  for (col in numeric_cols) {
+    n_nan <- sum(is.nan(df[[col]]))
+    n_inf <- sum(is.infinite(df[[col]]))
+    if (n_nan > 0 || n_inf > 0) {
+      warning(sprintf("Column %s: %d NaN, %d Inf values", col, n_nan, n_inf))
+    }
+  }
+
+  # ============================================================================
+  # WRITE OUTPUT
+  # ============================================================================
+
+  message("\n>>> WRITING OUTPUT")
+  output_file <- file.path(dp_stage, "susp_vY.parquet")
+  message("    File: ", output_file)
+
+  write_parquet(df, output_file)
+
+  message("    Rows written: ", format(nrow(df), big.mark = ","))
+  message("    File size: ", format(file.size(output_file), units = "MB"))
+
+  # Validate output exists
+  stopifnot(
+    "Output file not created" = file.exists(output_file),
+    "Output file is empty" = file.size(output_file) > 0
+  )
+
+  # ============================================================================
+  # COMPLETION
+  # ============================================================================
+
+  # Set session guard
+  assign(".ran_0X_feature_description", TRUE, envir = .GlobalEnv)
+
+  # Final logging
+  duration <- Sys.time() - start_time
+  message("\n>>> SCRIPT COMPLETED SUCCESSFULLY")
+  message("    Duration: ", format(duration))
+  message("    Input: susp_vX.parquet (", format(rows_before, big.mark = ","), " rows)")
+  message("    Output: susp_vY.parquet (", format(rows_after, big.mark = ","), " rows)")
+  message("=" %>% rep(80) %>% paste(collapse = ""))
+
+}  # End guard
+```
+
+### R Analysis Script Protocol
+
+**For scripts in `Analysis/` that perform analyses and generate outputs**:
+
+#### Complete Template
+
+```r
+# ==============================================================================
+# Script: Analysis/XX_analysis_description.R
+# ==============================================================================
+#
+# PURPOSE:
+#   [What research question does this answer? What outputs does it generate?]
+#
+# AUTHOR: [Name]
+# CREATED: [Date]
+# MODIFIED: [Date]
+#
+# DATA INPUTS:
+#   - File: susp_v6_long.parquet (or susp_v6_teacher_features.parquet)
+#   - Filters: [Describe any subsetting - schools, years, demographics]
+#   - Sample size: [Expected N after filters]
+#
+# DATA FILTERS APPLIED:
+#   - Academic years: [e.g., "2017-18 through 2023-24" or "2021-22 only"]
+#   - School types: [e.g., "Traditional schools only" or "All schools"]
+#   - Demographics: [e.g., "African American students" or "All races"]
+#   - Missing data: [How NAs are handled]
+#   - Other filters: [Any other inclusion/exclusion criteria]
+#
+# DATA OUTPUTS:
+#   - Graphs: outputs/graphs/[filename].png
+#   - Tables: outputs/tables/[filename].csv
+#   - Description: [What each output shows]
+#
+# METHODOLOGY:
+#   Statistical approach: [e.g., "Linear regression with school-level clustering"]
+#   Key variables:
+#     - Outcome: [dependent variable]
+#     - Predictors: [independent variables]
+#     - Controls: [control variables]
+#   Aggregation level: [e.g., "School-year", "District-year", "State-year"]
+#   Weighting: [e.g., "Enrollment-weighted" or "Unweighted"]
+#
+# DEPENDENCIES:
+#   - Scripts: [Must run after which scripts?]
+#   - Data: [Which data version required?]
+#   - Packages: [Any special packages beyond dplyr/ggplot2?]
+#
+# VALIDATION CHECKS:
+#   - Sample size adequate (N > [threshold])
+#   - No duplicate observations at analysis level
+#   - Model assumptions met (if regression)
+#   - Output values in plausible range
+#
+# NOTES:
+#   [Key assumptions, limitations, or interpretation guidance]
+#
+# CITATION:
+#   [How should this analysis be cited? Follow docs/protocols/CITATION_STANDARD.md]
+#
+# ==============================================================================
+
+# ============================================================================
+# SETUP
+# ============================================================================
+
+# Start time for performance tracking
+start_time <- Sys.time()
+
+message("=" %>% rep(80) %>% paste(collapse = ""))
+message("ANALYSIS: XX_analysis_description.R")
+message("STARTED: ", start_time)
+message("=" %>% rep(80) %>% paste(collapse = ""))
+
+# Source required utilities
+source("R/00_paths.R")
+source("R/utils_keys_filters.R")
+
+# Load packages
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(arrow)
+  library(ggplot2)
+  library(readr)
+  # Add specialized packages as needed
+})
+
+# ============================================================================
+# READ AND FILTER DATA
+# ============================================================================
+
+message("\n>>> READING INPUT DATA")
+input_file <- file.path(dp_stage, "susp_v6_long.parquet")
+message("    File: ", input_file)
+
+# Read data
+df_raw <- read_parquet(input_file)
+message("    Rows loaded: ", format(nrow(df_raw), big.mark = ","))
+
+message("\n>>> APPLYING FILTERS")
+message("    Filter criteria:")
+
+# Apply filters with logging
+df <- df_raw %>%
+  filter(
+    # Document each filter
+    academic_year %in% c("2021-22", "2022-23", "2023-24")  # Years
+  )
+message("    - Academic years: 2021-22 through 2023-24")
+message("      Rows retained: ", format(nrow(df), big.mark = ","))
+
+df <- df %>%
+  filter(is_traditional == TRUE)  # School type
+message("    - School type: Traditional schools only")
+message("      Rows retained: ", format(nrow(df), big.mark = ","))
+
+df <- df %>%
+  filter(race == "African American")  # Demographics
+message("    - Demographics: African American students")
+message("      Rows retained: ", format(nrow(df), big.mark = ","))
+
+df <- df %>%
+  filter(
+    !is.na(suspension_rate),
+    !is.na(predictor_variable)
+  )
+message("    - Missing data: Removed rows with NA in key variables")
+message("      Rows retained: ", format(nrow(df), big.mark = ","))
+
+# Calculate retention rate
+retention_rate <- 100 * nrow(df) / nrow(df_raw)
+message("\n>>> DATA FILTERING SUMMARY")
+message("    Original rows: ", format(nrow(df_raw), big.mark = ","))
+message("    Filtered rows: ", format(nrow(df), big.mark = ","))
+message("    Retention rate: ", sprintf("%.1f%%", retention_rate))
+
+# Validate sample size
+min_required_n <- 100  # Adjust based on analysis needs
+stopifnot(
+  "Insufficient sample size after filtering" = nrow(df) >= min_required_n
+)
+message("    Sample size validation: PASSED (N = ", format(nrow(df), big.mark = ","), ")")
+
+# ============================================================================
+# DESCRIBE ANALYSIS SAMPLE
+# ============================================================================
+
+message("\n>>> ANALYSIS SAMPLE CHARACTERISTICS")
+
+# Describe key variables
+message("    Outcome variable (suspension_rate):")
+message("      Mean: ", sprintf("%.4f", mean(df$suspension_rate, na.rm = TRUE)))
+message("      SD: ", sprintf("%.4f", sd(df$suspension_rate, na.rm = TRUE)))
+message("      Range: [", sprintf("%.4f", min(df$suspension_rate, na.rm = TRUE)),
+        ", ", sprintf("%.4f", max(df$suspension_rate, na.rm = TRUE)), "]")
+
+# Document any aggregation
+if (analysis_requires_aggregation) {
+  message("\n>>> AGGREGATING DATA")
+  message("    Aggregation level: [describe level]")
+
+  df_analysis <- df %>%
+    group_by(grouping_vars) %>%
+    summarise(
+      outcome = weighted.mean(outcome, weights, na.rm = TRUE),
+      # ... other aggregations
+      .groups = "drop"
+    )
+
+  message("    Rows before aggregation: ", format(nrow(df), big.mark = ","))
+  message("    Rows after aggregation: ", format(nrow(df_analysis), big.mark = ","))
+} else {
+  df_analysis <- df
+}
+
+# Check for duplicates at analysis level
+dup_check <- df_analysis %>%
+  count(analysis_unit_keys) %>%
+  filter(n > 1)
+
+stopifnot(
+  "Duplicate observations at analysis level" = nrow(dup_check) == 0
+)
+message("    Uniqueness check: PASSED (no duplicates at analysis level)")
+
+# ============================================================================
+# PERFORM ANALYSIS
+# ============================================================================
+
+message("\n>>> PERFORMING ANALYSIS")
+message("    Method: [Statistical method description]")
+
+# Your analysis code here
+# Example: regression
+model <- lm(outcome ~ predictor + controls, data = df_analysis)
+
+# Log results summary
+message("    Model summary:")
+message("      Observations: ", nobs(model))
+message("      R-squared: ", sprintf("%.4f", summary(model)$r.squared))
+message("      F-statistic: ", sprintf("%.2f", summary(model)$fstatistic[1]))
+message("      P-value: ", sprintf("%.4e", pf(summary(model)$fstatistic[1],
+                                              summary(model)$fstatistic[2],
+                                              summary(model)$fstatistic[3],
+                                              lower.tail = FALSE)))
+
+# Validate model diagnostics
+# ... model diagnostic checks ...
+
+# ============================================================================
+# CREATE OUTPUTS
+# ============================================================================
+
+message("\n>>> GENERATING OUTPUTS")
+
+# Output 1: Visualization
+message("    Creating visualization...")
+plot <- ggplot(df_analysis, aes(x = predictor, y = outcome)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  scale_color_manual(values = pal_canonical) +  # Use canonical colors
+  labs(
+    title = "Descriptive Title",
+    subtitle = "Sample: [Describe sample]. Method: [Describe method].",
+    x = "Predictor Label",
+    y = "Outcome Label",
+    caption = paste0(
+      "Source: California Dept of Education, [Years]. ",
+      "N = ", format(nrow(df_analysis), big.mark = ","), " observations. ",
+      "Analysis: [Brief method]. ",
+      "Created: ", Sys.Date()
+    )
+  ) +
+  theme_minimal()
+
+# Save visualization
+plot_file <- file.path(dp_out, "graphs", "analysis_XX_plot.png")
+ggsave(plot_file, plot, width = 10, height = 6, dpi = 300)
+message("    Saved: ", plot_file)
+message("      Size: ", format(file.size(plot_file), units = "KB"))
+
+# Output 2: Summary table
+message("    Creating summary table...")
+summary_table <- df_analysis %>%
+  group_by(grouping_var) %>%
+  summarise(
+    n_obs = n(),
+    mean_outcome = mean(outcome, na.rm = TRUE),
+    sd_outcome = sd(outcome, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    # Add metadata columns
+    analysis_script = "Analysis/XX_analysis_description.R",
+    data_version = "susp_v6_long",
+    created_date = Sys.Date(),
+    filters_applied = "[Summary of filters]"
+  )
+
+# Save table
+table_file <- file.path(dp_out, "tables", "analysis_XX_summary.csv")
+write_csv(summary_table, table_file)
+message("    Saved: ", table_file)
+message("      Rows: ", format(nrow(summary_table), big.mark = ","))
+message("      Size: ", format(file.size(table_file), units = "KB"))
+
+# Validate outputs exist
+stopifnot(
+  "Plot file not created" = file.exists(plot_file),
+  "Table file not created" = file.exists(table_file)
+)
+
+# ============================================================================
+# COMPLETION
+# ============================================================================
+
+duration <- Sys.time() - start_time
+message("\n>>> ANALYSIS COMPLETED SUCCESSFULLY")
+message("    Duration: ", format(duration))
+message("    Sample size: ", format(nrow(df_analysis), big.mark = ","))
+message("    Outputs created: 2 (1 graph, 1 table)")
+message("=" %>% rep(80) %>% paste(collapse = ""))
+```
+
+### Python Script Protocol
+
+**For Python scripts (visualization, dashboard generation)**:
+
+#### Complete Template
+
+```python
+#!/usr/bin/env python3
+# ==============================================================================
+# Script: script_name.py
+# ==============================================================================
+#
+# PURPOSE:
+#   [What does this script accomplish?]
+#
+# AUTHOR: [Name]
+# CREATED: [Date]
+# MODIFIED: [Date]
+#
+# DATA INPUTS:
+#   - File: [parquet/csv file]
+#   - Source: [data-stage/ or outputs/]
+#   - Expected rows: [approximate]
+#   - Key columns: [list]
+#
+# DATA FILTERS APPLIED:
+#   - [Filter 1]
+#   - [Filter 2]
+#   - [Or state "None"]
+#
+# DATA OUTPUTS:
+#   - File(s): [PNG/JSON/CSV files]
+#   - Location: [outputs/graphs/, dashboard/data/, etc.]
+#   - Description: [what each output contains]
+#
+# METHODOLOGY:
+#   [Explain visualization approach, aggregation methods, etc.]
+#
+# DEPENDENCIES:
+#   - Python packages: pandas, pyarrow, matplotlib, [others]
+#   - Data: [which parquet files required]
+#   - External: [any external data sources]
+#
+# VALIDATION CHECKS:
+#   - [Check 1]
+#   - [Check 2]
+#
+# NOTES:
+#   [Important context or assumptions]
+#
+# USAGE:
+#   python script_name.py [--optional-flags]
+#
+# ==============================================================================
+
+import sys
+import time
+from pathlib import Path
+from datetime import datetime
+import pandas as pd
+import pyarrow.parquet as pq
+import numpy as np
+
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
+
+# Set paths (relative to repository root)
+REPO_ROOT = Path(__file__).parent.parent  # Adjust as needed
+DATA_STAGE = REPO_ROOT / "data-stage"
+OUTPUT_DIR = REPO_ROOT / "outputs" / "graphs"  # or tables, dashboard/data, etc.
+
+# Ensure output directory exists
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# ==============================================================================
+# LOGGING UTILITIES
+# ==============================================================================
+
+def log_header(message):
+    """Print a formatted header message."""
+    print("=" * 80)
+    print(message)
+    print("=" * 80)
+
+def log_section(message):
+    """Print a formatted section message."""
+    print(f"\n>>> {message}")
+
+def log_detail(message, indent=4):
+    """Print an indented detail message."""
+    print(" " * indent + message)
+
+# ==============================================================================
+# DATA VALIDATION UTILITIES
+# ==============================================================================
+
+def validate_file_exists(filepath):
+    """Validate that a file exists."""
+    if not filepath.exists():
+        raise FileNotFoundError(f"Required file not found: {filepath}")
+    log_detail(f"File exists: {filepath}")
+
+def validate_columns(df, required_cols):
+    """Validate that required columns exist in dataframe."""
+    missing = set(required_cols) - set(df.columns)
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
+    log_detail(f"Required columns present: {len(required_cols)} columns validated")
+
+def validate_data_quality(df, checks):
+    """Run data quality checks."""
+    for check_name, check_func in checks.items():
+        result = check_func(df)
+        if not result:
+            raise ValueError(f"Data quality check failed: {check_name}")
+        log_detail(f"✓ {check_name}")
+
+# ==============================================================================
+# MAIN EXECUTION
+# ==============================================================================
+
+def main():
+    """Main execution function."""
+
+    start_time = time.time()
+    log_header(f"SCRIPT: {Path(__file__).name}")
+    log_header(f"STARTED: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    # ==========================================================================
+    # READ INPUT DATA
+    # ==========================================================================
+
+    log_section("READING INPUT DATA")
+    input_file = DATA_STAGE / "susp_v6_long.parquet"
+    log_detail(f"File: {input_file}")
+
+    # Validate input exists
+    validate_file_exists(input_file)
+
+    # Read data
+    df_raw = pd.read_parquet(input_file)
+    log_detail(f"Rows loaded: {len(df_raw):,}")
+    log_detail(f"Columns: {len(df_raw.columns)}")
+    log_detail(f"Memory: {df_raw.memory_usage(deep=True).sum() / 1024**2:.2f} MB")
+
+    # Validate required columns
+    required_cols = ["cds_school", "academic_year", "suspension_rate", "race"]
+    validate_columns(df_raw, required_cols)
+
+    # ==========================================================================
+    # APPLY FILTERS
+    # ==========================================================================
+
+    log_section("APPLYING FILTERS")
+    log_detail("Filter criteria:")
+
+    # Filter 1: Academic years
+    years_to_include = ["2021-22", "2022-23", "2023-24"]
+    df = df_raw[df_raw["academic_year"].isin(years_to_include)].copy()
+    log_detail(f"- Academic years: {', '.join(years_to_include)}")
+    log_detail(f"  Rows retained: {len(df):,}")
+
+    # Filter 2: Remove missing values
+    df = df.dropna(subset=["suspension_rate"])
+    log_detail(f"- Removed rows with missing suspension_rate")
+    log_detail(f"  Rows retained: {len(df):,}")
+
+    # Calculate retention rate
+    retention_rate = 100 * len(df) / len(df_raw)
+    log_section("DATA FILTERING SUMMARY")
+    log_detail(f"Original rows: {len(df_raw):,}")
+    log_detail(f"Filtered rows: {len(df):,}")
+    log_detail(f"Retention rate: {retention_rate:.1f}%")
+
+    # Validate minimum sample size
+    min_required_n = 100
+    if len(df) < min_required_n:
+        raise ValueError(f"Insufficient sample size: {len(df)} < {min_required_n}")
+    log_detail(f"Sample size validation: PASSED (N = {len(df):,})")
+
+    # ==========================================================================
+    # VALIDATE DATA QUALITY
+    # ==========================================================================
+
+    log_section("VALIDATING DATA QUALITY")
+
+    data_quality_checks = {
+        "Suspension rates in valid range [0, 1]":
+            lambda df: df["suspension_rate"].between(0, 1, inclusive="both").all(),
+        "No duplicate CDS-year-race combinations":
+            lambda df: not df.duplicated(subset=["cds_school", "academic_year", "race"]).any(),
+        "CDS codes are 14 digits":
+            lambda df: df["cds_school"].astype(str).str.len().eq(14).all(),
+    }
+
+    validate_data_quality(df, data_quality_checks)
+
+    # ==========================================================================
+    # PERFORM ANALYSIS/AGGREGATION
+    # ==========================================================================
+
+    log_section("PERFORMING ANALYSIS")
+    log_detail("Method: [Describe method]")
+
+    # Example: Calculate state-level rates by year and race
+    df_analysis = df.groupby(["academic_year", "race"], as_index=False).agg({
+        "cumulative_enrollment": "sum",
+        "total_suspensions": "sum"
+    })
+
+    # Calculate rates with safe division
+    df_analysis["suspension_rate"] = np.where(
+        df_analysis["cumulative_enrollment"] > 0,
+        df_analysis["total_suspensions"] / df_analysis["cumulative_enrollment"],
+        np.nan
+    )
+
+    log_detail(f"Aggregation level: State-year-race")
+    log_detail(f"Rows before aggregation: {len(df):,}")
+    log_detail(f"Rows after aggregation: {len(df_analysis):,}")
+
+    # ==========================================================================
+    # CREATE OUTPUTS
+    # ==========================================================================
+
+    log_section("GENERATING OUTPUTS")
+
+    # Output 1: Data export
+    output_data_file = OUTPUT_DIR / "analysis_data.csv"
+    log_detail(f"Creating data export: {output_data_file.name}")
+
+    # Add metadata columns
+    df_analysis["analysis_script"] = Path(__file__).name
+    df_analysis["data_version"] = "susp_v6_long"
+    df_analysis["created_date"] = datetime.now().strftime("%Y-%m-%d")
+    df_analysis["filters_applied"] = "Years: 2021-22 to 2023-24; Removed NAs"
+
+    df_analysis.to_csv(output_data_file, index=False)
+    log_detail(f"Saved: {output_data_file}")
+    log_detail(f"  Rows: {len(df_analysis):,}")
+    log_detail(f"  Size: {output_data_file.stat().st_size / 1024:.2f} KB")
+
+    # Output 2: Visualization (if applicable)
+    # ... visualization code ...
+
+    # Validate outputs exist
+    if not output_data_file.exists():
+        raise FileNotFoundError(f"Output file not created: {output_data_file}")
+
+    # ==========================================================================
+    # COMPLETION
+    # ==========================================================================
+
+    duration = time.time() - start_time
+    log_section("SCRIPT COMPLETED SUCCESSFULLY")
+    log_detail(f"Duration: {duration:.2f} seconds")
+    log_detail(f"Sample size: {len(df_analysis):,}")
+    log_detail(f"Outputs created: {len(list(OUTPUT_DIR.glob('*')))} files")
+
+    log_header("=" * 80)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        print(f"\n!!! SCRIPT FAILED !!!", file=sys.stderr)
+        print(f"Error: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+```
+
+### Output Standardization Protocol
+
+**All output files must follow these naming and format conventions**:
+
+#### File Naming Convention
+
+```
+[category]_[descriptive_name]_[optional_modifier].[extension]
+
+Examples:
+- outputs/graphs/statewide_suspension_trends_by_race.png
+- outputs/tables/quartile_summary_statistics_2023.csv
+- outputs/data_audit/validation_report_teacher_merge.csv
+- dashboard/data/suspension_overview_payload.json
+```
+
+**Naming rules**:
+- All lowercase
+- Underscores to separate words (no spaces, hyphens, or camelCase)
+- Category prefix indicates content type (statewide, quartile, school_level, etc.)
+- Descriptive name explains what the file contains
+- Optional modifier for variants (by_year, elementary_only, weighted, etc.)
+- Standard extensions (.png, .csv, .json, .parquet)
+
+#### Output Metadata Requirements
+
+**Every data output (CSV, Excel, JSON) must include**:
+
+```r
+# For CSV/Excel outputs
+output_df <- analysis_results %>%
+  mutate(
+    # Required metadata columns
+    analysis_script = "Analysis/XX_script_name.R",
+    data_version = "susp_v6_long",  # Which data file was used
+    data_filters = "[Concise description of filters]",
+    created_date = Sys.Date(),
+    created_by = "Your Name/Organization",
+
+    # Optional but recommended
+    sample_size = nrow(analysis_data),
+    years_included = "[Year range]",
+    geographic_scope = "[e.g., 'Statewide' or 'Los Angeles County']",
+    notes = "[Any important caveats]"
+  )
+```
+
+**For visualizations**, include in caption or subtitle:
+- Data source (CDE)
+- Years included
+- Sample size or scope
+- Key filters applied
+- Creation date
+- Analysis script name (for reproducibility)
+
+Example:
+```r
+labs(
+  caption = paste0(
+    "Source: California Dept of Education, 2017-18 through 2023-24. ",
+    "Sample: Traditional public schools (N=", format(n_schools, big.mark = ","), "). ",
+    "Filters: Excludes charter aggregates, alternative schools. ",
+    "Created: ", Sys.Date(), " by Analysis/02_black_rates_by_quartiles.R"
+  )
+)
+```
+
+### Data Lineage Documentation
+
+**Every output must be traceable back to its source data**:
+
+#### Required Documentation
+
+1. **In script comments**: Document data lineage in header
+2. **In output metadata**: Include data_version and filters columns
+3. **In output filenames**: Use consistent naming that indicates source
+
+#### Lineage Tracking Template
+
+```r
+# Create lineage record
+lineage <- tibble(
+  output_file = "analysis_XX_results.csv",
+  script_name = "Analysis/XX_script_name.R",
+  data_source = "susp_v6_long.parquet",
+  filters_applied = list(
+    academic_years = "2021-22 to 2023-24",
+    school_types = "Traditional only",
+    demographics = "All races",
+    missing_data = "Removed NAs in suspension_rate"
+  ),
+  sample_size_raw = nrow(df_raw),
+  sample_size_filtered = nrow(df),
+  retention_rate = nrow(df) / nrow(df_raw),
+  created_timestamp = Sys.time(),
+  created_by = Sys.info()["user"]
+)
+
+# Optionally save lineage record
+write_csv(
+  lineage,
+  file.path(dp_out, "data_audit", "lineage_analysis_XX.csv")
+)
+```
+
+### Cross-Validation Requirements
+
+**When creating analyses that may be replicated in both R and Python**:
+
+#### Required Cross-Validation Steps
+
+1. **Save diagnostic outputs** for comparison:
+```r
+# R version
+write_csv(
+  diagnostic_summary,
+  file.path(dp_out, "data_audit", "diagnostics_r_analysis_XX.csv")
+)
+```
+
+```python
+# Python version
+diagnostic_summary.to_csv(
+    OUTPUT_DIR / "diagnostics_python_analysis_XX.csv",
+    index=False
+)
+```
+
+2. **Include validation script**:
+```r
+# scripts/diagnostics/validate_r_python_alignment.R
+# Compare R and Python outputs to ensure consistency
+```
+
+3. **Document expected differences**:
+- Rounding differences (acceptable within tolerance)
+- Handling of edge cases
+- Platform-specific behavior
+
+4. **Set tolerance thresholds**:
+```r
+# Numeric comparison with tolerance
+all.equal(r_values, py_values, tolerance = 1e-4)  # Accept 0.01% difference
+```
+
+### Transparency Checklist
+
+**Before finalizing any script, verify**:
+
+- [ ] Complete documentation header with all required sections
+- [ ] Diagnostic logging at all major steps
+- [ ] Input data validation (file exists, required columns present)
+- [ ] Explicit documentation of all filters applied
+- [ ] Sample size reported at each filtering step
+- [ ] Retention rate calculated and logged
+- [ ] Data quality checks with clear pass/fail criteria
+- [ ] Output validation (files created, non-empty, correct format)
+- [ ] Metadata included in all data outputs
+- [ ] Visualizations include complete captions with source/date/sample
+- [ ] Script completion message with summary statistics
+- [ ] Lineage documentation connects output to source data
+
+### Script Review Protocol
+
+**Before merging new scripts into main branch**:
+
+1. **Self-review checklist**:
+   - Does the script follow the appropriate template (pipeline/analysis/Python)?
+   - Are all required sections present in the documentation header?
+   - Does the script log all transformations with row counts?
+   - Are all filters explicitly documented?
+   - Do outputs include required metadata?
+   - Are canonical definitions used (colors, labels, etc.)?
+   - Have you tested with the full dataset?
+
+2. **Peer review checklist**:
+   - Can you understand what the script does without running it?
+   - Are the filters and methodology clearly explained?
+   - Do the validation checks seem appropriate?
+   - Are outputs saved to correct organized directories?
+   - Does the script follow naming conventions?
+
+3. **Validation checklist**:
+   - Run script and verify diagnostic messages are clear
+   - Check output files are created in correct locations
+   - Verify output metadata is complete
+   - Compare results with expected values (if known)
+   - Ensure script completes successfully on clean environment
 
 ---
 
@@ -1564,7 +2664,8 @@ All cross-references updated to use new paths:
 
 **End of CLAUDE.md**
 
-*This document was last updated on 2025-11-25. Major updates:*
+*This document was last updated on 2025-12-02. Major updates:*
+- *2025-12-02: **MAJOR UPDATE** - Added comprehensive "Script Development Protocols" section with mandatory requirements for all R and Python scripts, including complete templates, logging standards, validation protocols, output standardization, data lineage tracking, and transparency checklists*
 - *2025-11-25: Added power analysis documentation, Analysis scripts 23-27, updated documentation references*
 - *2025-11-19: Added Python venv setup instructions and schema validation recommendations*
 - *2025-11-18: Comprehensive update to reflect repository reorganization*
