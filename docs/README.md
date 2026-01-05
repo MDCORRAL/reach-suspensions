@@ -30,6 +30,7 @@ Comprehensive audit reports documenting data quality, pipeline validation, and a
 | `AUDIT_TEACHER_DIVERSITY_REGRESSION.md` | Teacher diversity regression analysis audit |
 | `AUDIT_TRAIL_ENHANCEMENTS.md` | Documentation of audit trail enhancements |
 | `COMPREHENSIVE_AUDIT_REPORT.md` | Full pipeline audit covering all stages |
+| `DATA_PROVENANCE_AUDIT.md` | **NEW** Comprehensive data provenance audit tracing all variables to raw sources (2026-01-05) |
 | `TEACHER_DEMOGRAPHIC_INTEGRATION_AUDIT.md` | Teacher-student data merge validation |
 | `TEACHER_DIVERSITY_ANALYSIS_DIAGNOSTIC.md` | Teacher diversity analysis diagnostics |
 
