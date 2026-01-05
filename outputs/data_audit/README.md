@@ -26,6 +26,15 @@ This directory contains the complete data audit of the California School Suspens
    - Resource requirements
    - Use this to execute the recovery plan
 
+4. **[data_provenance_report.md](data_provenance_report.md)** - Data Provenance Audit (2025-11-25)
+   - Raw source inventory (including external locale file)
+   - Staged parquet lineage map
+   - Variable-level provenance and unresolved gaps
+
+5. **[data_provenance.csv](data_provenance.csv)** - Structured Provenance Table
+   - Variable/data category → raw source → staging → transform script mapping
+   - Join keys and assumptions for each data category
+
 ### 📁 Analysis Scripts
 
 - **`data_audit_analysis.R`** - R script to quantify data loss (requires R environment)
